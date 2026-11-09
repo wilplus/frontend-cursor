@@ -139,3 +139,30 @@ export function rowLinks(message: Pick<LoungeMessage, "metadata">): string[] {
   if (meta.opens === "feedback") return [...links, ...strings(meta.chips)];
   return links;
 }
+
+/** The newcomer's one offer to join their business's community (backend
+ *  N559 item 1, App Model MATCH-06): DRAFTED, not signed (Never 4). The
+ *  beat stays off until the founder signs these words and this is true. */
+export const COMMUNITY_OFFER_SIGNED = false;
+
+export const COMMUNITY_OFFER_WORDS = {
+  ask: "{inviter} is in {name}'s community on WillpowerLab. Join it, so people there can answer your Takes?",
+  askNoInviter: "Join {name}'s community on WillpowerLab, so people there can answer your Takes?",
+  join: "Join",
+  notNow: "Not now",
+} as const;
+
+/** Will's ask for this offer, with or without the person whose link it was. */
+export function communityOfferLine(offer: { name: string; inviter: string | null }): string {
+  const line = offer.inviter ? COMMUNITY_OFFER_WORDS.ask.replace("{inviter}", offer.inviter) : COMMUNITY_OFFER_WORDS.askNoInviter;
+  return line.replace("{name}", offer.name);
+}
+
+/** The offer's place in the way in: after "Here's how others will see you:"
+ *  has its answer (or was skipped) and before "What would you like to do
+ *  here first?" is answered; never while another beat waits for a voice. */
+export function communityOfferDue(plan: Plan | null, ask: WayInAsk | null): boolean {
+  const view = wayInOf(plan);
+  if (!view || view.walk_done || view.done.includes("choice")) return false;
+  return ask === null || ask.kind === "choice";
+}

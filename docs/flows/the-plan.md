@@ -669,6 +669,17 @@ Waiting for the founder's OK:
     typing. "Record Take 2" stays faded until the walk is done
     (`plan.way_in.record_next`). The plan's own questions stand down while
     the way in runs, so nobody is asked "When is your deadline?".
+  - Built, off until its words are signed (N559 item 1, App Model
+    MATCH-06; backend #1862, open): a newcomer who came by the link of
+    someone at a business is offered that business's community once, as
+    Will's bubble with "Join" and "Not now", after "Here's how others will
+    see you:" has its answer and before the first choice's taps, which
+    wait under it (`useCommunityOffer`, `CommunityOfferAsk` in `WayIn.tsx`;
+    `communityOfferDue` in `wayIn.ts`; `GET/POST /v2/me/community-offer`,
+    `communityOffer.ts`). Either answer is sent once and the way in goes
+    on; it never waits for the offer, and with none, or a 404, there is no
+    bubble. Its words are drafted (§3), so `COMMUNITY_OFFER_SIGNED` is
+    false and nothing is asked until the founder signs them (Never 4).
   - Next: the facts the app knows for the tree (a team, a speaking
     coach's link, N572 item 1) are not sent yet, so the backend takes
     neither (no agreement for a team, no coach's own way); the after-walk
@@ -728,6 +739,11 @@ Waiting for the founder's OK:
   last ratings) is asked the same way, with no box: the plan takes no
   typed answer (N483 item 7).
 - **The words in §1 K** still waiting for the founder's OK.
+- **The community offer's words** (N559 item 1, drafted, Never 4): "{inviter}
+  is in {name}'s community on WillpowerLab. Join it, so people there can
+  answer your Takes?"; with nobody's name on the link, "Join {name}'s
+  community on WillpowerLab, so people there can answer your Takes?"; the
+  taps "Join" and "Not now". Signed, `COMMUNITY_OFFER_SIGNED` turns it on.
 - **As built, where the prototype doesn't say** (N203): "Choose a date" on
   the summary call opens the plan's own full-screen calendar, as "Book"
   does, rather than the booking page;
@@ -822,6 +838,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N559 item 1 · §2, §3: the newcomer's one offer to join their business's community, built in the way in after the profile and before the first choice ("Join", "Not now"; `WayIn.tsx`, `wayIn.ts`, `communityOffer.ts`, BFF `/api/v2/me/community-offer`), off until its drafted words are signed (`COMMUNITY_OFFER_SIGNED`); a 404 or no offer, no bubble. Nothing changes on screen today · BE #1862 (open), FE (this PR)
 - 2026-11-09 · N453, N564, N572, N573, N590, N592 · §2, §4: the speaking way in while Take 1 is processed, drawn from the backend's rows (`metadata.way_in`) through `POST /api/v2/plan/way-in` and its spoken twin `/api/v2/plan/way-in/voice` (`plan/WayIn.tsx`, `lib/willab/wayIn.ts`, `usePlanLounge`, `Lounge.tsx`); Take 1's wait is the thin row on top, orange when the walk is ready, and the walk waits for the tap; "Record Take 2" faded until the walk is done; `PickRow` moves beside `TapRow` (`WillQuestion.tsx`). What stops: for Take 1 on the way in, the full wait after the hand-over and the walk opening by itself; the plan's own questions while the way in runs. No new words: every line is the backend's · BE #1854, FE (this PR)
 - 2026-11-09 · N564 · three levels of four Takes, never points: the bar is the level's name and its four marks (card, hello, after the walk); no practice days, no two months, nobody asked "When is your deadline?" (a date only for "Prepare a talk"); after the third level the summary session and a new set; a day line before each day's first message. Was: a journey from the deadline (three a week or every day, two months with no date), "Today is practice {n} of {total}: {level}.", "{n} of {total} practices done.", "That's your 15 minutes for today.", "See you {day}.", the Practice days row, the plan's end on its deadline · BE #1853, FE (this PR)
 

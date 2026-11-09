@@ -140,3 +140,30 @@ export async function sendTakeMatch(id: string): Promise<boolean> {
 export async function closeTakeMatch(id: string): Promise<boolean> {
   return (await call(path(id, "/close"), { method: "POST", json: {} })) !== null;
 }
+
+/** Who hears this Take: the ids of your own chats whose person can best
+ *  answer it, best fit first (N559 item 2). Only the order, never a score
+ *  (Never 1); a chat not listed keeps the screen's order after these. null
+ *  when off or on any failure: the screen keeps its own order. */
+export async function getChatOrder(sessionId: string): Promise<string[] | null> {
+  const body = await call(`/api/v2/takes/${encodeURIComponent(sessionId)}/match/chats`, { method: "GET" });
+  if (!body || !Array.isArray(body.order)) return null;
+  return body.order.filter((id): id is string => typeof id === "string" && !!id);
+}
+
+/** Matching by how you speak (N463 item 2, N465, N559 item 6): whether it
+ *  is on for me, and whether it is switched on at all (the card shows only
+ *  then). null on any failure. */
+export type SpeakingMatch = { on: boolean; available: boolean };
+
+const speakingOf = (body: Record<string, unknown> | null): SpeakingMatch | null =>
+  body && typeof body.on === "boolean" ? { on: body.on, available: body.available === true } : null;
+
+export async function getSpeakingMatch(): Promise<SpeakingMatch | null> {
+  return speakingOf(await call("/api/v2/me/speaking-match", { method: "GET" }));
+}
+
+/** Turn it on or off; off deletes what Will learned from how I speak. */
+export async function setSpeakingMatch(on: boolean): Promise<SpeakingMatch | null> {
+  return speakingOf(await call("/api/v2/me/speaking-match", { method: "POST", json: { on } }));
+}

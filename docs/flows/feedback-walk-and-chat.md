@@ -1199,7 +1199,14 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   speaking."; then "Select all" and one row per person in your list of
   chats (the letter circle, the name, who they are), the tick box on the
   left, the person sent to last on top with "Last sent" under the name,
-  then the list's order; Continue. The list is real people only: no demo
+  then the list's order; Continue. Opened for a Take (from its line), the
+  person in your chats who can best answer this Take comes first, by the
+  matcher's fit (`GET /v2/takes/<take>/match/chats`, `{order: [chat id…]}`,
+  never a score), then everyone else in the order above; "Last sent" stays
+  under its name wherever it lands and everyone stays ticked. The order is
+  waited for 1.5 s at most; failed, slow or off (the `take_match` ring), the
+  order above holds (N559 item 2, App Model MATCH-07). Before a Take there
+  is no Take to fit, so the order above holds (N589 item 1). The list is real people only: no demo
   or guest accounts, nobody blocked either way; a speaker with no chat with
   a person has one with Artur, speaking coach (N470 item 3, N479 item 7).
   ✕ records nothing. The choice is remembered: every later "Record Take N"
@@ -2352,6 +2359,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N559 · G1: your own chats, best fit first: opened for a Take, the screen of who hears it puts first the people in your chats the matcher finds best able to answer it (`useChatOrder`, `bestFitFirst` in `NextTakeShareScreen.tsx`; `getChatOrder` in `takeMatches.ts`; BFF `/api/v2/takes/<take>/match/chats`), then the list's order; "Last sent" and the ticks unchanged, no score, no new words; a failed, slow (1.5 s) or switched-off read keeps the list's order. Before a Take nothing changes. What stops: the person sent to last always on top when the screen opens for a Take · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N576 · B17: a Take's bubble in Will's chat opens its words behind "Read it", one paragraph per slide, "Hide" closes them; closed by default, nothing before there are words (`ReportCard.tsx` `TakeWords`, `takeWordsOf`, with `VoiceWords` from `chats/ChatThread.tsx`). Was: only the chats with people, the inquiry and the website chat had it · BE (the Take's words on the Lounge read), FE (this PR)
 - 2026-11-09 · N483, N505 · the bar where the code had drifted from the locked bar file ("The Bar, Clickable" v12, N498): the bar in a chat with a person is centred inside, 4px between, 44px tall inside, with N505's 8px above, on each side and below (was `items-end`, 16px sides, 12px above; `ChatThread.tsx`); its emoji box 42px with 40×38 buttons (was 40px, 38×38); the answers to tap 9px 16px (was 10px; `TapRow`); the Sending and Not sent pill's words #5F5F5F 500 and its Undo and Send again #121212 700 (was the text colour 400 and 600, unreadable in the dark); the recording bar's trash named "Throw it away" with the lock's trash icon (was "Delete", `trash-2`; `RecordingBar.tsx`; the walk's tests find it by that name); Will's box 42px at one line, Send 5px in from the right and the bottom (was 40px, 4px; `Lounge.tsx`). No new words on screen. What stops: the bar's frame, the emoji box, the answers, the Sending pill, the trash and Will's box each a few pixels off the locked file · BE N483, N505, FE (this PR)
 - 2026-11-09 · N565 · C2, C7, K: with the `walk_voice` ring, Will also writes the line that opens the moment to try (in place of "And here's one moment to try another way:", never over the Sniper; told what the moment is walked with, the Clearer version or the AI clip), a good Take's line (in place of "The rest of this Take held up just as well.") and his reply after a try (in place of "Yes. That's it.", "Close. Once more." and "Good try. Take it with you."; told how it went, and offering one more try only when one is left). The first two are asked as the walk opens, the reply as the walk reaches it (three seconds at most after the check); the typing dots while they come, the signed lines when none come; the chat says what the walk drew (`useWalkSaid`, `afterTryRequest`, `OneTryLine`). Off the ring, nothing changes · BE N565 (wilplus/backend-cursor#1835), FE (this PR)

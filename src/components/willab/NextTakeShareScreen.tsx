@@ -25,6 +25,7 @@ import {
 } from "@/lib/willab/nextTakeShare";
 import { peopleLine, shareChat, shareLineDraft, shareLineText } from "@/lib/willab/walkThread";
 import { sendTake, type SendChoice, type SendPerson } from "@/services/api/takeSends";
+import { getChatOrder } from "@/services/api/takeMatches";
 import { LetterCircle } from "./chats/ChatList";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
@@ -77,11 +78,53 @@ export default function NextTakeShareScreen({
     // Read once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (!read) return null;
-  if (read.enabled && read.people.length) {
-    return <PeopleSendScreen {...props} people={read.people} choice={read.choice} sent={props.initial?.people ?? null} />;
+  const people = read?.enabled ? read.people : [];
+  const order = useChatOrder(people.length ? props.takeSessionId : null);
+  if (!read || (people.length && order === undefined)) return null;
+  if (read.enabled && people.length) {
+    return (
+      <PeopleSendScreen
+        {...props}
+        people={bestFitFirst(people, order ?? null)}
+        choice={read.choice}
+        sent={props.initial?.people ?? null}
+      />
+    );
   }
   return <CommunityShareScreen {...props} />;
+}
+
+/** Your own chats for this Take, best fit first (backend N559 item 2,
+ *  MATCH-07): the chat ids the matcher ranks, read once, a short wait at
+ *  most. undefined while it is read; null with no Take, when matching is
+ *  off, slow or fails: the screen keeps its own order. Never a score. */
+function useChatOrder(takeSessionId: string | null | undefined): string[] | null | undefined {
+  const [order, setOrder] = useState<string[] | null | undefined>(takeSessionId ? undefined : null);
+  useEffect(() => {
+    if (!takeSessionId) {
+      setOrder(null);
+      return;
+    }
+    let live = true;
+    void within(getChatOrder(takeSessionId).catch(() => null), SEND_READ_CAP_MS, null).then((o) => {
+      if (live) setOrder(o);
+    });
+    return () => {
+      live = false;
+    };
+  }, [takeSessionId]);
+  return order;
+}
+
+/** The people in the matcher's order, best fit first; everyone else after
+ *  them in the list's own order, the one sent to last first among them.
+ *  "Last sent" stays under that name wherever it lands; ticks are not
+ *  touched (N470 item 2). */
+function bestFitFirst(people: readonly SendPerson[], order: readonly string[] | null): SendPerson[] {
+  if (!order?.length) return [...people];
+  const rank = (p: SendPerson) => (p.chatId ? order.indexOf(p.chatId) : -1);
+  const ranked = people.filter((p) => rank(p) >= 0).sort((a, b) => rank(a) - rank(b));
+  return [...ranked, ...people.filter((p) => rank(p) < 0)];
 }
 
 /** A tick box on the left, as the prototype draws it. */

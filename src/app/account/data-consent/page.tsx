@@ -19,6 +19,7 @@ import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import AiVoiceCard from "@/components/account/AiVoiceCard";
 import PlanConsentCard from "@/components/account/PlanConsentCard";
+import SpeakingMatchCard from "@/components/account/SpeakingMatchCard";
 import WhatsAppCard from "@/components/account/WhatsAppCard";
 import DumpScreenCard from "@/components/account/DumpScreenCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
@@ -57,6 +58,8 @@ export default function DataConsentPage() {
         </div>
         <AiVoiceCard />
         <PlanConsentCard />
+        {/* Matching by how you speak, the signed card (backend N465, N559 item 6). */}
+        <SpeakingMatchCard />
         <WhatsAppCard />
         {/* The dump screen's one switch (backend N507 item 2). */}
         <DumpScreenCard />
