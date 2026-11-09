@@ -5,7 +5,8 @@ STORY    As a speaker, I want Will to answer what sits right above my message
 OUTCOME
   O1  Will reads every bubble in the order the chat draws it: the Take's
       card in words (with the coach's feedback when its dot is on), the
-      summary (marked as the fixed message when the written one failed),
+      summary (marked as the fixed message when the written one failed,
+      or as not in yet while it is being written, WILL-07),
       the ask, and my own words.
   O2  What the chat adds sorts under the newest bubble on screen, even when
       this device's clock is behind the server's.
@@ -64,6 +65,11 @@ describe("the chat as Will reads it", () => {
     ]);
     const written = { ...summary, metadata: { ...summary.metadata, written: true }, body: "Look at you, Take 1!" };
     expect(screenHistory([written], facts)).toEqual([{ role: "assistant", content: "Look at you, Take 1!" }]);
+    // WILL-07: written at once, GPT-4o's words later in place; while writing, "not yet", never failed.
+    const writing = { ...summary, metadata: { ...summary.metadata, writing: true } };
+    expect(screenHistory([writing], facts)).toEqual([
+      { role: "assistant", content: `[The app's fixed message after Take 1; the written summary is not in yet]\n${summary.body}` },
+    ]);
     const plain = { ...facts, coachWaits: () => false };
     expect(screenHistory([card], plain)[0].content).toBe('[On screen: the Ideal Text card of "ted", Take 1. A tap opens the text.]');
   });

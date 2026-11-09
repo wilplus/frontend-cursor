@@ -69,8 +69,11 @@ function lineOf(message: LoungeMessage, facts: ScreenFacts): ChatHistoryEntry | 
   if (meta.summary === true && meta.written === false && body) {
     // The signed fallback, shown when the written summary failed (founder
     // 2026-10-20): Will knows the specifics are missing and can add them.
+    // While `writing` is true the row is "not yet", never failed (WILL-07):
+    // the backend writes it at once and GPT-4o's words replace it in place.
     const take = typeof meta.take_index === "number" ? `Take ${meta.take_index}` : "this Take";
-    return { role: "assistant", content: `[The app's fixed message after ${take}; the written summary failed]\n${body}` };
+    const state = meta.writing === true ? "the written summary is not in yet" : "the written summary failed";
+    return { role: "assistant", content: `[The app's fixed message after ${take}; ${state}]\n${body}` };
   }
   if (message.kind === "recording_summary") {
     const title = typeof meta.topic === "string" && meta.topic.trim() ? ` of "${meta.topic.trim()}"` : "";
