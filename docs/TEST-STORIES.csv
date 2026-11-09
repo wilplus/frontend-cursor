@@ -1269,11 +1269,19 @@ or your voice (N319 item 3, N483 item 7: the faded ""Type here"" and
 its note are gone).
 O6  The plan's rows are drawn by their metadata: the speaker's voice
 answer as their own bubble; the card as the plan only (N319 item
-6): ""Plan"", its bar, the practice days, the deadline and ""Change
-your plan"", with no level, key line or call; ""See your plan"" adds
-this week's level; the plan's progress after the walk as Will's
-bubble with its bar and ""{n} of {total} practices done."" (N319
-item 7); a plain row is left to the Lounge.
+6, N564): ""Plan"", the level's name, its four marks with the done
+ones filled, and ""Change your plan""; no practice days, no key line,
+no call, and a date only for someone preparing a talk; ""See your
+plan"" shows the same card; the plan's bar after the walk as Will's
+bubble with the level's name and its four marks, never ""{n} of
+{total} practices done."" nor any number; the hello says ""Hi
+Artur, good to see you back!"" with the bar; a plain row is left to
+the Lounge.
+O13 ""Change your plan"" has ""I have a new event"" and, only for someone
+preparing a talk, Deadline; never Practice days (N564).
+O14 In a chat that spans several days, a small grey day line (""Monday
+26 October"") comes before each day's first message; a chat of one
+day has none; a row with its own day line gets no second (G3).
 O7  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
@@ -1305,6 +1313,8 @@ O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
 O11 -> ""the plan's calls show only with their ring row""
+O13 -> ""Change your plan: Deadline only for a talk, no Practice days""
+O14 -> ""a day line before each day's first message""
 O12 -> ""a first-Take plan: the bar's button at once, and it starts the five slides""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; one bar in every chat, backend N483; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".

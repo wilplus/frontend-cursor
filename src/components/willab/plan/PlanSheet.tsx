@@ -2,17 +2,17 @@
 
 import { useState, type ReactNode } from "react";
 import type { CallWhich, Plan } from "@/services/api/plan";
-import { DAY_SHORT, fmtDay, fromIsoDay, isoDay, PLAN_COPY, WEEK_ORDER } from "@/lib/willab/planCopy";
+import { fmtDay, fromIsoDay, isoDay, PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanCard, { usePlanCallsOn } from "./PlanCard";
 import { MonthGrid } from "./MonthGrid";
 
-/* The plan's two sheets (rules: the-plan.md §1 G5, H; prototype version 27,
-   openPlanView and openPlanSheet): "See your plan" opens the plan card with
-   this week's level above it (N319 item 6), and "Change your plan" opens the
-   deadline, the practice days, the level (the coach's) and "I have a new
-   event", hidden while a Take is still processing (H1, backend N242). A
-   booked kickoff's mark on the deadline's month shows only while the calls
-   are on (N315). */
+/* The plan's two sheets (rules: the-plan.md §1 G5, H; the App Model's
+   sheets, N564): "See your plan" opens the plan card (the level's name and
+   its four marks), and "Change your plan" opens the talk's date (only for
+   someone preparing a talk) and "I have a new event", hidden while a Take is
+   still processing (H1, backend N242). No practice days (N564 item 2). A
+   booked kickoff's mark on the date's month shows only while the calls are
+   on (N315). */
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
@@ -47,62 +47,6 @@ function Row({ label, value, onClick }: { label: string; value: string; onClick:
   );
 }
 
-function BackLink({ onClick }: { onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="mt-2 w-full py-2 text-[14.5px] text-[#737373]">
-      {PLAN_COPY.back}
-    </button>
-  );
-}
-
-function Pill({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex h-12 w-full items-center justify-center rounded-full bg-[#121212] text-[15px] font-medium text-white disabled:opacity-35"
-    >
-      {label}
-    </button>
-  );
-}
-
-function DaysView({ plan, onSave, onBack }: { plan: Plan; onSave: (days: number[]) => void; onBack: () => void }) {
-  const [pick, setPick] = useState<number[]>(plan.days);
-  if (plan.every_day) {
-    return (
-      <>
-        <p className="mb-3.5 mt-2 text-[15px] leading-[1.45]">{PLAN_COPY.closeEveryDay}</p>
-        <BackLink onClick={onBack} />
-      </>
-    );
-  }
-  const toggle = (d: number) => setPick((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]));
-  return (
-    <>
-      <p className="mb-3.5 mt-2 text-[15px] leading-[1.45]">{PLAN_COPY.pickThree}</p>
-      <div className="mb-4 mt-2 flex flex-wrap gap-2">
-        {WEEK_ORDER.map((d) => (
-          <button
-            key={d}
-            type="button"
-            aria-pressed={pick.includes(d)}
-            onClick={() => toggle(d)}
-            className={`h-10 rounded-full border px-4 text-[15px] font-medium ${
-              pick.includes(d) ? "border-[#121212] bg-[#121212] text-white" : "border-[#DCDCDC] bg-white"
-            }`}
-          >
-            {DAY_SHORT[d]}
-          </button>
-        ))}
-      </div>
-      <Pill label={PLAN_COPY.save} disabled={pick.length !== 3} onClick={() => onSave(pick)} />
-      <BackLink onClick={onBack} />
-    </>
-  );
-}
-
 function DeadlineView({ plan, onSave }: { plan: Plan; onSave: (day: string) => void }) {
   const callsOn = usePlanCallsOn();
   const deadline = fromIsoDay(plan.deadline);
@@ -129,19 +73,17 @@ export function ChangePlanSheet({
   plan,
   onClose,
   onDeadline,
-  onDays,
   onNewEvent,
   newEventHeld,
 }: {
   plan: Plan;
   onClose: () => void;
   onDeadline: (day: string) => void;
-  onDays: (days: number[]) => void;
   onNewEvent: () => void;
   /** A Take is still processing: "I have a new event" is not shown (N242). */
   newEventHeld: boolean;
 }) {
-  const [view, setView] = useState<"main" | "deadline" | "days">("main");
+  const [view, setView] = useState<"main" | "deadline">("main");
   const deadline = fromIsoDay(plan.deadline);
   if (view === "deadline") {
     return (
@@ -150,21 +92,10 @@ export function ChangePlanSheet({
       </Sheet>
     );
   }
-  if (view === "days") {
-    return (
-      <Sheet title={PLAN_COPY.practiceDays} onClose={onClose}>
-        <DaysView plan={plan} onSave={onDays} onBack={() => setView("main")} />
-      </Sheet>
-    );
-  }
   return (
     <Sheet title={PLAN_COPY.yourPlan} onClose={onClose}>
-      <Row label={PLAN_COPY.deadline} value={deadline ? fmtDay(deadline) : ""} onClick={() => setView("deadline")} />
-      <Row
-        label={PLAN_COPY.practiceDays}
-        value={plan.every_day ? PLAN_COPY.everyDayShort : plan.days_text}
-        onClick={() => setView("days")}
-      />
+      {/* The Deadline row only for someone preparing a talk (N564 item 6). */}
+      {deadline ? <Row label={PLAN_COPY.deadline} value={fmtDay(deadline)} onClick={() => setView("deadline")} /> : null}
       {newEventHeld ? null : <Row label={PLAN_COPY.newEvent} value="" onClick={onNewEvent} />}
     </Sheet>
   );
@@ -183,7 +114,7 @@ export function SeePlanSheet({
 }) {
   return (
     <Sheet title={PLAN_COPY.yourPlan} onClose={onClose}>
-      <PlanCard plan={plan} levelLabel={PLAN_COPY.thisWeeksLevel} onBook={onBook} onChange={onChange} />
+      <PlanCard plan={plan} onBook={onBook} onChange={onChange} />
     </Sheet>
   );
 }

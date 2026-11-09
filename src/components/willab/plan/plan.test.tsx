@@ -30,11 +30,19 @@
  *       its note are gone).
  *   O6  The plan's rows are drawn by their metadata: the speaker's voice
  *       answer as their own bubble; the card as the plan only (N319 item
- *       6): "Plan", its bar, the practice days, the deadline and "Change
- *       your plan", with no level, key line or call; "See your plan" adds
- *       this week's level; the plan's progress after the walk as Will's
- *       bubble with its bar and "{n} of {total} practices done." (N319
- *       item 7); a plain row is left to the Lounge.
+ *       6, N564): "Plan", the level's name, its four marks with the done
+ *       ones filled, and "Change your plan"; no practice days, no key line,
+ *       no call, and a date only for someone preparing a talk; "See your
+ *       plan" shows the same card; the plan's bar after the walk as Will's
+ *       bubble with the level's name and its four marks, never "{n} of
+ *       {total} practices done." nor any number; the hello says "Hi
+ *       Artur, good to see you back!" with the bar; a plain row is left to
+ *       the Lounge.
+ *   O13 "Change your plan" has "I have a new event" and, only for someone
+ *       preparing a talk, Deadline; never Practice days (N564).
+ *   O14 In a chat that spans several days, a small grey day line ("Monday
+ *       26 October") comes before each day's first message; a chat of one
+ *       day has none; a row with its own day line gets no second (G3).
  *   O7  The chat has one record button: a practice day's one thing holds
  *       it until a newer Take's closing message takes it back (N167), and
  *       gives it up once a newer Take is recorded, in any project (N244,
@@ -67,6 +75,8 @@
  *          O9 -> "Will asks for the plan's own yes"
  *          O10 -> "nothing of the principles before my first Take"
  *          O11 -> "the plan's calls show only with their ring row"
+ *          O13 -> "Change your plan: Deadline only for a talk, no Practice days"
+ *          O14 -> "a day line before each day's first message"
  *          O12 -> "a first-Take plan: the bar's button at once, and it starts the five slides"
  * WHY      The plan, built one to one with the prototype (founder
  *          2026-10-26, backend N203, N204); the principles waiting for the
@@ -88,7 +98,8 @@ import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import { loadRingState, resetRingStateCache } from "@/services/api/rings";
 import { PlanAsk, WillBarMiddle, type PlanActions } from "./PlanDock";
 import { planRowFor, type PlanRowCtx } from "./PlanRows";
-import { SeePlanSheet } from "./PlanSheet";
+import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
+import { dayLinesFor } from "./dayLines";
 import { usePlanLounge } from "./usePlanLounge";
 import { useVoiceNotebook } from "../useVoiceNotebook";
 
@@ -125,24 +136,20 @@ const PLAN: Plan = {
   id: "plan-1",
   status: "asking",
   step: "deadline",
-  deadline: "2026-11-14",
-  deadline_given: false,
-  deadline_short: "Sat 14 Nov",
-  deadline_day: "14 November",
-  days: [1, 3, 5],
-  days_text: "Mon, Wed, Fri",
-  every_day: false,
-  total: 9,
+  deadline: null,
+  deadline_short: null,
+  deadline_day: null,
+  total: 12,
   done: 0,
   level: "key_line",
   level_name: "Let your key line land",
+  bar: { level: "key_line", level_name: "Let your key line land", marks: 0, of: 4, level_n: 1, levels: 3 },
   pace_week: true,
   key_line: "The window closes once the incumbents match our price.",
   why_line: "It's the sentence you want the board to remember.",
   key_answer_id: "answer-key",
   calls: { kickoff: null, summary: null },
   first_take_done: false,
-  next_day: "Monday",
   topic: "Our Q3 board pitch",
   waiting: false,
 };
@@ -451,30 +458,49 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
   const answered = host.querySelector("[data-plan-answered]")!;
   expect(answered.textContent).toBe("Answered");
 
-  const c = ctx({ ...PLAN, status: "active", step: "done", done: 1 });
+  const c = ctx({ ...PLAN, status: "active", step: "done", done: 1, bar: { ...PLAN.bar!, marks: 1 } });
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
   const card = host.querySelector("[data-plan-card]")!;
-  // The plan only (N319 item 6): no level, no key line, no "How you said
-  // it", no "Why this line?", no call (N315).
-  expect(card.textContent).toBe("Plan15 minutes, 3 times a week: Mon, Wed, FriYour deadline: Sat 14 NovChange your plan");
-  const parts = [...card.querySelectorAll("[data-plan-bar] i")];
-  expect(parts.length).toBe(9); // one part per practice, filled with what was done
-  expect(parts.filter((i) => i.className.includes("FF640A")).length).toBe(1);
+  // N564: "Plan", the level's name and its four marks; no practice days, no
+  // date (not preparing a talk), no key line, no call (N315).
+  expect(card.textContent).toBe("PlanLet your key line landChange your plan");
+  const parts = [...card.querySelectorAll("[data-plan-marks] i")];
+  expect(parts.length).toBe(4); // the level's four marks, the done ones filled
+  expect(parts.filter((i) => i.hasAttribute("data-on")).length).toBe(1);
+  expect(card.textContent).not.toMatch(/\d/); // never points, a score or a percentage
+  // Someone preparing a talk sees its date (N564 item 6).
+  const talk = ctx({ ...c.plan!, deadline: "2026-11-14", talk: true, deadline_short: "Sat 14 Nov" });
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), talk)}</>));
+  expect(host.querySelector("[data-plan-card]")!.textContent).toBe(
+    "PlanLet your key line landYour deadline: Sat 14 NovChange your plan",
+  );
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
   const change = [...card.querySelectorAll("button")].find((b) => b.textContent === "Change your plan")!;
   act(() => change.click());
   expect(c.onChangePlan).toHaveBeenCalledTimes(1);
 
-  // "See your plan": the same card, with this week's level above it.
+  // "See your plan": the same card (no "This week's level" above it, N564).
   act(() => root.render(<SeePlanSheet plan={c.plan!} onClose={() => {}} onBook={() => {}} onChange={() => {}} />));
   const seen = document.querySelector("[data-plan-card]")!;
-  expect(seen.textContent).toBe(
-    "This week's levelLet your key line landPlan15 minutes, 3 times a week: Mon, Wed, FriYour deadline: Sat 14 NovChange your plan",
-  );
+  expect(seen.textContent).toBe("PlanLet your key line landChange your plan");
 
-  act(() => root.render(<>{planRowFor(row({ plan_progress: true, done: 1, total: 9 }, "1 of 9 practices done."), c)}</>));
+  // After the walk: the level's name and its four marks, the bar as the
+  // backend drew it (N564 item 3), never "{n} of {total} practices done.".
+  const bar = { level: "pauses", level_name: "Pauses that hold the room", marks: 4, of: 4, level_n: 1, levels: 3 };
+  act(() => root.render(<>{planRowFor(row({ plan_progress: true, bar }, "Pauses that hold the room"), c)}</>));
   const progress = host.querySelector("[data-plan-progress]")!;
-  expect(progress.querySelector("[data-plan-bar]")).not.toBeNull();
-  expect(progress.textContent).toBe("1 of 9 practices done.");
+  expect(progress.textContent).toBe("Pauses that hold the room");
+  expect([...progress.querySelectorAll("[data-plan-marks] i")].map((i) => i.hasAttribute("data-on"))).toEqual([
+    true, true, true, true,
+  ]);
+
+  // The hello (G5): the signed line, then the bar it was written with, then
+  // "See your plan".
+  const hello = row({ plan_hello: true, day_line: "Monday 16 November", plan_bar: { ...bar, level: "key_line", level_name: "Let your key line land", marks: 1 } },
+    "Hi Artur, good to see you back!");
+  act(() => root.render(<>{planRowFor(hello, c)}</>));
+  expect(host.textContent).toBe("Monday 16 NovemberHi Artur, good to see you back!Let your key line landSee your plan");
+  expect(host.querySelectorAll("[data-plan-hello-bar] [data-on]").length).toBe(1);
 });
 
 it("the plan's calls show only with their ring row", async () => {
@@ -594,4 +620,27 @@ it("nothing of the principles before my first Take", async () => {
   firstTakeDone = true;
   await show([take, ask]); // my first Take lands
   expect(openOffer).toHaveBeenCalledWith("sunday_note");
+});
+
+it("Change your plan: Deadline only for a talk, no Practice days", async () => {
+  const sheet = (plan: Plan) => {
+    act(() => root.render(
+      <ChangePlanSheet plan={plan} onClose={() => {}} onDeadline={() => {}} onNewEvent={() => {}} newEventHeld={false} />,
+    ));
+    return [...document.querySelectorAll("[role='dialog'] button")].map((b) => b.textContent).filter((t) => t && t !== "");
+  };
+  const active = { ...PLAN, status: "active" as const, step: "done" as const };
+  expect(sheet(active).join("|")).not.toContain("Deadline");
+  expect(sheet(active).join("|")).not.toContain("Practice days");
+  expect(sheet(active)).toContain("I have a new event ›");
+  const talk = sheet({ ...active, deadline: "2026-11-14", talk: true });
+  expect(talk).toContain("Deadline14 November ›");
+  expect(talk.join("|")).not.toContain("Practice days");
+});
+
+it("a day line before each day's first message", () => {
+  const at = (d: number, h: number) => new Date(2026, 9, d, h).toISOString();
+  expect(dayLinesFor([{ at: at(26, 9) }, { at: at(26, 18) }]).size).toBe(0); // one day: none
+  const lines = dayLinesFor([{ at: at(26, 9) }, { at: at(26, 18) }, { at: at(27, 8), ownLine: true }, { at: at(28, 10) }]);
+  expect([...lines.entries()]).toEqual([[0, "Monday 26 October"], [3, "Wednesday 28 October"]]);
 });

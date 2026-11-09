@@ -2,13 +2,14 @@
 
 import type { ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { answerAudioUrl, type CallWhich, type Plan } from "@/services/api/plan";
+import { answerAudioUrl, type CallWhich, type Plan, type PlanBarData } from "@/services/api/plan";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import PlanReadMore from "@/components/legal/PlanReadMore";
 import PlanCard, { PlanBar, usePlanCallsOn } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
 import { recordedPast } from "@/components/willab/afterTake";
 import { TypingGlyph } from "@/components/willab/TypingDots";
+import { DayLine } from "./dayLines";
 
 /* The plan's rows in the Lounge thread (rules: the-plan.md §1 B, E, G, I;
    prototype version 27). The backend writes them as ordinary rows; their
@@ -24,9 +25,6 @@ export type PlanRowCtx = {
 
 type Meta = Record<string, unknown>;
 
-function DayLine({ text }: { text: string }) {
-  return <div className="self-center py-1.5 text-[12.5px] text-[#737373]">{text}</div>;
-}
 
 function WillBubble({ children }: { children: ReactNode }) {
   return (
@@ -113,16 +111,27 @@ function OneThing({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx })
   );
 }
 
+/** The bar a row carries, as the backend drew it when it wrote the row. */
+function barOf(value: unknown): PlanBarData | null {
+  if (!value || typeof value !== "object") return null;
+  const b = value as Partial<PlanBarData>;
+  return typeof b.level_name === "string" && typeof b.marks === "number" ? (b as PlanBarData) : null;
+}
+
+/** The hello (G4, G5; N564): "Hi {name}, good to see you back!", the plan's
+ *  bar (the level's name and its four marks, as when it was written) and
+ *  "See your plan". */
 function Hello({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
   const meta = (message.metadata ?? {}) as Meta;
+  const bar = barOf(meta.plan_bar) ?? ctx.plan?.bar ?? null;
   return (
     <>
       {typeof meta.day_line === "string" ? <DayLine text={meta.day_line} /> : null}
       <WillBubble>
         <div className="whitespace-pre-wrap">{message.body}</div>
-        {ctx.plan ? (
-          <div className="mt-2.5">
-            <PlanBar plan={ctx.plan} />
+        {bar ? (
+          <div className="mt-2.5" data-plan-hello-bar>
+            <PlanBar bar={bar} />
           </div>
         ) : null}
         <button
@@ -173,17 +182,16 @@ function SummaryCall({ ctx }: { ctx: PlanRowCtx }) {
   );
 }
 
-/** The plan's progress in the chat after the walk, under the goodbye (N319
- *  item 7): Will's grey bubble with the plan's bar and "{n} of {total}
- *  practices done.", as the backend counted them when it wrote the row. */
+/** The plan's bar in the chat after the walk, under the goodbye (N319 item
+ *  7, N564 item 3): Will's grey bubble with the level's name and its four
+ *  marks, as the backend drew them when it wrote the row. A row from before
+ *  N564 ("{n} of {total} practices done.") keeps its words, without a bar. */
 function Progress({ message }: { message: LoungeMessage }) {
   const meta = (message.metadata ?? {}) as Meta;
-  const done = typeof meta.done === "number" ? meta.done : 0;
-  const total = typeof meta.total === "number" ? meta.total : 0;
+  const bar = barOf(meta.bar);
   return (
     <div data-row="app" data-bubble data-plan-progress className="mr-auto flex min-w-[70%] max-w-[85%] flex-col gap-2 rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground">
-      {total > 0 ? <PlanBar plan={{ done, total }} /> : null}
-      <div>{message.body}</div>
+      {bar ? <PlanBar bar={bar} /> : <div>{message.body}</div>}
     </div>
   );
 }
