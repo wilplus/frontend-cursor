@@ -465,6 +465,8 @@ function walkItemOf(
           walkSlot: item.walkSlot ?? null,
           // The One thing walk's one fix, as the server chose it (C-SNIPER).
           oneFix: item.oneFix ?? null,
+          // Its AI clip stands behind its Clearer version (backend N548).
+          voiceToo: item.voiceToo === true,
         }
       : {}),
     openCard: item.openCard ?? null,

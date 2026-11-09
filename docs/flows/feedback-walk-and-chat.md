@@ -455,27 +455,29 @@ step; the loop never waits for a coach.
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
-  improve**: "And now, one thing to improve:" and ONE fix, the slot whose
-  tool fits: this week's level's moment on a plan (N289 item 8), else the
-  between with its Clearer version (words come first, C5), else the
-  weakest with the AI clip after their best (C4), a moment whose own clip
-  shows a voice problem the clip can teach (N425; with none, no AI clip).
-  The AI clip is the weakest's alone: a between whose Clearer version does not pass is left
-  out, so a Take of two paragraphs can end with their best alone (N381);
-  a Clearer version that passed but was lost on the way (its rewrite row
-  not served) gives its place to the voice fix: the server serves the
-  Take's weakest, a moment whose own voice shows a problem the AI clip
-  teaches, as the fix, walked with its AI clip after their best (C4); with
-  no such moment, no moment is the fix and the walk is their best and its
-  helper words (N547; backend `take_feedback_policy_v3_service._name_lost_clearer`,
-  the frame's `fix_backup`). Was, 2026-11-06 (N536): the closest exercise on
-  the lost moment, "We don't have an exercise for exactly this yet, so
-  here's the closest one." and "I've asked your speaking coach to make one
-  just for you.", whose AI clip the moment's voice often could not make, so
-  it fell back to their best's clip; before it, 2026-11-03 to 2026-11-06,
-  left out like a Clearer version that did not pass. The walk still draws
-  the closest exercise for a fix the server serves with no tool of its own
-  (`oneThing` in `walkPlan.ts`);
+  improve**: "And now, one thing to improve:" and ONE fix, on ONE moment,
+  its tool by the kind of its weakness (N548): this week's level's moment
+  on a plan (N289 item 8), else the weakest, the less confident moment,
+  whose own clip shows a voice problem the AI clip can teach (N425): its
+  Clearer version first when its words need help too and it passes the
+  gate (C5), else its AI clip after their best (C4). Only a Take where no
+  moment's voice shows a problem gives the fix to the moment whose words
+  need help most, with its Clearer version (C5); with none that passes, no
+  moment is the fix and the walk can end with their best alone (N381). A
+  Clearer version lost on the way gives its place to the same moment's AI
+  clip: the server swaps it when its rewrite row is not served
+  (`take_feedback_policy_v3_service._name_lost_clearer`, the frame's
+  `fix_backup`), and the walk does the same when it cannot draw a served
+  one, by the moment's `voice_too` flag (`oneThing` in `walkPlan.ts`);
+  without the flag, no moment is the fix and the walk is their best and
+  its helper words (N547 item 2). Was, 2026-11-06 to 2026-11-09 (N547):
+  the moment whose words needed help most was the fix ahead of the
+  weakest, on another moment, and a lost Clearer version gave its place to
+  the weakest; the walk still drew the closest exercise when it could not
+  draw a served Clearer version, whose AI clip the moment's voice often
+  could not make. Before it, 2026-11-06 (N536): the closest exercise, "We
+  don't have an exercise for exactly this yet, so here's the closest one."
+  and "I've asked your speaking coach to make one just for you.";
   the Sniper (T) and no
   moment on a pace or pause week whose Take has a stretch, and for
   everyone, with or without a plan, at any level, when rushing is the
@@ -1814,9 +1816,7 @@ October (backend N111).
   `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
   "And now, one thing to improve:", "Say it straight:", "Say this one like
-  your confident moment:", "We don't have an exercise for exactly this
-  yet, so here's the closest one." and "I've asked your speaking coach to
-  make one just for you." (N536), the tip ending ", like this:", "Your
+  your confident moment:", the tip ending ", like this:", "Your
   confident moment" (the chip, N379), "Try it", "Keep mine", "Your words
   it is." (N435), "You rushed here. Let it breathe." (N435), "You slowed
   down here. Keep it moving." (N452), "Skip",
@@ -2328,6 +2328,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N548 · C2, K: one fix, on one moment, its tool by the kind of its weakness. The fix is the weakest (its voice shows the problem the AI clip teaches): its Clearer version first when its words need help too, else its AI clip; the moment whose words need help most is the fix only when no moment's voice shows a problem. A Clearer version the walk cannot draw gives its place to the same moment's AI clip when the server flags `voice_too`, else no fix (`oneThing` in `walkPlan.ts`, `voiceToo`). Words retired: "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." What stops: a fix on a moment chosen for its words while a weaker voice went unfixed, the closest exercise, and an AI clip asked for a moment whose voice had nothing to teach · BE N548, FE (this PR)
 - 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
 - 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
 - 2026-11-06 · N547 · C2, K: a Clearer version lost on the way gives its place to the voice fix. The server serves the Take's weakest (a moment whose own voice shows a problem the AI clip teaches) as the fix, walked with its AI clip; with none, no fix, their best and its helper words (backend `_name_lost_clearer`, `fix_backup`). No new words. What stops: the closest exercise and its coach request on a lost Clearer version, whose AI clip fell back to their best's clip · BE N547 (wilplus/backend-cursor#1809, #1810), FE (this PR)
