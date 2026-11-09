@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { joinChatLink } from "@/services/api/chats";
 import { keepWidgetChat } from "@/services/api/chatWidget";
 import { getAuthToken } from "@/lib/api/auth-client";
+import { AssistantMark } from "@/components/willab/chats/ChatList";
 import {
   JOIN_BUTTON,
   JOIN_NOBODY_ELSE,
@@ -25,6 +26,12 @@ import {
 /*  item 7), the page opens with the visitor's secret after `#g=`: it is kept */
 /*  in this browser while they sign in, and Join takes the widget's chat,    */
 /*  named after them, instead of making a new one.                           */
+/*                                                                            */
+/*  A link whose owner has the chat builder (ring row `chat_builder`, N579    */
+/*  item 2) also says whose assistant answers in their chat ("{name}'s        */
+/*  assistant", N578 item 1, with its mark) and gives Will's line its new     */
+/*  words (N586 item 2); both come from the backend, which sends them only    */
+/*  for that ring. Without them the page is as it was.                        */
 /* -------------------------------------------------------------------------- */
 
 const KEEPING = (token: string) => `wpl-keep:${token}`;
@@ -45,7 +52,21 @@ function visitorSecret(token: string): string | null {
   }
 }
 
-export default function JoinPage({ token, name, finish }: { token: string; name: string; finish: boolean }) {
+export default function JoinPage({
+  token,
+  name,
+  finish,
+  assistant = null,
+  willLine = null,
+}: {
+  token: string;
+  name: string;
+  finish: boolean;
+  /** "{name}'s assistant", from the backend, for the chat builder's ring. */
+  assistant?: string | null;
+  /** Will's line in the backend's words (N586 item 2), for that ring. */
+  willLine?: string | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const started = useRef(false);
@@ -111,7 +132,13 @@ export default function JoinPage({ token, name, finish }: { token: string; name:
       <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">{joinTitle(name)}</h1>
       <ul className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3 text-[15px] leading-snug text-foreground">
         <li>{joinChatWith(name)}</li>
-        <li>{JOIN_WILL_LINE}</li>
+        {assistant ? (
+          <li data-join-assistant="" className="flex items-center gap-2">
+            <AssistantMark label={assistant} inline />
+            {assistant}
+          </li>
+        ) : null}
+        <li data-join-will-line="">{willLine ?? JOIN_WILL_LINE}</li>
         <li>{JOIN_NOBODY_ELSE}</li>
       </ul>
       <div className="flex-1" />

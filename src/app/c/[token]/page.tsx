@@ -20,5 +20,13 @@ export default async function Page({ params, searchParams }: {
 }) {
   const info = await loadJoinLink(params.token);
   if (!info) notFound();
-  return <JoinPage token={params.token} name={info.name} finish={searchParams.join === "1"} />;
+  return (
+    <JoinPage
+      token={params.token}
+      name={info.name}
+      assistant={info.assistant}
+      willLine={info.willLine}
+      finish={searchParams.join === "1"}
+    />
+  );
 }

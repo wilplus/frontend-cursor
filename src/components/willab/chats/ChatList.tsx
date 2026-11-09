@@ -112,6 +112,44 @@ export function WillMark({ size = 48 }: { size?: number }) {
   );
 }
 
+/** The assistant's mark (backend N578 item 1, N580 items 1 and 3): Will's
+ *  three dots, small, on the bottom of a person's circle, because Will's
+ *  engine answers for them there. It says plainly that an AI answers in that
+ *  chat (AI Act article 50); drawn only where the backend names the
+ *  assistant, which it does for the chat builder's ring alone (N579 item 2). */
+/** `inline`: beside the name written out (the join page), so it is only drawn. */
+export function AssistantMark({ label, inline = false }: { label: string; inline?: boolean }) {
+  return (
+    <span
+      {...(inline ? { "aria-hidden": true } : { role: "img", "aria-label": label })}
+      data-assistant-mark=""
+      className={`${inline ? "relative" : "absolute -bottom-0.5 -right-0.5"} flex shrink-0 h-[18px] w-[18px] items-center justify-center gap-[1.5px] rounded-full border-2 border-background bg-muted`}
+    >
+      <i className="h-[2.5px] w-[2.5px] rounded-full bg-foreground" />
+      <i className="h-[3.5px] w-[3.5px] rounded-full bg-foreground" />
+      <i className="h-[2.5px] w-[2.5px] rounded-full bg-foreground" />
+    </span>
+  );
+}
+
+/** A person's circle, with the assistant's mark when one answers for them. */
+export function PersonCircle({ id, name, size, assistant = null }: { id: string; name: string; size: 36 | 48; assistant?: string | null }) {
+  if (!assistant) return <LetterCircle id={id} name={name} size={size} />;
+  return (
+    <span className="relative shrink-0">
+      <LetterCircle id={id} name={name} size={size} />
+      <AssistantMark label={assistant} />
+    </span>
+  );
+}
+
+/** Who the row says the person is: their own line, then, with the chat
+ *  builder's ring, whose assistant answers there (N580 item 1). */
+export function subtitleOf(chat: Pick<Chat, "subtitle" | "assistant">): string | null {
+  const parts = [chat.subtitle, chat.assistant].filter((part): part is string => typeof part === "string" && part.trim() !== "");
+  return parts.length ? parts.join(" · ") : null;
+}
+
 /** The last message on one line: its words, the emoji with its meaning, or
  *  the voice note's, the photo's or the file's line. */
 export function lastLine(last: ChatLast | null, name = ""): string {
@@ -331,9 +369,9 @@ export default function ChatList({
     <ChatListRow
       key={chat.id}
       id={chat.id}
-      circle={<LetterCircle id={chat.id} name={chat.title} size={48} />}
+      circle={<PersonCircle id={chat.id} name={chat.title} size={48} assistant={chat.assistant} />}
       title={chat.title}
-      subtitle={chat.subtitle}
+      subtitle={subtitleOf(chat)}
       time={listTime(chat.last?.created_at, now)}
       preview={
         chat.inquiry
