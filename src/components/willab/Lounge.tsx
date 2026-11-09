@@ -2222,8 +2222,8 @@ export default function Lounge({
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
                sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary ${
-              draftText.trim() ? "pr-12" : "pr-4"
+            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${
+              draftText.trim() ? "pr-11" : "pr-4"
             }`}
             aria-label="Message Will"
           />
@@ -2235,8 +2235,9 @@ export default function Lounge({
               disabled={botThinking}
               aria-label="Send"
               // 44px to tap, 32px to see: 6px each side, within the field's
-              // right padding (pr-12), where no words are.
-              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-default disabled:text-muted-foreground"
+              // right padding (pr-11), where no words are; 5px in from the
+              // right and the bottom, the locked bar's box (N483).
+              className="absolute bottom-[5px] right-[5px] flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-default disabled:text-muted-foreground"
             >
               <Send className="h-5 w-5" />
             </button>

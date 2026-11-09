@@ -553,7 +553,7 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
     // The walk's answer stays in the chat too, once (N452 item 1).
     const drafts = () => append.mock.calls.map(([d]) => d as { body: string; metadata: Record<string, unknown> });
     expect(drafts().filter((d) => d.metadata.step === "practise").map((d) => d.body)).toEqual([ONE_THING_COPY.keepWords]);
-    await click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    await click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
     await act(async () => undefined);
     // The helper words, on their own: "retention went up", their own words,
     // through the deck's save (the lock, then the words), no picker.

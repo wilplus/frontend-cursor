@@ -739,8 +739,8 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   if (failed) {
     return (
       <div data-chat-sending="failed" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
-        <span className="min-w-0 truncate text-foreground">{NOT_SENT}</span>
-        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-semibold text-foreground">
+        <span className="min-w-0 truncate font-medium text-[#5F5F5F]">{NOT_SENT}</span>
+        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212]">
           {SEND_AGAIN}
         </button>
       </div>
@@ -748,12 +748,12 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   }
   return (
     <div data-chat-sending="" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
-      <span className="min-w-0 truncate tabular-nums text-foreground">
+      <span className="min-w-0 truncate font-medium tabular-nums text-[#5F5F5F]">
         {sendingTo(name)}
         {waited ? "" : ` ${left}`}
       </span>
       {waited ? null : (
-        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-semibold text-foreground">
+        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212]">
           {UNDO}
         </button>
       )}
@@ -800,14 +800,14 @@ function EmojiBar({
         <Plus className="h-5 w-5" aria-hidden />
       </button>
       {middle ?? (
-      <div data-chat-emoji-box className="flex min-h-[40px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
+      <div data-chat-emoji-box className="flex h-[42px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
         {CHAT_EMOJI.map((emoji) => (
           <button
             key={emoji}
             type="button"
             aria-label={EMOJI_MEANING[emoji]}
             onClick={() => onPick(emoji)}
-            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full text-[23px] leading-none transition-colors hover:bg-muted"
+            className="flex h-[38px] w-10 shrink-0 items-center justify-center rounded-full text-[23px] leading-none transition-colors hover:bg-muted"
           >
             {emoji}
           </button>
@@ -973,7 +973,7 @@ export default function ChatThread({
       <div
         ref={scrollRef}
         data-chat-thread
-        className="scrollbar-none flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-3 pt-4"
+        className="scrollbar-none flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-0 pt-4"
       >
         {/* The messages start at the bottom, by the bar (N321 item 3), close
             within a side and wider where the side changes (N469). */}
@@ -1007,7 +1007,9 @@ export default function ChatThread({
           ) : null}
         </div>
       </div>
-      <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
+      {/* The locked bar inside (centred, 4px between, 44px tall inside; N483)
+          and 8px around it: above, on each side, below (N505). */}
+      <div data-chat-bar className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
         {safety.blocked ? (
           <BlockedBar name={chat.title} onUnblock={safety.unblock} />
         ) : (

@@ -210,7 +210,7 @@ describe("the One thing walk (N309)", () => {
     // While it records: the bar alone, no Skip; its trash is the Skip (N435 item 3).
     expect(screen()).toBe("walk-screen-practise");
     expect(testId("walk-skip")).toBeNull();
-    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
     await settle();
     // The walk's answer to it (N405), and they still leave with their own
     // words, without the hesitations they open with (N435 item 5).
@@ -233,7 +233,7 @@ describe("the One thing walk (N309)", () => {
     click(testId("walk-forward"));
     expect(props.onAcceptClearer).toHaveBeenCalledWith("s-rewrite", null);
     await settle();
-    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
     await settle();
     // Without the sentence's punctuation at either end (B7, N440).
     const words = "We're already seeing real traction";
@@ -256,7 +256,7 @@ describe("the One thing walk (N309)", () => {
       click(testId("walk-forward"));
       await wait(50);
       // The trash (the Skip) while the practice is still being opened.
-      click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+      click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
       await wait(1750);
       const helper = () => live()!.querySelector("[data-walk-helper-words]")?.textContent;
       const saved = () => vi.mocked(props.onSaveHelperWords).mock.calls.map(([save]) => save);
@@ -353,7 +353,7 @@ describe("the One thing walk (N309)", () => {
     click(live()!.querySelector("button[aria-label='Close']"));
     click(testId("walk-forward"));
     await settle();
-    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
     await settle();
     expect(opened).toEqual(["plain", "rewrite"]);
     expect(second.held.say).toBe(CLEARER);
@@ -367,7 +367,7 @@ describe("the One thing walk (N309)", () => {
     const props = draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "clearer") }, { model });
     click(testId("walk-forward"));
     await settle();
-    click(live()!.querySelector("[data-walk-dock] button[aria-label='Delete']"));
+    click(live()!.querySelector("[data-walk-dock] button[aria-label='Throw it away']"));
     await settle();
     const saved = "We're already seeing real traction with three paying customers this quarter alone";
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(saved);

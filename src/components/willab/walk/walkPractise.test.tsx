@@ -355,7 +355,7 @@ describe("the practise screen", () => {
     expect(screen()).toBe("walk-screen-practise");
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
     // While the mic opens: the trash and the strip, no Stop (N350 item 5).
-    expect(recorder()!.querySelector("button[aria-label='Delete']")).not.toBeNull();
+    expect(recorder()!.querySelector("button[aria-label='Throw it away']")).not.toBeNull();
     expect(recorder()!.querySelector("button[aria-label='Stop']")).toBeNull();
     act(() => mic.open());
     expect(recorder()!.querySelector("[data-walk-recording-strip] button[aria-label='Stop']")).not.toBeNull();
@@ -380,7 +380,7 @@ describe("the practise screen", () => {
     draw();
     await accept();
     expect(screen()).toBe("walk-screen-practise");
-    click(recorder()!.querySelector("button[aria-label='Delete']"));
+    click(recorder()!.querySelector("button[aria-label='Throw it away']"));
     await settle();
     expect(calls.some((c) => c.url.endsWith("/attempts"))).toBe(false);
     expect(calls.some((c) => c.url.includes("/check"))).toBe(false);

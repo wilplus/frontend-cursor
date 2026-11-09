@@ -326,7 +326,7 @@ describe("FeedbackWalk", () => {
     // nothing counted or kept for Will, and the game is back on I'm ready.
     click(dock("[data-testid='walk-tempo-ready']"));
     await act(async () => {});
-    click(dock("[data-recording-bar] button[aria-label='Delete']"));
+    click(dock("[data-recording-bar] button[aria-label='Throw it away']"));
     expect(thread()).not.toContain(TEMPO_COPY.tryLabel(1));
     expect(over.onTempo.mock.calls.some(([event]) => event.kind === "try")).toBe(false);
     expect(dock("[data-recording-bar]")).toBeNull();
