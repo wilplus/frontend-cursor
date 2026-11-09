@@ -318,15 +318,19 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   }
   if (out.length === 0) return out;
   if (input.judge) out.push({ key: "others", one: true });
-  // The helper words, on their own (C3): the fix's; with no fix and no
-  // Sniper, their best's own words (backend N374), so the walk always
-  // leaves some.
-  const of = fix ?? (sniper ? null : best);
-  // A good Take says so where the fix would be (backend N551).
-  const clear = !fix && !sniper && best?.nothingToFix === true;
-  if (fix || sniper || best) out.push({ key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}), ...(clear ? { clear } : {}) });
+  if (fix || sniper || best) out.push(wordsStep(fix, sniper, best));
   out.push({ key: "done", one: true });
   return out;
+}
+
+/** The One thing walk's helper words, on their own (C3): the fix's; with no
+ *  fix and no Sniper, their best's own words (backend N374), so the walk
+ *  always leaves some. A good Take says so where the fix would be
+ *  (`clear`, backend N551). Pure. */
+function wordsStep(fix: WalkMoment | undefined, sniper: boolean, best: WalkMoment | undefined): WalkStep {
+  const of = fix ?? (sniper ? null : best);
+  const clear = !fix && !sniper && best?.nothingToFix === true;
+  return { key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}), ...(clear ? { clear } : {}) };
 }
 
 /** The fix's screens before its first try: the Clearer version, or the AI
