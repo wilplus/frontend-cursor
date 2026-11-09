@@ -54,6 +54,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup, { setupSteps } from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import { LabEntryGate, useLabEntry } from "./LabEntryGate";
+import { gateStateFor } from "./Phase1AcceptanceGate";
 import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
@@ -198,7 +199,9 @@ export default function LabOverlay({
   const mic = useDualCaptureMic({ transcript: false });
   const { getPausedMs } = mic;
   const { cancel: cancelMic } = mic;
-  const signedIn = useSignedIn();
+  // From what this tab already knows, so "How do you feel?" draws on the
+  // tap that opens a later Take (founder 2026-11-09, backend N549).
+  const signedIn = useSignedIn(true);
   // How many steps came before the set-up in its dots: 1 right after "How do
   // you feel?" was on screen (backend N272), else 0. Any other way into the
   // set-up starts it at its own first step.
@@ -361,6 +364,18 @@ export default function LabOverlay({
   // read afresh as the Lab opens, and LabEntryGate puts the acceptance flow
   // in front of every pre-recording screen until it says authorized.
   const entry = useLabEntry();
+  // "How do you feel?" opens on the tab's last "authorized" (backend N549),
+  // so a pick made before this entry's own read answers waits for it: the
+  // Take starts only once the read says the door is open, and a read that
+  // says otherwise puts the acceptance flow in front instead.
+  const heldCheckInRef = useRef<boolean | null>(null);
+  const startAfterCheckInRef = useRef<(shown: boolean) => void>(() => undefined);
+  useEffect(() => {
+    const shown = heldCheckInRef.current;
+    if (!entry.fresh || shown === null) return;
+    heldCheckInRef.current = null;
+    if (entry.status && gateStateFor(entry.status).kind === "pass") startAfterCheckInRef.current(shown);
+  }, [entry.fresh, entry.status]);
 
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
@@ -525,6 +540,10 @@ export default function LabOverlay({
   // "Record Take N" from the text: the recording screens fade in over the
   // text (Q-B14 A, D-RC-7). Paint only — the Take starts exactly as before.
   const recordingEntryFade = useRecordingEntryFade(state);
+  // "How do you feel?" before a later Take opens at once, with no fade
+  // (founder 2026-11-09, backend N549): the fade is Recording Mode's, and
+  // the check is the set-up's first step, not a recording screen.
+  const [opensFaded] = useState(() => state !== "lab_feelings");
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -1231,6 +1250,12 @@ export default function LabOverlay({
    *  activation window, so the tap still counts. If a browser refuses anyway,
    *  RecordingPhase's mic-error branch says so and its "Try again" is a direct
    *  tap. Silence is the one outcome that cannot happen. */
+  function checkInReady(shown: boolean) {
+    if (entry.fresh) startAfterCheckIn(shown);
+    else heldCheckInRef.current = shown;
+  }
+  startAfterCheckInRef.current = startAfterCheckIn;
+
   function startAfterCheckIn(shown: boolean) {
     const restored = restoredSetupFor(
       preloadDeck,
@@ -1481,7 +1506,7 @@ export default function LabOverlay({
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
-    <div className={`${LAB_FADE_IN_CLASS} fixed inset-0 z-30 flex flex-col bg-background${look.hidden}`}>
+    <div className={`${opensFaded ? `${LAB_FADE_IN_CLASS} ` : ""}fixed inset-0 z-30 flex flex-col bg-background${look.hidden}`}>
       {/* Unified X-only header, on every step. The manual "Same as last time"
           re-fill was removed (FE-2): continuing a project still prefills from
           the server, so the button only duplicated that with a worse guess.
@@ -1564,7 +1589,7 @@ export default function LabOverlay({
                 ask={signedIn}
                 setupSteps={stepsAfterCheckIn(preloadDeck, stagedUploadRef.current !== null)}
                 onCancel={handleClose}
-                onReady={startAfterCheckIn}
+                onReady={checkInReady}
               />
           </LabEntryGate>
         )}
@@ -1576,7 +1601,9 @@ export default function LabOverlay({
         {state === "lab_prerecord" && (
           <LabEntryGate entry={entry}>
               <ContinuedTakeAutoStart
-                ready={!setupArriving}
+                // The Take starts by itself only once this entry's own read
+                // has said the door is open (backend N549).
+                ready={!setupArriving && entry.fresh}
                 rootsSettled={rootsSettled}
                 onStart={startContinuedTake}
               />

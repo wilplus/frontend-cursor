@@ -185,7 +185,23 @@ async function readAuthorizationRow(): Promise<Record<string, unknown> | null> {
   return asRecord(result.body);
 }
 
+/* The last status this tab read. The Lab opens on it at once when it said
+   authorized, so a later Take's first screen draws on the tap, while its own
+   fresh read runs (LabEntryGate); anything else is read before it shows. */
+let lastRead: AuthorizationStatus | null = null;
+
+/** The last status read in this tab, if it was "authorized"; else null. */
+export function lastAuthorized(): AuthorizationStatus | null {
+  return lastRead?.kind === "authorized" ? lastRead : null;
+}
+
 export async function fetchAuthorization(): Promise<AuthorizationStatus> {
+  const status = await readAuthorization();
+  lastRead = status;
+  return status;
+}
+
+async function readAuthorization(): Promise<AuthorizationStatus> {
   let row: Record<string, unknown> | null;
   try {
     row = await readAuthorizationRow();
