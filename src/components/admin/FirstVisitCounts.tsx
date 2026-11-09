@@ -57,6 +57,7 @@ const WAYS: [string, string][] = [
   ["email", "Email"],
   ["google", "Google"],
   ["linkedin_oidc", "LinkedIn"],
+  ["azure", "Microsoft"],
 ];
 
 function ways(counts: Record<string, number>): string {

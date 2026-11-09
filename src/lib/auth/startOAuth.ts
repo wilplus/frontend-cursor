@@ -66,6 +66,8 @@ export async function startOAuth(
     options: {
       redirectTo: callbackUrl,
       skipBrowserRedirect: true,
+      // Microsoft gives the email only when asked (Supabase's Azure provider).
+      ...(provider === "azure" ? { scopes: "email" } : {}),
     },
   });
 

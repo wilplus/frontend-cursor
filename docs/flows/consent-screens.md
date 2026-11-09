@@ -440,6 +440,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N401 items 6, 7 · the sign-up and sign-in pages: "Microsoft" beside Google under "or" (Supabase's Azure provider, asking for the email; the one restart on a refused replay, as the others), the four small buttons two by two; hidden until the founder turns the Azure provider on in Supabase and sets `NEXT_PUBLIC_MICROSOFT_SIGNIN=on` on Vercel (`MicrosoftAuthButton.tsx`, `OtherWays.tsx`). The backend calls it "Microsoft" · BE (Microsoft name), FE (this PR)
 - 2026-11-05 · N567 · §1 the ☰ menu: Copy my link opens "Add someone to chat with", the sheet the list's "+" opens, with its switch for the website (customer-requests.md B8). Was: it copied the link at once and said "✓ Copied" (N367) · BE, FE (this PR)
 - 2026-11-06 · N540 item 1 · The Data & consent row "Open to the dump screen" shows only in the iPhone app; a browser has no dump screen, so no row (`DumpScreenCard.tsx`). Its words are unchanged · BE N540 (#1797), FE (this PR)
 - 2026-11-05 · N522 item 3 · The Data & consent row's line: "First thing when you open the app." Was: "First thing when you open the app, at most once an hour." The dump screen now opens first on every open · BE #1765, FE (this PR)
