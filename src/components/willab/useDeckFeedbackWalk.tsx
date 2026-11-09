@@ -334,6 +334,12 @@ const LEVEL_STEPS: ReadonlySet<string> = new Set(["clearer", "exVideo"]);
 /** The moment where this week's level shows most (G7, N209): the chat
  *  posts the level's line above its clip, as on the screen, when the step
  *  itself is said. */
+/** Will's written words keep the key they were asked by on their row, so
+ *  a replay says them again (VOICE-18, N373 item 2). Pure. */
+function voiceKept(voice: string | null | undefined, line: string | null | undefined): { walk_voice?: string } {
+  return voice && line ? { walk_voice: voice } : {};
+}
+
 function postLevel(
   post: (entry: Omit<WalkThreadEntry, "take" | "arcId">) => void,
   step: WalkStep,
@@ -1773,9 +1779,7 @@ export function useDeckFeedbackWalk(args: {
       const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
-      // Will's written words keep the key they were asked by, so a replay
-      // says them again (VOICE-18, N373 item 2).
-      const kept = voice && line ? { walk_voice: voice } : {};
+      const kept = voiceKept(voice, line);
       if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part, ...kept } });
       // The coach's answer on the moment: their bubble in the chat too.
       const answer = moment?.coachAnswer;
