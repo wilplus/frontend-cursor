@@ -1,4 +1,4 @@
-# The plan: from the first questions to the deadline
+# The plan: from the first questions to its three levels
 
 > **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
@@ -41,7 +41,7 @@ built and what is still to come.
 
 1. Every new speaker is diagnosed and gets a plan. The questions come once,
    after consent and before the first Take, one at a time and in this
-   order: the deadline, why it matters, the plan's own yes, the key line
+   order: why it matters (no deadline, N564 item 1), the plan's own yes, the key line
    and two follow-ups, the two ratings after the yes. The first Take follows
    the plan card, whose one button is "Start your first recording" (E5); no
    question has it under it (N319 item 2, which amends N262). When a Take
@@ -49,9 +49,10 @@ built and what is still to come.
    what isn't answered yet comes back after that Take's walk, where Will
    left off, and the plan counts that Take as its first practice (N136,
    N146, N262).
-2. A speaker who already has Takes is asked only "When is your deadline?",
-   after their next Take, never before it. Their plan is built from the Takes
-   they have (N147, N178).
+2. A speaker who already has Takes is asked nothing: after their next Take
+   the plan is made from the Takes they have, with "You're all set. Here's
+   your plan." and the card (N147, N178; N564 item 1: "When is your
+   deadline?" is asked of nobody).
 3. One plan runs at a time. A new event gets the questions again and a new
    plan; the old plan stays in the history (N140). Its questions come after a
    Take, never before one (N178).
@@ -68,9 +69,12 @@ built and what is still to come.
 
 1. "Agree and continue" on the consent screen opens the Lounge with the
    questions, not the empty Lounge (N146).
-2. "When is your deadline?", answered with Pick a date (the calendar) or "No
-   date yet". No date gives two months, and Will says so in words: "That's
-   fine. Let's give it two months, until 19 December." (N135, N137, N140).
+2. Nobody is asked "When is your deadline?" (N564 item 1). Only someone
+   who chooses "Prepare a talk" on the way in is asked "When is it?" once,
+   with "No date yet" (N572, N573; the way in's page); the day said is the
+   talk's date (backend `plan_flow.set_talk_date`), "No date yet" keeps
+   none. A plan has no length in days: it is three levels of four Takes
+   (G1). Was: "When is your deadline?", and no date gave two months.
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
    message: while it waits the bar's middle is "Record your answer", with
@@ -236,29 +240,28 @@ built and what is still to come.
 
 1. After the last question (and after the calls, while they are on, F),
    Will says "You're all set. Here's your plan." Then the card, the plan
-   only (N319 item 6): "Plan"; the plan's bar (3); in bullet points the
-   practice days ("15 minutes, 3 times a week: Mon, Wed, Fri", or "15
-   minutes every day") and "Your deadline: {date}", the date in orange (for
-   example "Sat 14 Nov"); then "Change your plan", which opens its sheet
-   (H: Deadline, Practice days, I have a new event). No "Ready
-   by {date}" heading (N167). Gone from the card: "Your next level" and the
-   level, the key line, "How you said it", "Why this line?", the pace
-   week's line and the call lines (N315, N319 item 6). The level shows
-   where it acts: each practice day's hello (G5), and "See your plan",
-   which names this week's level above the same card (G5).
+   only (N319 item 6, N564): "Plan"; the level's name; its four marks, the
+   done ones filled (3); "Your deadline: {date}", the date in orange (for
+   example "Sat 14 Nov"), only for someone preparing a talk (N564 item 6);
+   then "Change your plan", which opens its sheet (H). No practice days and
+   no "Ready by {date}" heading. Gone from the card: the key line, "How you
+   said it", "Why this line?", the pace week's line and the call lines
+   (N315, N319 item 6). "See your plan" opens the same card.
 2. While the calls are on (F), the list also has "Kickoff call with your
-   coach" before the deadline and "Summary call with your coach" after it,
-   each with its time once booked, in green. A call not booked yet reads
-   "Book", a link that opens the same full-screen calendar (F); then
-   "Booked: {when}." With the calls hidden, neither line shows (N157,
-   N164, N167, N315).
-3. The progress bar (`PlanBar`) shows on the card, on a practice day's
-   hello, and in the chat after the walk, one part per Take. It fills with
-   what the speaker did, never with a measure of the voice. After the walk
-   it is Will's grey bubble with the bar and "{n} of {total} practices
-   done.", under the goodbye that names the next practice day (G13; N319
-   item 7, N347 item 2); it no
-   longer shows on the walk's end sheet (was N129, N131, N140).
+   coach" and "Summary call with your coach", each with its time once
+   booked, in green; with a talk's date, both come before it (N564 item 6).
+   A call not booked yet reads "Book", a link that opens the same
+   full-screen calendar (F); then "Booked: {when}." With the calls hidden,
+   neither line shows (N157, N164, N167, N315).
+3. The plan's bar (`PlanBar`) is the level's name and its four marks, the
+   done ones filled: on the card, on the hello (G5), and in the chat after
+   the walk. Each Take fills one mark (G1). It fills with what the speaker
+   did, never with a measure of the voice, and never a points total, a
+   score or a percentage (Never 1; N564 item 3). After the walk it is
+   Will's grey bubble with the level's name and its marks, under the
+   goodbye (G13); after a level's fourth Take it shows that level full,
+   though the next has begun. Was: one part per practice and "{n} of
+   {total} practices done." (N319 item 7).
 4. The card uses one typeface, the app's own, and three sizes: the date, the
    text, the small labels (N161). Text colours read on white (4.5:1): the
    orange #C2410C, the green #1F7A4A, the grey #737373. Every link has a
@@ -330,34 +333,31 @@ built and what is still to come.
      picked but not booked that no longer fits is cleared.
    It works before the plan and from a call's "Book" in the list.
 
-### G · Practice days
+### G · The levels, Take by Take
 
-1. The deadline sets the journey. With two weeks or less to go, every day;
-   otherwise three practices a week on days the speaker picks; with no date,
-   eight weeks (N135, N140).
-2. One practice is one Take with its walk, about 15 minutes (N131).
+1. The training is levels, not days (N564 item 2): everyone's plan is three
+   levels of four Takes, twelve in all. Each level is one of the plan's five
+   (N132), picked from the Takes strongest first, never one this set of
+   three already had (backend `next_level`). There are no practice days:
+   progress moves with each Take, and nothing is ever missed. The first
+   Take, the way in, fills no mark; each Take after the plan is drawn
+   fills one, whatever it is (practising a talk, answering a teammate,
+   asking a question; N564 item 4).
+2. One practice is one Take with its walk (N131).
 3. The chat reads in time order. A day line, small and grey, comes before
    the first message of each day, in the speaker's time zone: "Monday 26
-   October" (N169).
-4. Will's practice-day hello is written once per practice day: the first
-   time the app opens that day, or when that day's reminder goes once there
-   is one, whichever is first. Never right after a Take, never on a day off,
-   not when a Take was already recorded that day. Missed practice days leave
-   no trace: no catch-up hello, no "you missed"; "practice {n} of {total}"
-   counts the Takes done plus one. A Take on a day off is a practice (N131,
-   N169).
-5. On a practice day, under the day line: "Hi Artur, good to see you back!
-   Today is practice 2 of 9: Let your key line land." (N140), the bar under
-   it, and "See your plan", which opens the plan in a sheet ("Your plan";
-   "This week's level" and the level; then the card as in E1, with "Change
-   your plan"; "Book" on a call only while the calls are on, N315, N319
-   item 6). The plan
-   card itself is posted in the chat only when the plan is made or changed.
-   Progress has one unit: there is no "Week {n} of {weeks}", and "{n} of
-   {total} practices done." shows only after the Take, in the chat, under
-   the goodbye that names the next practice day (E3, N319 item 7; was "{n}
-   of {total} practices done. Next: {day}." on the walk's end sheet, N167,
-   N169).
+   October", in a chat that spans several days (N169; `dayLines.ts`).
+4. Will's hello is written once a day, after the plan's first Take: the
+   first time the app opens on a day with no Take yet. Never right after a
+   Take. A day without a Take leaves no trace: no catch-up hello, no "you
+   missed" (N131, N169, N564 item 2).
+5. Under the day line: "Hi Artur, good to see you back!" (N120), the plan's
+   bar under it (E3: the level's name and its four marks), and "See your
+   plan", which opens the plan in a sheet ("Your plan", then the card as in
+   E1, with "Change your plan"; "Book" on a call only while the calls are
+   on, N315). Was: "Today is practice {n} of {total}: {level}." (N140) and
+   "This week's level" above the card (N564 item 3). The plan card itself is
+   posted in the chat only when the plan is made or changed.
 6. Then today's one thing, one grey bubble drawn as the app's closing message
    is today (N89): "Today, one thing: say your key line a little slower than
    the rest. You've got this 💪" (the wedding toast: "take a breath before
@@ -408,22 +408,18 @@ built and what is still to come.
 9. A practise that slowed down gets its own lines, said in turn: "You gave it
    room, and it landed." · "Slower, and every word counted." · "That pace
    lets them keep up with you." (N140).
-10. A Take reaches its level when the check that picked the level no
-   longer fires on that Take, read on the whole Take (the key line no
-   longer faster than the rest; pauses no longer few and short; filler
-   words no longer many; the pitch no longer flat); never shown (N209). Two
-   Takes in a row that reach it, or its time running out (a week in a plan
-   of up to six weeks, two weeks in a longer one; a plan of two weeks or
-   less keeps one level), and the next level is the next thing heard:
-   strongest first, the next level whose check fires on the latest Take,
-   never one the plan already had; when none fires, "Make it yours", which
-   stays. The speaker just sees it: the next hello and the plan name the
-   new level, and nothing is said about their voice. A coach's level is
-   never moved by the machine (C5). After three Takes on a level without
-   moving, the next intervention in its row: the coach sees it in their
-   queue and answers with their video, which reaches the speaker as the
-   coach's word on their latest Take ([the coach panel](coach-panel.md)
-   K5); the walk keeps the level's own practice (N134, N209, N213).
+10. Each Take fills one of the current level's four marks; after four the
+   next level starts: the next thing heard, strongest first, the next level
+   whose check fires on the latest Take, never one this set already had;
+   when none fires, "Make it yours" (N209 item 3, N564 item 2). The speaker
+   just sees it: the bar and the next hello name the new level, and nothing
+   is said about their voice. A coach's level runs its four Takes too
+   (C5). A Take reaches its level when the check that picked it no longer
+   fires on that Take; after three Takes on a level none of which reached
+   it, the coach sees it in their queue and answers with their video, which
+   reaches the speaker as the coach's word on their latest Take ([the
+   coach panel](coach-panel.md) K5; N134, N209, N213). Was: two Takes in a
+   row that reach it, or its time running out, moved the level.
 11. There is no practice-day reminder for now (N155). When it comes: it
    says the same words as its message in the chat, written at the same
    moment, and tapping it opens the chat at that day line. It goes at 9:00
@@ -441,37 +437,29 @@ built and what is still to come.
    (Never 1); outside the app the level's name at most, never the key line,
    the transcript or the recording; it stops when the plan ends; it never
    stands in the way of a Take (Never 3) (N169).
-13. The proverbial 15 minutes (N180, N183): as soon as a practice day's
-   practice is done, Will says in the chat "That's your 15 minutes for
-   today." Never on a clock and never on other days; nothing is locked and
-   the message box stays. The founder first, then everyone. After a Take
-   with an ask (Will's question, "Did this help?") it waits until the ask is
-   answered (N288). Then one bubble that names the plan's next practice
-   day as a person would (N347 item 2): "Good job. See you tomorrow." when
-   it is tomorrow in the speaker's own time zone (the plan's), else "Good
-   job. See you {weekday}." (no "next"); without a plan "Good job. See you
-   next time.". Then one bubble with the plan's bar and "{n} of {total}
-   practices done.", then the bar's "Record Take N" (N483; was the tap "I
-   want to continue my practice" first, N319 item 7,
-   feedback-walk-and-chat.md D4). "Now go and live it, away
-   from the phone." is gone (N319 item 4). A question the plan asks after
-   the Take (its own yes, the ratings, a new project's) comes last, under
-   the bar, right above its answers (N537, feedback-walk-and-chat.md B16).
+13. After a Take (N564 item 7): no "That's your 15 minutes for today.".
+   After a Take with an ask (Will's question, "Did this help?") the plan's
+   lines wait until the ask is answered (N288). Then "Good job. See you
+   next time." (no practice day is named), then one bubble with the plan's
+   bar (E3), then the bar's "Record Take N" (N483). A question the plan
+   asks after the Take (its own yes, the ratings, a new project's) comes
+   last, under the bar, right above its answers (N537,
+   feedback-walk-and-chat.md B16). Was: "That's your 15 minutes for
+   today.", "Good job. See you tomorrow." / "See you {weekday}." and "{n} of
+   {total} practices done." (N180, N183, N347 item 2).
 
 ### H · Changing the plan
 
-1. "Change your plan" opens the plan: the deadline and the practice days are
-   the speaker's to change, and the plan recalculates. Its rows: Deadline,
-   Practice days and "I have a new event". The level is not among them: it
-   is the coach's, and shows in each practice day's hello and in "See your
-   plan" (N497; was a "Your level" row with "Ask your coach", which reached
-   the coach's queue as "Asked about their level", N213). "I have a new
-   event" starts the questions again (N140). While a Take is still
-   processing, "I have a new event" is hidden until the Take has landed
-   (N242).
-2. A new project asks "Is this for 14 November?" (the plan's deadline),
-   after its first Take, not before it (N178). Yes keeps the plan; no starts
-   "When is your deadline?" and the questions for a new plan. New slides or a
+1. "Change your plan" opens the plan's rows: Deadline, only for someone
+   preparing a talk (its calendar moves the talk's date; nothing is said,
+   the card shows it), and "I have a new event". No Practice days (N564).
+   The level is not among them: it is the coach's, and shows in the hello
+   and in "See your plan" (N497). "I have a new event" starts the
+   questions again (N140). While a Take is still processing, "I have a new
+   event" is hidden until the Take has landed (N242).
+2. A new project asks "Is this for 14 November?" (the talk's date; with no
+   date it is not asked), after its first Take, not before it (N178). Yes
+   keeps the plan; no starts the questions for a new plan. New slides or a
    rewrite for the same event keep the plan (N149). A plan made from Takes,
    from "Keep practising" or from the first Take counts the projects of the
    speaker's earlier Takes as its own, so it asks too; after Yes, the
@@ -479,20 +467,17 @@ built and what is still to come.
 
 ### I · The plan's end
 
-1. At the last practice, the two ratings come after the Take (D1; N178).
-2. The first time the speaker opens the app on or after the deadline: "How
-   did it go?" as a voice message. Then, while the calls are on (F0), the
-   summary call: shown with its time if it was booked, offered if not. Then
-   "What's next?": "I have a new
-   event" (the questions again, a new plan) or "Keep practising" (a new
-   two-month plan from their Takes, no questions, its first ratings after
-   its first Take) (N149, N151, N157, N178). While a Take is still
-   processing, only "Keep practising" is shown, until the Take has landed
-   (H1, N242).
-3. On the deadline's morning, a short good-luck line in the chat and on the
-   chosen channel; the morning after, "How did it go?" with the link outside
-   the app, beside the message in the chat (2). Their words wait for the
-   founder's OK (N169).
+1. After the third level's fourth Take (the twelfth), the two ratings come
+   after the Take (D1; N178), once a set.
+2. Then the summary session with the coach (N248), while the calls are on
+   (F0): "Your summary call", offered with "Choose a date", or with its
+   time if booked; and a new set of three levels starts on the next skills
+   the Takes show (N564 item 5). A plan never ends on a date. Was: "How did
+   it go?" on or after the deadline, then "What's next?" with "I have a new
+   event" or "Keep practising" (a new two-month plan); a plan already
+   ending that way still answers them.
+3. With a talk's date the summary session is offered before it; nothing
+   else depends on the date (N564 item 6).
 
 ### J · Not in this version
 
@@ -838,6 +823,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-09 · N453, N564, N572, N573, N590, N592 · §2, §4: the speaking way in while Take 1 is processed, drawn from the backend's rows (`metadata.way_in`) through `POST /api/v2/plan/way-in` and its spoken twin `/api/v2/plan/way-in/voice` (`plan/WayIn.tsx`, `lib/willab/wayIn.ts`, `usePlanLounge`, `Lounge.tsx`); Take 1's wait is the thin row on top, orange when the walk is ready, and the walk waits for the tap; "Record Take 2" faded until the walk is done; `PickRow` moves beside `TapRow` (`WillQuestion.tsx`). What stops: for Take 1 on the way in, the full wait after the hand-over and the walk opening by itself; the plan's own questions while the way in runs. No new words: every line is the backend's · BE #1854, FE (this PR)
+- 2026-11-09 · N564 · three levels of four Takes, never points: the bar is the level's name and its four marks (card, hello, after the walk); no practice days, no two months, nobody asked "When is your deadline?" (a date only for "Prepare a talk"); after the third level the summary session and a new set; a day line before each day's first message. Was: a journey from the deadline (three a week or every day, two months with no date), "Today is practice {n} of {total}: {level}.", "{n} of {total} practices done.", "That's your 15 minutes for today.", "See you {day}.", the Practice days row, the plan's end on its deadline · BE #1853, FE (this PR)
 
 - 2026-11-06 · N538 · D1, H2: on a plan made from Takes or "Keep practising", "Two quick taps before your plan." ends on "You're all set. Here's your plan." and the card, the plan not begun again; a new project's first Take asks "Is this for {date}?" on such a plan and on one read from the first Take, and after its Yes the ratings it came in place of follow, then the plan. Was: nothing after the second tap, and no question, the ratings in its place and never asked after a Yes. No new words · BE N538 (backend `services/plan_flow.py`, guarded by `tests/test_plan_flow.py` O7, O17), FE (this PR)
 - 2026-11-06 · N537 · G13: a question the plan asks after a Take (its own yes, the ratings, a new project's) comes last, under the goodbye and the plan's bar, right above its answers (backend `after_take.end_rows`). No new words. Was: "Some of my questions are personal…" above "Good job. See you {day}." and the bar, its buttons far below it · BE, FE (this PR)

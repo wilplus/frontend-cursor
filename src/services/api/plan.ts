@@ -2,7 +2,7 @@ import { bffFetch } from "@/lib/api/bffFetch";
 import type { FirstTakeSlide } from "@/lib/willab/firstTake";
 
 /* The plan (rules: docs/flows/the-plan.md; backend services/plan_flow.py).
-   The questions before the first Take, the plan card, the practice days and
+   The questions before the first Take, the plan card, its levels and
    the deadline, in the Lounge. Every write puts its rows into the Lounge
    thread; the caller reloads the thread. Ring row "plan" (ring 5, N204):
    the backend answers enabled false for everyone else. */
@@ -24,25 +24,40 @@ export type PlanStep =
 
 export type PlanCall = { starts_at: string; text: string; short: string } | null;
 
+/** The plan's bar wherever it shows (backend `plan.bar`, N564 item 3): the
+ *  level's name and its four marks, the done ones filled; which of the
+ *  plan's three levels. Never points, a score or a percentage (Never 1). */
+export type PlanBarData = {
+  level: string;
+  level_name: string;
+  marks: number;
+  of: number;
+  level_n: number;
+  levels: number;
+};
+
 export type Plan = {
   id: string;
   status: "asking" | "active" | "ending" | "ended" | "replaced";
   step: PlanStep;
-  /** ISO date, the deadline (given or picked). */
+  /** ISO date: the talk's date, only for someone preparing a talk (backend
+   *  N564 item 6); null for everyone else. */
   deadline: string | null;
-  deadline_given: boolean;
+  /** Is the speaker preparing a talk with a date? */
+  talk?: boolean;
   /** "Sat 14 Nov". */
   deadline_short: string | null;
   /** "14 November". */
   deadline_day: string | null;
-  days: number[];
-  days_text: string;
-  every_day: boolean;
+  /** Twelve: three levels of four Takes (backend N564 item 2). */
   total: number;
   /** Practices done since the plan began. */
   done: number;
   level: string | null;
   level_name: string | null;
+  /** The plan's bar: the level's name and its four marks (backend N564
+   *  item 3); null before the plan has a level. */
+  bar?: PlanBarData | null;
   pace_week: boolean;
   key_line: string | null;
   why_line: string | null;
@@ -51,8 +66,6 @@ export type Plan = {
   calls: { kickoff: PlanCall; summary: PlanCall };
   /** Has the plan's first Take been recorded? */
   first_take_done: boolean;
-  /** "Wednesday", "tomorrow", or null. */
-  next_day: string | null;
   topic: string | null;
   /** A new event's plan, waiting for the next Take before its questions; or
    *  a new speaker's, after a Take recorded first, until that Take's walk
@@ -238,8 +251,9 @@ export async function bookCall(which: CallWhich, start: string | null): Promise<
   }
 }
 
-/** Change the deadline or the practice days ("Change your plan", "Edit"). */
-export function changePlan(change: { deadline?: string; days?: number[] }): Promise<PlanState | null> {
+/** Change the talk's date ("Change your plan", "Edit"); there are no
+ *  practice days to change (backend N564). */
+export function changePlan(change: { deadline?: string }): Promise<PlanState | null> {
   return send("/api/v2/plan", { method: "PUT", json: { ...change, tz: browserZone() } });
 }
 

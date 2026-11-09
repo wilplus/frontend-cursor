@@ -21,7 +21,9 @@
 /*  duplicate that happens before the request ever reaches our origin.        */
 /* -------------------------------------------------------------------------- */
 
-export type OAuthProvider = "linkedin_oidc" | "google";
+export type OAuthProvider = "linkedin_oidc" | "google" | "azure";
+
+const PROVIDERS: readonly OAuthProvider[] = ["linkedin_oidc", "google", "azure"];
 
 const STORAGE_KEY = "willab_oauth_attempt";
 
@@ -49,10 +51,10 @@ function readAttempt(): OAuthAttempt | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<OAuthAttempt>;
-    if (parsed.provider !== "linkedin_oidc" && parsed.provider !== "google") return null;
+    if (!PROVIDERS.includes(parsed.provider as OAuthProvider)) return null;
     if (typeof parsed.startedAt !== "number") return null;
     return {
-      provider: parsed.provider,
+      provider: parsed.provider as OAuthProvider,
       startedAt: parsed.startedAt,
       retried: parsed.retried === true,
     };

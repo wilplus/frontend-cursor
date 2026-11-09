@@ -330,10 +330,6 @@ export function usePlanLounge({
             setSheet(null);
             void run(() => changePlan({ deadline: day }));
           }}
-          onDays={(days) => {
-            setSheet(null);
-            void run(() => changePlan({ days }));
-          }}
           onNewEvent={() => {
             setSheet(null);
             void run(startNewEvent);

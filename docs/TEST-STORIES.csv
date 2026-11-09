@@ -295,6 +295,9 @@ O3  Signing in on the page that opens on the number: ""Sign in with
 WhatsApp"", the code, then straight in, with no name step (N232).","O1 -> ""signing up: number, code, name, and the number is kept""
 O2 -> ""signing in with an unknown number says so and makes nothing""
 O3 -> ""signing in from the first screen: the code, then in""","Founder 2026-10-27, backend N214; the first screen, 2026-10-28, N232."
+src/components/auth/microsoftSignIn.test.tsx,Story,"As a person signing up or in at work, I want a ""Microsoft"" button beside Google, so that I can use my work account (backend N401 item 6).","O1  Once switched on, ""Microsoft"" sits beside Google under ""or""; tapping
+it starts Supabase's Microsoft (Azure) sign-in, asking for the email,
+and a refused replay restarts it once. Off, it is not there.","O1 -> ""Microsoft sits beside Google once switched on and starts its sign-in; off, it is not there""","Backend N401 items 6 and 7 (founder, 3 November 2026): ""a Microsoft sign-in button beside Google"", the word signed. Hidden until the founder turns the Azure provider on in Supabase (NEXT_PUBLIC_MICROSOFT_SIGNIN=on)."
 src/components/founder/GoldenJudging.test.tsx,Story,"As the founder, I want to judge golden pairs seeing the passage and the coach's final only, so that the golden set measures real answers.","O1  A pair shows the passage and the coach's final, no draft, and sends
 one of three answers.
 O2  A clip surface keeps the coach's instrument, not the pair question.
@@ -572,9 +575,13 @@ src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone'
 O2  I tap the owner's question, then one of the three questions; the
 chat then says the owner answers out loud and to come back, and the
 questions wait.
-O3  ""Keep this chat"" opens the join page in a new tab, carrying my chat.","O1 -> ""the pill asks, and nothing is sent before Agree and start""
+O3  ""Keep this chat"" opens the join page in a new tab, carrying my chat.
+O4  The owner's voice answer with words has ""Read it"" under its player:
+closed by default, it opens the words and ""Hide"" closes them (N331,
+N576 item 1); a voice answer with no words shows none.","O1 -> ""the pill asks, and nothing is sent before Agree and start""
 O2 -> ""I tap through the owner's question and ask one of three""
-O3 -> ""Keep this chat opens the join page with my chat""",
+O3 -> ""Keep this chat opens the join page with my chat""
+O4 -> ""the owner's voice answer opens its words behind Read it, and Hide closes them""",
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -1271,11 +1278,19 @@ or your voice (N319 item 3, N483 item 7: the faded ""Type here"" and
 its note are gone).
 O6  The plan's rows are drawn by their metadata: the speaker's voice
 answer as their own bubble; the card as the plan only (N319 item
-6): ""Plan"", its bar, the practice days, the deadline and ""Change
-your plan"", with no level, key line or call; ""See your plan"" adds
-this week's level; the plan's progress after the walk as Will's
-bubble with its bar and ""{n} of {total} practices done."" (N319
-item 7); a plain row is left to the Lounge.
+6, N564): ""Plan"", the level's name, its four marks with the done
+ones filled, and ""Change your plan""; no practice days, no key line,
+no call, and a date only for someone preparing a talk; ""See your
+plan"" shows the same card; the plan's bar after the walk as Will's
+bubble with the level's name and its four marks, never ""{n} of
+{total} practices done."" nor any number; the hello says ""Hi
+Artur, good to see you back!"" with the bar; a plain row is left to
+the Lounge.
+O13 ""Change your plan"" has ""I have a new event"" and, only for someone
+preparing a talk, Deadline; never Practice days (N564).
+O14 In a chat that spans several days, a small grey day line (""Monday
+26 October"") comes before each day's first message; a chat of one
+day has none; a row with its own day line gets no second (G3).
 O7  The chat has one record button: a practice day's one thing holds
 it until a newer Take's closing message takes it back (N167), and
 gives it up once a newer Take is recorded, in any project (N244,
@@ -1307,6 +1322,8 @@ O8 -> ""the feelings before a Take""
 O9 -> ""Will asks for the plan's own yes""
 O10 -> ""nothing of the principles before my first Take""
 O11 -> ""the plan's calls show only with their ring row""
+O13 -> ""Change your plan: Deadline only for a talk, no Practice days""
+O14 -> ""a day line before each day's first message""
 O12 -> ""a first-Take plan: the bar's button at once, and it starts the five slides""","The plan, built one to one with the prototype (founder 2026-10-26, backend N203, N204); the principles waiting for the onboarding, backend N243; record first, backend N262; every question the after-walk way, one action a step, typing waits before Take 1, backend N319 items 1 to 3, its note signed, backend N323 item 1, and on a choice, backend N325 item 4, wherever the box is faded, backend N350 item 4; the calls hidden, backend N315; the plan card simplified, backend N319 item 6; no bubble carries a button, backend N294 item 7; one bar in every chat, backend N483; docs/flows/the-plan.md §1."
 src/components/willab/plan/planNewEvent.test.tsx,Story,"As a speaker with a plan, I want ""I have a new event"" out of my way while my Take is still processing, so that I never tap something that leaves me with nothing to do.","O1  While the Take is processing, Change your plan has no ""I have a new
 event"", and the plan's end shows only ""Keep practising"".
@@ -1439,6 +1456,11 @@ O4  A sales week offers the sale's four steps and ""Add a new step"" in place of
 O2 -> reopens where it stands
 O3 -> knows which case waits
 O4 -> offers the sale's steps for a sales week",
+src/components/willab/takeBubbleReadIt.test.tsx,Story,"As a speaker, I want my Take's bubble in Will's chat to open what I said, slide by slide, so that I can read it back without leaving the chat, while the voice stays the first thing I meet.","O1  ""Read it"" sits under the Take's player, closed by default; it opens
+what was said, one paragraph per slide in the slides' order, and
+""Hide"" closes it; reading never opens the Take's feedback (N576).
+O2  Nothing shows before there are words (N576 item 1, N331 item 2).","O1 -> ""a Take's bubble opens its words slide by slide behind Read it, and Hide closes them""
+O2 -> ""a Take with no words yet shows no Read it""","Backend N576 items 1 to 3 (founder, 9 November 2026): every voice bubble opens its words, a Take's in Will's chat too; the words are the Lounge read's `metadata.words` (backend services/lounge_clips.py attach_take_words)."
 src/components/willab/takeIntoWalk.test.tsx,Story,"As a speaker who just recorded a Take, I want the walk to open the moment its processing is done, with nothing in between, so that the loop goes straight from my Take to my feedback.","O1  When the Take's processing is done the wait stays over the walk
 as it opens, from the Take's own marker, also when the Lounge was
 not following that job (I came back to the app, or left the wait

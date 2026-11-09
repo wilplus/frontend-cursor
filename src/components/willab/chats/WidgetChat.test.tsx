@@ -9,9 +9,13 @@ OUTCOME
       chat then says the owner answers out loud and to come back, and the
       questions wait.
   O3  "Keep this chat" opens the join page in a new tab, carrying my chat.
+  O4  The owner's voice answer with words has "Read it" under its player:
+      closed by default, it opens the words and "Hide" closes them (N331,
+      N576 item 1); a voice answer with no words shows none.
 PROVES   O1 -> "the pill asks, and nothing is sent before Agree and start"
          O2 -> "I tap through the owner's question and ask one of three"
          O3 -> "Keep this chat opens the join page with my chat"
+         O4 -> "the owner's voice answer opens its words behind Read it, and Hide closes them"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -26,6 +30,12 @@ const QUESTION = {
   id: "q1", mine: false, author: "Tomek", kind: "text", body: "Which languages can we use?",
   meta: { setup: { i: 0, kind: "tap", answers: ["Polish", "English"], multi: false } }, created_at: "2026-11-05T10:00:00Z",
 };
+const VOICE = {
+  id: "v1", mine: false, author: "Tomek", kind: "voice", body: "", words: "We work in Polish and English.",
+  meta: { duration_ms: 4000 }, created_at: "2026-11-05T11:00:00Z",
+};
+const SILENT = { ...VOICE, id: "v2", words: null };
+let startMessages: unknown[] = [QUESTION];
 const mine = (id: string, body: string, meta: Record<string, unknown> = {}) => ({
   id, mine: true, author: "Widget / Visitor 1", kind: "text", body, meta, created_at: "2026-11-05T10:01:00Z",
 });
@@ -37,13 +47,14 @@ let calls: { method: string; url: string; body: unknown; guest: string | null }[
 beforeEach(() => {
   window.localStorage.clear();
   calls = [];
+  startMessages = [QUESTION];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
     const method = init.method ?? "GET";
     const headers = (init.headers ?? {}) as Record<string, string>;
     const body = init.body ? JSON.parse(String(init.body)) : null;
     calls.push({ method, url, body, guest: headers["X-Willab-Widget-Guest"] ?? null });
     const reply = (json: unknown) => new Response(JSON.stringify(json), { status: 200 });
-    if (url.endsWith("/start")) return reply({ guest: "g1.secret", name: "Tomek", asks: ASKS, kept: false, messages: [QUESTION] });
+    if (url.endsWith("/start")) return reply({ guest: "g1.secret", name: "Tomek", asks: ASKS, kept: false, messages: startMessages });
     if (url.includes("/setup/")) return reply({ messages: [mine("a1", "English", { setup_answer: { to: "q1" } })] });
     if (url.endsWith("/ask")) return reply({ message: mine("k1", ASKS[2], { widget_ask: 2 }) });
     return reply({ name: "Tomek", asks: ASKS, kept: false, messages: [] });
@@ -107,5 +118,21 @@ describe("the widget on someone's website", () => {
     expect(container.textContent).toContain("Join WillpowerLab to keep it, and hear Tomek's answers on your phone.");
     await tap(container.querySelector("[data-widget-google]"));
     expect(opened).toHaveBeenCalledWith(`${window.location.origin}/c/${TOKEN}?from=widget#g=g1.secret`, "_blank", "noopener");
+  });
+
+  it("the owner's voice answer opens its words behind Read it, and Hide closes them", async () => {
+    startMessages = [VOICE, SILENT];
+    await openWidget();
+    await tap(container.querySelector("[data-widget-agree]"));
+    const [spoken, silent] = [...container.querySelectorAll("[data-widget-voice]")];
+    expect(spoken).toBeTruthy();
+    expect(spoken.textContent).not.toContain("We work in Polish and English.");
+    await tap(spoken.querySelector("[data-chat-read]"));
+    expect(spoken.querySelector("[data-chat-words]")?.textContent).toBe("We work in Polish and English.");
+    expect(spoken.querySelector("[data-chat-read]")?.textContent).toBe("Hide");
+    await tap(spoken.querySelector("[data-chat-read]"));
+    expect(spoken.querySelector("[data-chat-words]")).toBeNull();
+    expect(spoken.querySelector("[data-chat-read]")?.textContent).toBe("Read it");
+    expect(silent.querySelector("[data-chat-read]")).toBeNull();
   });
 });

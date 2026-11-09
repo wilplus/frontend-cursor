@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Layers, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
@@ -180,6 +180,7 @@ import { isFirstTakeArc } from "@/lib/willab/firstTake";
 import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import { WayInTop } from "./plan/WayIn";
 import { firstTakeArcOf } from "@/lib/willab/wayIn";
+import { DayLine, dayLinesFor } from "./plan/dayLines";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -543,6 +544,18 @@ export default function Lounge({
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
   const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  // A small grey day line before each day's first message, in a chat that
+  // spans several days (the-plan.md G3, backend N169).
+  const dayLines = useMemo(
+    () =>
+      dayLinesFor(
+        shownItems.map((item) => ({
+          at: item.message.client_created_at,
+          ownLine: typeof (item.message.metadata as Record<string, unknown> | null | undefined)?.day_line === "string",
+        })),
+      ),
+    [shownItems],
+  );
   const pairedCards = useMemo(() => new Set(pairs.cardOf.values()), [pairs]);
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B): of the cards drawn, not one held back.
@@ -1854,6 +1867,38 @@ export default function Lounge({
     const setup = joinSetupOf(item.message);
     return setup ? drawSetup(item, i, setup) : drawThreadItem(item, i);
   };
+
+  // One shown row: a Take's Feedback walk with its card as one pair (N202),
+  // else the row as drawn.
+  const drawShown = (item: ThreadItem, i: number) => {
+    const id = item.message.client_id;
+    const walk = walkAt.get(id);
+    if (!walk) return drawItem(item, i);
+    const cardId = pairs.cardOf.get(id);
+    const next = shownItems[i + 1];
+    const card = cardId && next?.message.client_id === cardId ? next : null;
+    const bubble = (
+      <FeedbackWalkBubble
+        key={item.reactKey}
+        walk={walk}
+        older={olderTake(item.message.metadata)}
+        waits={walkWaits(walk)}
+        live={reviewToContinue}
+        paired={card !== null}
+        onOpenOlder={setOlderReview}
+        onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
+        onOpenIdealText={openIdealText}
+      />
+    );
+    return card ? (
+      <div key={item.reactKey} data-walk-pair="" className="flex flex-col gap-[3px]">
+        {bubble}
+        {drawItem(card, i + 1)}
+      </div>
+    ) : (
+      bubble
+    );
+  };
   const drawThreadItem = (item: ThreadItem, i: number) =>
     item.message.kind === "walk_step" ? (
       <WalkStepBubble
@@ -2004,32 +2049,16 @@ export default function Lounge({
             const id = item.message.client_id;
             // A Take's card is drawn under its Feedback walk, as one pair (N202).
             if (pairedCards.has(id)) return null;
-            const walk = walkAt.get(id);
-            if (!walk) return drawItem(item, i);
-            const cardId = pairs.cardOf.get(id);
-            const next = shownItems[i + 1];
-            const card = cardId && next?.message.client_id === cardId ? next : null;
-            const bubble = (
-              <FeedbackWalkBubble
-                key={item.reactKey}
-                walk={walk}
-                older={olderTake(item.message.metadata)}
-                waits={walkWaits(walk)}
-                live={reviewToContinue}
-                paired={card !== null}
-                onOpenOlder={setOlderReview}
-                onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
-                onOpenIdealText={openIdealText}
-              />
-            );
-            return card ? (
-              <div key={item.reactKey} data-walk-pair="" className="flex flex-col gap-[3px]">
-                {bubble}
-                {drawItem(card, i + 1)}
-              </div>
-            ) : (
-              bubble
-            );
+            const line = dayLines.get(i);
+            if (line) {
+              return (
+                <Fragment key={`day:${item.reactKey}`}>
+                  <DayLine text={line} />
+                  {drawShown(item, i)}
+                </Fragment>
+              );
+            }
+            return drawShown(item, i);
           })
         )}
 
