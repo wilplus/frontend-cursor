@@ -57,7 +57,7 @@ beforeEach(async () => {
     root = createRoot(host);
   });
   await startNativeLinks();
-  await startNativePush();
+  await startNativePush((register) => (register(), () => {}));
 });
 
 afterEach(async () => {
