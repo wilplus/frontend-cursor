@@ -10,9 +10,15 @@ OUTCOME
       invited me (/chat?with=<chat>).
   O3  Signed out, Join goes to sign in and comes back to this link to
       finish (?join=1); back here, it joins without a second tap.
+  O4  Opened from the website chat's "Sign up" (#g=, backend N591 item 4;
+      WID-29), Join signs me up on that chat instead of joining anew:
+      signed out it goes to sign in first (a phone, email, Google or another
+      sign-in), then the sign-up carries my secret and opens the chat, now
+      mine.
 PROVES   O1 -> "the page names who invites me and what I get"
          O2 -> "signed in, Join joins and opens my chat with the one who invited me"
          O3 -> "signed out, Join goes to sign in and finishes on the way back"
+         O4 -> "WID-29: from the website chat's Sign up, Join signs me up on that chat, after signing in"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -99,5 +105,36 @@ describe("the join page", () => {
     await render(true);
     expect(joinPosts()).toHaveLength(1);
     expect(push).toHaveBeenCalledWith("/chat?with=c-1");
+  });
+
+  it("WID-29: from the website chat's Sign up, Join signs me up on that chat, after signing in", async () => {
+    token = null;
+    window.history.replaceState(null, "", `/c/${LINK}?from=widget#g=g1.secret`);
+    fetchMock.mockImplementation(async (_url: string, init: RequestInit = {}) => {
+      const headers = (init.headers ?? {}) as Record<string, string>;
+      return headers.Authorization
+        ? new Response(JSON.stringify({ chat: { id: "c-w" } }), { status: 200 })
+        : new Response(JSON.stringify({ code: "UNAUTHORIZED" }), { status: 401 });
+    });
+    await render();
+    // The secret leaves the address at once and waits in this browser.
+    expect(window.location.hash).toBe("");
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-join-button]")!.click());
+    await flush();
+    expect(push).toHaveBeenCalledWith(`/login?redirectTo=${encodeURIComponent(`/c/${LINK}?join=1`)}`);
+
+    push.mockReset();
+    fetchMock.mockClear();
+    token = "t";
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(true);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`/api/v2/chats/widget/${LINK}/sign-up`);
+    expect(init.method).toBe("POST");
+    expect(init.headers).toMatchObject({ "X-Willab-Widget-Guest": "g1.secret", Authorization: "Bearer t" });
+    expect(joinPosts()).toHaveLength(0);
+    expect(push).toHaveBeenCalledWith("/chat?with=c-w");
+    expect(window.localStorage.getItem(`wpl-sign-up:${LINK}`)).toBeNull();
   });
 });

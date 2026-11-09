@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { joinChatLink } from "@/services/api/chats";
-import { keepWidgetChat } from "@/services/api/chatWidget";
+import { signUpWidgetChat } from "@/services/api/chatWidget";
 import { getAuthToken } from "@/lib/api/auth-client";
 import {
   JOIN_BUTTON,
@@ -21,13 +21,14 @@ import {
 /*  to finish (`?join=1`). Joined, /chat opens on the list of chats, the chat */
 /*  with the person who invited you its first row, marked new (N357; was     */
 /*  N348 item 1). Your own link, or a link that stops working on the way,     */
-/*  lands on /chat: no new words. From the widget's "Keep this chat" (N567     */
-/*  item 7), the page opens with the visitor's secret after `#g=`: it is kept */
-/*  in this browser while they sign in, and Join takes the widget's chat,    */
-/*  named after them, instead of making a new one.                           */
+/*  lands on /chat: no new words. From the website chat's sign-up after asking   */
+/*  (N591 item 4; was N567's "Keep this chat"), the page opens with the      */
+/*  visitor's secret after `#g=`: it is kept in this browser while they sign */
+/*  in (phone, email, Google or another sign-in), and Join takes the         */
+/*  website chat, named after them, instead of making a new one.             */
 /* -------------------------------------------------------------------------- */
 
-const KEEPING = (token: string) => `wpl-keep:${token}`;
+const SIGNING_UP = (token: string) => `wpl-sign-up:${token}`;
 
 /** The widget visitor's secret this page was opened with, kept while they
  *  sign in; or the one kept before. */
@@ -35,11 +36,11 @@ function visitorSecret(token: string): string | null {
   try {
     const hash = new URLSearchParams(window.location.hash.slice(1)).get("g");
     if (hash) {
-      window.localStorage.setItem(KEEPING(token), hash);
+      window.localStorage.setItem(SIGNING_UP(token), hash);
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       return hash;
     }
-    return window.localStorage.getItem(KEEPING(token));
+    return window.localStorage.getItem(SIGNING_UP(token));
   } catch {
     return null;
   }
@@ -54,15 +55,15 @@ export default function JoinPage({ token, name, finish }: { token: string; name:
     visitor.current = visitorSecret(token);
   }, [token]);
 
-  const keepVisitorsChat = async (secret: string): Promise<boolean> => {
-    const kept = await keepWidgetChat(token, secret, await getAuthToken());
+  const signUpVisitor = async (secret: string): Promise<boolean> => {
+    const kept = await signUpWidgetChat(token, secret, await getAuthToken());
     if (kept === "signin") {
       const back = `/c/${encodeURIComponent(token)}?join=1`;
       router.push(`/login?redirectTo=${encodeURIComponent(back)}`);
       return true;
     }
     try {
-      window.localStorage.removeItem(KEEPING(token));
+      window.localStorage.removeItem(SIGNING_UP(token));
     } catch {
       // Nothing kept, nothing to clear.
     }
@@ -81,7 +82,7 @@ export default function JoinPage({ token, name, finish }: { token: string; name:
     if (busy) return;
     setBusy(true);
     const secret = visitor.current ?? visitorSecret(token);
-    if (secret && (await keepVisitorsChat(secret))) return;
+    if (secret && (await signUpVisitor(secret))) return;
     const result = await joinChatLink(token);
     if (result.kind === "signin") {
       const back = `/c/${encodeURIComponent(token)}?join=1`;

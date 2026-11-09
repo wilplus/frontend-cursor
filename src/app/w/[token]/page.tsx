@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-/* Your chat on any website (backend N567): the page w.js opens in an iframe
+/* The website chat (backend N567, N591): the page w.js opens in an iframe
    on someone's site, the one page any site may frame (middleware.ts). The
    site's host comes from w.js as `?site=`. A wrong, replaced or switched-off
    link is the not-found page, and w.js shows nothing. */
@@ -25,7 +25,7 @@ export default async function Page({ params, searchParams }: {
     <>
       {/* Inside the frame: no footer, and nothing painted around the pill. */}
       <style>{`html,body{background:transparent!important;color-scheme:normal!important}footer:not([data-widget-foot]){display:none!important}`}</style>
-      <WidgetChat token={params.token} name={widget.name} asks={widget.asks} site={site} />
+      <WidgetChat token={params.token} name={widget.name} writes={widget.writes} site={site} />
     </>
   );
 }

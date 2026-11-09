@@ -78,10 +78,12 @@ rest is built in.
 7. Sending creates the customer's guest identity and one request row in the
    workspace, and the request lands in the answerer's chat.
 
-**A person's widget** (N567; built, and hidden since N569: the switch in
-B8 is not shown until the widget's new design, a call back rather than a
-spoken answer, is signed; the rest of B8 to B13 stays as built, unused). The same widget for one person, made from
-their join link: no workspace, no form, a visitor who only taps.
+**A person's widget, the website chat** (N567, amended by N569 and N591;
+built, and hidden: the switch in B8 is not shown, N569 item 1, N591 item 6).
+The host's own chat (N578), placed on the public side of their website:
+anyone there can write to the host, as the host's recipe allows, and signs
+up after asking to get the answer (N591). Made from their join link: no
+workspace, no form.
 
 8. **One link, two ways to share it.** "Add someone to chat with" (the list's
    "+", and **Copy my link** in the ☰ menu, which opens the sheet instead of
@@ -103,28 +105,43 @@ their join link: no workspace, no form, a visitor who only taps.
     `w.js` what to make room for: the pill's size, or the open chat (at most
     400 × 660, 8px from the edges on a phone). A new message from the owner
     puts an orange dot on the pill.
-11. **The visitor only taps** (`WidgetChat.tsx`): the owner's line "Hi, I'm
-    {name}. Tap to answer, and I'll answer you out loud."; then "Your taps go
-    to {name} through WillpowerLab. Privacy" and **Agree and start**; then the
-    owner's join questions (N487), one at a time, their answers on the
-    visitor's side (a date for "Yes" to "Are you in a hurry?", with Send);
-    then "What would you like to ask {name}?" with three answers, the same in
-    every widget for now: "What do you do?", "How do you work with people?",
-    "Can we talk?"; once one is sent, "{name} answers out loud when there's a
-    moment. Come back here to listen." and the three emoji. The owner's answer
-    is a voice bubble with "Read it"; then the three questions come back. The
-    browser keeps the visitor's chat on that site; the chat is read again
-    every 15 seconds while open.
-12. **In the owner's list** each visitor is a chat of its own, **Widget /
-    Visitor {n}**, "From {site}" under it; their answers arrive as the card,
-    their question marked for **Record your answer**, answered as every answer
-    is. Block and Report as in every chat.
-13. **Keep this chat ›** (left of "with WillpowerLab", once a question is
-    sent) opens "Keep this chat", "Join WillpowerLab to keep it, and hear
-    {name}'s answers on your phone.", **Continue with Google** and **Not
-    now**. Continue opens the join page in a new tab with the visitor's
-    secret after `#g=`; Join (after signing in) takes the widget's chat, now
-    **Widget / {name}** in the owner's list, instead of making a new one.
+11. **The visitor writes as the host's chat allows** (`WidgetChat.tsx`,
+    N591 items 1 and 2): "Your taps go to {name} through WillpowerLab.
+    Privacy" (word for word; counsel reads it, N567 item 9) and **Agree and
+    start**; then the host's welcome and the host's own questions (N590
+    item 2), one at a time, their answers on the visitor's side (a date for
+    "Yes" to "Are you in a hurry?", with Send); then the visitor writes as
+    the host's recipe allows (`writes` from the backend): the three emoji,
+    and, when typing is on, "Write to {name}" with Send. No recording before
+    the sign-up (the processing-authorization path has no one to ask); after
+    it, in the app. No fixed greeting and no fixed questions (N591 item 5;
+    N567's "Hi, I'm {name}. Tap to answer, and I'll answer you out loud.",
+    the three questions and "{name} answers out loud…" are gone, N569 item
+    2). The browser keeps the visitor's chat on that site; the chat is read
+    again every 15 seconds while open.
+12. **In the host's list** each visitor is a chat like any other (N591 item
+    1), **Widget / Visitor {n}**, "From {site}" under it; their answers
+    arrive as the card ("Visitor {n}'s answers", N569 item 6). The host
+    answers as in any chat (N591 item 3): the bar is the chat's bar, the
+    "+" and the three emoji; a visitor's question is not marked for
+    **Record your answer** (that was N567 item 6). An answer already saved
+    goes by itself through the bundles (N584, backend). Typing in the bar
+    (N483) waits for the founder's OK on the locked bar, so the host does
+    not type yet. Block and Report as in every chat.
+13. **The sign-up, after asking** (N591 item 4; was "Keep this chat",
+    N567 item 7): once the visitor has written (`sign_up` from the
+    backend), a card: "Sign up to get {name}'s answer, by email or on your
+    phone." (or, when an answer already waits behind it, `answered`,
+    "{name} has answered. Sign up to see it."), **Sign up** and **Not now**;
+    Not now leaves **Sign up ›** left of "with WillpowerLab". Until the
+    sign-up the backend holds the host's answers back. Sign up opens the
+    join page in a new tab with the visitor's secret after `#g=`; Join,
+    after signing in with a phone, email, Google or another sign-in, posts
+    `/sign-up` and opens the chat in the app, now theirs, **Widget /
+    {name}** in the host's list. Back in the widget the answers then show,
+    a voice answer with "Read it". The first notice of the answer, by
+    email or phone, is the backend's, sent once its words are signed. The
+    words of this step are drafted, not signed (Never 4; N591 "Open").
 
 ### C · The request in the answerer's chat
 
@@ -908,6 +925,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N591 · B8 to B13: the website chat is the host's own chat on the public side. The visitor meets the host's welcome and own questions, then writes as the host's recipe allows (the emoji, and typed words when typing is on); after asking, a sign-up step ("Sign up to get {name}'s answer, by email or on your phone.", drafted) replaces "Keep this chat" and `/sign-up` replaces `/keep`; the host's answers wait behind it. Gone: the fixed greeting, the three questions, "answers out loud", the `/ask` route and "Record your answer" for a visitor. The switch stays hidden; the consent line is unchanged. Host typing in the locked bar waits for the founder's OK · BE #1868, FE (this PR)
 - 2026-11-09 · N569 · B8: the switch "Put this chat on your website" is hidden; the add sheet shows the link alone. B12: a website visitor's answers read "{Visitor n}'s answers" (was "Widget's answers") · BE #1831, FE (this PR)
 
 - 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to the first page (N568, N471 item 4), and a link into a chat through sign-in back to it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, N568, FE (this PR)

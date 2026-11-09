@@ -147,9 +147,15 @@ with one button, Join (N307, N310, N335).
 O2  Signed in, Join posts to the link and opens my chat with the one who
 invited me (/chat?with=<chat>).
 O3  Signed out, Join goes to sign in and comes back to this link to
-finish (?join=1); back here, it joins without a second tap.","O1 -> ""the page names who invites me and what I get""
+finish (?join=1); back here, it joins without a second tap.
+O4  Opened from the website chat's ""Sign up"" (#g=, backend N591 item 4;
+WID-29), Join signs me up on that chat instead of joining anew:
+signed out it goes to sign in first (a phone, email, Google or another
+sign-in), then the sign-up carries my secret and opens the chat, now
+mine.","O1 -> ""the page names who invites me and what I get""
 O2 -> ""signed in, Join joins and opens my chat with the one who invited me""
-O3 -> ""signed out, Join goes to sign in and finishes on the way back""",
+O3 -> ""signed out, Join goes to sign in and finishes on the way back""
+O4 -> ""WID-29: from the website chat's Sign up, Join signs me up on that chat, after signing in""",
 src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
 a link with mode=review opens the review; a bare idealArc link opens
 neither.
@@ -602,18 +608,36 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
-src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone's website, I want to ask them with a few taps and hear their answer there, without an account (backend N567).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
-""Agree and start"", and then my chat is kept in this browser.
-O2  I tap the owner's question, then one of the three questions; the
-chat then says the owner answers out loud and to come back, and the
-questions wait.
-O3  ""Keep this chat"" opens the join page in a new tab, carrying my chat.
-O4  The owner's voice answer with words has ""Read it"" under its player:
-closed by default, it opens the words and ""Hide"" closes them (N331,
-N576 item 1); a voice answer with no words shows none.","O1 -> ""the pill asks, and nothing is sent before Agree and start""
-O2 -> ""I tap through the owner's question and ask one of three""
-O3 -> ""Keep this chat opens the join page with my chat""
-O4 -> ""the owner's voice answer opens its words behind Read it, and Hide closes them""",
+src/components/willab/chats/WidgetChat.test.tsx,Story,"As someone on a host's website, I want to write to them there, as their chat lets me, and sign up after asking to get their answer, so that the website chat is their own chat on the public side (backend N591, amending N567 and N569).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
+""Agree and start"" under ""Your taps go to {name} through WillpowerLab.""
+and ""Privacy""; then my chat is kept in this browser (WID-13).
+O2  No fixed greeting and no fixed questions: the host's own welcome and
+their own questions come first, tapped one at a time (""Yes"" to ""Are
+you in a hurry?"" opens a date with Send); nothing says the host
+answers ""out loud"" (WID-14, WID-15, WID-16).
+O3  Then I write as the host's setup allows: the three emoji, and, when
+typing is on, ""Write to {name}"" with Send; with typing off there is
+no box to type in (N591 item 2).
+O4  After asking, the sign-up step: ""Sign up to get {name}'s answer, by
+email or on your phone."" with ""Sign up"" and ""Not now""; Not now leaves
+""Sign up ›"" by ""with WillpowerLab"" (WID-17, WID-18 as N591 replaces
+them; WID-29).
+O5  While the host's answer waits behind the sign-up, the step says
+""{name} has answered. Sign up to see it.""; ""Sign up"" opens the join
+page in a new tab, carrying my chat (WID-29).
+O6  Signed up, the host's voice answer shows here with ""Read it"": closed
+by default, it opens the words and ""Hide"" closes them (WID-28, N576
+item 1); a voice answer with no words shows none.
+O7  Only my browser holds my chat: every read and write carries my secret
+in its header, and a chat the backend no longer knows (a replaced
+link) is forgotten here (WID-25).","O1 -> ""WID-13: the pill asks, and nothing is sent before Agree and start""
+O2 -> ""WID-14, WID-15, WID-16: the host's welcome and own questions come first, tapped, with no fixed ones""
+O3 -> ""N591 item 2: I write as the host's setup allows, emoji and typed words""
+O3 -> ""N591 item 2: with typing off, only the emoji""
+O4 -> ""WID-17, WID-18, WID-29: after asking, the sign-up step, and Not now leaves Sign up by the foot""
+O5 -> ""WID-29: an answer waiting behind the sign-up, and Sign up opens the join page with my chat""
+O6 -> ""WID-28: signed up, the host's voice answer opens its words behind Read it, and Hide closes them""
+O7 -> ""WID-25: every call carries my secret, and a chat the backend forgot is forgotten here""","The founder, 9 November 2026 (N591): ""There's really no difference between the widget and the normal chat. It's just that the chat is placed on the public side."""
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -733,7 +757,9 @@ slide previews on his cards wait, so pdf.js and the decks are not
 downloaded behind the list; they draw once his chat is open.
 O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
 answers"", on their row and on the card, never ""Widget's answers""
-(N569 item 6).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+(N569 item 6).
+O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
+""From {site}""; no ""Record your answer"" for them (WID-19, WID-22).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -758,7 +784,8 @@ O21 -> ""from their profile I block them, the bar says so with Unblock, and Repo
 O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
 O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
 O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
-O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""",
+O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
+O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
