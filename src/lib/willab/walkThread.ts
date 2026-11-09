@@ -544,14 +544,15 @@ function oneThingSaid(
   line: string | null,
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null | undefined {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
-  // Last time, "And now, one thing to improve:" and the helper words, in
+  // Last time, "And here's one moment to try another way:" and the helper words, in
   // the words the walk drew.
   if (step.key === "last" || step.key === "one" || step.key === "words") return app(line);
   if (!step.one) return undefined;
   const one = [step];
   switch (step.key) {
     case "praise":
-      return moment ? app(bestBubble(moment).join("\n")) : null;
+      // Will's written praise when the walk drew it (N565), else the signed lines.
+      return moment ? app(line ?? bestBubble(moment).join("\n")) : null;
     case "clearer":
       return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
     case "exVideo": {

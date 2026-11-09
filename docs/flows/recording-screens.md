@@ -298,6 +298,87 @@ green); the app shows the speaker's own slides, unchanged.
   recommendations". Lives in `LabOverlay.tsx` (`answerLook`,
   `RecordingWhere`), `recordingCopy.ts` (`answerWhere`) and
   `src/lib/willab/chatAnswer.ts` (`answerDeck`).
+- **2026-11-09 · the browser's own leave warning (N553 item 1).** While a
+  Take is recorded and until its upload is accepted, refreshing or closing
+  the page in a browser shows the browser's own leave warning, in its
+  words, never ours; iPhone Safari and the app ignore it, item 2 is for
+  them. It starts with the recording (a call's pause and Finish take's last
+  second included) and ends when the server answers that it has the Take
+  (201 or 202). A failed upload keeps it until the Take goes up; "Discard
+  this take?", or leaving these screens, ends it. Nothing else asks: not
+  the set-up, the wait once the server has the Take, the Ideal Text, the
+  walk, a file picked with "Upload a recording", or a move between the
+  app's own pages. Nothing on screen changes. Signed in the Claude Code
+  chat, 9 November 2026 ("Both: A now, B next"). Lives in
+  `src/components/willab/labLeaveGuard.ts` and `LabOverlay.tsx`.
+- **2026-11-09 · a Take is kept on the device until the server has it
+  (backend N553 item 2, N556).** At Finish, and only then, the Take is
+  saved on the device once, beside its upload: never while recording, and
+  the upload never waits for it. The copy is deleted as soon as an answer
+  names the Take's session (accepted, a duplicate, a 504 with its
+  session), when the speaker discards it, when the server refuses it for
+  good (no speech, 400, 404, the project being deleted, too large,
+  recording consent withdrawn), or after 7 days; any other answer (no
+  connection, 401, 403, 429, 5xx, a 504 without a session) keeps it. A
+  kept Take is sent again at the next open, when the connection comes back
+  and when the app returns to the front, while the Lab is closed and no
+  other Take is still landing, one at a time, oldest first: through the
+  same upload and processing authorization, with the same upload key, so
+  the server answers a repeat with `duplicate` and never makes it twice.
+  It then shows as processing as any Take does (the processing view, the
+  share chosen for it, its "Your Recording" line unless the thread already
+  has one), and while it goes up the record button waits with its signed
+  line **One moment — finishing your last take.** Not sent, and deleted,
+  when a newer Take of the same project is already on the server (an
+  older Take never becomes the Ideal Text, Never 5: a Take made after
+  this one's Finish with another upload key, which the server names for
+  each Take; a Take with this one's key is this very Take, sent again and
+  answered `duplicate`), or when recording consent was withdrawn. Kept through a sign-out and
+  sent only when the same person is signed in, never under another
+  account; deleted when that person asks to delete their account. Answers
+  and questions recorded in a chat, a picked file and a guest's Take are
+  left out for now. No new words on screen; the privacy line comes with
+  the next privacy version (N556 item 4). Signed in the Claude Code chat,
+  9 November 2026: "Ship B; line in next version", "At Finish only, for
+  now", "Yes, all of them". Lives in `src/lib/willab/takeOutbox.ts`,
+  `src/lib/willab/takeResend.ts`, `src/components/willab/useTakeResend.ts`,
+  `LabOverlay.tsx` and `Lounge.tsx`.
+- **2026-11-09 · Back while recording asks first (backend N560 item 1).**
+  The phone's Back (on an iPhone, the swipe from the left edge; Android's
+  Back; a browser's Back) does what the ✕ does, in every state. While the
+  mic records (a call's pause and Finish take's last second included) it
+  asks the same **Discard this take?** with the same answers, and the
+  screens and the recording stay: **Keep recording** goes on, **Discard
+  take** closes. Back while the question is open is its safe answer, as
+  Escape is: the Take is kept, and the next Back asks again. Where the ✕
+  closes without asking (the set-up, "How do you feel?", "Getting your mic
+  ready", the wait), Back closes too; on the Ideal Text page it parks, as
+  before. No new words. Was: Back cancelled the recording and closed the
+  screens without asking. Signed in the Claude Code chat, 9 November 2026
+  ("Ask, like the ✕"). Lives in `LabOverlay.tsx` (`backStaysHere`,
+  `asksBeforeClosing`) and `useBackDismiss.ts`.
+- **2026-11-09 · "Try processing again" always means the Take on screen
+  (backend N560 item 2).** After a slow Take, **Record again** forgets the
+  old Take: if the new Take's upload then fails, **Try processing again**
+  sends the new Take again, with its own upload key, so the server answers
+  a repeat with `duplicate`, and never restarts the old one. The old Take
+  still finishes on the server, and its "Processing" line keeps tracking
+  it. Nothing on screen changes. Was: the retry could restart the old
+  Take, and its text could come back as if it were the new one (Never 5).
+  Signed in the Claude Code chat, 9 November 2026 ("Yes, fix it"). Lives
+  in `LabOverlay.tsx` (`abandonSlowTake`, `retryProcessing`).
+- **2026-11-09 · a tap waits, then goes (backend N560 item 3).** From the
+  start of recording until the server has the Take, it is discarded, or
+  these screens close (the window of N553 item 1's leave warning), a page
+  that would load over the Take waits: a tapped push notification, a
+  WillpowerLab link opening the app, or a guest's first Take opening its
+  review once their sign-up finishes (the send itself goes ahead at once).
+  When the window ends the page opens; when more than one was tapped, the
+  latest. Outside the window it opens at once, as before. Nothing on screen
+  changes. Signed in the Claude Code chat, 9 November 2026 ("Wait, then
+  go"). Lives in `src/components/willab/labLeaveGuard.ts`
+  (`whenNoTakeAtRisk`), `src/lib/nativePush.ts`, `src/lib/nativeLinks.ts`
+  and `src/components/willab/PendingCoachSend.tsx`.
 
 
 ## 2. In flight
@@ -348,6 +429,11 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N560 items 1 and 2 · the phone's Back while recording asks the ✕'s "Discard this take?" with the same answers, and the screens and the recording stay (Back while it is open keeps the Take, as Escape does); where the ✕ closes without asking, Back closes; after a slow Take's "Record again", "Try processing again" sends the new Take again with its own upload key and never restarts the old one, which still finishes and keeps its "Processing" line (`LabOverlay.tsx`). No new words. Was: Back cancelled the recording and closed the screens without asking, and the retry could restart the old Take, whose text could come back as the new one's · BE N560 (#1822), FE (this PR)
+- 2026-11-09 · N560 item 3 · a tapped push notification, a WillpowerLab link opening the app, or a guest's first Take opening its review after sign-up waits while a Take is recorded or not yet on the server (N553 item 1's window), then opens once the server has it, it is discarded or the screens close, the latest tap only; the guest's send itself goes ahead at once (`labLeaveGuard.ts`, `nativePush.ts`, `nativeLinks.ts`, `PendingCoachSend.tsx`). Nothing on screen changes. Was: the page loaded at once and the Take was lost · BE N560 (#1822), FE (this PR)
+- 2026-11-09 · N556 item 3 · a kept Take knows a newer Take of its project by the upload key the server now names for each Take (`upload_key` in `/v2/user/trainings`): one later Take with another key is newer, and one with its own key is itself. Was: a guess from how many Takes came after its Finish and whether one had its "Your Recording" line, which missed a Take from another device that lost its line. A server without the keys keeps the guess (`lib/willab/takeResend.ts`, `services/api/trainings.ts`). No new words · BE #1824, FE (this PR)
+- 2026-11-09 · N553 item 2, N556 · a finished Take is kept on the device (IndexedDB) until the server has it, and sent again at the next open, when the connection comes back and when the app returns to the front, through the same upload with the same upload key; deleted once the server names it, on a discard, a refusal for good, a newer Take of its project on the server, withdrawn recording consent, an account deletion, or after 7 days (`lib/willab/takeOutbox.ts`, `lib/willab/takeResend.ts`, `useTakeResend.ts`, `LabOverlay.tsx`, `Lounge.tsx`, `accountDeletion.ts`). No new words. Was: a Take whose upload never finished (the app killed, the page refreshed, the connection lost) was gone · BE N553, N556 (#1818), FE (this PR)
+- 2026-11-09 · N553 item 1 · while a Take is recorded and until the server answers that it has it (201 or 202), refreshing or closing the page in a browser shows the browser's own "Leave page?" warning, with no words of ours; a failed upload keeps it until the Take goes up, and a discard or leaving the screens ends it; iPhone Safari and the app ignore it, item 2 is for them (`labLeaveGuard.ts`, `LabOverlay.tsx`). Nothing on screen changes. Was: a refresh or a close lost the Take with no warning · BE N553 (#1818), FE (this PR)
 - 2026-11-09 · N549 · "Record Take N" opens "How do you feel?" at once: no 0.4 s fade into it, and the check draws from the tab's last "authorized" while the Lab's own consent read runs; a pick or Skip starts the Take only once that read agrees, and a read that says otherwise puts the acceptance flow in front (`LabOverlay.tsx`, `LabEntryGate.tsx`, `useSignedIn.ts`, `processingAuthorization.ts`). No new words. Was: the Lab faded in over 0.4 s and waited behind a loader for the read, so the page under it showed for a moment · BE (N549 log), FE (this PR)
 - 2026-11-09 · no rule changed · a bug fix: the wait's ✕ shows the chat landed on "Processing your recording", and the thread lands on that bubble whenever a Take's processing starts (`useLandOnProcessing` in `usePinThreadBottom.ts`, `Lounge.tsx`). Nothing on screen changes. Was: since the chat follows only a new message (2026-11-05), the bubble, which is not a message, could stay below the screen after the ✕, and looked gone · FE (this PR)
 - 2026-11-05 · no rule changed · "Discard this take?" takes the keyboard: focus moves onto "Keep recording" (or "Cancel") as it opens, Tab stays on its two answers, Escape keeps the Take; closed, focus is not handed back to the ✕, so the next Space still turns the slide (N70.1) (`DiscardTakeDialog.tsx`, as `ProcessingResumeOverlay.tsx` does). Nothing on screen changes. Was: focus stayed behind the dialog, Tab reached the screen under it and Escape did nothing · FE (this PR)

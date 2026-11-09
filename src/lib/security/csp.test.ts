@@ -43,4 +43,11 @@ describe("the content security policy", () => {
     const elem = directive(csp, "style-src-elem");
     if (elem) expect(elem).toContain("'unsafe-inline'");
   });
+
+  it("lets any site frame the widget's page, and no site frame any other page (backend N567)", () => {
+    expect(directive(getCspDirectives("n", "/w/AbCdEfGhIjKlMnOp"), "frame-ancestors")).toBe("frame-ancestors *");
+    for (const page of ["/", "/chat", "/c/AbCdEfGhIjKlMnOp", "/w/AbCd/../chat", "/w"]) {
+      expect(directive(getCspDirectives("n", page), "frame-ancestors")).toBe("frame-ancestors 'none'");
+    }
+  });
 });

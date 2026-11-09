@@ -144,8 +144,12 @@ body {
   .max-w-4xl {
     max-width: min(36rem, calc(100vw - 30px));
   }
+  /* 16px: iOS zooms the page in on any field under 16px when it is tapped,
+     and leaves it zoomed. `select` too (the country on the consent screen,
+     the time zone when booking). */
   input,
-  textarea {
+  textarea,
+  select {
     font-size: 16px !important;
     scroll-margin-top: 1.5rem;
   }
@@ -161,6 +165,14 @@ body {
 html[data-app="native"],
 html[data-app="native"] body {
   overscroll-behavior: none;
+}
+
+/* While the keyboard is up in the iPhone app (NativeKeyboard.tsx, backend
+   N561 item 2), the page ends on the keyboard, and the footer goes behind it,
+   as an app's tab bar does: the text box sits right on the keyboard, with
+   nothing between them. It comes back with the keyboard down. */
+html[data-keyboard="open"] body > footer {
+  display: none;
 }
 
 /* TOUCH FEEDBACK — the press must land before the network does

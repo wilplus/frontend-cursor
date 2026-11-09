@@ -78,6 +78,54 @@ rest is built in.
 7. Sending creates the customer's guest identity and one request row in the
    workspace, and the request lands in the answerer's chat.
 
+**A person's widget** (N567; built, and hidden since N569: the switch in
+B8 is not shown until the widget's new design, a call back rather than a
+spoken answer, is signed; the rest of B8 to B13 stays as built, unused). The same widget for one person, made from
+their join link: no workspace, no form, a visitor who only taps.
+
+8. **One link, two ways to share it.** "Add someone to chat with" (the list's
+   "+", and **Copy my link** in the ☰ menu, which opens the sheet instead of
+   copying at once) has under its title one card with a small switch: **Put
+   this chat on your website**, "Customers ask you there, and you answer here.
+   Each answer teaches your chat, so it learns from real questions as they
+   come in." Off: the link, **Copy my link**, and 🔒 "Only the two of you are
+   in it." (the three tiles are gone). On: one line of code,
+   `<script src="https://willpowerlab.com/w.js" data-link="<token>" async></script>`,
+   "Paste this line just before </body> on your website, or send it to
+   whoever builds your site.", **Copy my code**, and 🔒 "Each customer has a
+   chat of their own with you." (`AddSomeoneSheet.tsx`, `AppMenu.tsx`).
+9. **It opens on any site** where the line is pasted; nothing to type. The
+   line carries the link's token, so a new link stops every pasted line.
+10. **On the site** (`public/w.js`): one pill at the bottom right, the owner's
+    circle and **Ask {name}**, inside a closed shadow root; the chat is an
+    iframe to `/w/<token>?site=<host>`, the one page any site may frame
+    (`middleware.ts`, `frame-ancestors *` for it alone). The iframe tells
+    `w.js` what to make room for: the pill's size, or the open chat (at most
+    400 × 660, 8px from the edges on a phone). A new message from the owner
+    puts an orange dot on the pill.
+11. **The visitor only taps** (`WidgetChat.tsx`): the owner's line "Hi, I'm
+    {name}. Tap to answer, and I'll answer you out loud."; then "Your taps go
+    to {name} through WillpowerLab. Privacy" and **Agree and start**; then the
+    owner's join questions (N487), one at a time, their answers on the
+    visitor's side (a date for "Yes" to "Are you in a hurry?", with Send);
+    then "What would you like to ask {name}?" with three answers, the same in
+    every widget for now: "What do you do?", "How do you work with people?",
+    "Can we talk?"; once one is sent, "{name} answers out loud when there's a
+    moment. Come back here to listen." and the three emoji. The owner's answer
+    is a voice bubble with "Read it"; then the three questions come back. The
+    browser keeps the visitor's chat on that site; the chat is read again
+    every 15 seconds while open.
+12. **In the owner's list** each visitor is a chat of its own, **Widget /
+    Visitor {n}**, "From {site}" under it; their answers arrive as the card,
+    their question marked for **Record your answer**, answered as every answer
+    is. Block and Report as in every chat.
+13. **Keep this chat ›** (left of "with WillpowerLab", once a question is
+    sent) opens "Keep this chat", "Join WillpowerLab to keep it, and hear
+    {name}'s answers on your phone.", **Continue with Google** and **Not
+    now**. Continue opens the join page in a new tab with the visitor's
+    secret after `#g=`; Join (after signing in) takes the widget's chat, now
+    **Widget / {name}** in the owner's list, instead of making a new one.
+
 ### C · The request in the answerer's chat
 
 1. **A list of chats** (N256): an answerer with customer requests opens her
@@ -97,7 +145,21 @@ rest is built in.
    decides it. A link that opens something in Will's chat (the coach's
    feedback, the walk) still opens there, with the way back to the list;
    a join link opens the list (N357). Was: ring 6 only; everyone else, and
-   a person whose only chat was Will's, opened Will's chat (N274). She is told of each request on WhatsApp:
+   a person whose only chat was Will's, opened Will's chat (N274).
+   **The iPhone app opens on the chats** (N561 item 1, amending N354 item
+   1): signed in, straight on the list, with no stop at sign-in; signed
+   out, the server sends the app to the first page, the website's (N568,
+   N471 item 4: the link field, "No link yet? Join the waitlist", "Sign in"
+   in its corner), before anything of /chat is drawn; a link into a chat
+   goes to sign-in and comes back to it after. The server knows the app by its user agent
+   (`WillpowerLabApp`, `capacitor.config.ts`), so the website's /chat is
+   unchanged, and the check costs a signed-in person nothing: the session in
+   the cookie, no round trip. Was (N354 item 1): the app opened on sign-in,
+   which sent a signed-in person on to /chat. **The keyboard** (N561 item
+   2): no grey bar with arrows and "Done" above it; the page ends on the
+   keyboard, the text box right on it, and the footer goes behind the
+   keyboard while it is up (`NativeKeyboard.tsx`). Both from the app build
+   after 9 November 2026. She is told of each request on WhatsApp:
    one message from WillpowerLab's number with a link to her chats (N236
    item 5).
    **As built** (N320, N321, N322; for everyone since N456), with a
@@ -846,6 +908,10 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N569 · B8: the switch "Put this chat on your website" is hidden; the add sheet shows the link alone. B12: a website visitor's answers read "{Visitor n}'s answers" (was "Widget's answers") · BE #1831, FE (this PR)
+
+- 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to the first page (N568, N471 item 4), and a link into a chat through sign-in back to it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, N568, FE (this PR)
+- 2026-11-05 · N567 · B8 to B13: a person's widget. The add sheet's switch, "Put this chat on your website", turns the link into one line of code; the three tiles become one line, "Only the two of you are in it."; Copy my link in the ☰ menu opens the sheet (was: copied at once). `w.js` draws "Ask {name}" on any site and opens `/w/<token>` in an iframe; the visitor taps Agree and start, the owner's questions, one of three questions and the emoji, and hears the answer there; the owner's list has "Widget / Visitor {n}" with "From {site}"; Keep this chat makes it theirs ("Widget / {name}") · BE (this branch), FE (this PR)
 - 2026-11-06 · N534 · C1: until the questions for people who join are set, the "+" shows a note at the bottom, the bar at the top of Will's chat moved down, with "Set them" (Will's setup) and ✕, in place of opening Will's chat; once set, the "+" opens the add sheet as before (`ChatList.tsx`, `joinCopy.ts`, `chats.ts`) · BE (wilplus/backend-cursor, `"set"` on GET join-questions), FE (this change)
 - 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)
 - 2026-11-06 · N533 · C1: at the end of the join setup, under "You're set." and its two links, Will says "All is set. You can now start practising." (backend `services/join_setup.py` writes it as his own line, `{"step": "say"}`, drawn by `JoinSetup.tsx` as any of his lines); the summary opened again ends at "Saved. …" as before. Was: "You're set." was Will's last line · BE N533 (#1787), BE #1789, FE (this PR)

@@ -11,6 +11,7 @@ import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, type FeedbackWalkRequest, type FeedbackWalkTempoWords, type WalkAiShown } from "./walk/FeedbackWalk";
+import { useWalkVoiceOn } from "./walk/useWalkVoice";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
@@ -467,6 +468,8 @@ function walkItemOf(
           oneFix: item.oneFix ?? null,
           // Its AI clip stands behind its Clearer version (backend N548).
           voiceToo: item.voiceToo === true,
+          // A good Take: nothing to fix (backend N551).
+          nothingToFix: item.nothingToFix === true,
         }
       : {}),
     openCard: item.openCard ?? null,
@@ -1858,6 +1861,8 @@ export function useDeckFeedbackWalk(args: {
     return () => clearTimeout(timer);
   }, [hasItems]);
   const walkReady = coachOnly || openWaited || walkOpens({ items, tempo, nameRead, lastAnswered, lastFix, thread });
+  // Will's written messages, when the walk_voice ring reaches the speaker (N565).
+  const walkVoiceOn = useWalkVoiceOn();
   const element = useMemo(
     () => (
         <FeedbackWalk
@@ -1868,6 +1873,7 @@ export function useDeckFeedbackWalk(args: {
           firstName={firstName}
           takeIndex={args.takeIndex ?? null}
           takeId={take}
+          walkVoiceOn={walkVoiceOn}
           onSaveHelperWords={saveHelperWords}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
@@ -1903,6 +1909,7 @@ export function useDeckFeedbackWalk(args: {
         />
     ),
     [
+      walkVoiceOn,
       walkModel,
       request,
       coachMessage,

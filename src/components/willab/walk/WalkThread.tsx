@@ -123,7 +123,7 @@ export function useMountedAsPast(): boolean {
 
 /** One part of the thread. `opening`: what lands before the screen's own
  *  bubbles, in order (the walk's answer to the step before, the part's lead
- *  and its "And now, one thing to improve:", its name): drawn first as the
+ *  and its "And here's one moment to try another way:", its name): drawn first as the
  *  newest part, each lands as the screen's do, and the screen waits for
  *  them, its bubbles, its buttons and a screen that passes by alike (backend
  *  N440; until then they showed at once, above bubbles still landing). */
@@ -250,7 +250,7 @@ export const landingWelcome = () =>
   !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** The typing dots, as a grey bubble of the walk's size. */
-function WalkTyping() {
+export function WalkTyping() {
   return (
     <div data-walk-typing aria-hidden="true" className="flex">
       <span className="rounded-[22px] bg-muted px-[17px] py-[19px]">

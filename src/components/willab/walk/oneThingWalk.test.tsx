@@ -2,8 +2,8 @@
 /*
 STORY    As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.
 OUTCOME
-  O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And now, one thing to improve:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
-  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And now, one thing to improve:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
+  O1  The walk goes in order: "Hi {name}.", my best with "This was your most confident moment." and why it worked, then "And here's one moment to try another way:" and one fix; the Clearer version says "Say it straight:" and the sentence, with "Try it" and "Keep mine"; no helper-word picker, no second moment and no summary in the walk.
+  O2  After the fix my helper words come on their own: "These are your helper words. …" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after "Keep mine" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no "And here's one moment to try another way:", in the walk or the chat: my best, my best's helper words and "Lesson done.", the bar on my best's slide.
   O3  The walk ends on "Lesson done." with Close, which ends the review and takes me back to the chat, also when I open it again before the Take is finished; no "Record Take N" in the walk.
   O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after "Try it", my own after "Keep mine"; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
   O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick ("Audio unclear", no card, at once), then "Got it.", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and "Lesson done."; on Take 1 I judge no one.
@@ -12,6 +12,8 @@ OUTCOME
   O10 The fix lands one bubble at a time, the dots before each grey one, after the line that opens it; its buttons come once all have landed; after Skip the walk's answer, then my helper words, then "Lesson done." land the same way (backend N440).
   O9  With practice off there is nothing to try: Next on the fix posts nothing and the walk says nothing about skipping; a try that could not be checked keeps "Try it" with Skip while a try is left (backend N440).
   O11 When the fix the server chose comes without its Clearer version and its voice shows a problem too, the walk gives that same moment's AI clip after my best: "Say this one like your confident moment:", practised on the clip the picker measured (backend N548; was the closest exercise, N536).
+  O12 A good Take (no fix, nothing below the floor) says "The rest of this Take held up just as well." where the fix would be, before my helper words; a walk with no fix that the server does not call good says nothing new (backend N551, N550).
+  O13 Their best is praised as how it sounded to us, never as a verdict: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", in turn. When the walk_voice ring reaches me, Will's own written words take their place, and open the moment to try too, with the typing dots while they come, and the signed lines when they don't (backend N565).
   O8  The thread shows no slide names, the bar does; after "Keep mine" the walk says "Your words it is." and my helper words leave out the hesitations my sentence opens with; the Sniper opens with "You rushed here. Let it breathe." in the scale's bubble and the bar names its slide (backend N435).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
@@ -39,6 +41,8 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
          O10 -> the AI clip's fix lands one bubble at a time after its opening line, then its buttons; after Skip the answer, the helper words and Lesson done land in turn,
                 the Sniper's try lands after a short beat, then Will's line after the dots, under the scale, which never lands again (B7, N440)
          O11 -> the fix the server chose without its Clearer version is its own AI clip when its voice shows a problem too
+         O12 -> a good Take says there is nothing to fix this time, before my helper words
+         O13 -> their best is praised as how it sounded to us, in Will's own words when his voice is on
          O9 -> with practice off, Next on the fix posts nothing and says nothing about skipping,
                a try that could not be checked keeps Try it with Skip
 WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: "remove the skip - cause trash acts like a skip", "rest is fien do it"); 2026-11-03 (backend N440, the walk's run-through: "fix 1 to 9 and 11").
@@ -54,6 +58,10 @@ vi.mock("@/services/api/otherSpeakers", () => ({
 }));
 import { fetchOtherClips } from "@/services/api/otherSpeakers";
 /** The Sniper's microphone, open and silent: a try reads as slow, never lands. */
+vi.mock("@/services/api/walkVoice", () => ({ askWalkVoice: vi.fn(async () => null) }));
+import { askWalkVoice } from "@/services/api/walkVoice";
+import { resetWalkVoice } from "./useWalkVoice";
+import { bestLine } from "@/lib/willab/walkLines";
 vi.mock("@/lib/willab/pace/paceMic", () => ({
   startPaceMic: vi.fn(async () => ({ meter: {}, voiceLike: () => 0, stop: () => undefined })),
 }));
@@ -170,7 +178,7 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe("Hi Maya.");
     expect(screen()).toBe("walk-screen-praise");
     expect([...now()!.querySelectorAll("[data-walk-best]")].map((n) => n.textContent)).toEqual([
-      ONE_THING_COPY.best,
+      bestLine("p1"),
       "Why it worked: smooth and steady, no stumbling. That sounded confident!",
     ]);
     // Nothing to practise on their best: Next.
@@ -378,6 +386,63 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
     expect(screen()).toBe("walk-screen-done");
+  });
+
+  it("their best is praised as how it sounded to us, in Will's own words when his voice is on", async () => {
+    const written = "To us, \"matches every transaction\" sounded calm and sure.";
+    const items: FeedbackWalkItem<string>[] = [
+      { ...ITEMS[0], clip: { ...ITEMS[0].clip!, snippetId: "s1" } },
+      { ...ITEMS[1], clip: { ...ITEMS[1].clip!, snippetId: "s2" } },
+    ];
+    const model = buildFeedbackWalk<string>({ items, coachNote: false, practiceOn: true, guest: false, judge: false });
+    const best = () => [...now()!.querySelectorAll("[data-walk-best]")].map((n) => n.textContent);
+    // His voice off (the default): the signed lines, "to us" or "to our ears".
+    draw({ seq: 1, at: at("praise") }, { model, takeId: "t1" });
+    expect(best()[0]).toMatch(/^To (our ears|us), this one sounded really sure\.$/);
+    expect(vi.mocked(askWalkVoice)).not.toHaveBeenCalled();
+    // On: the dots while Will writes, then his words, once.
+    resetWalkVoice();
+    let answer: (text: string | null) => void = () => {};
+    const tryLine = "To us, \"I think we're seeing traction\" came out fast. Want to try it straight?";
+    vi.mocked(askWalkVoice).mockImplementation((ask) =>
+      ask.step === "praise" ? new Promise((resolve) => { answer = resolve; }) : Promise.resolve(ask.step === "try" ? tryLine : null));
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 2, at: at("praise") }, { model, takeId: "t1", walkVoiceOn: true });
+    expect(now()!.querySelector("[data-walk-typing]")).not.toBeNull();
+    await act(async () => answer(written));
+    expect(best()).toEqual([written]);
+    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith(expect.objectContaining({ takeId: "t1", step: "praise", snippetId: "s1" }));
+    // The moment to try opens with his line, asked as the walk opened, told
+    // what it is walked with.
+    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith(expect.objectContaining({ step: "try", snippetId: "s2", tool: "clearer" }));
+    click(testId("walk-forward"));
+    await settle();
+    expect(live()!.querySelector("[data-walk-one]")!.textContent).toBe(tryLine);
+    // No words came back: the signed lines.
+    resetWalkVoice();
+    vi.mocked(askWalkVoice).mockImplementation(async () => null);
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 3, at: at("praise") }, { model, takeId: "t2", walkVoiceOn: true });
+    await settle();
+    expect(best()[0]).toBe(bestLine("p1"));
+  });
+
+  it("a good Take says there is nothing to fix this time, before my helper words", async () => {
+    const walkOf = (nothingToFix: boolean) => buildFeedbackWalk<string>({
+      items: [{ ...ITEMS[0], said: "Ledgerly matches every transaction", oneFix: "none", nothingToFix }], coachNote: false, practiceOn: true, guest: false, judge: false,
+    });
+    const good = walkOf(true);
+    draw({ seq: 1, at: good.plan.findIndex((s) => s.key === "praise") }, { model: good });
+    click(testId("walk-forward"));
+    await settle();
+    expect(live()!.querySelector("[data-walk-clear]")!.textContent).toBe(ONE_THING_COPY.nothingToFix);
+    expect(live()!.querySelector("[data-walk-one]")).toBeNull();
+    expect(text()).toContain(ONE_THING_COPY.helperWords);
+    // No fix, but not a good Take (its weak moment went to a coach): nothing new.
+    const quiet = walkOf(false);
+    expect(quiet.plan.some((s) => s.clear)).toBe(false);
   });
 
   it("the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does", async () => {

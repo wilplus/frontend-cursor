@@ -2,8 +2,17 @@
 
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Sparkles } from "lucide-react";
 import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
@@ -170,6 +179,13 @@ export default function IdealTextOverlay({
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   const [refetchNonce, setRefetchNonce] = useState(0);
+  // The page that can't load reads again by itself, and on "Try again"
+  // (N552): both through the load below, which keeps the line meanwhile.
+  const { takeRetry, retryFailed, tryAgain } = useLoadRetry(
+    arcId,
+    status === "error",
+    setRefetchNonce,
+  );
   /* FRESH LINKS FOR THE PLAYERS (founder 2026-10-08). The clip and video
      links are signed for hours; a player whose link died, or a tab back
      after more than 5 h, asks for the document again through the refetch
@@ -335,7 +351,11 @@ export default function IdealTextOverlay({
      * once the new payload is fully in hand, which is also what stops the
      * reader losing their place mid-paragraph. */
     const firstLoad = loadedArcRef.current !== arcId;
-    if (firstLoad) setStatus("loading");
+    // A read again after a failed load (N552) keeps the line on screen until
+    // it answers: no flash of the loader between tries. A Take analysing
+    // meanwhile still gets its waiting screen.
+    const retry = takeRetry(arcId);
+    if (firstLoad && (!retry || analysisPending)) setStatus("loading");
     // W4 — a fetch during analysis would come back with LAST take's document
     // and show it as current. Hold in the loading state instead; this effect
     // re-runs when `analysisPending` flips false and fetches the fresh one.
@@ -399,6 +419,7 @@ export default function IdealTextOverlay({
       if (r.kind === "historical" || r.kind === "historicalUnavailable") {
         // Unreachable without a ?version request; keep the load honest.
         setStatus("error");
+        retryFailed(arcId, retry);
         return;
       }
       if (usable) loadedArcRef.current = arcId;
@@ -437,12 +458,13 @@ export default function IdealTextOverlay({
         setStatus("instant");
       } else {
         setStatus(r.kind);
+        if (r.kind === "error") retryFailed(arcId, retry);
       }
     }).finally(mediaSettled);
     return () => {
       active = false;
     };
-  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake]);
+  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake, takeRetry, retryFailed]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -1088,9 +1110,7 @@ export default function IdealTextOverlay({
               // The coach's link in another account (WIL-93): said, never waited on.
               <OtherAccountLink />
             ) : shownStatus === "error" ? (
-              <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
-                Couldn&apos;t load your ideal text. Try again in a moment.
-              </p>
+              <LoadFailed onRetry={tryAgain} />
             ) : shownStatus === "instant" && ideal ? (
               <div className="flex flex-col gap-5">
                 {/* The persistent instant banner — this text is a free DRAFT the
@@ -1311,6 +1331,74 @@ function LateDots() {
     return () => clearTimeout(t);
   }, []);
   return late ? <WalkLoading /> : null;
+}
+
+/** WHEN THE PAGE CAN'T LOAD (founder 2026-11-09, "Both"; backend N552).
+ *  It reads again by itself, quietly, 3 s and 10 s after the failed load,
+ *  and then stops; "Try again" under the line reads at once. A failed read
+ *  that was not one of those two tries (the open, a tap) starts the two
+ *  afresh, from its own failure; the tries' own failures start nothing, so
+ *  it never loops. Every read goes through the page's one load (`bump`, the
+ *  refetch nonce), which takes `takeRetry` as it starts and keeps the line
+ *  on screen meanwhile. The tries stop on a load that answers (`failed`
+ *  goes false), on a different project, on a tap, and when the page closes. */
+const LOAD_RETRY_MS = [3000, 10000] as const;
+
+type LoadRetry = { arcId: string; auto: boolean };
+
+function useLoadRetry(
+  arcId: string,
+  failed: boolean,
+  bump: Dispatch<SetStateAction<number>>,
+) {
+  const askedRef = useRef<LoadRetry | null>(null);
+  const [episode, setEpisode] = useState<{ arcId: string } | null>(null);
+  useEffect(() => {
+    if (!failed || episode?.arcId !== arcId) return;
+    const timers = LOAD_RETRY_MS.map((ms) =>
+      setTimeout(() => {
+        askedRef.current = { arcId, auto: true };
+        bump((n) => n + 1);
+      }, ms),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [failed, episode, arcId, bump]);
+  /** Taken once by the load as it starts: this read is a read again. */
+  const takeRetry = useCallback((forArc: string): LoadRetry | null => {
+    const asked = askedRef.current;
+    askedRef.current = null;
+    return asked?.arcId === forArc ? asked : null;
+  }, []);
+  /** The load failed: unless it was one of the two tries, they start now. */
+  const retryFailed = useCallback(
+    (forArc: string, asked: LoadRetry | null) => {
+      if (!asked?.auto) setEpisode({ arcId: forArc });
+    },
+    [],
+  );
+  /** "Try again": the tries still waiting are dropped; it reads at once. */
+  const tryAgain = useCallback(() => {
+    askedRef.current = { arcId, auto: false };
+    setEpisode(null);
+    bump((n) => n + 1);
+  }, [arcId, bump]);
+  return { takeRetry, retryFailed, tryAgain };
+}
+
+/** The page couldn't load: its line, and under it "Try again" (N552), the
+ *  signed retry word and the outlined, rounded button of the app's other
+ *  failed reads (`GateRetry`). No new words. */
+function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <p className="text-[15px] leading-relaxed text-muted-foreground">
+        Couldn&apos;t load your ideal text. Try again in a moment.
+      </p>
+      <Button type="button" variant="outline" className="rounded-full" onClick={onRetry}>
+        {IDEAL_EDIT_COPY.feedbackRetry}
+      </Button>
+    </div>
+  );
 }
 
 /** The Ideal Text's own layer: out of sight while the lens screen is on. */

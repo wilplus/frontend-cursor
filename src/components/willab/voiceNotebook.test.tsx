@@ -24,6 +24,8 @@ const api = vi.hoisted(() => ({
   answerSalesStep: vi.fn(),
 }));
 vi.mock("@/services/api/voiceNotebook", () => api);
+// Signed in as u1: the token's payload names them.
+vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => `h.${btoa(JSON.stringify({ sub: "u1" }))}.s` }));
 
 import { SalesSteps, salesAskOf, useVoiceNotebook, VoiceNoteThread, type VoiceNotebook } from "./useVoiceNotebook";
 import { keepNote } from "@/lib/willab/voiceNoteOutbox";
@@ -34,7 +36,7 @@ const reload = vi.fn(async () => undefined);
 const openOffer = vi.fn();
 
 function Harness({ drawn = [] }: { drawn?: { client_id: string; metadata: Record<string, unknown> }[] }) {
-  const notebook = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn, openOffer, reload });
+  const notebook = useVoiceNotebook({ signedIn: true, userId: "u1", threadLoading: false, held: false, drawn, openOffer, reload });
   return createElement(VoiceNoteThread, { notebook });
 }
 
@@ -62,7 +64,7 @@ afterEach(() => {
 
 describe("a note already said", () => {
   it("keeps a note that cannot go and sends it once when back online", async () => {
-    await keepNote({ key: "note-1", audio: new Blob(["a"], { type: "audio/webm" }), durationMs: 4000, words: "ask Marta for the mic", open: false, at: 1 });
+    await keepNote({ key: "note-1", audio: new Blob(["a"], { type: "audio/webm" }), durationMs: 4000, words: "ask Marta for the mic", open: false, at: 1, owner: "u1" });
     api.sendVoiceNote.mockResolvedValueOnce({ kind: "retry" });
     await act(async () => root.render(createElement(Harness)));
     await settle(1000);
@@ -95,7 +97,7 @@ describe("the sales question (N241 P2)", () => {
     const ask = { client_id: "ask-s", metadata: { offer: "sales_step", sales_note: "n7" } };
     let nb: VoiceNotebook | null = null;
     function Box() {
-      nb = useVoiceNotebook({ signedIn: true, threadLoading: false, held: false, drawn: [ask], openOffer, reload });
+      nb = useVoiceNotebook({ signedIn: true, userId: "u1", threadLoading: false, held: false, drawn: [ask], openOffer, reload });
       return createElement(SalesSteps, { onPick: (step) => nb?.answerSales(salesAskOf([ask]), step) });
     }
     api.answerSalesStep.mockResolvedValue(true);

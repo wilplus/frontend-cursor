@@ -99,6 +99,8 @@ export type WalkMoment = {
    *  N548): when the walk cannot draw the Clearer version, the same
    *  moment's AI clip is the fix. */
   voiceToo?: boolean;
+  /** A good Take: no fix and no moment below the floor (backend N551). */
+  nothingToFix?: boolean;
 };
 
 /** The One thing walk's one fix, as the server chose it (C-SNIPER): the
@@ -155,7 +157,7 @@ export type WalkStepKey =
    *  2026-10-31, N309 item 1): never planned, drawn under the hello and
    *  told to the chat once. */
   | "last"
-  /** "And now, one thing to improve:" (N309 item 1): never planned, drawn
+  /** "And here's one moment to try another way:" (N309 item 1): never planned, drawn
    *  above the One thing walk's fix and told to the chat once. */
   | "one"
   /** The helper words, on their own (N309 item 3): no pick. */
@@ -203,6 +205,9 @@ export type WalkStep = WalkScreen & {
   /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
+  /** The helper words step of a good Take: "The rest of this Take held up just as well."
+   *  opens it, where the fix would be (backend N551). */
+  clear?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the
    *  fix's; with no fix and no Sniper, their best's, backend N374). Not
    *  `moment`, so reaching it never settles that moment twice. */
@@ -313,13 +318,19 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   }
   if (out.length === 0) return out;
   if (input.judge) out.push({ key: "others", one: true });
-  // The helper words, on their own (C3): the fix's; with no fix and no
-  // Sniper, their best's own words (backend N374), so the walk always
-  // leaves some.
-  const of = fix ?? (sniper ? null : best);
-  if (fix || sniper || best) out.push({ key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}) });
+  if (fix || sniper || best) out.push(wordsStep(fix, sniper, best));
   out.push({ key: "done", one: true });
   return out;
+}
+
+/** The One thing walk's helper words, on their own (C3): the fix's; with no
+ *  fix and no Sniper, their best's own words (backend N374), so the walk
+ *  always leaves some. A good Take says so where the fix would be
+ *  (`clear`, backend N551). Pure. */
+function wordsStep(fix: WalkMoment | undefined, sniper: boolean, best: WalkMoment | undefined): WalkStep {
+  const of = fix ?? (sniper ? null : best);
+  const clear = !fix && !sniper && best?.nothingToFix === true;
+  return { key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}), ...(clear ? { clear } : {}) };
 }
 
 /** The fix's screens before its first try: the Clearer version, or the AI
@@ -503,6 +514,8 @@ export type WalkFeedbackItem = {
   oneFix?: OneFix | null;
   /** Its AI clip stands behind its Clearer version (`voiceToo`, backend N548). */
   voiceToo?: boolean;
+  /** A good Take, on their best (`nothingToFix`, backend N551). */
+  nothingToFix?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -581,6 +594,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(has((i) => Boolean(i.planLevel)) ? { level: true } : {}),
       ...(oneFix ? { oneFix } : {}),
       ...(has((i) => Boolean(i.voiceToo)) ? { voiceToo: true } : {}),
+      ...(has((i) => Boolean(i.nothingToFix)) ? { nothingToFix: true } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),

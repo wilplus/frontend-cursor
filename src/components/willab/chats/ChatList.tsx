@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Link as LinkIcon, Pin, Plus, Share, X } from "lucide-react";
-import { beginJoinSetup, getMyChatLink, joinQuestionsSet, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
+import { Link as LinkIcon, Pin, Plus, X } from "lucide-react";
+import { beginJoinSetup, joinQuestionsSet, type Chat, type ChatEmoji, type ChatLast } from "@/services/api/chats";
 import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { ADD_SHEET_LINE, ADD_SHEET_TITLE, ADD_STEPS, CANCEL, COPIED, COPY_MY_LINK, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
-import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
+import { AddSomeoneSheet } from "./AddSomeoneSheet";
 
 /* -------------------------------------------------------------------------- */
 /*  The list of chats (backend N256, N274, N298, N321, N322; rules:            */
@@ -43,6 +43,10 @@ export const OPEN_TAKE = "Open Take";
 
 /** A person's first name, as "{name} sent you Take {n}" says it. */
 export function firstName(name: string): string {
+  // A website visitor's chat is "Widget / Visitor 7" or, once kept,
+  // "Widget / Anna": their name is what follows (backend N569 item 6).
+  const visitor = /^Widget \/ (.+)$/.exec(name.trim());
+  if (visitor) return visitor[1];
   return name.trim().split(/\s+/)[0] ?? "";
 }
 
@@ -250,95 +254,6 @@ function SetupNote({ onClose, onOpenWill, onLink }: { onClose: () => void; onOpe
   );
 }
 
-/** Add someone (backend N308, N310, N328): your own link, to paste into any
- *  email or message; whoever opens it joins you here. The only way anyone
- *  comes into your chats. "Invite by email" (N307) comes with the email
- *  invite; copying the link needs nothing else. The list's "+" opens it, and
- *  so does "Someone else" on a chat's "+" (N351). Needs a `relative` parent.
- *  As redesigned (N367 item 3, the locked prototype "One bar" v12): a handle,
- *  the title large, the link with its icon, one big Copy my link that turns
- *  green and closes the sheet, three tiles saying what happens, Cancel. */
-export function AddSomeoneSheet({ onClose }: { onClose: () => void }) {
-  const [link, setLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void getMyChatLink().then((path) => {
-      if (alive) setLink(path ? `${window.location.origin}${path}` : null);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const copy = async () => {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      window.setTimeout(onClose, 1100);
-    } catch {
-      // The clipboard is refused: the link stays on screen to select.
-    }
-  };
-  const share = isNativeApp() && typeof navigator !== "undefined" && typeof navigator.share === "function";
-  return (
-    <div data-add-sheet className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={ADD_SHEET_TITLE}
-        className="flex flex-col gap-3.5 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
-        <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{ADD_SHEET_TITLE}</p>
-        <p className="text-[15px] leading-snug text-muted-foreground">{ADD_SHEET_LINE}</p>
-        {link ? (
-          <div className="flex items-center gap-2.5 rounded-[14px] border-[1.5px] border-foreground px-3.5 py-3">
-            <span aria-hidden className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#FFF1E7] text-[#F26B21]">
-              <LinkIcon className="h-4 w-4" />
-            </span>
-            <span data-my-link className="min-w-0 select-all break-all text-[15px] font-semibold text-foreground">
-              {link}
-            </span>
-          </div>
-        ) : null}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            data-copy-link=""
-            onClick={() => void copy()}
-            disabled={!link}
-            className={`flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-semibold text-white transition-colors disabled:opacity-50 ${copied ? "bg-[#1F9D55]" : "bg-foreground"}`}
-          >
-            {copied ? COPIED : COPY_MY_LINK}
-          </button>
-          {share && link ? (
-            // The iPhone share sheet next to Copy my link (backend N365 item 6).
-            <button
-              type="button"
-              aria-label="Share"
-              onClick={() => void navigator.share({ url: link }).catch(() => {})}
-              className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground"
-            >
-              <Share className="h-5 w-5" aria-hidden />
-            </button>
-          ) : null}
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {ADD_STEPS.map(([head, rest]) => (
-            <div key={head} className="rounded-xl bg-muted px-2.5 py-2.5 text-[12.5px] leading-snug text-muted-foreground">
-              <b className="mb-0.5 block text-[13px] font-semibold text-foreground">{head}</b>
-              {rest}
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={onClose} className="h-10 text-[15px] font-medium text-muted-foreground">
-          {CANCEL}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Will's chat in the list's per-chat "opened" store. */
 const WILL_CHAT = "will";

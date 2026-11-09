@@ -533,13 +533,20 @@ export const ONE_THING_COPY = {
   /** A slow Sniper's tip, kept the same way: "Last time: keep “{words}”
    *  moving." (N459 item 2, signed). */
   slowTip: (words: string) => `keep “${words}” moving`,
-  /** Their best: the clip, then this and why it worked. */
-  best: "This was your most confident moment.",
+  /** Their best: the clip, then this and why it worked. How it sounded to
+   *  us, never a verdict or a ranking; "to us" and "to our ears" in turn
+   *  (backend N565 item 7, signed 2026-11-09; was "This was your most
+   *  confident moment."). Will's written message stands in for both when
+   *  the walk_voice ring reaches the speaker. */
+  best: "To our ears, this one sounded really sure.",
+  bestToUs: "To us, this one sounded really sure.",
   whyItWorked: (cue: string) => `Why it worked: ${cue}`,
-  /** Above the one fix. */
-  one: "And now, one thing to improve:",
+  /** Above the one fix (backend N557, signed 2026-11-09). */
+  one: "And here's one moment to try another way:",
   /** The Clearer version's lead, then the sentence in bold. */
   sayStraight: "Say it straight:",
+  /** A good Take, where the fix would be (backend N551; words N557, signed 2026-11-09). */
+  nothingToFix: "The rest of this Take held up just as well.",
   /** The AI clip after their best played again. */
   likeConfident: "Say this one like your confident moment:",
   yourTurn: "Your turn.",

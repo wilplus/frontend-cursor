@@ -172,7 +172,7 @@ step; the loop never waits for a coach.
   walk loads is the typing dots there, so the first bubble lands where the
   dots were; they show only once the walk is still loading 0.3 s after the
   screen opens, so a quick load never flashes them (N122, N499). What opens a part (the
-  walk's answer to the step before, "And now, one thing to improve:", a
+  walk's answer to the step before, "And here's one moment to try another way:", a
   lead) lands first, then the step's own bubbles one at a time, the AI
   clip's fix's too; moving on, the thread glides down to them (N440; was:
   the opening lines at once, the AI clip's fix in one frame and a jump
@@ -390,7 +390,11 @@ step; the loop never waits for a coach.
   Take 1 "Hi {name}, great to meet you!" (N120), which a Take served before
   N289 still says.
 - **C0a Last time** (N309 item 1; every fix, the pace game too, N347 item
-  3). When last Take's fix rose on this Take (backend
+  3). The last Take's fix is one the walk opened on screen, named by what
+  it showed (a Clearer version, or the voice Exercise its lost Clearer
+  version gave its place to); a fix the speaker never saw is never named
+  (backend `take_progress.walk_gave`, the walk's "opened" moment events).
+  When last Take's fix rose on this Take (backend
   `take_progress.last_fix`, route `GET
   /v2/explore/arc/<arc>/review/last-fix/<take>`): "Last time: {the tip}.
   You did." under the hello, with this Take's best clip on that slide as
@@ -451,11 +455,14 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
   picker still chooses (N289, N293; H1): its strongest is **their best**:
-  the clip with its words, then one bubble, "This was your most confident moment." and
+  the clip with its words, then one bubble, "To our ears, this one sounded
+  really sure." or "To us, this one sounded really sure." (the same for the
+  same moment, `bestLine`; how it sounded to us, never a verdict or a
+  ranking, N565 item 7; was "This was your most confident moment.") and
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
-  improve**: "And now, one thing to improve:" and ONE fix, on ONE moment,
+  improve**: "And here's one moment to try another way:" and ONE fix, on ONE moment,
   its tool by the kind of its weakness (N548): this week's level's moment
   on a plan (N289 item 8), else the weakest, the less confident moment,
   whose own clip shows a voice problem the AI clip can teach (N425): its
@@ -463,8 +470,11 @@ step; the loop never waits for a coach.
   gate (C5), else its AI clip after their best (C4). Only a Take where no
   moment's voice shows a problem gives the fix to the moment whose words
   need help most, with its Clearer version (C5); with none that passes, no
-  moment is the fix and the walk can end with their best alone (N381);
-  then, when the Take's least confident moment reads below the floor, no
+  moment is the fix and the walk can end with their best alone (N381):
+  on a good Take, no moment below the floor, "The rest of this Take held up just as well."
+  where "And here's one moment to try another way:" would be, before the helper words
+  (N551; backend `nothing_to_fix` on their best's row,
+  `ONE_THING_COPY.nothingToFix`); then, when the Take's least confident moment reads below the floor, no
   tool we have reaches it and it goes to a coach, blind, as a moment to
   judge; the speaker sees nothing new, and a coach's answer comes back on
   its own screen (N550; backend `moment_pick.unfixed`,
@@ -989,9 +999,9 @@ praised moment:
   your number."; done once shown); and the CEO panel's asks to one person,
   which no longer wait for the end of a Take: WhatsApp, a consent question
   ("One question about how we use your data is still open. You can look
-  at it and answer yes or no."), the promo price with See prices (the web
-  only: the iPhone app has no buying, N365 item 1) and the lesson price
-  with See times. Tapping WhatsApp or consent opens its form as a sheet
+  at it and answer yes or no."), the promo price with See prices and the
+  lesson price with See times, both the web only: the iPhone app shows no
+  price and no way to buy (N365 item 1, N495, N555). Tapping WhatsApp or consent opens its form as a sheet
   from the top (the WhatsApp form; the consent card with No | Yes); the
   price bars go to their page. Not now on a CEO panel's ask brings it back
   on the next visit. **The home-screen ask is deleted** (N391): the next
@@ -1818,9 +1828,10 @@ October (backend N111).
   2026-11-02; `ONE_THING_COPY`, `idealEditCopy.ts`):** "Hi {name}." (no
   name: "Hi."), "Last time: {the tip}. You did.", "Last time: give
   “{words}” more room." (the pace game's, signed 2026-11-02, N347 item 3,
-  `paceTip`), "This was your most
-  confident moment.", "Why it worked: {the moment's signed cue line}",
-  "And now, one thing to improve:", "Say it straight:", "Say this one like
+  `paceTip`), "To our ears, this one sounded really sure." and "To us, this
+  one sounded really sure." (N565), "Why it worked: {the moment's signed cue line}",
+  "And here's one moment to try another way:", "The rest of this Take held up just as well." (N551, N557),
+  "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your
   confident moment" (the chip, N379), "Try it", "Keep mine", "Your words
   it is." (N435), "You rushed here. Let it breathe." (N435), "You slowed
@@ -2041,7 +2052,7 @@ while a dot on a scale follows their pace live.
 - In the Feedback walk only. Never in the coach panel, the Lounge, or before the Take.
 - **Opened again** once the walk is done, it shows what the chat kept, read only: the stretch, Will's opening lines, each "Try N" with the line the dot drew and Will's word on it, the closing line (none after a try that landed) or the Skip, and no Next (N259). No scale and no microphone. A Take that had no tempo step has none (N247). The same, without its Next, when the walk is opened again further on before it is done (B5).
 - It sits before the Ideal Text, so it always has a Skip (N178, which replaces N130's "never between a Take and the Ideal Text" for the walk's own practice steps). The walk has no time limit: it ends when the speaker taps Close (N347 item 5; N178's time limit is withdrawn).
-- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And now, one thing to improve:", the stretch's clip, then, for a rushed stretch, one bubble, "You rushed here. Let it breathe.", with the pace scale in it, in place of the opening lines below (backend N435 item 6, the locked prototype's `scale()`; a slow stretch opens the same way with "You slowed down here. Keep it moving." (N452 item 2; was: T's lines); a plan week's level line stays); its slide in the bar (N435 item 7; was "Tempo"); "Try it" with Skip in "I'm ready"'s place, the recording bar alone while it records, its trash the Skip (N435 item 3), two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own; Skip moves the walk on at once, after a try too (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row, at ring 0 (N325 item 3); the walk's choice of the Sniper reads the row alone (backend `tempo_stretch.tempo_on_for`; was: also the founder reading their own Take, N350 item 1).
+- In the One thing walk it is the Sniper, the fix, and then no moment is fixed: on a plan's pace or pause week whose Take has a stretch outside the green (N309 item 1), and, for everyone, with or without a plan, at any level, whenever rushing is the Take's biggest issue (N323 item 6). Rushing is the biggest issue when the stretch ran fast and the share of its time the pace scale spent past the green is larger than what each moment the walk could fix falls short of, 1 minus its willfidence (S × W, the read the picker ranks the moments by, H); both are shares from 0 to 1 where 0 is all well; a tie, or a moment with no read, keeps the moment; with no moment to fix, a rushed stretch is the fix. A plan's level moment (N289 item 8) counts as a fix like any other, so the plan's choice stays unless rushing outweighs it. A slow stretch off a pace or pause week leaves the fix a moment. Only for a speaker the step reaches (below): without it the walk could not show the Sniper, so the fix stays a moment (backend `take_feedback_policy_v3._sniper_first`). Was (N309, 2026-11-02): only on a plan's pace or pause week. Under "And here's one moment to try another way:", the stretch's clip, then, for a rushed stretch, one bubble, "You rushed here. Let it breathe.", with the pace scale in it, in place of the opening lines below (backend N435 item 6, the locked prototype's `scale()`; a slow stretch opens the same way with "You slowed down here. Keep it moving." (N452 item 2; was: T's lines); a plan week's level line stays); its slide in the bar (N435 item 7; was "Tempo"); "Try it" with Skip in "I'm ready"'s place, the recording bar alone while it records, its trash the Skip (N435 item 3), two tries, and the walk's words on each ("Yes. That's it.", "Close. Once more.", "Good try. Take it with you."), no closing line of its own; Skip moves the walk on at once, after a try too (`WalkTempo` `one`). With a moment to fix that outweighs the rushing, the walk has no tempo step. Was: on any Take, Take 1 included, whenever the pace scale finds a stretch outside the green, once in that walk, with or without a plan (N289 item 6; was from Take 2, N181, a rule the code never had), as a Take served before N289 still has it. Right after the walk's moments, so a Take that needs both has the Clearer version first, then this step (C2). In a "Let your key line land" or "Pauses that hold the room" week it opens with "This week's level: {level}. Here's where it shows:" (N289 item 8). Who has it is the rings panel's `tempo_step` row, at ring 0 (N325 item 3); the walk's choice of the Sniper reads the row alone (backend `tempo_stretch.tempo_on_for`; was: also the founder reading their own Take, N350 item 1).
 - It is the founder's "Sniper": the pace exercise of N129. The old Strength/Pace dartboard stays retired (N127, N181).
 
 **The scale.** A dot on a horizontal line. It moves right while you talk
@@ -2333,6 +2344,12 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N565 · C2, C7, K: with the `walk_voice` ring, Will also writes the line that opens the moment to try (in place of "And here's one moment to try another way:", never over the Sniper; told what the moment is walked with, the Clearer version or the AI clip), a good Take's line (in place of "The rest of this Take held up just as well.") and his reply after a try (in place of "Yes. That's it.", "Close. Once more." and "Good try. Take it with you."; told how it went, and offering one more try only when one is left). The first two are asked as the walk opens, the reply as the walk reaches it (three seconds at most after the check); the typing dots while they come, the signed lines when none come; the chat says what the walk drew (`useWalkSaid`, `afterTryRequest`, `OneTryLine`). Off the ring, nothing changes · BE N565 (wilplus/backend-cursor#1835), FE (this PR)
+- 2026-11-09 · N565 · C2, K: their best is praised as how it sounded to us: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", the same for the same moment (`bestLine`; was "This was your most confident moment."). When the `walk_voice` ring reaches the speaker, Will's own written words for it stand in for that bubble and its "Why it worked", asked as the walk opens (`useBestSaid`, `askWalkVoice`, BFF `/api/v2/walk-voice`), the typing dots while they come (four seconds at most), the signed lines when none come; the chat says what the walk drew. What stops: praise that ranks the speaker ("your most confident moment") · BE N565 (wilplus/backend-cursor#1823), FE (this PR)
+- 2026-11-09 · N557 · C2, K, and every line quoting them: the fix opens with "And here's one moment to try another way:" (was "And now, one thing to improve:"), and a good Take says "The rest of this Take held up just as well." (was "Nothing to fix this time.", N551), so the walk speaks of a moment to try, never of a speaker to fix (`ONE_THING_COPY.one`, `.nothingToFix`). What stops: words that told the speaker something in them was broken · BE N557, FE (this PR)
+- 2026-11-09 · N555 · E1: the lesson price bar ("Artur set a price for you: a 1-on-1 lesson for …" with See times) is the web only, like the promo's: the iPhone app shows no price and no way to buy (N495; `NoticeBar.tsx` `isPriceAsk`). What stops: a price in money, and a button to the booking page and its checkout, inside the iPhone app · BE N555 (#1818), FE (this PR)
+- 2026-11-09 · N551 · C2, K: a good Take (no fix, no moment below the floor) says "Nothing to fix this time." where "And now, one thing to improve:" would be, before the helper words, and the chat says it once; the coach case (N550) and a lost fix stay silent (`oneThing` in `walkPlan.ts`, `clear` on the words step, `FeedbackWalk.tsx`, `ONE_THING_COPY.nothingToFix`; backend `nothing_to_fix`). What stops: a good Take ending in a silence that reads like nothing was found · BE N551 (wilplus/backend-cursor#1819), FE (this PR)
+- 2026-11-09 · N309, N359 · C0a: "Last time" names only a fix the walk opened on screen, by what it showed; a fix the speaker never saw is never named, and the Takes table shows no fix for a walk never opened (backend `take_progress.walk_gave`). No new words. What stops: "Last time" naming a fix the server chose but the speaker never met · BE wilplus/backend-cursor#1817, FE (this PR)
 - 2026-11-09 · N483, N314 · the one recording bar's strip (`walk/RecordingStrip.tsx`, through `RecordingBar.tsx`) built to the locked bar file's `.rec`: a 48px grey pill, the 8px blinking dot, the mono 14px clock, a 3px #D9D9D9 track with a black fill, the 38px Stop with a white square, dot and Stop in the one red #EF4444; the chats' Sending pill is the locked `.status`, 44px; both in the locked grey #F2F2F2. No new words. What stops: the strip copied from the recording screen (rounded-2xl, 17px clock, the grey/orange/red bar, the record token's red, Stop growing on hover); the recording screen's own strip is untouched (N70) · BE N483 (wilplus/backend-cursor#1816 for context), FE (this PR)
 - 2026-11-09 · N550 · C2: a walk with no fix sends the Take's least confident moment to a coach, blind, when it reads below the floor (no tool reaches it); a good Take sends nothing. The speaker sees nothing new. Stored as raised at the open, its trace naming it (`fix_without_tool`). What stops: a weak moment no tool reaches going nowhere, unseen by a coach · BE N550 (wilplus/backend-cursor#1814), FE (this PR)
 - 2026-11-09 · N548 · C2: a Clearer version the walk cannot draw is no Clearer version to the walk's plan either, so the fix falls to the same moment's AI clip (`voice_too`) or to none, never to a Clearer version screen the walk then drops; the voice fix's practice opens on the picker's own clip (the Confident Voice row), not the rewrite's, so its AI clip is made on the clip that was measured (`buildFeedbackWalk`, `practiseItem` in `feedbackWalkModel.ts`). The server makes a moment the AI clip's fix only when its clip can be made (backend `_voice_problem`, wilplus/backend-cursor#1813). No new words. What stops: the fix vanishing when its Clearer version could not be drawn, and an AI clip asked for on a clip the picker did not measure · BE #1813, FE (this PR)

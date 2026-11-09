@@ -1,11 +1,13 @@
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import { whenNoTakeAtRisk } from "@/components/willab/labLeaveGuard";
 
 /* -------------------------------------------------------------------------- */
 /*  A willpowerlab.com link tapped elsewhere on the phone (Messages, WhatsApp, */
 /*  Mail) opens the iPhone app (backend N365 item 5): iOS hands the app the    */
 /*  link (`appUrlOpen`, kept for the first listener when it launched the app), */
-/*  and the app shows that page. Which paths: the association file             */
+/*  and the app shows that page (while a Take is not yet on the server, once   */
+/*  it is: N560 item 3). Which paths: the association file                     */
 /*  (src/app/.well-known/apple-app-site-association/route.ts). The sign-in     */
 /*  panel's own return address (com.willpowerlab.app://…) is not a link here;  */
 /*  nativeSignIn.ts takes it. On the web it does nothing.                      */
@@ -31,9 +33,12 @@ export async function startNativeLinks(): Promise<() => void> {
   const { App } = await import("@capacitor/app");
   const handle = await App.addListener("appUrlOpen", ({ url }) => {
     const path = appPathOf(url);
-    if (path && path !== window.location.pathname + window.location.search + window.location.hash) {
-      window.location.assign(path);
-    }
+    if (!path) return;
+    // While a Take is not yet on the server, the page opens once it is (N560 item 3).
+    whenNoTakeAtRisk(() => {
+      const here = window.location.pathname + window.location.search + window.location.hash;
+      if (path !== here) window.location.assign(path);
+    });
   });
   return () => void handle.remove();
 }

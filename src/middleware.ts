@@ -7,6 +7,7 @@ import {
 } from "@/lib/ceo/hostRouting";
 import { strayAuthCallbackUrl } from "@/lib/auth/strayCallback";
 import { sameSitePath } from "@/lib/auth/sameSitePath";
+import { isAppUserAgent } from "@/lib/nativeAppAgent";
 
 // "/panel" — the Life Panel is signed-in only. The SECOND gate (feature flag,
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
@@ -30,7 +31,14 @@ function generateNonce(): string {
 /** Exported for `csp.test.ts`. The policy is the single piece of this file
  *  that can take every route down at once, so it is worth asserting directly
  *  rather than only through a running browser. */
-export function getCspDirectives(nonce: string): string {
+/** Your chat on any website (backend N567): the widget's page, `/w/<token>`,
+ *  is the one page any site may frame; every other page may be framed by
+ *  none. */
+export function framedAnywhere(pathname: string): boolean {
+  return /^\/w\/[^/]+\/?$/.test(pathname);
+}
+
+export function getCspDirectives(nonce: string, pathname = ""): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const isDev = process.env.NODE_ENV === "development";
@@ -143,7 +151,7 @@ export function getCspDirectives(nonce: string): string {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    "frame-ancestors 'none'",
+    framedAnywhere(pathname) ? "frame-ancestors *" : "frame-ancestors 'none'",
     "object-src 'none'",
     "form-action 'self'",
     `connect-src ${connectSrc.join(" ")}`,
@@ -204,6 +212,26 @@ function isPublicFile(pathname: string) {
   return /\.[a-z0-9]+$/i.test(pathname.slice(pathname.lastIndexOf("/") + 1));
 }
 
+/** The iPhone app opening /chat (N561 item 1), known by its user agent. */
+function isAppChatOpen(req: NextRequest, pathname: string): boolean {
+  return pathname === "/chat" && isAppUserAgent(req.headers.get("user-agent"));
+}
+
+/** Where a signed-out visitor goes first, or null to stay. A signed-in-only
+ *  page: sign-in, then back to the full address, query included. The app's
+ *  bare /chat, the page it opens on: the first page, as the website's
+ *  (backend N568, N471 item 4), with the link field and "Sign in" in its
+ *  corner. A link into a chat in the app (the coach's feedback): sign-in,
+ *  then back to it. On the website /chat stays as it is: MembersOnly
+ *  decides there. */
+function signInFirst(req: NextRequest, pathname: string, search: string, appChat: boolean): URL | null {
+  if (appChat && !search) return new URL("/", req.url);
+  if (!appChat && !isProtected(pathname)) return null;
+  const loginUrl = new URL("/login", req.url);
+  loginUrl.searchParams.set("redirectTo", pathname + search);
+  return loginUrl;
+}
+
 function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some((route) => pathname === route);
 }
@@ -252,7 +280,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const nonce = generateNonce();
-  const cspDirectives = getCspDirectives(nonce);
+  const cspDirectives = getCspDirectives(nonce, pathname);
 
   // An OAuth / recovery answer that Supabase sent to its Site URL (or
   // /dashboard, /chat) instead of the redirectTo it was given — see
@@ -352,9 +380,14 @@ export async function middleware(req: NextRequest) {
    * backend verifies every token itself.
    *
    * If the refresh token is invalid (e.g. "Refresh Token Not Found"), treat
-   * as no session so the user can log in again. */
+   * as no session so the user can log in again.
+   *
+   * The iPhone app opens on /chat (backend N561 item 1), and there that
+   * getSession() decides: signed out, the app goes to the first page (N568). Still no
+   * getUser(): a valid token costs nothing, and no cookie is null at once. */
   const authStartedAt = Date.now();
-  const session = await readSession(supabase, pathname);
+  const appChat = isAppChatOpen(req, pathname);
+  const session = await readSession(supabase, pathname, appChat);
   // Shown in DevTools → Network → Timing → Server Timing.
   res.headers.set("Server-Timing", `auth;dur=${Date.now() - authStartedAt};desc="sign-in check"`);
 
@@ -382,14 +415,11 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  if (isProtected(pathname) && !session) {
-    const loginUrl = new URL("/login", req.url);
-    // Preserve full URL including query parameters
-    const fullPath = pathname + (url.search ? url.search : "");
-    loginUrl.searchParams.set("redirectTo", fullPath);
-
-    return applyCsp(NextResponse.redirect(loginUrl), cspDirectives);
-  }
+  // Signed out on a signed-in-only page (sign-in first), or on the iPhone
+  // app's /chat (N561 item 1; the first page, N568), before anything of the
+  // page is drawn.
+  const signIn = session ? null : signInFirst(req, pathname, url.search, appChat);
+  if (signIn) return applyCsp(NextResponse.redirect(signIn), cspDirectives);
 
   // Signed in already: away from the landing and the auth pages. The
   // refreshed session cookies ride the redirect.
@@ -404,15 +434,21 @@ export async function middleware(req: NextRequest) {
 }
 
 /** The verified user where a redirect needs one; elsewhere only the token
- *  refresh, and null. Never throws: a bad refresh token reads as signed out. */
+ *  refresh, and null, except the app's /chat (`fromCookie`), which reads the
+ *  session from the cookie, unverified: it only picks the page, and the
+ *  backend checks every token. Never throws: a bad refresh token reads as
+ *  signed out. */
 async function readSession(
   supabase: ReturnType<typeof createServerClient>,
   pathname: string,
+  fromCookie: boolean,
 ): Promise<{ user: unknown } | null> {
   try {
     if (!sessionDecidesRoute(pathname)) {
-      await supabase.auth.getSession();
-      return null;
+      const { data } = await supabase.auth.getSession();
+      // `data.session.user` is never read: on a server, Supabase warns that
+      // it is unverified, and only whether there is a session matters here.
+      return fromCookie && data.session ? { user: null } : null;
     }
     const { data: { user } } = await supabase.auth.getUser();
     return user ? { user } : null;

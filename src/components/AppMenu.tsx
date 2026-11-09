@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { TOKENS_COPY } from "@/components/tokens/copy";
 import type { ProductMenuEntry } from "@/lib/productDiscovery";
+import { AddSomeoneSheet } from "@/components/willab/chats/AddSomeoneSheet";
 
 /* -------------------------------------------------------------------------- */
 /*  AppMenu (FE-3) — ONE hamburger, mounted twice                              */
@@ -96,8 +97,10 @@ export interface AppMenuProps {
   dataConsentHref?: string | null;
   /** The account's name, when it has one; the email is shown under it. */
   userName?: string | null;
-  /** "Copy my link" (backend N308, N367): resolves to the full link to copy,
-   *  or null. Passed only where the chats are on. */
+  /** "Copy my link" (backend N308, N367): resolves to the full link, or
+   *  null. Passed only where the chats are on. Since N567 item 1 the row
+   *  opens "Add someone to chat with", as the list's "+" does, with its small
+   *  switch for the website; it no longer copies at once. */
   onCopyLink?: (() => Promise<string | null>) | null;
 }
 
@@ -115,20 +118,10 @@ export default function AppMenu({
   onCopyLink = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const copyLink = async () => {
-    const link = onCopyLink ? await onCopyLink() : null;
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      window.setTimeout(() => {
-        setCopied(false);
-        setOpen(false);
-      }, 900);
-    } catch {
-      // The clipboard is refused: nothing copied, nothing claimed.
-    }
+  const [adding, setAdding] = useState(false);
+  const copyLink = () => {
+    setOpen(false);
+    setAdding(true);
   };
   const pathname = usePathname();
   // An in-app row for the current page: marked, and announced as the page.
@@ -245,12 +238,12 @@ export default function AppMenu({
                 </Link>
               ) : null}
               {onCopyLink ? (
-                <button type="button" className={ROW_CLASS} onClick={() => void copyLink()}>
+                <button type="button" className={ROW_CLASS} onClick={copyLink}>
                   <MenuIcon tone="blue">
                     <LinkIcon className="h-[18px] w-[18px]" />
                   </MenuIcon>
                   <span className="flex-1">
-                    <span className="block">{copied ? "✓ Copied" : "Copy my link"}</span>
+                    <span className="block">Copy my link</span>
                     <span className="block text-[12.5px] font-normal text-muted-foreground">Whoever opens it joins you here</span>
                   </span>
                 </button>
@@ -336,6 +329,7 @@ export default function AppMenu({
           )}
         </div>
       )}
+      {adding ? <AddSomeoneSheet fixed onClose={() => setAdding(false)} /> : null}
     </div>
   );
 }

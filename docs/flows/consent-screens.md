@@ -332,7 +332,8 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
 
 Signed in, the menu is a card under the ☰ with, top to bottom: your circle,
 name and email; **Copy my link** ("Whoever opens it joins you here"; it
-copies at once and says "✓ Copied"; only where the chats are on);
+opens "Add someone to chat with", as the list's "+" does, backend N567; was:
+it copied at once and said "✓ Copied"; only where the chats are on);
 **Settings**; **Tokens** with the balance and its date, opening the Tokens
 page on the web and in the iPhone app alike (backend N495; in the app that
 page is titled "Tokens", shows what things cost and the recent activity at
@@ -439,6 +440,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-05 · N567 · §1 the ☰ menu: Copy my link opens "Add someone to chat with", the sheet the list's "+" opens, with its switch for the website (customer-requests.md B8). Was: it copied the link at once and said "✓ Copied" (N367) · BE, FE (this PR)
 - 2026-11-06 · N540 item 1 · The Data & consent row "Open to the dump screen" shows only in the iPhone app; a browser has no dump screen, so no row (`DumpScreenCard.tsx`). Its words are unchanged · BE N540 (#1797), FE (this PR)
 - 2026-11-05 · N522 item 3 · The Data & consent row's line: "First thing when you open the app." Was: "First thing when you open the app, at most once an hour." The dump screen now opens first on every open · BE #1765, FE (this PR)
 - 2026-11-04 · N495 · §1: in the iPhone app, Tokens opens the Tokens page (balance, what things cost, recent activity; no plans, no way to buy, no button to ask for prices). Was: the row showed the balance and opened nothing (N367 item 2) · FE (this PR)

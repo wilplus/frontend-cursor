@@ -10,6 +10,8 @@
  *       guest's own token does.
  *   O5  A route's own knobs win: `failures` (its words), `relay` (its
  *       answer shape), `token: null` (no sign-in sent).
+ *   O6  The backend's own timings reach the browser's timing panel once,
+ *       next to upstream and bff, whichever relay the route uses.
  * PROVES   O1 -> "a signed-in call carries the token and passes the answer through"
  *          O2 -> "401 UNAUTHENTICATED with the shared copy when signed out"
  *          O3 -> "502 PROXY_ERROR with the generic copy when fetch throws"
@@ -18,7 +20,10 @@
  *          O5 -> "failures: a route keeps its own words",
  *                "relay: a route shapes its own answer",
  *                "token: null sends no sign-in"
+ *          O6 -> "the backend's timings ride next to upstream and bff, whatever the relay"
  * WHY      The one BFF->backend helper (audit Q-A8); ~150 routes rely on it.
+ *          O6: founder 2026-11-09, the coach's queue showed only upstream and
+ *          bff, so where its second went could not be seen.
  *
  * `server-only` and `next/headers` are mocked so the helper runs as plain Node.
  */
@@ -180,5 +185,19 @@ describe("callBackend — a route's own knobs", () => {
     const res = await callBackend("/v2/x", { token: null, requireAuth: false });
     expect(res.status).toBe(200);
     expect(calls[0].init.headers?.Authorization).toBeUndefined();
+  });
+});
+
+describe("callBackend — the stopwatch", () => {
+  it("the backend's timings ride next to upstream and bff, whatever the relay", async () => {
+    const { callBackend, relayLenient } = await load();
+    const backend = 'app;dur=410, db;desc="calls";dur=9, queue_read;dur=62';
+    stubFetch(() => json({ ok: 1 }, 200, { "Server-Timing": backend }));
+    for (const relay of [undefined, relayLenient()]) {
+      const timing = (await callBackend("/v2/x", relay ? { relay } : {})).headers.get("Server-Timing") ?? "";
+      expect(timing.startsWith(`${backend}, upstream;dur=`)).toBe(true);
+      expect(timing).toMatch(/, bff;dur=\d+/);
+      expect(timing.split("app;dur=")).toHaveLength(2);
+    }
   });
 });

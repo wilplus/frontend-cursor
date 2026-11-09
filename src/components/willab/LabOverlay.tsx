@@ -8,9 +8,9 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
+import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
-  submitLabRecording,
   fetchGuestLabReadout,
   retryLabProcessing,
   type LabUploadInput,
@@ -83,6 +83,7 @@ import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentation
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
+import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -118,7 +119,9 @@ async function uploadForProcessing(
   input: LabUploadInput,
   signal: AbortSignal,
 ): Promise<Exclude<LabUploadResult, { kind: "discarded" }>> {
-  const result = await submitLabRecording(input, { signal });
+  // The one upload, which also settles the Take's copy on the device
+  // (backend N556): kept until the server has it, gone once discarded.
+  const result = await sendTake(input, { signal });
   if (result.kind !== "discarded") return result;
   return new Promise(() => undefined);
 }
@@ -177,20 +180,12 @@ export default function LabOverlay({
   // readout phase, Back first steps the readout's own layout (collapse a moment,
   // page back) before it exits the Lab.
   const readoutBackRef = useRef<(() => boolean) | null>(null);
-  // Device Back must agree with the X: closing DURING the readout PARKS the
-  // recording (hold, don't discard — §4), never a raw close that loses it.
-  // useBackDismiss stores the latest closure in a ref, so this is safe.
-  const suppressBackOnClose = useBackDismiss(
-    () => {
-      if (state === "readout") {
-        parkReadout();
-        return;
-      }
-      mic.cancel();
-      onClose();
-    },
-    () => (state === "readout" ? (readoutBackRef.current?.() ?? false) : false),
-  );
+  // Device Back does what the ✕ does, in every state (backend N560 item 1):
+  // while the mic records it asks "Discard this take?" and the screens stay
+  // (backStaysHere); closing DURING the readout PARKS the recording (hold,
+  // don't discard — §4); anything else closes, as the ✕ does.
+  // useBackDismiss stores the latest closures in refs, so this is safe.
+  const suppressBackOnClose = useBackDismiss(closeWithoutAsking, backStaysHere);
   const router = useRouter();
   // T8 — the Lab transcribes server-side (Whisper) and never shows a live
   // transcript, so skip Web Speech: its per-result events would re-render the
@@ -532,11 +527,21 @@ export default function LabOverlay({
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadCancelRef = useRef<(() => void) | null>(null);
   const [uploadInFlight, setUploadInFlight] = useState(false);
+  /* The last Take the server answered that it has (201 or 202). A new
+     recording is a new Blob, so this never speaks for the next Take. */
+  const [heldBlob, setHeldBlob] = useState<Blob | null>(null);
   // NO PULL-TO-REFRESH WHILE THE TAKE LIVES ONLY IN THIS TAB (founder
   // 2026-10-06: pulling down on the recording screen reloaded it), nor on
   // "Getting your mic ready" before a later Take (founder lock 2026-10-07).
   // Behaviour only: nothing on the screen moves or changes.
   useLabNoPull(state, mic.state.status);
+  // THE BROWSER'S OWN "LEAVE PAGE?" (founder 2026-11-09, backend N553 item
+  // 1): from the first sound until the server has the Take, a refresh or a
+  // close in a browser asks first, in the browser's words. A discard, or
+  // leaving these screens, ends it. Behaviour only: nothing on screen.
+  useLeaveGuard(
+    takeNotYetAccepted({ state, micStatus: mic.state.status, blob, heldBlob }),
+  );
   // "Record Take N" from the text: the recording screens fade in over the
   // text (Q-B14 A, D-RC-7). Paint only — the Take starts exactly as before.
   const recordingEntryFade = useRecordingEntryFade(state);
@@ -696,6 +701,25 @@ export default function LabOverlay({
       recordedFeelingRef.current = capturedFeeling;
       clearFeeling();
     }
+    // KEPT ON THE DEVICE UNTIL THE SERVER HAS IT (backend N553 item 2, N556):
+    // saved once, here at Finish, and never waited on: the upload below goes
+    // at once. An answer in a chat and a picked file are not kept.
+    keepTakeAtFinish({
+      blob,
+      key: uploadKeyFor(blob),
+      ownerId: userId,
+      answer,
+      picked: lastWasUploadRef.current,
+      context,
+      slides: recordingSlides,
+      deckless: recordingDeck.isDefault,
+      projectId: arcId,
+      takeIndex: arcTakeIndex,
+      durationSec: durationRef.current,
+      slideAdvances: slideAdvancesRef.current,
+      slideClockOffsetMs: measureSlideClockOffset(mic.getAudioStartedAt(), recordStartRef.current),
+      feeling: recordedFeelingRef.current,
+    });
     let active = true;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
@@ -780,6 +804,9 @@ export default function LabOverlay({
         }
         projectId = created.projectId;
         uploadGuestOwnerToken = created.guestOwnerToken;
+        // The kept copy learns its project before the Take goes up, so a send
+        // again never makes a second one (N556; at most 300 ms).
+        await rememberTakeProject(uploadKeyFor(blob), projectId);
         setArcId(projectId);
         setExploreEnabled(true);
       }
@@ -835,6 +862,10 @@ export default function LabOverlay({
       // request the server has already answered.
       uploadAbortRef.current = null;
       setUploadInFlight(false);
+      // The moment the server has the Take (N553 item 1): from here a refresh
+      // no longer loses it. Before the guard below, so a run that has lost
+      // interest in the answer still records it.
+      setHeldBlob((held) => (serverHasTake(result) ? blob : held));
       // A DISCARD NEEDS NO BRANCH OF ITS OWN HERE. discardUploadingTake calls
       // the canceller above before it aborts, so this run is already inactive
       // by the time the rejected fetch lands and the existing guard returns.
@@ -1392,9 +1423,15 @@ export default function LabOverlay({
    *  marker + Lounge indicator keep tracking it). The stashed arc bookkeeping
    *  goes with it: the abandoned take must not advance the arc. Stopping the
    *  poll here, before the question, keeps a result that lands while the
-   *  speaker is answering from carrying them to the old take's text. */
+   *  speaker is answering from carrying them to the old take's text. Its
+   *  session goes too (backend N560 item 2): "Try processing again" means
+   *  the Take on screen, so a failed upload of the next one sends that one
+   *  again, with its own upload key, and never restarts this one, whose text
+   *  would come back as if it were the new one (Never 5). Nothing else reads
+   *  the session before the next Take's own answer sets it. */
   function abandonSlowTake() {
     pendingCarryRef.current = null;
+    setLabSessionId(null);
     setPollSessionId(null);
     setPollSlow(false);
     setProcessingReady(false);
@@ -1437,18 +1474,42 @@ export default function LabOverlay({
     onClose();
   };
 
+  /** The ✕'s question, which the device Back asks too (backend N560 item 1):
+   *  while the mic records (a call's pause and Finish's last second
+   *  included), "Discard this take?". True when it was asked. */
+  function asksBeforeClosing(): boolean {
+    if (mic.state.status !== "recording") return false;
+    setDiscardConfirm("recording");
+    return true;
+  }
+
   function handleClose() {
-    if (mic.state.status === "recording") {
-      setDiscardConfirm("recording");
-      return;
-    }
-    // Post-recording: closing parks (hold, don't discard) per §4.
+    if (!asksBeforeClosing()) closeWithoutAsking();
+  }
+
+  /** Where the ✕ does not ask. Post-recording: closing parks (hold, don't
+   *  discard) per §4; anything else closes. */
+  function closeWithoutAsking() {
     if (state === "readout") {
       parkReadout();
       return;
     }
     mic.cancel();
     onClose();
+  }
+
+  /** The device Back, before it closes anything: true keeps these screens,
+   *  and useBackDismiss re-arms its entry so the next Back lands here too.
+   *  While "Discard this take?" is open, Back is its safe answer, as Escape
+   *  is: the Take is kept (N560 item 1). The readout first steps its own
+   *  layout back. */
+  function backStaysHere(): boolean {
+    if (discardConfirm) {
+      setDiscardConfirm(null);
+      return true;
+    }
+    if (state === "readout") return readoutBackRef.current?.() ?? false;
+    return asksBeforeClosing();
   }
 
   // Try processing again. Also run once a policy update is accepted after

@@ -8,6 +8,7 @@ import { loadRingState } from "./rings";
 import { getChats, type Chat } from "./chats";
 import { fetchSessionState, type SessionStateValue } from "./chatSessionState";
 import { getAccess, wasMemberHere } from "./access";
+import { markChatBootStarted } from "@/lib/chatBoot";
 
 /* -------------------------------------------------------------------------- */
 /*  bootPrefetch — start /chat's boot reads together, not one gate at a time   */
@@ -108,6 +109,10 @@ export function prefetchChatBoot(): void {
 
 export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void> {
   if (!(await getAuthToken())) return;
+  // The boot has started here, a members check before useWillabFlow mounts
+  // and marks it: what waits for the thread (chatBoot.ts; the app's push
+  // registration, in the layout) must not go out with these reads.
+  markChatBootStarted();
   void getAccess(); // MembersOnly shares this one request
   rememberThread();
   if (!(await wasMemberHere())) return;

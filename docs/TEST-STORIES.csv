@@ -73,14 +73,17 @@ O3  The backend unreachable: 502 with the generic words.
 O4  A guest token never rides on an account's call; a signed-out
 guest's own token does.
 O5  A route's own knobs win: `failures` (its words), `relay` (its
-answer shape), `token: null` (no sign-in sent).","O1 -> ""a signed-in call carries the token and passes the answer through""
+answer shape), `token: null` (no sign-in sent).
+O6  The backend's own timings reach the browser's timing panel once,
+next to upstream and bff, whichever relay the route uses.","O1 -> ""a signed-in call carries the token and passes the answer through""
 O2 -> ""401 UNAUTHENTICATED with the shared copy when signed out""
 O3 -> ""502 PROXY_ERROR with the generic copy when fetch throws""
 O4 -> ""an account never sends the guest token along"",
 ""a signed-out guest sends its own token""
 O5 -> ""failures: a route keeps its own words"",
 ""relay: a route shapes its own answer"",
-""token: null sends no sign-in""",The one BFF->backend helper (audit Q-A8); ~150 routes rely on it. `server-only` and `next/headers` are mocked so the helper runs as plain Node.
+""token: null sends no sign-in""
+O6 -> ""the backend's timings ride next to upstream and bff, whatever the relay""","The one BFF->backend helper (audit Q-A8); ~150 routes rely on it. O6: founder 2026-11-09, the coach's queue showed only upstream and bff, so where its second went could not be seen. `server-only` and `next/headers` are mocked so the helper runs as plain Node."
 src/app/api/auth/callback/route.test.ts,Story,"As a speaker signing in through an old link, I want to land on the real sign-in callback with my code or error intact, so that my login works or tells me why.","O1  The code, the PKCE state and `next` reach /auth/callback unchanged.
 O2  A provider error reaches /auth/callback instead of being swallowed.
 O3  Nothing lands on /dashboard, even with no code at all.","O1 -> ""forwards the code, the PKCE state and next to the real callback""
@@ -166,12 +169,14 @@ O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-
 src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
-O2  Copy my link copies the whole link and says ""✓ Copied"".
+O2  Copy my link opens ""Add someone to chat with"" (N567 item 1; was: it
+copied at once): Copy my link there copies the whole link. The switch
+for the website is hidden until its new design is signed (N569).
 O3  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
 O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link copies the whole link""
+O2 -> ""Copy my link opens the sheet, and Copy my link there copies the link""
 O3 -> ""Tokens shows the balance and opens the Tokens page""
 O4 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
@@ -314,6 +319,12 @@ number pad comes up with that tap.
 O3  A full number pasted with + picks its own country, and a leading 0 is
 dropped.","O1, O2 -> ""Poland first, then the US, then A to Z; search finds the UK""
 O3 -> ""a pasted number picks its country""","Founder 2026-10-28, backend N230."
+src/components/pwa/pushAfterChatBoot.test.tsx,Story,"As a speaker opening the iPhone app, I want my chat drawn before the phone signs up for pushes, and a notification I tapped to open its page at once, so that the chat appears fast and pushes still reach me.","O1  Opening the chat, the phone's push address goes to the server only
+once the thread has painted, even while the members check is still
+out; the tap that opened the app is listened for at once.
+O2  On a page with no chat to open, the phone signs up for pushes at once,
+as before.","O1 -> ""opening the chat, the phone signs up for pushes after the thread has painted""
+O2 -> ""on any other page, the phone signs up for pushes at once""","Loading time (2026-11-09): the push-device POST went out in the app's opening burst, beside the chat's boot reads (founder 2026-10-16, chatBoot.ts)."
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.
@@ -407,9 +418,12 @@ O2 -> ""the latest Take's line opens the screen ticked as it stands, and a chang
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
-O3  The promo price never shows in the iPhone app (it has no buying).","O1 -> ""shows the ask in the bar once a visit""
+O3  No price shows in the iPhone app, the promo's or the lesson's (it
+has no buying, N495, N555); on the web the lesson price shows with
+See times.","O1 -> ""shows the ask in the bar once a visit""
 O2 -> ""closes on Not now""
-O3 -> ""never shows the promo in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
+O3 -> ""never shows the promo in the iPhone app""
+O3 -> ""shows the lesson price on the web, never in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
@@ -549,6 +563,14 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
+src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone's website, I want to ask them with a few taps and hear their answer there, without an account (backend N567).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
+""Agree and start"", and then my chat is kept in this browser.
+O2  I tap the owner's question, then one of the three questions; the
+chat then says the owner answers out loud and to come back, and the
+questions wait.
+O3  ""Keep this chat"" opens the join page in a new tab, carrying my chat.","O1 -> ""the pill asks, and nothing is sent before Agree and start""
+O2 -> ""I tap through the owner's question and ask one of three""
+O3 -> ""Keep this chat opens the join page with my chat""",
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -580,8 +602,9 @@ control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
-words and its three steps, and Copy my link puts the whole link on
-the clipboard and says ""✓ Copied"" (N308, N310, N367).
+words and ""Only the two of you are in it."" (N567 item 1; was: three
+steps), and no website switch for now (N569 item 1), and Copy my link puts the whole link on the clipboard and says
+""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
 messages says whose link it was (N496, replacing N335 item 2's), and
 its row in the list keeps that line until the first message (N488); a
@@ -664,7 +687,10 @@ link ›"" and ""Your questions for people who join ›"". After the setup,
 the + opens my link as before (O8).
 O25 While the list (or a chat, or the loader) covers Will's chat, the
 slide previews on his cards wait, so pdf.js and the decks are not
-downloaded behind the list; they draw once his chat is open.","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
+downloaded behind the list; they draw once his chat is open.
+O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
+answers"", on their row and on the card, never ""Widget's answers""
+(N569 item 6).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
@@ -688,7 +714,8 @@ O22 -> ""a Take sent to me opens with its recording and words, and the list says
 O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
 O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
 O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
-O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""",
+O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
+O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -878,7 +905,7 @@ and its opening keeps its tip, ""give “{words}” more room"" with the
 Sniper's helper words, in the chat for ""Last time"" next Take (N347
 item 3), a slow stretch's ""keep “{words}” moving"" (N459 item 2); its scale names its zones ""too slow"", ""just right"", ""too
 fast"", and Skip gets ""Okay, we'll skip this one."" in the walk and the
-chat (N405). The chat says ""And now, one thing to improve:"", the
+chat (N405). The chat says ""And here's one moment to try another way:"", the
 stretch's clip and the Sniper's line in the walk's order (E2).
 O11 The walk opens whole, behind the wait: my name in the hello and Last
 time from the server's tip before my best, never longer than its
@@ -983,6 +1010,12 @@ the recording longer.","O1 -> ""is ● Record Take N and a grey Close, the one w
 O2 -> ""asks at Take 2, then records Take 3 at once with the remembered choice""
 O3 -> ""asks again after a community is added or when the words changed""
 O4 -> ""with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take). O4: founder 2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3."
+src/components/willab/idealTextCantLoad.test.tsx,Story,"As a speaker whose Ideal Text could not load, I want the page to try again by itself and give me Try again, so that I never have to close and reopen it to see my words.","O1  The line shows with ""Try again"" under it; the page reads again by
+itself 3 s and 10 s after the failed load, the line staying on screen
+while it reads, and then stops.
+O2  ""Try again"" reads at once, and a tap that fails too starts the two
+tries afresh; a read that answers shows the page.","O1 -> ""reads again by itself at 3 s and 10 s, then stops""
+O2 -> ""Try again reads at once, and an answer shows the page""","Founder 2026-11-09, ""Both"" (backend N552); Never 3."
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions
@@ -1031,12 +1064,30 @@ the way on, and the no-number check on the drawn sheet).
 NOT PINNED, on purpose: a weak moment where a problem fired, nothing in
 the library matched, AND a rewrite rides the paragraph. That cell is open
 work (audit 2026-10-05, item 3).",
+src/components/willab/labBackAndRetry.test.tsx,Story,"As a speaker, I want the phone's Back while I record to ask before it throws my Take away, and ""Try processing again"" to mean the Take on my screen, so that I never lose a Take by mistake and an old Take's text never comes back as my new one.","O1  Back while recording asks the ✕'s ""Discard this take?"": the screens
+stay and the mic keeps recording. Back again keeps the Take, as
+Escape does, and a third Back asks again; ""Discard take"" then closes.
+O2  After ""Record again"" on a slow Take, a failed upload's ""Try
+processing again"" sends the new Take again, with the new Take's
+upload key, and never restarts the old one, whose ""Processing"" line
+keeps tracking it.","O1 -> ""Back while recording asks first, and the Take keeps recording""
+O2 -> ""after Record again, Try processing again sends the new Take, never the old one""","Founder 2026-11-09, backend N560 items 1 and 2 (""Ask, like the ✕""; ""Yes, fix it""): Back threw the Take away without asking, and the retry could restart the old Take (Never 3, Never 5)."
 src/components/willab/labEntryOpensAtOnce.test.tsx,Story,"As a speaker, I want ""How do you feel?"" on screen the moment I tap ""Record Take N"", so that the next Take never makes me wait on a screen I already passed (founder 2026-11-09, backend N549).","O1  Once this tab has read ""authorized"", the Lab's first screen draws on
 the first render, while the Lab's own read is still out.
 O2  The door still holds: until that read answers the entry is not
 fresh (nothing starts a Take), and a read that says the terms changed
 puts the acceptance flow in front of the screen.","O1 -> ""draws the first screen at once after an earlier authorized read""
 O2 -> ""the fresh read still decides, and can put the acceptance flow in front""",The Lab used to wait for a network read behind a loader before every later Take's first screen.
+src/components/willab/labLeaveGuard.test.tsx,Story,"As a speaker, I want refreshing or closing the page by mistake while my Take is recorded, or before the server has it, to ask me first, so that I never lose a Take silently.","O1  While a Take records (paused by a call and finishing included), and
+while it goes up, the page's unload is held for the browser's own
+""Leave page?"".
+O2  Once the server answers that it has the Take (201 or 202), nothing
+asks; a failed upload still asks.
+O3  Before Record nothing asks.
+O4  After ""Discard this take?"", and once the screens close, nothing asks.","O1 -> ""asks while a Take records and while it goes up""
+O2 -> ""stops asking once the server has the Take, and keeps asking after a failed upload""
+O3 -> ""asks nothing before Record""
+O4 -> ""asks nothing after a discard, nor once the screens close""","Founder 2026-11-09, backend N553 item 1 (""Both: A now, B next""): a refresh or a close before the server confirmed the Take lost it. Never 3."
 src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still uploading, and not be offered that once the server has it, so that a bad Take leaves no trace and I am never promised something that cannot happen.","O1  ""Discard this take"" shows while the upload is in flight.
 O2  Once the server has answered (canDiscard false) it is gone, and the
 waiting screen is still there.
@@ -1411,6 +1462,11 @@ paint, though React runs the menu's effects before the chat's own.","O1 -> ""the
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
 from there the next Take, a pause, or ""sign up to send"" (and on to
 review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
+src/components/willab/voiceNoteOutbox.test.tsx,Story,"As a speaker, I want a voice note left on the phone to go only to my own account, and not to be lost when my sign-in runs out, so that nobody else gets my words and none of mine are lost.","O1  A note waiting on a phone goes only under the person who said it: while another person is signed in it is neither shown nor sent, and it stays on the phone for its owner. A note saved before notes named their owner goes only under a sign-in that began before it was said.
+O2  A note refused because the sign-in ran out (401) stays on the phone, under its clock, and goes after the next sign-in.
+O3  A note refused for good (422: no words heard) leaves the phone.","O1 -> A's note is never sent while B is signed in
+O2 -> a note survives a 401 and is sent after signing in again
+O3 -> a 422 still deletes it","2026-11-09: the phone kept one outbox for everyone and sent whatever waited under whoever was signed in, and any refusal but 429 threw the note away, a sign-in run out included (backend N194: only delete throws a note away)."
 src/components/willab/voiceNotebook.test.tsx,Story,"As the founder, I want a note I said before the notebook rested to be kept, and the sale's question I was asked to still take my answer, so that nothing I said is lost.","O2  A note left on the phone waits under a clock and goes, once, when the connection is back (N194). Since N483 item 7 the note rests: nothing starts a new one, and the notes already said still go.
 O5  Under ""Which step did it stall at?"" the sale's four steps take the message box's place, and a tap answers for that note with that step (N241 P2).
 O6  The notebook rests (N483 item 7): opening the Lounge no longer asks Will to open it from my Takes, and ""Keep a voice notebook?"" no longer opens its answers.","O2 -> keeps a note that cannot go and sends it once when back online
@@ -1445,8 +1501,8 @@ O8 -> other speakers: the Take's three moments, whatever the tries (N119); an an
 with nobody to judge, the step leaves nothing in the thread
 O9 -> on a plan, the level's moment says where this week's level shows, above the clip (G7, N209)
 O10 -> the tempo game and other speakers stay in the thread as the walk moves on to the summary (B5; the trash, N314)","Never-rule 1 (no scores to speakers); Feedback walk is a locked screen; founder 2026-10-23 (N120, ""add the name at the start""; N122, ""the 3 dots loading should be at the bottom""; N119, ""3 clips (high, middle, low willfidence) from 3 different speakers""); founder 2026-10-28 (""I click next and it's gone ... should be in the walk, so that there is a continuity"")."
-src/components/willab/walk/oneThingWalk.test.tsx,Story,"As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.","O1  The walk goes in order: ""Hi {name}."", my best with ""This was your most confident moment."" and why it worked, then ""And now, one thing to improve:"" and one fix; the Clearer version says ""Say it straight:"" and the sentence, with ""Try it"" and ""Keep mine""; no helper-word picker, no second moment and no summary in the walk.
-O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after ""Keep mine"" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no ""And now, one thing to improve:"", in the walk or the chat: my best, my best's helper words and ""Lesson done."", the bar on my best's slide.
+src/components/willab/walk/oneThingWalk.test.tsx,Story,"As a speaker, I want the walk after each Take to show me my best moment and why it worked, then one thing to improve with the tool it needs, so that I leave every Take with one clear thing to carry into the next.","O1  The walk goes in order: ""Hi {name}."", my best with ""This was your most confident moment."" and why it worked, then ""And here's one moment to try another way:"" and one fix; the Clearer version says ""Say it straight:"" and the sentence, with ""Try it"" and ""Keep mine""; no helper-word picker, no second moment and no summary in the walk.
+O2  After the fix my helper words come on their own: ""These are your helper words. …"" and the words, saved as my paragraph's helper words without a pick; the Clearer version's sentence is saved from the practice it was opened on, whole, even past eight words (N323 item 2), without the sentence's punctuation at either end, as after ""Keep mine"" (backend N440); with no fix, my best moment's own words are my helper words, saved the same way (backend N374); a Clearer practice still opening when the helper words' short wait runs out gives my best's words, drawn and saved once, whatever it answers later (N374, C3). With the Sniper as the fix, Skip moves the walk on at once, after a try too; its line and scale stay in their one bubble above the tries; ✕ after a try keeps the game for Will and says nothing; opened again, its walk shows the helper words its stretch gave, the bar on the stretch's slide. The Sniper the server chose waits on its stretch with the typing dots at most as long as the fix waits on its clip (N373), then the walk goes on without it; with no stretch there is no ""And here's one moment to try another way:"", in the walk or the chat: my best, my best's helper words and ""Lesson done."", the bar on my best's slide.
 O3  The walk ends on ""Lesson done."" with Close, which ends the review and takes me back to the chat, also when I open it again before the Take is finished; no ""Record Take N"" in the walk.
 O5  While I record nothing appears in the thread, only the recording bar; my try is then my clip with the words I was asked to say: the Clearer version's sentence after ""Try it"", my own after ""Keep mine""; the chat writes the same words (locked prototype X4gDmGfHH7ivuoRZ9ufiy9, record()).
 O4  From Take 2 I judge one moment of another speaker right after my try, of the level the Take's turn names: the intro line, the clip and the question in one bubble, each landing on its own behind the dots, the card I chose holding 0.28 s before my answer as my own reply with a tick (""Audio unclear"", no card, at once), then ""Got it."", and the walk moving on once they have landed; after it the bar names my fix's slide again for the helper words and ""Lesson done.""; on Take 1 I judge no one.
@@ -1455,6 +1511,8 @@ O7  Skip on the fix gets the walk's answer: ""Okay, we'll skip this one."", then
 O10 The fix lands one bubble at a time, the dots before each grey one, after the line that opens it; its buttons come once all have landed; after Skip the walk's answer, then my helper words, then ""Lesson done."" land the same way (backend N440).
 O9  With practice off there is nothing to try: Next on the fix posts nothing and the walk says nothing about skipping; a try that could not be checked keeps ""Try it"" with Skip while a try is left (backend N440).
 O11 When the fix the server chose comes without its Clearer version and its voice shows a problem too, the walk gives that same moment's AI clip after my best: ""Say this one like your confident moment:"", practised on the clip the picker measured (backend N548; was the closest exercise, N536).
+O12 A good Take (no fix, nothing below the floor) says ""The rest of this Take held up just as well."" where the fix would be, before my helper words; a walk with no fix that the server does not call good says nothing new (backend N551, N550).
+O13 Their best is praised as how it sounded to us, never as a verdict: ""To our ears, this one sounded really sure."" or ""To us, this one sounded really sure."", in turn. When the walk_voice ring reaches me, Will's own written words take their place, and open the moment to try too, with the typing dots while they come, and the signed lines when they don't (backend N565).
 O8  The thread shows no slide names, the bar does; after ""Keep mine"" the walk says ""Your words it is."" and my helper words leave out the hesitations my sentence opens with; the Sniper opens with ""You rushed here. Let it breathe."" in the scale's bubble and the bar names its slide (backend N435).","O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
 O2 -> the helper words come on their own and are saved without a pick,
 the Clearer version's sentence is saved from its practice,
@@ -1481,6 +1539,8 @@ O6 -> my best's clip and the AI clip's fix show my own words, my best played aga
 O10 -> the AI clip's fix lands one bubble at a time after its opening line, then its buttons; after Skip the answer, the helper words and Lesson done land in turn,
 the Sniper's try lands after a short beat, then Will's line after the dots, under the scale, which never lands again (B7, N440)
 O11 -> the fix the server chose without its Clearer version is its own AI clip when its voice shows a problem too
+O12 -> a good Take says there is nothing to fix this time, before my helper words
+O13 -> their best is praised as how it sounded to us, in Will's own words when his voice is on
 O9 -> with practice off, Next on the fix posts nothing and says nothing about skipping,
 a try that could not be checked keeps Try it with Skip","Founder 2026-10-31 (backend N309: ""apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take""; ""ok, this finally good""); 2026-11-02 (""please implement""; backend N323: ""you can allow helper words to be longer than 8 words""); 2026-11-03 (backend N374: a walk with no fix left no helper words; ""go with the recommendations""); 2026-11-03 (""so it really matches the design and the prototype"": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: ""remove the skip - cause trash acts like a skip"", ""rest is fien do it""); 2026-11-03 (backend N440, the walk's run-through: ""fix 1 to 9 and 11"")."
 src/components/willab/walk/walkCopy.test.ts,Guard,"Every word the walk can show comes from the signed copy, and no signed walk line carries a digit.","Never 4: a literal word typed into a walk/*.tsx primitive (JSX text,
@@ -1702,6 +1762,14 @@ O5 -> ""stops at the clip's end, but plays an unknown length to its end""","Foun
 src/lib/nativeLinks.test.ts,Story,"As a speaker with the iPhone app, I want a coach's link or an invite link tapped in Messages, WhatsApp or Mail to open in the app, on that page, so that I never land in Safari signed out.","O1  The association file Apple reads names the app (team id and bundle id) and the paths that open in it: the chat with the coach's feedback, invite links and the account pages; without the team id there is no file, and every link opens in Safari as before.
 O2  A tapped willpowerlab.com link opens its own page in the app, with its query; a link to another site, or not over https, opens nothing.","O1 -> the association file names the app and its paths, and is absent without the team id
 O2 -> a willpowerlab.com link opens its page in the app; another site's does not",
+src/lib/nativeTapWaits.test.tsx,Story,"As a speaker with the iPhone app, I want a notification or a link I tap while my Take is recorded, or before the server has it, to wait and then open, so that a tap never throws my Take away.","O1  Tapped while a Take is recorded or going up, the page a notification
+or a link names does not open.
+O2  It opens once the server has the Take, or once the Take is discarded
+or the screens close; a later tap replaces an earlier one, so only the
+latest page opens.
+O3  With no Take at risk, it opens at once.","O1, O2 -> ""a tap while a Take is at risk waits, then opens once the server has the Take""
+O2 -> ""a waiting tap opens once the Take is discarded, or the screens close""
+O3 -> ""a tap with no Take at risk opens at once""","Founder 2026-11-09, backend N560 item 3 (""Wait, then go""): a tapped push or link reloaded the page at once and the Take was lost. Never 3."
 src/lib/phone/dumpScreen.test.ts,Story,"As a speaker with the iPhone app, I want the dump screen to open and keep what I say even with no signal, so that a thought on the metro is not lost.","The app hears ""on"" with the ring row and the notebook's Yes, ""off""
 without the Yes, and nothing when a read fails (offline).",A failed read never switches the native screen off (N506 item 3).,One failed request used to switch it off until the next good load.
 src/lib/productDiscovery.test.ts,Story,"As a speaker, I want the menu to list only the products I have discovered, so that the menu stays simple.",O1  Nothing discovered means no product rows; discovering Life Panel adds its row.,O1 -> builds only the hamburger rows the user has discovered,
@@ -1911,6 +1979,29 @@ O2  Take 1 marked as unconfirmed reads back as that state.","O1 -> never exposes
 O2 -> preserves the distinct Take 1 Ideal Text terminal state",
 src/lib/willab/richMarkers.test.ts,Story,"As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.","O1  Whatever the broken input, no formatting symbol reaches the screen.","O1 -> no grammar character survives, whatever the malformation",
 src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.","O1  Another account, or someone signed out, sees none of my drafts.","O1 -> is scoped per account, so a switch never shows another person's draft",
+src/lib/willab/takeOutbox.test.ts,Story,"As a speaker on the iPhone app, I want a Take I finished to stay on my phone until the server has it, and to go up again by itself when I next open the app or my connection comes back, so that closing the app or losing the connection never loses a Take, and it is never made twice or put over a newer one.","O1  A Take whose answer never came goes up again at the next open, with
+the same upload key, and shows as processing with its ""Your
+Recording"" line.
+O2  Once the server names the Take (accepted, a duplicate, a 504 with its
+session) its copy is deleted; no connection, 401, 429, 5xx or a 504
+without a session keeps it.
+O3  Discarding it, or a refusal for good (no speech, 400, 404, a project
+being deleted, too large, recording consent withdrawn), deletes it.
+O4  Signed in as someone else, or signed out, it is never sent.
+O5  A newer Take of the same project already on the server means the old
+copy is deleted, not sent. The server names each Take's upload key, so
+a later Take with another key is newer, and one with this copy's key is
+this very Take, which goes (the server answers duplicate). Where the
+server names no keys, a single later Take with no line yet may be this
+one, and goes.
+O6  Past 7 days it is deleted, not sent.
+O7  A save the device refuses never stops or delays the upload.","O1 -> ""a Take whose answer never came is sent again at the next open, with the same key, and shows as processing""
+O2 -> ""an accepted or duplicate answer deletes the copy, and a dropped connection keeps it""
+O3 -> ""a discard and a refusal for good delete it""
+O4 -> ""another signed-in person never sends it""
+O5 -> ""a newer Take of the same project on the server deletes the old copy, unsent""
+O6 -> ""past 7 days it is deleted""
+O7 -> ""a failed save never stops or delays the upload""","Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2, N556): ""Ship B; line in next version"", ""At Finish only, for now"", ""Yes, all of them"". Never 3 (record, process, Ideal Text, next Take) and Never 5 (an older Take never becomes the Ideal Text)."
 src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, let me move on once a try really lands and push me for one more when it only came closer, so that I feel my pace change without a score and never have to decide whether to go again.","O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.
@@ -2029,6 +2120,13 @@ O13 -> ""opens the Feedback walk on the coach's word, on what waits, on its newe
 O14 -> ""the One thing walk's judged moment turns its level, says its words, and last time finds the tip the Take before kept""
 O15 -> ""keeps the door on the Clearer version under its Your words it is. row, never on the live recorder""
 O16 -> ""asks the try after the AI clip for the trimmed words the clip says""","Never-rule 1 (no scores); locked Feedback walk (lock 2026-10-12); founder 2026-10-19, N80 (when the coach changes their word); founder 2026-10-31, N309 (the One thing walk); N347 item 3 (every fix gets its Last time, the pace game too)."
+src/middleware.test.ts,Story,"As a person opening the iPhone app, I want it to open on my chats, or on the first page when I am signed out, so that I never stop at sign-in when I am in, and never see the chats flash when I am out; the website's /chat stays as it is.","O1  The app starts on /chat, a path Capacitor can start on (its folder is in webDir).
+O2  Signed out, an app open of /chat is sent to the first page by the server (N568); a link into a chat goes to sign-in and comes back after it.
+O3  Signed in, an app open of /chat stays there, with no redirect.
+O4  On the website, a signed-out open of /chat is not redirected by the server, as before.","O1 -> opens on the chats, a page Capacitor can start on
+O2 -> sends a signed-out app open to the first page, and a link in a chat through sign-in back to it
+O3 -> keeps a signed-in app open on the chats
+O4 -> leaves a signed-out website open of /chat as it was","Backend N561 item 1 (amends N354 item 1): the app opened on /login, a stop and a sign-in check on every open. N568: signed out, the first page (N471 item 4)."
 src/services/api/accountDeletion.test.ts,Story,"As a speaker, I want ""delete my account"" to send one deletion request and show me how long I have to change my mind, and a refusal to change nothing, so that I can trust deletion and cancel it in time.","O1  Asking to delete sends one request with a one-time key and shows the
 pending deletion with its end date.
 O2  A refusal or no connection records nothing.

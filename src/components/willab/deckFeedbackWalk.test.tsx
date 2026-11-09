@@ -42,7 +42,7 @@ OUTCOME
       Sniper's helper words, in the chat for "Last time" next Take (N347
       item 3), a slow stretch's "keep “{words}” moving" (N459 item 2); its scale names its zones "too slow", "just right", "too
       fast", and Skip gets "Okay, we'll skip this one." in the walk and the
-      chat (N405). The chat says "And now, one thing to improve:", the
+      chat (N405). The chat says "And here's one moment to try another way:", the
       stretch's clip and the Sniper's line in the walk's order (E2).
   O11 The walk opens whole, behind the wait: my name in the hello and Last
       time from the server's tip before my best, never longer than its
@@ -778,7 +778,7 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(opening?.fix_tip).toBe(ONE_THING_COPY.paceTip(stretch));
-    // In the chat as in the walk: "And now, one thing to improve:", the
+    // In the chat as in the walk: "And here's one moment to try another way:", the
     // stretch's clip as the speaker's, then the Sniper's line; the clip names
     // its recording, so Will's question after the walk quotes the stretch (E2).
     const steps = append.mock.calls.map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata);
