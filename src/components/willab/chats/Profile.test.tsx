@@ -38,7 +38,7 @@ import Profile from "./Profile";
 
 let container: HTMLDivElement;
 let root: Root;
-const base: ProfileData = { name: "Piotr Kowalski", role: "Senior editor", about: "I wrote our AI guidelines.", about_edited_at: null, has_photo: false, photos: [], files: [] };
+const base: ProfileData = { user_id: null, name: "Piotr Kowalski", role: "Senior editor", about: "I wrote our AI guidelines.", about_edited_at: null, has_photo: false, photos: [], files: [] };
 
 beforeEach(() => {
   Object.values(api).forEach((f) => f.mockReset());

@@ -308,6 +308,9 @@ export function chatVoiceSrc(chatId: string, messageId: string): string {
  *  or a file is in. */
 export type SharedItem = { id: string; chat_id: string; name: string; created_at: string };
 export type Profile = {
+  /** Whose profile, once the backend sends it: another person's AI models
+   *  are read by it (backend #1869's GET /v2/models/profile/<user_id>). */
+  user_id: string | null;
   name: string;
   role: string | null;
   about: string | null;
@@ -321,6 +324,7 @@ function profileOf(body: Record<string, unknown> | null): Profile | null {
   if (!body || typeof body.name !== "string") return null;
   const items = (x: unknown) => (Array.isArray(x) ? (x as SharedItem[]) : []);
   return {
+    user_id: typeof body.user_id === "string" ? body.user_id : null,
     name: body.name,
     role: typeof body.role === "string" ? body.role : null,
     about: typeof body.about === "string" ? body.about : null,

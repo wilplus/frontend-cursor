@@ -1,0 +1,1492 @@
+{
+ "begin": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "problem",
+   "chapter": "Describe",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": true
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Describe · 1 of 3",
+   "optional": null,
+   "bar": 7,
+   "lines": [
+    "What problem should your model solve?"
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {
+    "problem": ""
+   },
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "beginFilled": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "problem",
+   "chapter": "Describe",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": true
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Describe · 1 of 3",
+   "optional": null,
+   "bar": 7,
+   "lines": [
+    "What problem should your model solve?"
+   ],
+   "notes": [
+    "Filled from your first Take. Change any word."
+   ],
+   "choices": [],
+   "fields": {
+    "problem": "I coach founders on their pitch."
+   },
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "today": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "today",
+   "chapter": "Describe",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": true
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Describe · 2 of 3",
+   "optional": null,
+   "bar": 12,
+   "lines": [
+    "How do you solve it today?"
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {
+    "today": "I listen to their pitch, tell them where they sped up, and give them one exercise."
+   },
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "teach": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "teach",
+   "chapter": "Describe",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": true
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Describe · 3 of 3",
+   "optional": null,
+   "bar": 18,
+   "lines": [
+    "How will you teach your model?"
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {
+    "teach": "I will rate short clips of pitches, pick the exercise, and say what I would tell the founder."
+   },
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "similar": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "teach",
+   "chapter": "Describe",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": true
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Describe · 3 of 3",
+   "optional": null,
+   "bar": 18,
+   "lines": [
+    "How will you teach your model?"
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {
+    "teach": "I will rate short clips of pitches, pick the exercise, and say what I would tell the founder."
+   },
+   "actions": [
+    "Next"
+   ],
+   "sheet": {
+    "title": "A model like yours already exists",
+    "card": {
+     "id": "pitchns",
+     "name": "Pitch feedback for founders",
+     "badge": "Public",
+     "started_by": "Started by Northwind Studio",
+     "line": "13% of the way to its first training · 3 teachers"
+    },
+    "line": "If you teach it, it learns faster, and you share what it earns.",
+    "actions": [
+     "Teach this one",
+     "Set up mine anyway"
+    ]
+   }
+  }
+ },
+ "kind": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "kind",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 1 of 11",
+   "optional": null,
+   "bar": 24,
+   "lines": [
+    "From your answers, your model will do three things. Untick what it should not do."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "score",
+     "title": "It gives a score on a scale",
+     "line": "How rushed a pitch sounds, from calm to racing",
+     "check": true
+    },
+    {
+     "key": "pick",
+     "title": "It picks from a list",
+     "line": "Which of your exercises fits",
+     "check": true
+    },
+    {
+     "key": "answer",
+     "title": "It learns to answer like you",
+     "line": "From your answers set beside its own drafts",
+     "check": true
+    }
+   ],
+   "fields": {
+    "name": "Pitch Coach",
+    "name_label": "Its name"
+   },
+   "actions": [
+    "That’s right"
+   ]
+  }
+ },
+ "scale": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "scale",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 2 of 11",
+   "optional": null,
+   "bar": 29,
+   "lines": [
+    "One example is a pitch clip of about 30 seconds. Your teachers will rate each clip on this scale."
+   ],
+   "notes": [
+    "Clear words for each point help your teachers agree. When they agree, the model learns faster."
+   ],
+   "choices": [],
+   "fields": {
+    "scale": [
+     {
+      "point": 1,
+      "t": "Calm",
+      "d": "Every sentence lands."
+     },
+     {
+      "point": 2,
+      "t": "Mostly calm",
+      "d": "One ending blurs."
+     },
+     {
+      "point": 3,
+      "t": "Hurried in places",
+      "d": "A few endings blur."
+     },
+     {
+      "point": 4,
+      "t": "Rushed",
+      "d": "Most endings blur."
+     },
+     {
+      "point": 5,
+      "t": "Racing",
+      "d": "Hard to follow at all."
+     }
+    ]
+   },
+   "actions": [
+    "Use this scale",
+    "Start with this, finish the rest later"
+   ]
+  }
+ },
+ "question": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "question",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 3 of 11",
+   "optional": null,
+   "bar": 35,
+   "lines": [
+    "Your teachers will be asked this about each clip. We wrote it from your answers; change any word.",
+    "They pick from this list. Write each option your teachers may choose."
+   ],
+   "notes": [
+    "Clear words help your teachers agree, and the same words let one answer count for every model that asks it."
+   ],
+   "choices": [],
+   "fields": {
+    "question": "How rushed does it sound?",
+    "pick_question": "Which exercise fits?",
+    "options": [
+     "Slow the ending",
+     "Pause before the ask"
+    ],
+    "add_option": "Add an option"
+   },
+   "actions": [
+    "Use this question"
+   ]
+  }
+ },
+ "ai": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "ai",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 4 of 11",
+   "optional": null,
+   "bar": 41,
+   "lines": [
+    "Each part of your model needs a different kind of AI. We chose one for each."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "score",
+     "title": "Score how rushed it sounds",
+     "line": "WillpowerLab’s voice scorer: it learns from how the voice sounds, not only from the words",
+     "on": true
+    },
+    {
+     "key": "pick",
+     "title": "Pick the exercise",
+     "line": "GPT-4o mini, choosing only from your list",
+     "on": true
+    },
+    {
+     "key": "answer",
+     "title": "Answer like you",
+     "line": "GPT-4o mini",
+     "on": true
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "That’s right"
+   ],
+   "others": {
+    "title": "Other AIs to answer like you:",
+    "choices": [
+     {
+      "key": "GPT-4o",
+      "title": "GPT-4o",
+      "line": "",
+      "faded": true,
+      "tag": "Soon"
+     },
+     {
+      "key": "Mistral",
+      "title": "Mistral",
+      "line": "",
+      "faded": true,
+      "tag": "Soon"
+     },
+     {
+      "key": "Llama",
+      "title": "Llama",
+      "line": "",
+      "faded": true,
+      "tag": "Soon"
+     }
+    ]
+   }
+  }
+ },
+ "rules": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "rules",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 5 of 11",
+   "optional": "Optional",
+   "bar": 47,
+   "lines": [
+    "Do you have research your model should start from? It will work from day one on the rules you keep."
+   ],
+   "notes": [
+    "A study’s numbers may not fit your speakers. We check each rule against your teachers’ first 50 ratings. If they disagree with a rule, we stop using it and tell you why."
+   ],
+   "choices": [
+    {
+     "key": "0",
+     "title": "A pitch faster than 170 words a minute sounds rushed.",
+     "line": "From pitch-pace-study.pdf, page 4 · a study of 40 English-speaking founders",
+     "check": true
+    }
+   ],
+   "fields": {
+    "study": "pitch-pace-study.pdf"
+   },
+   "actions": [
+    "Use these rules",
+    "Skip"
+   ],
+   "strictness": {
+    "title": "How sure should it be before it answers?",
+    "choices": [
+     {
+      "key": "clear",
+      "title": "Only when it’s clear",
+      "line": "",
+      "on": true
+     },
+     {
+      "key": "fairly_clear",
+      "title": "When it’s fairly clear",
+      "line": "",
+      "on": false
+     }
+    ]
+   }
+  }
+ },
+ "data": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "data",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 6 of 11",
+   "optional": "Optional",
+   "bar": 53,
+   "lines": [
+    "Do you already have examples of this work? Upload them, and your model starts with more than rules."
+   ],
+   "notes": [
+    "A spreadsheet (CSV or Excel), a JSON file, or a folder of recordings with a spreadsheet that describes them."
+   ],
+   "choices": [],
+   "fields": {
+    "file": "pitch-ratings.csv",
+    "rows": 30
+   },
+   "actions": [
+    "Use this data",
+    "I don’t have any"
+   ]
+  }
+ },
+ "columns": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "columns",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 7 of 11",
+   "optional": null,
+   "bar": 59,
+   "lines": [
+    "Tell us what each column holds. We guessed; change any that are wrong."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "clip_file",
+     "title": "clip_file",
+     "line": "→ The example: a pitch clip of about 30 seconds",
+     "role": "example",
+     "on": true,
+     "faded": false
+    },
+    {
+     "key": "rushed_score",
+     "title": "rushed_score",
+     "line": "→ The score on your scale, 1 to 5",
+     "role": "score",
+     "on": true,
+     "faded": false
+    },
+    {
+     "key": "coach_note",
+     "title": "coach_note",
+     "line": "→ Your answer",
+     "role": "answer",
+     "on": true,
+     "faded": false
+    },
+    {
+     "key": "speaker_name",
+     "title": "speaker_name",
+     "line": "→ Left out: it names a person",
+     "role": "out",
+     "on": false,
+     "faded": true
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "That’s right"
+   ]
+  }
+ },
+ "check": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "check",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 8 of 11",
+   "optional": null,
+   "bar": 65,
+   "lines": [
+    "We checked your data."
+   ],
+   "notes": [
+    "Most of your examples sit at 1 or 2. Your model will learn little about racing (5) until your teachers add some."
+   ],
+   "choices": [
+    {
+     "key": "consent",
+     "title": "I have the right to use this data, and the people in it agreed to its use for training.",
+     "line": "",
+     "check": false
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "Upload it",
+    "Fix the file first"
+   ],
+   "table": [
+    [
+     "Rows we can use",
+     "30 / 30"
+    ],
+    [
+     "Repeats removed",
+     "0"
+    ],
+    [
+     "Near repeats removed",
+     "0"
+    ],
+    [
+     "Rows with no score, skipped",
+     "0"
+    ],
+    [
+     "Rows that look mislabelled",
+     "0 · checked first"
+    ],
+    [
+     "Names and places removed",
+     "0"
+    ]
+   ],
+   "hist": [
+    {
+     "point": 1,
+     "n": 6
+    },
+    {
+     "point": 2,
+     "n": 6
+    },
+    {
+     "point": 3,
+     "n": 6
+    },
+    {
+     "point": 4,
+     "n": 6
+    },
+    {
+     "point": 5,
+     "n": 6
+    }
+   ],
+   "after": [
+    "Before your data counts, your teachers re-rate 60 of its examples. If they agree with it often enough, all of it counts. If not, we show you which part to check. None of it goes into the final exam, which stays new."
+   ]
+  }
+ },
+ "journey": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "journey",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 10 of 11",
+   "optional": null,
+   "bar": 76,
+   "lines": [
+    "Here is what each teacher will do. Make it shorter or longer."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "shorter",
+     "title": "Shorter",
+     "line": ""
+    },
+    {
+     "key": "longer",
+     "title": "Longer",
+     "line": ""
+    }
+   ],
+   "fields": {
+    "steps": [
+     "Listen to a pitch clip of about 30 seconds",
+     "How rushed does it sound?",
+     "Which exercise fits?",
+     "Say how you would answer, in your own words"
+    ]
+   },
+   "actions": [
+    "Looks good"
+   ]
+  }
+ },
+ "share": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "share",
+   "chapter": "Share",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": true
+    }
+   ],
+   "caption": "Share · 1 of 3",
+   "optional": null,
+   "bar": 88,
+   "lines": [
+    "Who can see your model?"
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "private",
+     "title": "Private",
+     "line": "Only you and the people you invite",
+     "on": true
+    },
+    {
+     "key": "public",
+     "title": "Public",
+     "line": "Anyone can see it and teach it",
+     "on": false
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "public": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "public",
+   "chapter": "Share",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": true
+    }
+   ],
+   "caption": "Before you make it public",
+   "optional": null,
+   "bar": 88,
+   "lines": [
+    "Anyone will be able to see your model and teach it.",
+    "Once it passes its final exam, businesses can pay to use it. You and its teachers share what it earns.",
+    "Before anything reaches the company whose AI it uses, we remove names and places. Recordings never leave WillpowerLab.",
+    "You can make it private again at any time. What it has learned stays."
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {},
+   "actions": [
+    "Make it public",
+    "Keep it private"
+   ]
+  }
+ },
+ "exam": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "exam",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 9 of 11",
+   "optional": null,
+   "bar": 71,
+   "lines": [
+    "Before anyone teaches it, two experts set aside a final exam: 100 clips your model never learns from.",
+    "It can be sold only when it does clearly better on this exam than it does today."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "me",
+     "title": "You",
+     "line": "Owner",
+     "check": true
+    },
+    {
+     "key": "daniel",
+     "title": "Daniel Okafor",
+     "line": "Speaking coach",
+     "check": false
+    },
+    {
+     "key": "maya",
+     "title": "Maya Lindqvist",
+     "line": "Head of Sales",
+     "check": false
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "Choose the second expert"
+   ]
+  }
+ },
+ "examAsked": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "exam",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 9 of 11",
+   "optional": null,
+   "bar": 71,
+   "lines": [
+    "Before anyone teaches it, two experts set aside a final exam: 100 clips your model never learns from.",
+    "It can be sold only when it does clearly better on this exam than it does today."
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "me",
+     "title": "You",
+     "line": "Owner",
+     "check": true
+    },
+    {
+     "key": "daniel",
+     "title": "Daniel Okafor",
+     "line": "Speaking coach",
+     "check": true
+    },
+    {
+     "key": "maya",
+     "title": "Maya Lindqvist",
+     "line": "Head of Sales",
+     "check": false
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "Ask Daniel"
+   ]
+  }
+ },
+ "invite": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "invite",
+   "chapter": "Share",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": true
+    }
+   ],
+   "caption": "Share · 2 of 3",
+   "optional": null,
+   "bar": 94,
+   "lines": [
+    "Who should teach it with you?"
+   ],
+   "notes": [],
+   "choices": [
+    {
+     "key": "daniel",
+     "title": "Daniel Okafor",
+     "line": "Speaking coach",
+     "check": false
+    },
+    {
+     "key": "maya",
+     "title": "Maya Lindqvist",
+     "line": "Head of Sales",
+     "check": false
+    }
+   ],
+   "fields": {},
+   "actions": [
+    "Invite them",
+    "Copy an invite link"
+   ]
+  }
+ },
+ "first10": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "first10",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 11 of 11",
+   "optional": null,
+   "bar": 82,
+   "lines": [
+    "Now answer the first 10 yourself, the way your teachers will.",
+    "Your model reads your answers from today, so it answers like you from the start. Each one trains it once another teacher agrees with you."
+   ],
+   "notes": [
+    "None of these 10 goes into the final exam."
+   ],
+   "choices": [],
+   "fields": {},
+   "actions": [
+    "Start",
+    "Do it later"
+   ]
+  }
+ },
+ "first10None": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "first10",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 11 of 11",
+   "optional": null,
+   "bar": 82,
+   "lines": [
+    "Now answer the first 10 yourself, the way your teachers will.",
+    "Your model reads your answers from today, so it answers like you from the start. Each one trains it once another teacher agrees with you."
+   ],
+   "notes": [
+    "None of these 10 goes into the final exam.",
+    "Your first 10 come once your model has its first examples."
+   ],
+   "choices": [],
+   "fields": {},
+   "actions": [
+    "Do it later"
+   ]
+  }
+ },
+ "first10Teach": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "first10",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Your first 10 · 1 of 10",
+   "optional": null,
+   "bar": 82,
+   "lines": [],
+   "notes": [],
+   "choices": [],
+   "fields": {},
+   "actions": [],
+   "teaching": {
+    "model": "Pitch Coach",
+    "step": "rate",
+    "example": {
+     "id": "ex1",
+     "model_id": "pitch",
+     "source": "takes",
+     "private": false,
+     "content": {
+      "text": "So our ask is two million and we close in March"
+     }
+    },
+    "source_note": null,
+    "question": "How rushed does it sound?",
+    "answers": [
+     "Calm",
+     "Mostly calm",
+     "Hurried in places",
+     "Rushed",
+     "Racing",
+     "Audio unclear",
+     "Skip"
+    ]
+   }
+  }
+ },
+ "first10Done": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "first10",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 11 of 11",
+   "optional": null,
+   "bar": 82,
+   "lines": [
+    "You answered your first 10.",
+    "Your model reads your answers from today, so it answers like you from the start. Each one trains it once another teacher agrees with you."
+   ],
+   "notes": [
+    "None of these 10 goes into the final exam."
+   ],
+   "choices": [],
+   "fields": {},
+   "actions": [
+    "Next"
+   ]
+  }
+ },
+ "ready": {
+  "model_id": "pitch",
+  "status": "learning",
+  "screen": {
+   "step": "ready",
+   "chapter": "Share",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": false
+    },
+    {
+     "name": "Share",
+     "on": true
+    }
+   ],
+   "caption": "Share · 3 of 3",
+   "optional": null,
+   "bar": 100,
+   "lines": [
+    "Pitch Coach is ready to learn. Today it answers from your starting rules and examples."
+   ],
+   "notes": [],
+   "choices": [],
+   "fields": {},
+   "actions": [
+    "Try it",
+    "Back to the list"
+   ],
+   "checklist": {
+    "title": "To finish setting it up",
+    "items": [
+     {
+      "title": "The scale",
+      "step": "scale",
+      "done": true
+     },
+     {
+      "title": "What it will do",
+      "step": "kind",
+      "done": true
+     },
+     {
+      "title": "Starting rules · optional",
+      "step": "rules",
+      "done": false
+     },
+     {
+      "title": "Your existing data · optional",
+      "step": "data",
+      "done": false
+     },
+     {
+      "title": "The question your teachers answer",
+      "step": "question",
+      "done": false
+     },
+     {
+      "title": "The final exam",
+      "step": "exam",
+      "done": false
+     },
+     {
+      "title": "Your first 10 answers",
+      "step": "first10",
+      "done": false
+     },
+     {
+      "title": "Invite teachers",
+      "step": "invite",
+      "done": false
+     }
+    ]
+   },
+   "locked": {
+    "title": "Sell it through an API",
+    "lines": [
+     "This opens once its first training beats today’s version on the final exam.",
+     "It needs about 500 ratings from trusted teachers first."
+    ]
+   }
+  }
+ },
+ "shortScale": {
+  "model_id": "pitch",
+  "status": "draft",
+  "screen": {
+   "step": "scale",
+   "chapter": "Shape",
+   "chapters": [
+    {
+     "name": "Describe",
+     "on": false
+    },
+    {
+     "name": "Shape",
+     "on": true
+    },
+    {
+     "name": "Share",
+     "on": false
+    }
+   ],
+   "caption": "Shape · 2 of 11",
+   "optional": null,
+   "bar": 29,
+   "lines": [
+    "One example is a pitch clip of about 30 seconds. Your teachers will rate each clip on this scale."
+   ],
+   "notes": [
+    "Clear words for each point help your teachers agree. When they agree, the model learns faster.",
+    "Give every point a word."
+   ],
+   "choices": [],
+   "fields": {
+    "scale": [
+     {
+      "point": 1,
+      "t": "Calm",
+      "d": "Every sentence lands."
+     },
+     {
+      "point": 2,
+      "t": "Mostly calm",
+      "d": "One ending blurs."
+     },
+     {
+      "point": 3,
+      "t": "",
+      "d": ""
+     }
+    ]
+   },
+   "actions": [
+    "Use this scale",
+    "Start with this, finish the rest later"
+   ]
+  }
+ },
+ "ownerPanel": {
+  "needs_you": {
+   "title": "Needs you now",
+   "line": "Your teachers disagree most between 3 (Hurried in places) and 4 (Rushed). Clearer words for those two points would help.",
+   "actions": [
+    "Make those two clearer"
+   ],
+   "step": "scale"
+  },
+  "head": "Pitch Coach is 36% of the way to its first training: about 6 to 10 weeks more. The slowest jar decides: ratings from trusted teachers.",
+  "rows": [
+   [
+    "How often your teachers agree",
+    "Within one point 9 times in 10 · exactly 6 in 10"
+   ],
+   [
+    "Ratings from trusted teachers",
+    "180 / 500"
+   ],
+   [
+    "Final exam",
+    "100 of 100 · sealed"
+   ],
+   [
+    "Your uploaded examples",
+    "none"
+   ]
+  ],
+  "notes": [
+   "That is enough to learn from. If they agreed within one point fewer than 7 times in 10, the scale would need clearer words first."
+  ],
+  "folds": [
+   {
+    "title": "Where its examples come from",
+    "rows": [
+     [
+      "WillpowerLab speakers who said yes",
+      120
+     ],
+     [
+      "Your uploaded data",
+      0
+     ],
+     [
+      "Questions it wasn’t sure about",
+      "none yet"
+     ],
+     [
+      "Examples your teachers added",
+      "4 · never more than 1 in 5 of what it learns from"
+     ]
+    ]
+   },
+   {
+    "title": "What runs by itself",
+    "lines": [
+     "The trust check, the practice clips, how often teachers agree, the sealed exam and the test against today’s version. Agreement is measured on 1 example in 10 picked at random, so the hard ones served first don’t make it look worse than it is. We tell you when something needs you."
+    ],
+    "then": {
+     "title": "What you decide",
+     "lines": [
+      "The words of the scale, who you invite, the price, and when to release a version that passed."
+     ]
+    }
+   },
+   {
+    "title": "A fair exam",
+    "lines": [
+     "No speaker in the exam is in its training, and the exam covers all five points of the scale."
+    ]
+   },
+   {
+    "title": "Your starting rules, checked",
+    "lines": [
+     "We check your rules against your teachers’ first 50 ratings."
+    ]
+   }
+  ],
+  "checklist": {
+   "title": "To finish setting it up",
+   "items": [
+    {
+     "title": "The scale",
+     "step": "scale",
+     "done": true
+    },
+    {
+     "title": "What it will do",
+     "step": "kind",
+     "done": true
+    },
+    {
+     "title": "Starting rules · optional",
+     "step": "rules",
+     "done": false
+    },
+    {
+     "title": "Your existing data · optional",
+     "step": "data",
+     "done": false
+    },
+    {
+     "title": "The question your teachers answer",
+     "step": "question",
+     "done": false
+    },
+    {
+     "title": "The final exam",
+     "step": "exam",
+     "done": false
+    },
+    {
+     "title": "Your first 10 answers",
+     "step": "first10",
+     "done": false
+    },
+    {
+     "title": "Invite teachers",
+     "step": "invite",
+     "done": false
+    }
+   ]
+  }
+ },
+ "invite_card": {
+  "lines": [
+   "Maya invited you to teach Northwind sales replies with them.",
+   "You said not now. The invite stays here; open it whenever you like."
+  ],
+  "action": "Open"
+ },
+ "invite_card_open": {
+  "lines": [
+   "Kasia invited you to teach Short news cuts with them."
+  ],
+  "action": "Open"
+ },
+ "words": {
+  "add_counts_once": "It counts once another teacher agrees with your answer.",
+  "make_public": "Make public",
+  "archive": "Archive",
+  "download_data": "Download its data"
+ },
+ "invites": {
+  "invites": [
+   {
+    "id": "inv1",
+    "model_id": "speak",
+    "lines": [
+     "Maya invited you to teach Speaking confidence with them.",
+     "You said not now. The invite stays here; open it whenever you like."
+    ],
+    "action": "Open"
+   }
+  ]
+ },
+ "profile": {
+  "title": "AI models",
+  "user_id": "marta",
+  "models": [
+   {
+    "id": "pitch",
+    "name": "Pitch Coach",
+    "badge": "Private",
+    "line": "You started it · 36% of the way · 3 teachers",
+    "actions": [
+     "Make public",
+     "Archive",
+     "Download its data"
+    ]
+   },
+   {
+    "id": "speak",
+    "name": "Speaking confidence",
+    "badge": "Public",
+    "line": "You teach it · 86 answers counted this month",
+    "actions": []
+   }
+  ]
+ }
+}

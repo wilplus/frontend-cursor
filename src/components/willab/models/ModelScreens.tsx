@@ -12,6 +12,7 @@ import {
   getModelEarnings,
   getModelPrice,
   getModelUsage,
+  getModelInvites,
   getModelList,
   getModelPage,
   getQueue,
@@ -19,6 +20,7 @@ import {
   MODEL_FILTERS,
   pauseModel,
   type Door,
+  type ListedInvite,
   type ModelFilter,
   type ModelList,
   type ModelPage,
@@ -28,6 +30,7 @@ import {
 } from "@/services/api/models";
 import { cn } from "@/lib/utils";
 import { Badge, Bar, Card, Crown, Empty, Mini } from "./ModelBits";
+import { NeedsYou, OwnerRest } from "./ModelOwner";
 import { MODEL_API_WORDS as API, MODELS_WORDS as W, TO_SIGN } from "./modelsCopy";
 
 /* -------------------------------------------------------------------------- */
@@ -138,14 +141,42 @@ type ListWays = {
   onTeach: (id: string) => void;
   onUse: (id: string) => void;
   onEarnings: () => void;
+  /** "Start your own" and "Start the first one" (MOD-24); null hides them
+   *  (the setup's routes answered 404). */
+  onStart: (() => void) | null;
+  /** A draft's "Continue" (MOD-25). */
+  onContinue: (id: string) => void;
+  /** An invite's "Open" (MOD-49). */
+  onInvite: (invite: ListedInvite) => void;
 };
 
-function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear }: ListWays & { list: ModelList; onClear: () => void }) {
+/** The invites to teach, open or put off, each as it stays in the chat
+ *  (MOD-49): nothing until GET /v2/models/invites answers with one. */
+function InviteRows({ onInvite }: { onInvite: (invite: ListedInvite) => void }) {
+  const invites = useRead(getModelInvites, "invites");
+  return (
+    <>
+      {(invites ?? []).map((invite) => (
+        <div key={invite.id} data-model-invite className="flex flex-col gap-1.5 rounded-[18px] border-[1.5px] border-border px-3.5 py-[13px]">
+          <p className="m-0 text-[16px] leading-snug text-foreground">{invite.lines[0]}</p>
+          {invite.lines.slice(1).map((line) => (
+            <p key={line} className="m-0 text-[14px] leading-snug text-muted-foreground">{line}</p>
+          ))}
+          <div className="flex gap-2 pt-1">
+            <Mini label={invite.action} onClick={() => onInvite(invite)} />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear, onStart, onContinue, onInvite }: ListWays & { list: ModelList; onClear: () => void }) {
   if (list.empty) {
     return (
       <>
         <Empty title={list.empty.title} line={list.empty.line} />
-        <WalkFooter pill={{ label: list.empty.actions[0], onClick: () => undefined, disabled: true }} links={[{ label: list.empty.actions[1], onClick: onClear }]} />
+        <WalkFooter pill={onStart ? { label: list.empty.actions[0], onClick: onStart } : null} links={[{ label: list.empty.actions[1], onClick: onClear }]} />
       </>
     );
   }
@@ -156,6 +187,7 @@ function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear }:
         <span className="text-[13.5px] text-muted-foreground">{TO_SIGN.whatDoIGetLine}</span>
       </button>
       <EarningsRow onEarnings={onEarnings} />
+      <InviteRows onInvite={onInvite} />
       {list.drafts.map((d) => (
         <Card key={d.id} draft testId="model-draft">
           <div className="flex items-center justify-between gap-2">
@@ -165,7 +197,7 @@ function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear }:
           <small className="text-[13px] text-muted-foreground">{d.line}</small>
           <div className="flex gap-2 pt-1">
             {d.actions.map((label) => (
-              <Mini key={label} label={label} />
+              <Mini key={label} label={label} onClick={label === W.continue ? () => onContinue(d.id) : undefined} />
             ))}
           </div>
         </Card>
@@ -177,7 +209,17 @@ function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear }:
   );
 }
 
-export function ModelListScreen({ onClose, onUse = () => undefined, onEarnings = () => undefined, ...ways }: Nav & Omit<ListWays, "onUse" | "onEarnings"> & Partial<Pick<ListWays, "onUse" | "onEarnings">>) {
+type Optional = "onUse" | "onEarnings" | "onStart" | "onContinue" | "onInvite";
+
+export function ModelListScreen({
+  onClose,
+  onUse = () => undefined,
+  onEarnings = () => undefined,
+  onStart = null,
+  onContinue = () => undefined,
+  onInvite = () => undefined,
+  ...ways
+}: Nav & Omit<ListWays, Optional> & Partial<Pick<ListWays, Optional>>) {
   const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ModelFilter | null>(null);
@@ -191,7 +233,7 @@ export function ModelListScreen({ onClose, onUse = () => undefined, onEarnings =
     setQuery("");
     setFilter(null);
   };
-  const footer = list && !list.empty ? <WalkFooter pill={{ label: list.start, onClick: () => undefined, disabled: true }} /> : null;
+  const footer = list && !list.empty && onStart ? <WalkFooter pill={{ label: list.start, onClick: onStart }} /> : null;
   return (
     <WalkOverlay caption={W.row_models} title={W.row_models} onClose={onClose} footer={footer} testId="models-list">
       {list ? (
@@ -206,7 +248,7 @@ export function ModelListScreen({ onClose, onUse = () => undefined, onEarnings =
             className="block min-h-[40px] w-full rounded-3xl border border-border bg-background py-2 pl-3.5 pr-4 text-[15px] leading-snug outline-none focus:border-primary"
           />
           <Filters labels={list.filters} on={filter} onPick={setFilter} />
-          <ListBody list={list} {...ways} onUse={onUse} onEarnings={onEarnings} onClear={clear} />
+          <ListBody list={list} {...ways} onUse={onUse} onEarnings={onEarnings} onStart={onStart} onContinue={onContinue} onInvite={onInvite} onClear={clear} />
         </>
       ) : null}
     </WalkOverlay>
@@ -295,10 +337,13 @@ const API_LABEL: Record<Exclude<ApiWay, "try">, string> = {
   download: API.download_title,
 };
 
-export function ModelPageScreen({ modelId, onBack, onClose, onTeach, onApi = () => undefined }: Nav & {
+export function ModelPageScreen({ modelId, onBack, onClose, onTeach, onApi = () => undefined, onFix = () => undefined }: Nav & {
   modelId: string;
   onTeach: (page: ModelPage) => void;
   onApi?: (way: ApiWay, page: ModelPage) => void;
+  /** Its owner's way back into one setup step ("Make those two clearer", a
+   *  checklist item; MOD-36, MOD-37). */
+  onFix?: (step: string) => void;
 }) {
   const page = useRead(() => getModelPage(modelId), modelId);
   const ways = useApiWays(page);
@@ -316,10 +361,12 @@ export function ModelPageScreen({ modelId, onBack, onClose, onTeach, onApi = () 
     <WalkOverlay onBack={onBack} backLabel={page?.name} title={page?.name} onClose={onClose} footer={footer} testId="model-page">
       {page ? (
         <>
+          {page.owner ? <NeedsYou panel={page.owner} onFix={onFix} /> : null}
           <div className="flex items-center gap-3.5">
             <Ring percent={page.percent} />
-            <p data-model-summary className="m-0 text-[15px] leading-snug">{page.summary}</p>
+            <p data-model-summary className="m-0 text-[15px] leading-snug">{page.owner?.head ?? page.summary}</p>
           </div>
+          {page.owner ? <OwnerRest panel={page.owner} onFix={onFix} /> : null}
           {page.description ? <p className="m-0">{page.description}</p> : null}
           {page.status === "learning" ? <p className="m-0 text-[15px] text-muted-foreground">{TO_SIGN.pageTryNow}</p> : null}
           {more.length ? (
@@ -337,10 +384,14 @@ export function ModelPageScreen({ modelId, onBack, onClose, onTeach, onApi = () 
 
 /* ── The door (d:4; MOD-07) ──────────────────────────────────────────────── */
 
-export function DoorScreen({ onBack, onClose, onYes }: Nav & { onYes: () => void }) {
+export function DoorScreen({ onBack, onClose, onYes, onNo }: Nav & {
+  onYes: () => void;
+  /** "Not now"; by default back (an invite's keeps it, MOD-49). */
+  onNo?: () => void;
+}) {
   const door = useRead<Door>(getDoor, "door");
   const footer = door ? (
-    <WalkFooter pill={{ label: door.actions[0], onClick: onYes }} links={[{ label: door.actions[1], onClick: onBack ?? onClose }]} />
+    <WalkFooter pill={{ label: door.actions[0], onClick: onYes }} links={[{ label: door.actions[1], onClick: onNo ?? onBack ?? onClose }]} />
   ) : null;
   return (
     <WalkOverlay onBack={onBack} backLabel={door?.title} onClose={onClose} footer={footer} testId="models-door">
@@ -410,27 +461,6 @@ export function QueueScreen({ title, onBack, onClose, onStart, onAdd, onDone }: 
           <p className="m-0 text-[14px] text-muted-foreground">{queue.hint}</p>
         </>
       ) : null}
-    </WalkOverlay>
-  );
-}
-
-/* ── Adding an example (q:7; MOD-21) ─────────────────────────────────────── */
-
-export function AddExampleScreen({ onBack, onClose }: Nav) {
-  const choices = [
-    { title: W.add_record, line: W.add_record_line },
-    { title: W.add_upload, line: W.add_upload_line },
-  ];
-  return (
-    <WalkOverlay onBack={onBack} backLabel={W.add_title} onClose={onClose} testId="models-add">
-      <p className="m-0 px-[17px] text-[18.5px] leading-[1.45]">{W.add_intro}</p>
-      {choices.map((c) => (
-        <button key={c.title} type="button" disabled className="flex flex-col rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
-          <b className="text-[16px]">{c.title}</b>
-          <span className="text-[14px] text-muted-foreground">{c.line}</span>
-        </button>
-      ))}
-      <p className="m-0 text-[14px] text-muted-foreground">{W.add_counts_once}</p>
     </WalkOverlay>
   );
 }

@@ -47,6 +47,9 @@ export const MODELS_WORDS = {
   add_counts_once: "It counts once another teacher agrees with your answer.",
   release_not_yet: "Not yet",
   profile_section: "AI models",
+  make_public: "Make public",
+  archive: "Archive",
+  download_data: "Download its data",
 } as const;
 
 /** Copied from backend services/model_api.py WORDS, key for key: the few a
@@ -59,6 +62,14 @@ export const MODEL_API_WORDS = {
   usage_title: "Your usage",
   earn_title: "Your earnings",
   download_title: "Download its data",
+} as const;
+
+/** Copied from backend services/model_setup.py WORDS, key for key: the one
+ *  a setup screen fills itself, as the owner picks the exam's second expert
+ *  before it is saved ("Ask Daniel", MOD-32). Every other word of the setup
+ *  arrives in its `screen`. */
+export const SETUP_WORDS = {
+  ask: "Ask {name}",
 } as const;
 
 /** The backend's JUDGE_ANSWERS: a voice model asking these is drawn as the
@@ -79,6 +90,8 @@ export const TO_SIGN = {
   pageTryNow: "You can try it now. Businesses can pay to use it once it passes its final exam.",
   waiting: "waiting",
   of: "of",
+  /** Add an example (the prototype's q:7), over the models taught. */
+  forWhichModel: "For which model?",
 } as const;
 
 /** "Speaking confidence · 1 of 12", the teaching screen's bar. */
