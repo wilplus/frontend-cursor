@@ -8,12 +8,13 @@ import RecordingStrip from "./walk/RecordingStrip";
 /*  2026-10-31, backend N314, locked; N304, N296 state 3).                     */
 /*                                                                            */
 /*  The trash on the left (the voice note's own), then the walk's recording   */
-/*  strip, class for class (walk/RecordingStrip.tsx): the pulsing dot, the     */
+/*  strip (walk/RecordingStrip.tsx): the blinking dot, the                     */
 /*  clock, the track, and the red Stop inside it. Stop sends; the trash throws */
 /*  the recording away. Used by the Lounge's voice note, an answer to Will by  */
 /*  voice, the plan's voice answers, the walk's practice and the tempo step.  */
-/*  A Take keeps its locked recording screen, whose strip is the same (N70,   */
-/*  N303). "Stop" is signed.                                                  */
+/*  The strip is the locked bar file's `.rec` (N483). A Take keeps its locked */
+/*  recording screen and that screen's own strip (N70, N303). "Stop" is      */
+/*  signed.                                                                   */
 /*  Was: the voice note's bordered pill with a black send, and the plan's own */
 /*  large red Stop under the strip.                                           */
 /* -------------------------------------------------------------------------- */
