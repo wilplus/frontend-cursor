@@ -10,6 +10,7 @@ import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
 import NativeAppMarker from "@/components/pwa/NativeAppMarker";
 import NativePush from "@/components/pwa/NativePush";
 import NativeLinks from "@/components/pwa/NativeLinks";
+import NativeKeyboard from "@/components/pwa/NativeKeyboard";
 import BookingReturn from "@/components/booking/BookingReturn";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
@@ -112,6 +113,7 @@ export default function RootLayout({
         <NativeAppMarker />
         <NativePush />
         <NativeLinks />
+        <NativeKeyboard />
         {/* Side-effect-only: claim the guest graph, then send the exact parked
             Project Take after OAuth. Renders nothing. */}
         <PendingCoachSend />
