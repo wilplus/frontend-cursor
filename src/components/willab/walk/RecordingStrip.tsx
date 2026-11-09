@@ -1,25 +1,31 @@
 "use client";
 
-import { Square } from "lucide-react";
 import { coerceTargetSeconds, formatRecordingClock } from "../willabHelpers";
 
 /* -------------------------------------------------------------------------- */
-/*  RecordingStrip — the Take's own recording bar, for the walk's practise     */
-/*  (founder lock 2026-10-06: "Recording uses the Take's own recording bar").  */
+/*  RecordingStrip — the one recording bar's strip (backend N314, N483), for   */
+/*  the walk's practise, the tempo step, the plan and the chats' voice note    */
+/*  (through RecordingBar).                                                   */
 /*                                                                            */
-/*  A FAITHFUL COPY of the strip inline in LabOverlay's RecordingPhase, class  */
-/*  for class: pulsing dot → clock → numberless bar → stop. It is a copy, not  */
-/*  an extraction, because recordingScreen.test.ts pins the strip's source     */
-/*  inside RecordingPhase; moving it out is its own change. Keep the two in    */
-/*  step until then. The clock counts down to a target and up past it as the  */
-/*  record-red overrun, or counts up with none; the bar never shows a number  */
-/*  (AC-9).                                                                   */
+/*  Built to the locked bar prototype's `.rec` (backend docs/design/          */
+/*  customer-requests-2026-10-28/the-bar/the-bar-clickable.html): a 48px grey */
+/*  pill, the 8px blinking red dot, the mono 14px clock, a 3px grey track     */
+/*  with a black fill, and the red Stop with a white square, in the one red   */
+/*  #EF4444. Was: a copy of the recording screen's strip (rounded-2xl, 17px   */
+/*  clock, a 4px grey/orange/red bar); the recording screen keeps its own     */
+/*  strip, inline in LabOverlay's RecordingPhase (N70), untouched. The clock  */
+/*  counts down to a target and up past it, or counts up with none; the bar  */
+/*  never shows a number (AC-9).                                              */
 /* -------------------------------------------------------------------------- */
 
-function barClass(overrun: boolean, target: number | null): string {
-  if (overrun) return "motion-safe:animate-pulse bg-record";
-  if (target == null) return "motion-safe:animate-pulse bg-muted-foreground/40";
-  return "bg-primary";
+/** The locked file's one red, for the dot and Stop (`--app-red`). */
+const BAR_RED = "#EF4444";
+
+/** The fill: toward a target when there is one, else as the locked file's
+ *  own track grows (4% a second, full at 25 seconds). */
+function fillWidth(elapsed: number, target: number | null): string {
+  if (target == null) return `${Math.min(100, elapsed * 4)}%`;
+  return `${Math.min(100, (elapsed / target) * 100)}%`;
 }
 
 export default function RecordingStrip({
@@ -38,17 +44,22 @@ export default function RecordingStrip({
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec);
   return (
-    <div data-walk-recording-strip className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3">
-      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-record/50 motion-safe:animate-pulse" aria-hidden />
+    <div data-walk-recording-strip className="flex h-12 items-center gap-2.5 rounded-full bg-muted pl-3.5 pr-[5px]">
       <span
-        className={`font-mono text-[17px] font-semibold tabular-nums ${overrun ? "text-record" : "text-foreground"}`}
+        className="h-2 w-2 shrink-0 rounded-full motion-safe:animate-rec-blink"
+        style={{ backgroundColor: BAR_RED }}
+        aria-hidden
+      />
+      <span
+        className="font-mono text-[14px] font-bold tabular-nums text-foreground"
+        style={overrun ? { color: BAR_RED } : undefined}
       >
         {clockLabel}
       </span>
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-border" aria-hidden>
+      <div className="relative h-[3px] flex-1 overflow-hidden rounded-[2px] bg-[#D9D9D9]" aria-hidden>
         <div
-          className={`h-full rounded-full transition-[width] duration-200 ${barClass(overrun, target)}`}
-          style={{ width: target == null ? "100%" : `${Math.min(100, (elapsed / target) * 100)}%` }}
+          className="h-full bg-[#121212] transition-[width] duration-200"
+          style={{ width: fillWidth(elapsed, target) }}
         />
       </div>
       {onStop ? (
@@ -56,9 +67,10 @@ export default function RecordingStrip({
         type="button"
         onClick={onStop}
         aria-label={stopLabel}
-        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-record px-4 text-[13px] font-semibold text-record-foreground transition-transform hover:scale-[1.03]"
+        className="flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold text-white transition-transform hover:scale-[1.03]"
+        style={{ backgroundColor: BAR_RED }}
       >
-        <Square className="h-3.5 w-3.5 fill-current" />
+        <span className="h-2.5 w-2.5 rounded-[2px] bg-white" aria-hidden />
         {stopLabel}
       </button>
       ) : null}

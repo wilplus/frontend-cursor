@@ -35,11 +35,16 @@ const config: Config = {
           "45%": { transform: "translateY(10px)" },
           "60%": { transform: "translateY(4px)" },
         },
+        // The one recording bar's dot (the locked bar file's `blink`, N483).
+        "rec-blink": {
+          "50%": { opacity: "0.3" },
+        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.5s ease-out both",
         "voice-dot": "voice-dot 1.2s ease-in-out infinite",
         nudge: "nudge 1.6s ease-in-out infinite",
+        "rec-blink": "rec-blink 1.2s infinite",
       },
       /* `lock-breathe` LIVED HERE and is deliberately gone (founder
          2026-09-20: "the ring should not be there … There is just fill and
