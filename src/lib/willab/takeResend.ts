@@ -78,19 +78,26 @@ function hasRecordingLine(
 }
 
 /** Whether a Take of this copy's project, recorded after it, is already on
- *  the server. The server's list does not say which upload made a Take, so:
- *  two Takes made after this one's Finish mean one is newer; a single one is
- *  newer when it already has its "Your Recording" line (its own device got
- *  the answer), and otherwise may be this very Take, whose answer never came
- *  — sent again, the server answers `duplicate`. null: the list is unread. */
+ *  the server. null: the list is unread.
+ *
+ *  The server names the upload key of each Take: if one is this copy's, the
+ *  copy arrived and only its answer was lost, so it goes (the server answers
+ *  `duplicate`); otherwise any Take made after this one's Finish is newer.
+ *
+ *  A server that does not name the keys (before backend #1824): two Takes
+ *  made after this one's Finish mean one is newer; a single one is newer
+ *  when it already has its "Your Recording" line (its own device got the
+ *  answer), and otherwise may be this very Take, whose answer never came. */
 export function newerTakeOnServer(
   take: KeptTake,
   arcs: TrainingArc[] | null,
   messages: readonly Pick<LoungeMessage, "kind" | "metadata">[],
 ): boolean | null {
   if (!arcs) return null;
-  const arc = arcs.find((a) => a.arcId === take.projectId);
-  const after = (arc?.takes ?? []).filter((t) => t.createdAt && Date.parse(t.createdAt) > take.savedAt);
+  const takes = arcs.find((a) => a.arcId === take.projectId)?.takes ?? [];
+  if (takes.some((t) => t.uploadKey === take.key)) return false;
+  const after = takes.filter((t) => t.createdAt && Date.parse(t.createdAt) > take.savedAt);
+  if (takes.some((t) => t.uploadKey !== undefined)) return after.length > 0;
   if (after.length > 1) return true;
   return after.length === 1 && hasRecordingLine(messages, after[0].sessionId);
 }

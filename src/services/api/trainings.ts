@@ -17,6 +17,10 @@ export interface TrainingTake {
   hasSlides: boolean;
   /** Delivery layer — true once this take's published feedback page exists. */
   feedbackAvailable: boolean;
+  /** The upload key the Take was sent with; null when it was made another
+   *  way; undefined when the server does not say (before backend #1824).
+   *  A Take kept on the phone reads it (backend N556 item 3). */
+  uploadKey?: string | null;
 }
 
 export interface TrainingArc {
@@ -53,6 +57,9 @@ function mapTake(raw: unknown): TrainingTake | null {
     createdAt: typeof r.created_at === "string" ? r.created_at : null,
     hasSlides: r.has_slides === true,
     feedbackAvailable: r.feedback_available === true,
+    ...("upload_key" in r
+      ? { uploadKey: typeof r.upload_key === "string" && r.upload_key ? r.upload_key : null }
+      : {}),
   };
 }
 

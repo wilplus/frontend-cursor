@@ -1947,8 +1947,11 @@ O3  Discarding it, or a refusal for good (no speech, 400, 404, a project
 being deleted, too large, recording consent withdrawn), deletes it.
 O4  Signed in as someone else, or signed out, it is never sent.
 O5  A newer Take of the same project already on the server means the old
-copy is deleted, not sent; a single later Take with no line yet may be
-this very one, and goes (the server answers duplicate).
+copy is deleted, not sent. The server names each Take's upload key, so
+a later Take with another key is newer, and one with this copy's key is
+this very Take, which goes (the server answers duplicate). Where the
+server names no keys, a single later Take with no line yet may be this
+one, and goes.
 O6  Past 7 days it is deleted, not sent.
 O7  A save the device refuses never stops or delays the upload.","O1 -> ""a Take whose answer never came is sent again at the next open, with the same key, and shows as processing""
 O2 -> ""an accepted or duplicate answer deletes the copy, and a dropped connection keeps it""
