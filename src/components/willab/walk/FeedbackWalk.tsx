@@ -627,7 +627,7 @@ export default function FeedbackWalk<R = unknown>({
     // Once per walk.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, lastTime, at, oneThing]);
-  // "And now, one thing to improve:" (N309 item 1): told to the chat once,
+  // "And here's one moment to try another way:" (N309 item 1): told to the chat once,
   // as the walk reaches the fix.
   const toldOne = useRef(new Set<number>());
   useEffect(() => {
@@ -640,7 +640,7 @@ export default function FeedbackWalk<R = unknown>({
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, tempo]);
-  // "Nothing to fix this time." (backend N551): told to the chat once, as a
+  // "The rest of this Take held up just as well." (backend N551): told to the chat once, as a
   // good Take's walk reaches its helper words.
   const toldClear = useRef(new Set<number>());
   useEffect(() => {
@@ -2202,7 +2202,7 @@ function renderThread<R>(
     const start = threadStart(ctx.walk.plan, part.at);
     const lead = momentLead(ctx.walk.plan, start >= 0 ? start : part.at);
     const opener = ctx.walk.plan[start >= 0 ? start : part.at];
-    // "And now, one thing to improve:" above the One thing walk's fix (N309).
+    // "And here's one moment to try another way:" above the One thing walk's fix (N309).
     // Never over a Sniper that draws nothing (C2, T).
     const one = opener?.one === true && FIX_OPENERS.has(opener.key) && (opener.key !== "tempo" || sniperDraws(ctx, opener));
     const opening = [
