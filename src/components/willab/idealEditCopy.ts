@@ -540,6 +540,8 @@ export const ONE_THING_COPY = {
   one: "And now, one thing to improve:",
   /** The Clearer version's lead, then the sentence in bold. */
   sayStraight: "Say it straight:",
+  /** A good Take, where the fix would be (backend N551, signed 2026-11-09). */
+  nothingToFix: "Nothing to fix this time.",
   /** The AI clip after their best played again. */
   likeConfident: "Say this one like your confident moment:",
   yourTurn: "Your turn.",

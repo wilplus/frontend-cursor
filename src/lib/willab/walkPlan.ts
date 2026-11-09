@@ -99,6 +99,8 @@ export type WalkMoment = {
    *  N548): when the walk cannot draw the Clearer version, the same
    *  moment's AI clip is the fix. */
   voiceToo?: boolean;
+  /** A good Take: no fix and no moment below the floor (backend N551). */
+  nothingToFix?: boolean;
 };
 
 /** The One thing walk's one fix, as the server chose it (C-SNIPER): the
@@ -203,6 +205,9 @@ export type WalkStep = WalkScreen & {
   /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
+  /** The helper words step of a good Take: "Nothing to fix this time."
+   *  opens it, where the fix would be (backend N551). */
+  clear?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the
    *  fix's; with no fix and no Sniper, their best's, backend N374). Not
    *  `moment`, so reaching it never settles that moment twice. */
@@ -317,7 +322,9 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   // Sniper, their best's own words (backend N374), so the walk always
   // leaves some.
   const of = fix ?? (sniper ? null : best);
-  if (fix || sniper || best) out.push({ key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}) });
+  // A good Take says so where the fix would be (backend N551).
+  const clear = !fix && !sniper && best?.nothingToFix === true;
+  if (fix || sniper || best) out.push({ key: "words", one: true, ...(of ? { of: of.index, slide: of.slide } : {}), ...(clear ? { clear } : {}) });
   out.push({ key: "done", one: true });
   return out;
 }
@@ -503,6 +510,8 @@ export type WalkFeedbackItem = {
   oneFix?: OneFix | null;
   /** Its AI clip stands behind its Clearer version (`voiceToo`, backend N548). */
   voiceToo?: boolean;
+  /** A good Take, on their best (`nothingToFix`, backend N551). */
+  nothingToFix?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -581,6 +590,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(has((i) => Boolean(i.planLevel)) ? { level: true } : {}),
       ...(oneFix ? { oneFix } : {}),
       ...(has((i) => Boolean(i.voiceToo)) ? { voiceToo: true } : {}),
+      ...(has((i) => Boolean(i.nothingToFix)) ? { nothingToFix: true } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),

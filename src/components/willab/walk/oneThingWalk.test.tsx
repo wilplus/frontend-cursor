@@ -12,6 +12,7 @@ OUTCOME
   O10 The fix lands one bubble at a time, the dots before each grey one, after the line that opens it; its buttons come once all have landed; after Skip the walk's answer, then my helper words, then "Lesson done." land the same way (backend N440).
   O9  With practice off there is nothing to try: Next on the fix posts nothing and the walk says nothing about skipping; a try that could not be checked keeps "Try it" with Skip while a try is left (backend N440).
   O11 When the fix the server chose comes without its Clearer version and its voice shows a problem too, the walk gives that same moment's AI clip after my best: "Say this one like your confident moment:", practised on the clip the picker measured (backend N548; was the closest exercise, N536).
+  O12 A good Take (no fix, nothing below the floor) says "Nothing to fix this time." where the fix would be, before my helper words; a walk with no fix that the server does not call good says nothing new (backend N551, N550).
   O8  The thread shows no slide names, the bar does; after "Keep mine" the walk says "Your words it is." and my helper words leave out the hesitations my sentence opens with; the Sniper opens with "You rushed here. Let it breathe." in the scale's bubble and the bar names its slide (backend N435).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
@@ -39,6 +40,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
          O10 -> the AI clip's fix lands one bubble at a time after its opening line, then its buttons; after Skip the answer, the helper words and Lesson done land in turn,
                 the Sniper's try lands after a short beat, then Will's line after the dots, under the scale, which never lands again (B7, N440)
          O11 -> the fix the server chose without its Clearer version is its own AI clip when its voice shows a problem too
+         O12 -> a good Take says there is nothing to fix this time, before my helper words
          O9 -> with practice off, Next on the fix posts nothing and says nothing about skipping,
                a try that could not be checked keeps Try it with Skip
 WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: "remove the skip - cause trash acts like a skip", "rest is fien do it"); 2026-11-03 (backend N440, the walk's run-through: "fix 1 to 9 and 11").
@@ -378,6 +380,22 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
     expect(screen()).toBe("walk-screen-done");
+  });
+
+  it("a good Take says there is nothing to fix this time, before my helper words", async () => {
+    const walkOf = (nothingToFix: boolean) => buildFeedbackWalk<string>({
+      items: [{ ...ITEMS[0], said: "Ledgerly matches every transaction", oneFix: "none", nothingToFix }], coachNote: false, practiceOn: true, guest: false, judge: false,
+    });
+    const good = walkOf(true);
+    draw({ seq: 1, at: good.plan.findIndex((s) => s.key === "praise") }, { model: good });
+    click(testId("walk-forward"));
+    await settle();
+    expect(live()!.querySelector("[data-walk-clear]")!.textContent).toBe(ONE_THING_COPY.nothingToFix);
+    expect(live()!.querySelector("[data-walk-one]")).toBeNull();
+    expect(text()).toContain(ONE_THING_COPY.helperWords);
+    // No fix, but not a good Take (its weak moment went to a coach): nothing new.
+    const quiet = walkOf(false);
+    expect(quiet.plan.some((s) => s.clear)).toBe(false);
   });
 
   it("the Sniper as the fix: Skip after a try moves the walk on at once, as the prototype's skip() does", async () => {
