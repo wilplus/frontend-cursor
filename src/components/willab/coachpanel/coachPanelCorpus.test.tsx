@@ -26,7 +26,8 @@ OUTCOME
       step, the loader showing until it lands.
   O11 The corpus is the founder's, a row in the admin menu (N416, N511):
       the coach's queue has no Training corpus card; the admin menu's page
-      opens on the imports, and ✕ goes back.
+      opens on the imports, and ✕ goes back. Its row sits under Data, beside
+      Project deletions (N511 item 1).
 PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O2 -> "a set-up with nothing to judge goes back to the imports, never to judging"
          O3 -> "a new import lands on the imports with its count"
@@ -38,6 +39,7 @@ PROVES   O1 -> "a saved set-up goes straight to judging, with its count"
          O9 -> "the done imports sit at the bottom; judging starts from the opened one and comes back to the list"
          O10 -> "reaching the bottom of the list reads its next step"
          O11 -> "the corpus opens from the admin menu's page, never from the coach's queue; ✕ goes back"
+         O11 -> "the admin menu's Training corpus row sits under Data, beside Project deletions"
 WHY      Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files
          in one Import, the list in steps and the corpus judged mixed,
          founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03
@@ -68,6 +70,8 @@ vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
   fetchBlockPicks: vi.fn(async () => null),
 }));
+vi.mock("@/components/admin/AdminGate", () => ({ probeAdmin: async () => true, rememberedAdmin: () => true }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/admin/ceo" }));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({ useConfidenceChainReceipt: () => ({ current: null }) }));
 vi.mock("./CoachCorpusJudge", () => ({
   default: ({ startId, onDone }: { startId: string; onDone: () => void }) => (
@@ -78,6 +82,7 @@ import { blindPiece, type QueuePiece, type TrainingImport } from "@/services/api
 import CoachPanel from "./CoachPanel";
 import { QueueScreen } from "./CoachPanelScreens";
 import { CeoCorpusPage } from "@/components/ceo/CeoCorpus";
+import AdminMenu from "@/components/admin/AdminMenu";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -332,6 +337,20 @@ describe("where the corpus opens (N416, N511)", () => {
     click(document.querySelector("[aria-label='Close']"));
     await flush();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("the admin menu's Training corpus row sits under Data, beside Project deletions", async () => {
+    act(() => root.render(<AdminMenu><p>page</p></AdminMenu>));
+    await flush();
+    const nav = document.querySelector("aside nav[aria-label='Admin']")!;
+    const groups = [...nav.querySelectorAll("h4")].map((h) => [
+      h.textContent,
+      [...h.parentElement!.querySelectorAll("a")].map((a) => a.textContent),
+    ]);
+    expect(groups).toContainEqual(["Data", ["Project deletions", "Training corpus"]]);
+    expect(groups.find(([title]) => title === "Overview")).toEqual(["Overview", ["CEO"]]);
+    const row = [...nav.querySelectorAll("a")].find((a) => a.textContent === "Training corpus")!;
+    expect(row.getAttribute("href")).toBe("/admin/training-corpus");
   });
 });
 

@@ -432,6 +432,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N511 · H0: the admin menu's Training corpus row is under Data, beside Project deletions, as N511 item 1 has it. Was: under Overview, in the Roadmap's place, with no decision logged · FE (this PR)
 - 2026-11-05 · N525 · B1, B2: Your queue wears a chat's top bar (‹, the Speakers icon, "Your queue"; ‹ back to the list) and draws once every read is in. Was: ✕ and the large title; the sections arrived one after another · BE #1769, FE (this PR)
 - 2026-11-05 · N521 · B1, J: the coach's way in is a row in the list of chats under Will, named by their profile job ("Your queue" without one), "Open your queue" with the new look while someone waits; Speakers is the queue's last card. Was: the bubble and the pinned Speakers button above Will's message box · BE #1762, FE (this PR)
 
