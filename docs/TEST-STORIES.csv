@@ -407,9 +407,12 @@ O2 -> ""the latest Take's line opens the screen ticked as it stands, and a chang
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
-O3  The promo price never shows in the iPhone app (it has no buying).","O1 -> ""shows the ask in the bar once a visit""
+O3  No price shows in the iPhone app, the promo's or the lesson's (it
+has no buying, N495, N555); on the web the lesson price shows with
+See times.","O1 -> ""shows the ask in the bar once a visit""
 O2 -> ""closes on Not now""
-O3 -> ""never shows the promo in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
+O3 -> ""never shows the promo in the iPhone app""
+O3 -> ""shows the lesson price on the web, never in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
