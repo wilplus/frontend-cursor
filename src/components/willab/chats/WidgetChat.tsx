@@ -32,7 +32,7 @@ import {
 } from "@/components/willab/chats/joinCopy";
 
 /* -------------------------------------------------------------------------- */
-/*  Your chat on any website (backend N565; rules: docs/flows/                 */
+/*  Your chat on any website (backend N566; rules: docs/flows/                 */
 /*  customer-requests.md §B, a person's widget). The page w.js opens in an     */
 /*  iframe on someone's site: the pill, "Ask {name}", and the chat behind it.  */
 /*  The visitor has no account and can only tap: "Agree and start", the       */

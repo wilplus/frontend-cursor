@@ -1,4 +1,4 @@
-/* WillpowerLab: your chat on any website (backend N565).
+/* WillpowerLab: your chat on any website (backend N566).
    Paste before </body>:
      <script src="https://willpowerlab.com/w.js" data-link="<your link's token>" async></script>
    One pill at the bottom right, inside a shadow root so the site's styles and

@@ -15,7 +15,7 @@ export async function loadJoinLink(token: string): Promise<{ name: string } | nu
   }
 }
 
-/** The widget's read (backend N565): whose chat it is and the questions a
+/** The widget's read (backend N566): whose chat it is and the questions a
  *  visitor may ask, or null for a wrong, replaced or switched-off link. */
 export async function loadWidget(token: string): Promise<{ name: string; asks: string[] } | null> {
   try {

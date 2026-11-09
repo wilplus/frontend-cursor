@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /*
 STORY    As a customer on someone's website, I want to ask them with a few
-         taps and hear their answer there, without an account (backend N565).
+         taps and hear their answer there, without an account (backend N566).
 OUTCOME
   O1  The pill reads "Ask {name}"; opened, nothing is sent until I tap
       "Agree and start", and then my chat is kept in this browser.

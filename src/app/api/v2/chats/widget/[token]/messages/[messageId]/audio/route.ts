@@ -4,7 +4,7 @@ import { relayAudio } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
-/** An answer's voice, for the widget's visitor (backend N565). */
+/** An answer's voice, for the widget's visitor (backend N566). */
 export const GET = proxyRoute("GET", "/v2/chats/widget/:token/messages/:messageId/audio", {
   relay: relayAudio,
   range: true,

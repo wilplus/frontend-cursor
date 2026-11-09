@@ -21,14 +21,14 @@ import {
 /** Add someone (backend N308, N310, N328): your own link, to paste into any
  *  email or message; whoever opens it joins you here. The only way anyone
  *  comes into your chats. The list's "+" opens it, so does "Someone else" on
- *  a chat's "+" (N351), and so does Copy my link in the ☰ menu (N565 item 1;
+ *  a chat's "+" (N351), and so does Copy my link in the ☰ menu (N566 item 1;
  *  was: it copied at once, N367). As redesigned (N367 item 3, the locked
- *  prototype "One bar" v12; N565): a handle, the title large; under it one
+ *  prototype "One bar" v12; N566): a handle, the title large; under it one
  *  card with a small switch, "Put this chat on your website", which turns the
- *  link into one line of code for a site, with where to paste it (N565); the
+ *  link into one line of code for a site, with where to paste it (N566); the
  *  link with its icon, or the code; one big Copy my link, or Copy my code,
  *  that turns green and closes the sheet; one quiet line, "Only the two of
- *  you are in it." (the three tiles it replaces are gone, N565 item 1), or
+ *  you are in it." (the three tiles it replaces are gone, N566 item 1), or
  *  "Each customer has a chat of their own with you."; Cancel. `fixed` lays
  *  it over the whole screen (from the ☰ menu); otherwise it needs a
  *  `relative` parent. */

@@ -28,7 +28,7 @@ export interface ProxyOptions {
   /** Forward the request's `Range` header: a recording played back, which
    *  Safari asks for in byte ranges (with `relayAudio`). */
   range?: boolean;
-  /** Your chat on any website (backend N565): forward the widget visitor's
+  /** Your chat on any website (backend N566): forward the widget visitor's
    *  secret header. "public" also needs no sign-in (the visitor has no
    *  account); "signed-in" keeps sign-in required ("Keep this chat"). */
   widgetGuest?: "public" | "signed-in";

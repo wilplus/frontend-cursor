@@ -169,7 +169,7 @@ O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-
 src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
 Copy my link, Settings, Tokens with the balance, then Sign out. No
 Lab, no Log out.
-O2  Copy my link opens ""Add someone to chat with"" (N565 item 1; was: it
+O2  Copy my link opens ""Add someone to chat with"" (N566 item 1; was: it
 copied at once): Copy my link there copies the whole link; its small
 switch, ""Put this chat on your website"", turns it into the line of code
 for a site, with my link's token, and Copy my code copies that.
@@ -564,7 +564,7 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
-src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone's website, I want to ask them with a few taps and hear their answer there, without an account (backend N565).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
+src/components/willab/chats/WidgetChat.test.tsx,Story,"As a customer on someone's website, I want to ask them with a few taps and hear their answer there, without an account (backend N566).","O1  The pill reads ""Ask {name}""; opened, nothing is sent until I tap
 ""Agree and start"", and then my chat is kept in this browser.
 O2  I tap the owner's question, then one of the three questions; the
 chat then says the owner answers out loud and to come back, and the
@@ -603,7 +603,7 @@ control that plays it from the chat's audio route (N321 item 2); its
 words, once ready, are closed behind ""Read it"" under the player, and
 ""Hide"" closes them again (N331).
 O8  The + on the list opens my own link, with the add sheet's signed
-words and ""Only the two of you are in it."" (N565 item 1; was: three
+words and ""Only the two of you are in it."" (N566 item 1; was: three
 steps), and Copy my link puts the whole link on the clipboard and says
 ""✓ Copied"" (N308, N310, N367).
 O9  In a chat I joined through someone's link, one line above the
