@@ -59,7 +59,7 @@ export function planAsks(kind: string | null): boolean {
   return kind !== null && ASKING.has(kind);
 }
 
-function DatePickSheet({ onPick, onClose }: { onPick: (day: string) => void; onClose: () => void }) {
+export function DatePickSheet({ onPick, onClose }: { onPick: (day: string) => void; onClose: () => void }) {
   const today = new Date();
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -283,7 +283,9 @@ function RecordDockButton({
  *  "start" (its first Take is next: the bar's "Start your first recording")
  *  or "book" (a call's calendar). */
 export function dockFor(plan: Plan | null, booking: CallWhich | null): string | null {
-  if (!plan || plan.waiting) return booking ? "book" : null;
+  // The speaking way in asks its own questions until Take 1's walk is done
+  // (backend N572, N592): nothing of the plan's own in the meantime.
+  if (!plan || plan.waiting || (plan.way_in && !plan.way_in.walk_done)) return booking ? "book" : null;
   if (booking) return "book";
   // The first Take is the onboarding (backend N401 item 1): no question in
   // the chat, the one button at once.

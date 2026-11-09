@@ -170,6 +170,42 @@ export function TapRow({
   );
 }
 
+/** A question that takes more than one answer (N502 item 3): each tap fills
+ *  an answer or empties it, in TapRow's own look; Send is in the bar. Used by
+ *  a chat's setup question and the way in's first choice (backend N573). */
+export function PickRow({
+  labels,
+  picked,
+  onToggle,
+  dataAttr,
+}: {
+  labels: string[];
+  picked: string[];
+  onToggle: (label: string) => void;
+  dataAttr: Record<string, string>;
+}) {
+  return (
+    <div {...dataAttr} className="ml-auto flex max-w-[86%] flex-wrap justify-end gap-2 pt-0.5">
+      {labels.map((label) => {
+        const on = picked.includes(label);
+        return (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onToggle(label)}
+            className={`min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-2.5 text-left text-[15px] font-semibold leading-snug ${
+              on ? "bg-primary text-primary-foreground" : "bg-background text-primary"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** An ask's two answers as N371's suggested answers (backend N415 item 2):
  *  the close on the left, a grey word when it leaves ("Not now", "Cancel",
  *  N467 rule 3), else outlined; the one that goes on on the right, filled.

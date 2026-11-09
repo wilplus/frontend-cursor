@@ -81,6 +81,23 @@ export type Plan = {
    *  slides; the bar's middle is then "Start your first recording". */
   first_take?: boolean;
   first_take_slides?: FirstTakeSlide[] | null;
+  /** The speaking way in while Take 1 is processed (backend N572, N573,
+   *  N592; `services/way_in.py`), once it has begun; null before. */
+  way_in?: WayInView | null;
+};
+
+/** The way in as the app draws it (backend `way_in.view`). */
+export type WayInView = {
+  /** The beat that waits for an answer: "profile", "choice", "talk_date",
+   *  "share", "agreement", or null. */
+  asking: string | null;
+  done: string[];
+  chosen: string[] | null;
+  talk_date: string | null;
+  walk_ready: boolean;
+  walk_done: boolean;
+  /** "Record Take 2" may be tapped: the walk is done (N592 item 3). */
+  record_next: boolean;
 };
 
 export type PlanState = { enabled: boolean; plan: Plan | null; wrote: boolean };
@@ -156,6 +173,43 @@ export function sendPlanAnswer(audio: Blob, durationMs: number): Promise<PlanSta
   form.append("audio", audio, `answer.${ext}`);
   form.append("duration_ms", String(Math.round(durationMs)));
   return send("/api/v2/plan/answer", { body: form });
+}
+
+/** The speaking chat, the only one with the way in (backend N590). */
+export const SPEAKING_CHAT = "artur";
+
+/** An answer to the way in's open beat: a tap (`picked`), several (the
+ *  choice), words (`said`), or a day (`date`, null for "No date yet"). */
+export type WayInAnswer = { beat: string; picked?: string | string[]; said?: string; date?: string | null };
+
+/** The way in's one call (backend `POST /v2/plan/way-in`): begins it once
+ *  Take 1 is sent, takes an answer, reads the Take when its words are
+ *  stored, and writes the beats that are due. Each call is idempotent. */
+export async function wayIn(answer?: WayInAnswer): Promise<PlanState | null> {
+  try {
+    const result = await bffFetch("/api/v2/plan/way-in", {
+      method: "POST",
+      cache: "no-store",
+      timeoutMs: 60_000,
+      json: { chat: SPEAKING_CHAT, ...(answer ? { answer } : {}), tz: browserZone() },
+    });
+    if (result.kind !== "response" || !result.ok) return null;
+    const messages = (result.body as { messages?: unknown } | null)?.messages;
+    // `wrote`: the call put rows into the thread, which the caller reads again.
+    return { ...stateOf(result.body), enabled: true, wrote: Array.isArray(messages) && messages.length > 0 };
+  } catch {
+    return null;
+  }
+}
+
+/** A spoken answer in the way in ("Tell me what to change."). */
+export function wayInVoice(audio: Blob, beat: string): Promise<PlanState | null> {
+  const form = new FormData();
+  const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `answer.${ext}`);
+  form.append("chat", SPEAKING_CHAT);
+  form.append("beat", beat);
+  return send("/api/v2/plan/way-in/voice", { body: form });
 }
 
 /** A tap on the 1 to 10 scale; never shown back (N178). */

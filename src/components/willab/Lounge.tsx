@@ -178,6 +178,8 @@ import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import { usePlanLounge, type PlanStart } from "./plan/usePlanLounge";
 import { isFirstTakeArc } from "@/lib/willab/firstTake";
 import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
+import { WayInTop } from "./plan/WayIn";
+import { firstTakeArcOf } from "@/lib/willab/wayIn";
 import { DayLine, dayLinesFor } from "./plan/dayLines";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
@@ -278,8 +280,27 @@ function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArc
  *  recording" to a speaker with Takes. Never longer than that one read (its
  *  timeout, bootPrefetch.ts): once a read went unanswered the bar is free,
  *  and the history is read again behind the dots (useLoungeThread). */
-function recordBarHeld(takeInFlight: boolean, thread: { loading: boolean; unanswered: boolean }): boolean {
-  return takeInFlight || (thread.loading && !thread.unanswered);
+function recordBarHeld(takeInFlight: boolean, thread: { loading: boolean; unanswered: boolean }, wayInWaits = false): boolean {
+  // "Record Take 2" stays faded until the way in's walk is done (N592 item 3).
+  return takeInFlight || wayInWaits || (thread.loading && !thread.unanswered);
+}
+
+/** The words box stays open: Will's "What was missing?", his setup question
+ *  that takes words alone, or the way in waiting for words (N573, N592). */
+function wordsWaitFor(missing: unknown, setupWaits: { words: boolean } | null, wayInWords: boolean): boolean {
+  return missing !== null || setupWaits?.words === true || wayInWords;
+}
+
+/** The processing bubble at the bottom of the thread: any Take but the way
+ *  in's Take 1, whose wait is the thin row on top (N453 item 1). */
+function bottomProcessing<T extends { status: string }>(resume: T | null, firstTakeWayIn: boolean): resume is T {
+  return resume?.status === "analyzing" && !firstTakeWayIn;
+}
+
+/** The bar's middle: the way in's "Send" while its choice has picks, else
+ *  the one black button. */
+function orBarMiddle(wayIn: ReactNode, button: ReactNode): ReactNode {
+  return wayIn ?? button;
 }
 
 /** The oldest and the newest message's client_id, or null for none. */
@@ -790,6 +811,12 @@ export default function Lounge({
     string | null
   >(null);
   const processingTriggerRef = useRef<HTMLButtonElement | null>(null);
+  // The Take being processed is the speaking way in's Take 1 (backend N453,
+  // N592), from the plan as last read: its wait is the thin row on top of
+  // the chat, and its walk waits for the speaker's tap. `wayInReadyArc`: its
+  // project, once its feedback is ready.
+  const wayInTakeRef = useRef(false);
+  const [wayInReadyArc, setWayInReadyArc] = useState<string | null>(null);
   // The one wait on screen, from the Lab's hand-off to the walk (founder
   // 2026-10-21: "make it stay"; "it still loads the walk").
   const waitScreen = useWaitScreen({
@@ -802,7 +829,9 @@ export default function Lounge({
     openedSessionId: openedProcessingSessionId,
     show: (view) => {
       setProcessingResume(view);
-      setOpenedProcessingSessionId(view.sessionId);
+      // The way in's Take 1 (backend N453 item 1): the thin row on top of
+      // the chat stands in for the full wait.
+      if (!wayInTakeRef.current) setOpenedProcessingSessionId(view.sessionId);
     },
   });
   const [retryingProcessing, setRetryingProcessing] = useState(false);
@@ -1127,7 +1156,10 @@ export default function Lounge({
       // FROM THE TAKE STRAIGHT INTO THE WALK (founder 2026-11-01, N319 item
       // 10): the walk opens at once, its wait over it from this Take's own
       // marker, and the chat fills in underneath; it is never shown between.
-      if (take.arcId) {
+      // The way in's Take 1 (N453 item 7, N592 item 1): the row on top turns
+      // orange and the speaker opens the walk when done.
+      if (take.arcId && wayInTakeRef.current) setWayInReadyArc(take.arcId);
+      else if (take.arcId) {
         waitScreen.coverWalk(take);
         openIdealText(take.arcId, "review");
       }
@@ -1189,7 +1221,16 @@ export default function Lounge({
     setThinking: setBotThinking,
     onStartRecording: onStartPlanRecording,
     recordHeld: takeInFlight,
+    onOpenFeedback: () => openFirstTakeFeedback(),
+    onJoinQuestions: () => void joinSetup.again().then(followAnswer),
+    onWords: () => words.start(),
   });
+  wayInTakeRef.current = plan.firstTakeWayIn;
+  /** "Open your feedback ›", or the orange row on top: Take 1's walk. */
+  function openFirstTakeFeedback(): void {
+    const arc = wayInReadyArc ?? firstTakeArcOf(messages);
+    if (arc) openIdealText(arc, "review");
+  }
   // AFTER THE GOODBYE (N296 state 4, N483 item 2): the bar's middle is
   // "Record Take N" for the goodbye's Take, with no tap first (`useGoodbye`).
   const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake });
@@ -1543,7 +1584,7 @@ export default function Lounge({
     plan.typingOff || keyLine.asks,
     draftText,
     composerRef,
-    feedbackCheckTarget([...shownMessages], "missing") !== null || setupWaits?.words === true,
+    wordsWaitFor(feedbackCheckTarget([...shownMessages], "missing"), setupWaits, plan.wordsWait),
   );
 
   // U3 — capture the historical baseline once the thread first loads, so only
@@ -1594,6 +1635,12 @@ export default function Lounge({
     if (!q || botThinking) return;
     setDraftText("");
     words.close();
+    // The way in waits for these words: "Something else", or Will's last
+    // question after the walk (backend N573, N592 item 2).
+    if (plan.say(q)) {
+      followAnswer();
+      return;
+    }
     if (setupWaits) {
       await joinSetup.say(setupWaits.to, q);
       followAnswer();
@@ -1946,6 +1993,17 @@ export default function Lounge({
       {/* Notifications: one at a time, in a bar at the top, never in the
           buttons under the chat (founder 2026-11-03, backend N391). */}
       <NoticeBar signedIn={thread.signedIn} whatsapp={whatsapp} />
+      {/* The speaking way in's Take 1 (backend N453 items 1 and 7, N592): a
+          thin row on top of the chat while it is processed, in place of the
+          full wait; orange once its walk is ready. */}
+      <WayInTop
+        on={plan.firstTakeWayIn}
+        resume={processingResume}
+        readyArc={wayInReadyArc}
+        walkReady={plan.wayInWalkReady}
+        label={PROCESSING_STAGES[0]}
+        onOpen={openFirstTakeFeedback}
+      />
       {/* Founder 2026-07-30 — the status region above the thread is GONE, and
           with it the last top banner. U5 moved the sent confirmation into the
           thread and U6 did the same for insights ready; the parked card was
@@ -2012,7 +2070,7 @@ export default function Lounge({
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
-        {processingResume?.status === "analyzing" ? (
+        {bottomProcessing(processingResume, plan.firstTakeWayIn) ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <button
               ref={processingTriggerRef}
@@ -2273,13 +2331,16 @@ export default function Lounge({
           ) : null}
         </div>
         ) : (
-          <WillBarMiddle
-            hear={firstHear(plan.hear, keyLine.hear)}
-            next={goodbye.recordNext ?? restingTake(messages, userId)}
-            held={recordBarHeld(takeInFlight, thread)}
-            onRecord={recordNext}
-            onFirst={startFirst}
-          />
+          orBarMiddle(
+            plan.barMiddle,
+            <WillBarMiddle
+              hear={firstHear(plan.hear, keyLine.hear)}
+              next={goodbye.recordNext ?? restingTake(messages, userId)}
+              held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
+              onRecord={recordNext}
+              onFirst={startFirst}
+            />,
+          )
         )}
       </form>
       </PolicyUpdateComposer>

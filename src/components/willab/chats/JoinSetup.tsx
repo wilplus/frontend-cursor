@@ -126,7 +126,7 @@ function LinkLine({ label, onTap }: { label: string; onTap: () => void }) {
 }
 
 /** "Copy my link ›", then "✓ Copied" (N502 item 6). */
-function CopyLinkLine() {
+export function CopyLinkLine() {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     const path = await getMyChatLink();
