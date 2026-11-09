@@ -73,3 +73,10 @@ jobs:
       # line. Compares the tree with origin/main, fetched above.
       - name: Docs guard
         run: npm run check:docs
+
+      # App Model stories (backend N574 item 4): the App Model's stories, kept
+      # in the backend, name frontend code and tests; a change here that
+      # removes one fails until the story moves with it. Compares the tree
+      # with origin/main, fetched above.
+      - name: App Model stories
+        run: npm run check:app-model

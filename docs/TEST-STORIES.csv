@@ -2,6 +2,10 @@ file,type,story,outcomes,proves,why
 scripts/check-complexity-ratchet.test.ts,Guard,"No function under src/ above complexity 25 unless frozen in scripts/complexity-baseline.json, and a frozen one may only come down.","A new function over 25; a frozen one that grew; a baseline entry
 that is stale (the function shrank or is gone) and must be re-frozen.","new / grown -> ""fails a new offender and lets a frozen one only come down""
 stale       -> ""requires a stale baseline entry to be re-frozen""","If removed: The rule behind `npm run check:complexity` (the unit job's ""Complexity ratchet"" step) could loosen without anything going red."
+scripts/checkAppModel.test.ts,Guard,scripts/check-app-model.mjs: a change that removes frontend code or a frontend test an App Model story names fails (backend N574 item 4).,"A rename, a deleted line or a deleted test that leaves a story of the
+App Model pointing at nothing.","broken  -> ""fails a change that removes the code or the test a story names""
+stale   -> ""lists what main already misses, without failing""
+backend -> ""leaves the backend's refs and tests to the backend""","If removed: The App Model's stories (kept in the backend) go stale silently, and the developer comparing the code with the model follows dead refs."
 scripts/checkDesignLock.test.ts,Story,"As the founder, I want any commit that changes a locked screen to carry a Founder-Approved line, so that finished designs never change without my yes.","O1  A branch that changes a locked file without a filled-in
 Founder-Approved trailer fails; with it, it passes.
 O2  Each commit is judged on its own; commits already on main, test files
