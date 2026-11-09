@@ -142,7 +142,7 @@ export function TapRow({
       className={`min-h-[44px] max-w-full text-left text-[15px] leading-snug disabled:opacity-60 ${
         leaves(label)
           ? "px-2.5 font-medium text-muted-foreground"
-          : `rounded-[22px] border-[1.5px] border-primary px-4 py-2.5 font-semibold ${
+          : `rounded-[22px] border-[1.5px] border-primary px-4 py-[9px] font-semibold ${
               label === goes ? "bg-primary text-primary-foreground" : "bg-background text-primary"
             }`
       }`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash } from "lucide-react";
 import RecordingStrip from "./walk/RecordingStrip";
 
 /* -------------------------------------------------------------------------- */
@@ -21,6 +21,8 @@ import RecordingStrip from "./walk/RecordingStrip";
 
 /** The strip's button, signed (the tempo step's word, N314). */
 export const RECORDING_STOP = "Stop";
+/** The trash's name, as the locked bar file has it (N483). */
+export const THROW_IT_AWAY = "Throw it away";
 
 export default function RecordingBar({
   elapsedMs,
@@ -38,10 +40,10 @@ export default function RecordingBar({
       <button
         type="button"
         onClick={onTrash}
-        aria-label="Delete"
+        aria-label={THROW_IT_AWAY}
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
       >
-        <Trash2 className="h-5 w-5" aria-hidden />
+        <Trash className="h-5 w-5" aria-hidden />
       </button>
       <div className="min-w-0 flex-1">
         <RecordingStrip elapsed={elapsedMs / 1000} stopLabel={RECORDING_STOP} onStop={onStop} />

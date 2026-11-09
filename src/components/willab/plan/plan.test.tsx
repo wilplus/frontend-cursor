@@ -302,7 +302,7 @@ it("a choice is taps in the thread, and the bar keeps its one button", async () 
 function oneBar() {
   const recording = host.querySelector("[data-plan-voice-recording] [data-recording-bar]");
   expect(recording).not.toBeNull();
-  const trash = recording!.querySelector('button[aria-label="Delete"]') as HTMLButtonElement;
+  const trash = recording!.querySelector('button[aria-label="Throw it away"]') as HTMLButtonElement;
   const strip = recording!.querySelector("[data-walk-recording-strip]")!;
   const stop = strip.querySelector('button[aria-label="Stop"]') as HTMLButtonElement;
   expect(stop?.textContent).toBe("Stop");
