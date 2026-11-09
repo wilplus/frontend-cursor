@@ -2340,6 +2340,11 @@ O6 -> ""asks for the take again instead of sending an empty recording""",Never-r
 src/services/api/learningExposures.test.ts,Story,"As the founder, I want a record that a speaker saw feedback counted as saved only when every part of it was accepted, so that the learning record never claims a speaker saw something they didn't.","O1  If any one receipt is refused, the whole save reports ""not saved"".","O1 -> ""returns false when any surface receipt is not accepted""",
 src/services/api/mlc2Consent.test.ts,Story,"As a speaker, I want agreeing to training use refused clearly while pooled training is switched off, so that I never think I agreed to something that isn't running.","O1  While pooled training is off, the agreement is refused with the
 server's own explanation.","O1 -> ""keeps consent writes fail-closed when Phase 2 is disabled""",
+src/services/api/modelSetup.test.ts,Story,"As someone starting a model, I want ""Start your own"" to stay hidden until the backend has the setup and gives me the ring, and each step's answer to come back as the next step or as its reason in words, so I never meet a setup that cannot work (backend N528 item 4, N566 item 2).","O1  Below the ring (404) or on any failure the setup reads as null, so its
+way in stays hidden.
+O2  A step answered gives the next step's screen; a step refused gives the
+backend's reason, to show under it.","O1 -> ""reads a 404 and a failure as null""
+O2 -> ""returns the next step, or the reason a step was refused""","The client for routes/v2/model_setup.py (backend), behind ring 6."
 src/services/api/momentEvents.test.ts,Story,"As the founder, I want ""a moment was opened or skipped"" recorded without ever breaking the screen, so that we learn what speakers see while they are never blocked.","O1  An event the server already had is told apart from a failure.
 O2  A switched-off route or no connection is a quiet failure, never a
 crash.","O1, O2 -> ""tells an already recorded event from a failure, and never throws""",
