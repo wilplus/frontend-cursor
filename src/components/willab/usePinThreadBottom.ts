@@ -120,3 +120,17 @@ function topIn(el: Element, node: Element): number {
 export function followNewest(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(WILLAB_THREAD_TO_LATEST_EVENT));
 }
+
+/** The Lounge's processing bubble (founder lock 2026-10-12, section 1) is not
+ *  a message, so no new message brings it into view: when a Take's bubble
+ *  comes, the thread lands on it (`follow`). Founder 2026-11-09: closing the
+ *  wait left it below the screen. */
+export function useLandOnProcessing(
+  resume: { status: string; sessionId: string } | null,
+  follow: () => void,
+): void {
+  const analysing = resume?.status === "analyzing" ? resume.sessionId : null;
+  useEffect(() => {
+    if (analysing) follow();
+  }, [analysing, follow]);
+}

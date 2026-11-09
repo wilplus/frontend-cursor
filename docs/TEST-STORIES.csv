@@ -1046,7 +1046,11 @@ O3  Take 1 has no helper words, does not read them, and starts at once.","O1 -> 
 O2 -> ""still starts within 1.5 s when the read fails every time""
 O3 -> ""Take 1 starts at once, without a read""","Build plan D-RC-4: the words used to land a moment after the first slide. The host is LabOverlay's wiring in miniature (real hook, real auto-start, real recording phase)."
 src/components/willab/loadEarlierMessages.test.tsx,Story,"As a speaker reading back through my chat, I want older messages to come in above what I am reading, so that ""Load earlier messages"" never throws me back to the bottom.","O1  Older messages put above the chat leave the bubble I was reading
-where I saw it; only a new message moves the chat to the bottom.","O1 -> ""older messages come in above what is read; a new one lands at the bottom""","Founder 2026-09-28: ""Only a new message moves the thread; reading history otherwise stays where it is."" The chat took a page of older messages for a new bubble and jumped to the bottom."
+where I saw it; only a new message moves the chat to the bottom.
+O2  When my Take starts processing, the chat lands on its bubble, which
+is not a message, once per Take (founder 2026-11-09: closing the wait
+left it below the screen).","O1 -> ""older messages come in above what is read; a new one lands at the bottom""
+O2 -> ""a Take's processing bubble is landed on once""","Founder 2026-09-28: ""Only a new message moves the thread; reading history otherwise stays where it is."" The chat took a page of older messages for a new bubble and jumped to the bottom."
 src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
 visitor with no project gets Will's hello and ""Start your first
 recording"" under it, never the lab error.

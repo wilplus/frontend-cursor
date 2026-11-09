@@ -6,7 +6,11 @@ STORY    As a speaker reading back through my chat, I want older messages to
 OUTCOME
   O1  Older messages put above the chat leave the bubble I was reading
       where I saw it; only a new message moves the chat to the bottom.
+  O2  When my Take starts processing, the chat lands on its bubble, which
+      is not a message, once per Take (founder 2026-11-09: closing the wait
+      left it below the screen).
 PROVES   O1 -> "older messages come in above what is read; a new one lands at the bottom"
+         O2 -> "a Take's processing bubble is landed on once"
 WHY      Founder 2026-09-28: "Only a new message moves the thread; reading
          history otherwise stays where it is." The chat took a page of older
          messages for a new bubble and jumped to the bottom.
@@ -14,7 +18,7 @@ WHY      Founder 2026-09-28: "Only a new message moves the thread; reading
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useKeepPlaceAbove, usePinThreadBottom } from "./usePinThreadBottom";
+import { useKeepPlaceAbove, useLandOnProcessing, usePinThreadBottom } from "./usePinThreadBottom";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -72,4 +76,22 @@ it("older messages come in above what is read; a new one lands at the bottom", (
   // A new message: the chat lands on it.
   act(() => root.render(createElement(Chat, { ids: ["3", "4", "5", "6", "7"] })));
   expect(chat!.scrollTop).toBe(6 * ROW);
+});
+
+it("a Take's processing bubble is landed on once", () => {
+  const follow = vi.fn();
+  function Chat({ resume }: { resume: { status: string; sessionId: string } | null }) {
+    useLandOnProcessing(resume, follow);
+    return null;
+  }
+  const render = (resume: { status: string; sessionId: string } | null) =>
+    act(() => root.render(createElement(Chat, { resume })));
+  render(null);
+  expect(follow).not.toHaveBeenCalled();
+  render({ status: "analyzing", sessionId: "take-2" });
+  render({ status: "analyzing", sessionId: "take-2" }); // its progress moves
+  expect(follow).toHaveBeenCalledTimes(1);
+  render({ status: "failed", sessionId: "take-2" }); // the failure note is its own
+  render({ status: "analyzing", sessionId: "take-3" });
+  expect(follow).toHaveBeenCalledTimes(2);
 });
