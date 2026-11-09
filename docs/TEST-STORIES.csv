@@ -1728,6 +1728,14 @@ O5 -> ""stops at the clip's end, but plays an unknown length to its end""","Foun
 src/lib/nativeLinks.test.ts,Story,"As a speaker with the iPhone app, I want a coach's link or an invite link tapped in Messages, WhatsApp or Mail to open in the app, on that page, so that I never land in Safari signed out.","O1  The association file Apple reads names the app (team id and bundle id) and the paths that open in it: the chat with the coach's feedback, invite links and the account pages; without the team id there is no file, and every link opens in Safari as before.
 O2  A tapped willpowerlab.com link opens its own page in the app, with its query; a link to another site, or not over https, opens nothing.","O1 -> the association file names the app and its paths, and is absent without the team id
 O2 -> a willpowerlab.com link opens its page in the app; another site's does not",
+src/lib/nativeTapWaits.test.tsx,Story,"As a speaker with the iPhone app, I want a notification or a link I tap while my Take is recorded, or before the server has it, to wait and then open, so that a tap never throws my Take away.","O1  Tapped while a Take is recorded or going up, the page a notification
+or a link names does not open.
+O2  It opens once the server has the Take, or once the Take is discarded
+or the screens close; a later tap replaces an earlier one, so only the
+latest page opens.
+O3  With no Take at risk, it opens at once.","O1, O2 -> ""a tap while a Take is at risk waits, then opens once the server has the Take""
+O2 -> ""a waiting tap opens once the Take is discarded, or the screens close""
+O3 -> ""a tap with no Take at risk opens at once""","Founder 2026-11-09, backend N560 item 3 (""Wait, then go""): a tapped push or link reloaded the page at once and the Take was lost. Never 3."
 src/lib/phone/dumpScreen.test.ts,Story,"As a speaker with the iPhone app, I want the dump screen to open and keep what I say even with no signal, so that a thought on the metro is not lost.","The app hears ""on"" with the ring row and the notebook's Yes, ""off""
 without the Yes, and nothing when a read fails (offline).",A failed read never switches the native screen off (N506 item 3).,One failed request used to switch it off until the next good load.
 src/lib/productDiscovery.test.ts,Story,"As a speaker, I want the menu to list only the products I have discovered, so that the menu stays simple.",O1  Nothing discovered means no product rows; discovering Life Panel adds its row.,O1 -> builds only the hamburger rows the user has discovered,
