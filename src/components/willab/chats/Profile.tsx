@@ -220,8 +220,9 @@ export default function Profile({
             </div>
           ) : null}
           {/* The AI models you started and teach, under About (backend N528,
-              MOD-50): on your own profile; nothing below ring 6. */}
-          <ProfileModels mine={mine} />
+              MOD-50): on your own profile, and on another person's once the
+              backend names whose it is; nothing below ring 6. */}
+          <ProfileModels mine={mine} userId={p.user_id} />
           <div className="bg-white px-[18px] py-3.5">
             <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{W.photos}</p>
             {p.photos.length ? (

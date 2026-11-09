@@ -60,6 +60,20 @@ export type ModelPage = {
   jars?: Record<string, number>;
   targets?: Record<string, number>;
   own_part?: Record<string, number>;
+  /** Its owner's page only (backend model_setup.owner_panel, MOD-37):
+   *  "Needs you now", how far with an honest range, the folds. Totals,
+   *  never a person (N526 item 3). */
+  owner?: OwnerPanel | null;
+};
+
+export type SetupChecklist = { title: string; items: { title: string; step: string; done: boolean }[] };
+export type OwnerPanel = {
+  needs_you: { title: string; line: string; actions: string[]; step: string } | null;
+  head: string;
+  rows: [string, string][];
+  notes: string[];
+  folds: { title: string; rows?: [string, string | number][]; lines?: string[]; then?: { title: string; lines: string[] } }[];
+  checklist: SetupChecklist | null;
 };
 
 /** An example as a teacher's screen receives it: the case and where it is
@@ -100,8 +114,9 @@ export type Answered = {
   trust: Trust | null;
 };
 
-export type ProfileModelRow = { name: string; badge: string; line: string; actions: string[] };
-export type ProfileModels = { title: string; models: ProfileModelRow[] };
+export type ProfileModelRow = { id?: string; name: string; badge: string; line: string; actions: string[] };
+/** `user_id`: whose section it is (backend #1869). */
+export type ProfileModels = { title: string; user_id?: string; models: ProfileModelRow[] };
 export type ModelInvite = { lines: string[]; action: string };
 
 async function call(path: string, init: Parameters<typeof bffFetch>[1] = { method: "GET" }): Promise<Record<string, unknown> | null> {
@@ -143,7 +158,10 @@ export async function getDoor(): Promise<Door | null> {
 
 export async function getModelPage(modelId: string): Promise<ModelPage | null> {
   const body = await call(`/api/v2/models/${id(modelId)}`);
-  return body && typeof body.summary === "string" ? (body as unknown as ModelPage) : null;
+  if (!body || typeof body.summary !== "string") return null;
+  const owner = body.owner as Partial<OwnerPanel> | null | undefined;
+  const whole = owner && typeof owner.head === "string" && Array.isArray(owner.rows) && Array.isArray(owner.folds) && Array.isArray(owner.notes);
+  return { ...(body as unknown as ModelPage), owner: whole ? (owner as OwnerPanel) : null };
 }
 
 /** "This is my field": true once the caller teaches the model. */
@@ -173,6 +191,10 @@ export async function answerExample(
     method: "POST",
     json: { step, answer },
   });
+  return answeredOf(body);
+}
+
+function answeredOf(body: Record<string, unknown> | null): Answered | null {
   if (body?.saved !== true) return null;
   return {
     saved: true,
@@ -187,6 +209,59 @@ export async function getProfileModels(userId: string): Promise<ProfileModels | 
   const body = await call(`/api/v2/models/profile/${id(userId)}`);
   const section = body?.section as ProfileModels | null | undefined;
   return section && Array.isArray(section.models) && section.models.length ? section : null;
+}
+
+/** An invite with its id and model, as GET /v2/models/invites lists it. */
+export type ListedInvite = ModelInvite & { id: string; model_id: string };
+
+/** The caller's invites, open or put off ("Not now" keeps them; MOD-49);
+ *  null below the ring or on failure. */
+export async function getModelInvites(): Promise<ListedInvite[] | null> {
+  const body = await call("/api/v2/models/invites");
+  if (!body || !Array.isArray(body.invites)) return null;
+  return (body.invites as ListedInvite[]).filter((i) => typeof i?.id === "string" && Array.isArray(i.lines) && typeof i.action === "string");
+}
+
+/** "Not now" (the invite stays) or accept (the caller teaches the model);
+ *  the model's id once the backend kept the answer, else null. */
+export async function answerModelInvite(inviteId: string, accept: boolean): Promise<string | null> {
+  const body = await call(`/api/v2/models/invites/${id(inviteId)}/${accept ? "accept" : "not-now"}`, { method: "POST", json: {} });
+  return typeof body?.model_id === "string" ? body.model_id : null;
+}
+
+/** "Add an example you know well" (MOD-21): the case in words, typed, read
+ *  from a written file, or a recording's transcript. The new example's id
+ *  and the backend's note, or null. */
+export async function addModelExample(
+  modelId: string,
+  added: { text: string } | { transcript: string },
+): Promise<{ exampleId: string; note: string | null } | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/examples`, { method: "POST", json: added });
+  return typeof body?.example_id === "string"
+    ? { exampleId: body.example_id, note: typeof body.note === "string" ? body.note : null }
+    : null;
+}
+
+/** A spoken answer, as its words (MOD-20): the transcript of the recording
+ *  made through the recording path, sent to /answer as the "words" step. */
+export async function answerSpoken(modelId: string, exampleId: string, transcript: string): Promise<Answered | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/examples/${id(exampleId)}/answer`, {
+    method: "POST",
+    json: { step: "words", transcript },
+  });
+  return answeredOf(body);
+}
+
+/** The owner's Archive (MOD-50): hides it from every list, deletes nothing. */
+export async function archiveModel(modelId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/${id(modelId)}/archive`, { method: "POST", json: {} });
+  return body?.status === "archived";
+}
+
+/** "Make public", only after its disclaimer: {confirm: true} (MOD-50). */
+export async function makeModelPublic(modelId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/${id(modelId)}/make-public`, { method: "POST", json: { confirm: true } });
+  return body?.visibility === "public";
 }
 
 export async function getModelInvite(inviteId: string): Promise<ModelInvite | null> {

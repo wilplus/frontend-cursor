@@ -1251,6 +1251,17 @@ O3  The key is shown once: after ""I copied it"" it is on no screen, and
 only a test key is ever asked for (no live charge).","O1 -> ""before the backend has the routes …""
 O2 -> one test per story, named by its id
 O3 -> ""MOD-42 …""",The App Model's stories are the contract the founder compares the code with (backend N574); hiding on 404 keeps the screens safe to merge before backend #1866 and its migration.
+src/components/willab/models/modelSetup.test.tsx,Story,"As a person in ring 6, I want to start a model of my own one step at a time, in three chapters with a thin bar, keep my draft when I stop, be told when a model like mine exists, shape what it does, its scale, its question, its AI, its rules, my data, its exam, its teachers' journey, answer its first 10 myself and share it; then see on its page what needs me; and answer an invite, add an example and act on my models from my profile, all in the backend's words, so what I know becomes a model without any screen adding words of its own (backend N528, N563, N566, N570, N571, N582, N585; App Model MOD-20, MOD-21, MOD-24 to MOD-38, MOD-49 to MOD-51, MOD-54, MOD-55).","O1  Each story's Then holds with the backend's exact words: the BFF answers
+with what services/model_setup.py and services/model_launchpad.py
+build (setupFixtures.json, made by running them).
+O2  Each answer reaches the backend in the shape its handler reads
+(services/model_setup_store.py, model_launchpad_store.py).
+O3  Every way in hides while its route answers 404: ""Start your own"", an
+invite, a profile's actions.
+O4  The owner's first 10 are answered on the teachers' screen with no
+guess of the model's (Never 2).","O1, O2 -> one test per story, named by its id
+O3 -> ""… 404 …""
+O4 -> ""MOD-55 …""",The setup's routes (backend #1867) and the launchpad's actions (#1869) may reach production after this; nothing shows before they answer.
 src/components/willab/models/models.test.tsx,Story,"As a person in ring 6, I want to find AI models under my chats, open one, come through its door and teach it from one queue, and see the models I started and teach on my profile, in the locked prototype's words, so that what I know teaches a model without the machine's guess ever leading me (backend N528, N563, N566; App Model MOD-02 to MOD-23, MOD-49, MOD-50). Below the ring nothing of it shows.","O1  Below ring 6 (every /v2/models route answers 404) no row, no section
 and no invite card is drawn.
 O2  Each story's Then holds with the backend's exact words (the BFF answers
