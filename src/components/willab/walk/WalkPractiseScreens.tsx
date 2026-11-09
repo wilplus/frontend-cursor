@@ -15,7 +15,8 @@ import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 import type { AiVoiceState } from "@/services/api/aiVoice";
 import WalkAiVoice, { aiVoiceShown } from "./WalkAiVoice";
-import { WalkSpeakerBubble } from "./WalkThread";
+import { WalkSpeakerBubble, WalkTyping } from "./WalkThread";
+import type { WalkVoiceSaid } from "./useWalkVoice";
 import type { WalkQuotes } from "./useWalkQuote";
 import type { WalkQuote } from "@/services/api/walkQuote";
 import { oneThingTryWords } from "@/lib/willab/walkThread";
@@ -72,7 +73,21 @@ export type PractiseScreenCtx = {
   aiVoicePlayed?: (moment: number) => void;
   /** The Take's one quote from the speaker's notebook (backend N268). */
   quotes?: WalkQuotes;
+  /** Will's written reply after a One thing walk try (backend N565). */
+  voice?: (step: WalkStep) => WalkVoiceSaid;
 };
+
+/** The One thing walk's line after a try: Will's written reply when his
+ *  voice is on (N565), the typing dots while it comes, else `signed`. */
+function OneTryLine({ ctx, step, signed }: { ctx: PractiseScreenCtx; step: WalkStep; signed: string }) {
+  const said = ctx.voice?.(step);
+  if (said && !said.settled) return <WalkTyping />;
+  return (
+    <WalkMessage>
+      <span>{said?.text ?? signed}</span>
+    </WalkMessage>
+  );
+}
 
 /** The try's own voice as the speaker's orange bubble (lock 2026-10-12,
  *  section 2.5); the moment's voice until the try is kept. In the One thing
@@ -175,13 +190,7 @@ function Checking() {
 
 function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   // The One thing walk's try that lands is its one line (N309 item 1).
-  if (step.one) {
-    return (
-      <WalkMessage>
-        <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
-      </WalkMessage>
-    );
-  }
+  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={improvedLine(ctx.plan, ctx.at(step), ctx.say)} />;
   return (
     <WalkMessage>
       <span>{COPY.titlePraise}</span>
@@ -252,13 +261,7 @@ function QuoteShown({ quote, quotes, readOnly }: { quote: WalkQuote; quotes?: Wa
  *  version (founder 2026-10-18), else the encouragement. */
 function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
   // The One thing walk's one miss: "Close. Once more." (N309 item 1).
-  if (step.one) {
-    return (
-      <WalkMessage>
-        <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
-      </WalkMessage>
-    );
-  }
+  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={encourageLine(ctx.plan, ctx.at(step), ctx.say)} />;
   return (
     aiInstead(ctx, step, moment) ?? (
       <WalkMessage>
@@ -393,7 +396,11 @@ export function practiseThreadItem(
     case "encourage":
       return <EncourageMessage ctx={ctx} step={step} moment={moment} />;
     case "thanks":
-      return <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>;
+      return step.one ? (
+        <OneTryLine ctx={ctx} step={step} signed={thanksLine(ctx.plan, ctx.at(step), ctx.say)} />
+      ) : (
+        <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
+      );
     case "late":
       // A try the server could not hear says so; a late read draws nothing.
       return step.kind === "unheard" ? <WalkMessage>{WALK_COPY.unheard}</WalkMessage> : null;

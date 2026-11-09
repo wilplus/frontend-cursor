@@ -9,7 +9,7 @@ import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEdi
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
 import WalkThread, { WalkEdited, WalkLanding, WalkPart, WalkSpeakerBubble, WalkThreadMark, WalkTyping, useMountedAsPast, useWalkHeld, useWalkPart } from "./WalkThread";
-import { useBestSaid, type WalkVoiceSaid } from "./useWalkVoice";
+import { useBestSaid, useWalkSaid, walkVoiceSaidNow, type WalkVoiceRequest, type WalkVoiceSaid } from "./useWalkVoice";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
@@ -458,6 +458,22 @@ export default function FeedbackWalk<R = unknown>({
   const bestSnippet = bestStep?.moment != null ? (walk.moments[bestStep.moment]?.clip?.snippetId ?? null) : null;
   const bestSaid = useBestSaid(takeId, bestSnippet, walkVoiceOn);
   const step = plan[at] ?? plan[0];
+  // The moment to try and a good Take's line, asked as the walk opens too;
+  // his reply after a try, asked as the walk reaches it (N565).
+  const fixStep = plan.find((s) => s.one && (s.key === "clearer" || s.key === "exVideo") && !s.replay);
+  const fixSnippet = fixStep?.moment != null ? (walk.moments[fixStep.moment]?.clip?.snippetId ?? null) : null;
+  const fixSaid = useWalkSaid(
+    takeId && fixSnippet && fixStep
+      ? { key: `${takeId}:try:${fixSnippet}`, takeId, step: "try", snippetId: fixSnippet, tool: fixStep.key === "clearer" ? "clearer" : "voice" }
+      : null,
+    walkVoiceOn,
+  );
+  const clearStep = plan.find((s) => s.key === "words" && s.clear && !s.replay);
+  const clearSaid = useWalkSaid(
+    takeId && clearStep && bestSnippet ? { key: `${takeId}:good_take:${bestSnippet}`, takeId, step: "good_take", snippetId: bestSnippet } : null,
+    walkVoiceOn,
+  );
+  const trySaid = useWalkSaid(afterTryRequest(takeId, step, walk.moments), walkVoiceOn);
   const scroll = walk.scroll === true;
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
@@ -645,23 +661,25 @@ export default function FeedbackWalk<R = unknown>({
     if (seq === null || !step || step.replay || !step.one || !FIX_OPENERS.has(step.key) || toldOne.current.has(seq)) return;
     // The Sniper's line waits for its game: none drawn, none said (T).
     if (step.key === "tempo" && !sniperDraws({ tempo, tempoSaid, takeId }, step)) return;
+    // Will's line for the moment to try waits for his words (N565).
+    if (step.key !== "tempo" && !fixSaid.settled) return;
     toldOne.current.add(seq);
     const said: WalkStep = { key: "one", ...(step.moment != null ? { moment: step.moment } : {}) };
-    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.one);
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, (step.key !== "tempo" ? fixSaid.text : null) ?? ONE_THING_COPY.one);
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq, step, tempo]);
+  }, [seq, step, tempo, fixSaid.settled]);
   // "The rest of this Take held up just as well." (backend N551): told to the chat once, as a
   // good Take's walk reaches its helper words.
   const toldClear = useRef(new Set<number>());
   useEffect(() => {
-    if (seq === null || !step || step.replay || !step.clear || toldClear.current.has(seq)) return;
+    if (seq === null || !step || step.replay || !step.clear || toldClear.current.has(seq) || !clearSaid.settled) return;
     toldClear.current.add(seq);
     const said: WalkStep = { key: "one" };
-    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.nothingToFix);
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, clearSaid.text ?? ONE_THING_COPY.nothingToFix);
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq, step]);
+  }, [seq, step, clearSaid.settled]);
   // The line between moments and after the last (N285): told to the chat
   // once, before the step it leads into; never for a step played again.
   const toldLead = useRef(new Set<string>());
@@ -688,9 +706,14 @@ export default function FeedbackWalk<R = unknown>({
     // Their best waits for Will's words, so the chat says what the walk drew
     // (N565): his message, or the signed lines when there is none.
     if (step.one && step.key === "praise" && !step.replay && !bestSaid.settled) return;
+    // His reply after a try, too (N565).
+    const afterTry = step.one && !step.replay && AFTER_TRY[step.key] != null;
+    if (afterTry && !trySaid.settled) return;
     const line =
       step.one && step.key === "praise" && !step.replay
         ? bestSaid.text
+        : afterTry && trySaid.text
+        ? trySaid.text
         : step.key === "improved"
         ? improvedLine(plan, at)
         : step.key === "encourage"
@@ -708,7 +731,7 @@ export default function FeedbackWalk<R = unknown>({
     shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
     // aiKey changes when the clip's answer lands; bestSaid when Will's words do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq, step, walk.moments, aiKey, bestSaid.settled]);
+  }, [seq, step, walk.moments, aiKey, bestSaid.settled, trySaid.settled]);
   // The Exercise's chat bubble (founder 2026-10-20, WIL-89): once the walk
   // knows whether an AI clip is coming (the ask answered, a second or two),
   // even when the speaker already tapped Practise and moved on.
@@ -883,6 +906,9 @@ export default function FeedbackWalk<R = unknown>({
   const ctx: ScreenCtx<R> = {
     walk,
     bestSaid,
+    fixSaid,
+    clearSaid,
+    trySaid: (s) => (s === step ? trySaid : afterTrySaidNow(takeId, s, walk.moments)),
     reasons,
     at: (s) => plan.indexOf(s),
     bare: (s) => bare(s, plan.indexOf(s)),
@@ -1127,6 +1153,12 @@ type ScreenCtx<R = unknown> = {
   takeId: string | null;
   /** Will's written praise for their best, or the signed line (N565). */
   bestSaid: WalkVoiceSaid;
+  /** His line opening the moment to try, and a good Take's (N565). */
+  fixSaid: WalkVoiceSaid;
+  clearSaid: WalkVoiceSaid;
+  /** His reply after a try at `step`: the current one as it comes, an
+   *  earlier one as it was said (N565). */
+  trySaid: (step: WalkStep) => WalkVoiceSaid;
   /** The pill: on to the next step that waits. */
   forward: () => void;
   forwardFrom: (step: WalkStep) => void;
@@ -1358,6 +1390,40 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );
+}
+
+const AFTER_TRY: Readonly<Record<string, "landed" | "once_more" | "last">> = {
+  improved: "landed",
+  encourage: "once_more",
+  thanks: "last",
+};
+
+/** Will's reply after a try at `step` of the One thing walk, as a request
+ *  (N565): how the try went (it landed, one try left, the last) and what
+ *  moved when the walk names it. Null for any other step. */
+function afterTryRequest(
+  takeId: string | null,
+  step: WalkStep | undefined,
+  moments: readonly FeedbackWalkMoment<unknown>[],
+): WalkVoiceRequest | null {
+  const outcome = step ? AFTER_TRY[step.key] : undefined;
+  if (!takeId || !step || !outcome || !step.one || step.replay || step.moment == null) return null;
+  const snippetId = moments[step.moment]?.clip?.snippetId ?? null;
+  if (!snippetId) return null;
+  const moved = step.kind?.startsWith("cue:") ? step.kind.slice(4) : undefined;
+  return {
+    key: `${takeId}:after_try:${snippetId}:${step.key}:${step.attempt ?? 1}`,
+    takeId,
+    step: "after_try",
+    snippetId,
+    theirTry: { outcome, ...(moved ? { moved } : {}) },
+  };
+}
+
+/** An earlier try's reply as it was said; the signed line when none was. */
+function afterTrySaidNow(takeId: string | null, step: WalkStep, moments: readonly FeedbackWalkMoment<unknown>[]): WalkVoiceSaid {
+  const request = afterTryRequest(takeId, step, moments);
+  return (request ? walkVoiceSaidNow(request.key) : null) ?? { settled: true, text: null };
 }
 
 /** Their best (founder 2026-10-31, N309 item 1): the clip, "This was your
@@ -2080,6 +2146,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
     say: ctx.say,
     replayTries: ctx.walk.replay?.tries,
     quotes: ctx.quotes,
+    voice: ctx.trySaid,
     ...ctx.practise,
   };
   return threadStart(ctx.walk.plan, ctx.at(step)) >= 0 ? Thread(ctx, step, moment, practiseCtx) : null;
@@ -2247,17 +2314,27 @@ function renderThread<R>(
       ) : null,
       one ? (
         <div key="one" data-walk-one className="contents">
-          <WalkMessage>
-            <span>{ONE_THING_COPY.one}</span>
-          </WalkMessage>
+          {/* Will's own line for the moment to try when his voice is on
+              (N565), the dots while it comes; never over the Sniper. */}
+          {opener.key !== "tempo" && !ctx.fixSaid.settled ? (
+            <WalkTyping />
+          ) : (
+            <WalkMessage>
+              <span>{(opener.key !== "tempo" ? ctx.fixSaid.text : null) ?? ONE_THING_COPY.one}</span>
+            </WalkMessage>
+          )}
         </div>
       ) : null,
       // A good Take: no fix, so it says so where the fix would be (N551).
       opener?.clear ? (
         <div key="clear" data-walk-clear className="contents">
-          <WalkMessage>
-            <span>{ONE_THING_COPY.nothingToFix}</span>
-          </WalkMessage>
+          {!ctx.clearSaid.settled ? (
+            <WalkTyping />
+          ) : (
+            <WalkMessage>
+              <span>{ctx.clearSaid.text ?? ONE_THING_COPY.nothingToFix}</span>
+            </WalkMessage>
+          )}
         </div>
       ) : null,
       mark,
