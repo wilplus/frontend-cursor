@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link as LinkIcon, Lock, Share } from "lucide-react";
 import { getMyChatLink } from "@/services/api/chats";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -36,11 +37,22 @@ const WEBSITE_SWITCH_SHOWN = false;
  *  "Each customer has a chat of their own with you."; Cancel. The switch is
  *  hidden for now (N569 item 1): the sheet shows the link alone. `fixed` lays
  *  it over the whole screen (from the ☰ menu); otherwise it needs a
- *  `relative` parent. */
+ *  `relative` parent. On a wide screen it is always over the whole screen,
+ *  a card in the middle, without the handle. */
 export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => void; fixed?: boolean }) {
   const [path, setPath] = useState<string | null>(null);
   const [code, setCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  // A wide screen: the sheet leaves the chats column for the whole screen.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia?.("(min-width: 768px)");
+    if (!query) return;
+    const read = () => setWide(query.matches);
+    read();
+    query.addEventListener?.("change", read);
+    return () => query.removeEventListener?.("change", read);
+  }, []);
   useEffect(() => {
     let alive = true;
     void getMyChatLink().then((got) => {
@@ -65,15 +77,20 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
     }
   };
   const share = !code && isNativeApp() && typeof navigator !== "undefined" && typeof navigator.share === "function";
-  return (
-    <div data-add-sheet className={`${fixed ? "fixed" : "absolute"} inset-0 z-30 flex flex-col justify-end bg-black/30`} onClick={onClose}>
+  const overScreen = fixed || wide;
+  const sheet = (
+    <div
+      data-add-sheet
+      className={`${overScreen ? "fixed" : "absolute"} inset-0 z-30 flex flex-col justify-end bg-black/30 md:z-50 md:items-center md:justify-center md:p-6`}
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-label={ADD_SHEET_TITLE}
-        className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5"
+        className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5 md:rounded-3xl md:px-6 md:pt-6 md:shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0] md:hidden" />
         <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{ADD_SHEET_TITLE}</p>
         {WEBSITE_SWITCH_SHOWN ? (
         <button
@@ -149,4 +166,7 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
       </div>
     </div>
   );
+  // Out of the chats column (its own layer, under the site's bar) on a wide
+  // screen; from the ☰ menu it is already over everything.
+  return wide && !fixed ? createPortal(sheet, document.body) : sheet;
 }
