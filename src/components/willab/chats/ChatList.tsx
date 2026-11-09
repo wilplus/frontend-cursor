@@ -301,6 +301,7 @@ export default function ChatList({
   cameFrom = null,
   willOpen = false,
   coachRow = null,
+  modelsRows = null,
   onOpenWill,
   onOpen,
 }: {
@@ -308,6 +309,9 @@ export default function ChatList({
   /** The coach's way in, right under Will's row (backend N521); null for
    *  everyone else. */
   coachRow?: ReactNode;
+  /** The AI models' rows, under the people (backend N528 item 1): nothing
+   *  below ring 6. */
+  modelsRows?: ReactNode;
   /** Will's chat is open over the list (its row's line is then seen). */
   willOpen?: boolean;
   /** The row you just came back from, lit for a moment ("will" for Will's). */
@@ -376,6 +380,7 @@ export default function ChatList({
         />
       ) : null}
       {newestFirst(chats.filter((chat) => chat !== first && !chat.inquiry)).map((chat) => row(chat))}
+      {modelsRows}
       </div>
       <button
         type="button"

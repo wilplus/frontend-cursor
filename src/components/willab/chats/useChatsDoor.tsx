@@ -24,6 +24,9 @@ function ChatLoading() {
 const ChatThread = dynamic(() => import("./ChatThread"), { ssr: false, loading: ChatLoading });
 const InquiryThread = dynamic(() => import("./InquiryThread"), { ssr: false, loading: ChatLoading });
 const CoachChatRow = dynamic(() => import("../coachwalk/CoachChatRow"), { ssr: false, loading: () => null });
+// The AI models' rows under the people (backend N528, N563): nothing is drawn
+// below ring 6, where /v2/models/rows answers 404.
+const ModelsChatRows = dynamic(() => import("../models/ModelsChatRows"), { ssr: false, loading: () => null });
 // A warm-up that fails costs nothing: the chat asks for its code again.
 function warmChats(): void {
   void import("./ChatThread").catch(() => undefined);
@@ -295,6 +298,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             cameFrom={cameFrom}
             willOpen={atWill}
             coachRow={isCoach ? <CoachChatRow /> : null}
+            modelsRows={<ModelsChatRows />}
             onOpenWill={() => setView({ at: "will" })}
             onOpen={(chat) => {
               if (chat.id === joined) setJoined(null);
