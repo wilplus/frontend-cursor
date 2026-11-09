@@ -11,7 +11,6 @@ import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
-  submitLabRecording,
   fetchGuestLabReadout,
   retryLabProcessing,
   type LabUploadInput,
@@ -84,6 +83,7 @@ import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentation
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
+import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -119,7 +119,9 @@ async function uploadForProcessing(
   input: LabUploadInput,
   signal: AbortSignal,
 ): Promise<Exclude<LabUploadResult, { kind: "discarded" }>> {
-  const result = await submitLabRecording(input, { signal });
+  // The one upload, which also settles the Take's copy on the device
+  // (backend N556): kept until the server has it, gone once discarded.
+  const result = await sendTake(input, { signal });
   if (result.kind !== "discarded") return result;
   return new Promise(() => undefined);
 }
@@ -707,6 +709,25 @@ export default function LabOverlay({
       recordedFeelingRef.current = capturedFeeling;
       clearFeeling();
     }
+    // KEPT ON THE DEVICE UNTIL THE SERVER HAS IT (backend N553 item 2, N556):
+    // saved once, here at Finish, and never waited on: the upload below goes
+    // at once. An answer in a chat and a picked file are not kept.
+    keepTakeAtFinish({
+      blob,
+      key: uploadKeyFor(blob),
+      ownerId: userId,
+      answer,
+      picked: lastWasUploadRef.current,
+      context,
+      slides: recordingSlides,
+      deckless: recordingDeck.isDefault,
+      projectId: arcId,
+      takeIndex: arcTakeIndex,
+      durationSec: durationRef.current,
+      slideAdvances: slideAdvancesRef.current,
+      slideClockOffsetMs: measureSlideClockOffset(mic.getAudioStartedAt(), recordStartRef.current),
+      feeling: recordedFeelingRef.current,
+    });
     let active = true;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
@@ -791,6 +812,9 @@ export default function LabOverlay({
         }
         projectId = created.projectId;
         uploadGuestOwnerToken = created.guestOwnerToken;
+        // The kept copy learns its project before the Take goes up, so a send
+        // again never makes a second one (N556; at most 300 ms).
+        await rememberTakeProject(uploadKeyFor(blob), projectId);
         setArcId(projectId);
         setExploreEnabled(true);
       }
