@@ -463,7 +463,12 @@ step; the loop never waits for a coach.
   gate (C5), else its AI clip after their best (C4). Only a Take where no
   moment's voice shows a problem gives the fix to the moment whose words
   need help most, with its Clearer version (C5); with none that passes, no
-  moment is the fix and the walk can end with their best alone (N381). A
+  moment is the fix and the walk can end with their best alone (N381);
+  then, when the Take's least confident moment reads below the floor, no
+  tool we have reaches it and it goes to a coach, blind, as a moment to
+  judge; the speaker sees nothing new, and a coach's answer comes back on
+  its own screen (N550; backend `moment_pick.unfixed`,
+  `judgement_follow_up.follow_up_without_tool`). A
   Clearer version lost on the way gives its place to the same moment's AI
   clip: the server swaps it when its rewrite row is not served
   (`take_feedback_policy_v3_service._name_lost_clearer`, the frame's
@@ -2328,6 +2333,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N550 · C2: a walk with no fix sends the Take's least confident moment to a coach, blind, when it reads below the floor (no tool reaches it); a good Take sends nothing. The speaker sees nothing new. Stored as raised at the open, its trace naming it (`fix_without_tool`). What stops: a weak moment no tool reaches going nowhere, unseen by a coach · BE N550 (wilplus/backend-cursor#1814), FE (this PR)
 - 2026-11-09 · N548 · C2: a Clearer version the walk cannot draw is no Clearer version to the walk's plan either, so the fix falls to the same moment's AI clip (`voice_too`) or to none, never to a Clearer version screen the walk then drops; the voice fix's practice opens on the picker's own clip (the Confident Voice row), not the rewrite's, so its AI clip is made on the clip that was measured (`buildFeedbackWalk`, `practiseItem` in `feedbackWalkModel.ts`). The server makes a moment the AI clip's fix only when its clip can be made (backend `_voice_problem`, wilplus/backend-cursor#1813). No new words. What stops: the fix vanishing when its Clearer version could not be drawn, and an AI clip asked for on a clip the picker did not measure · BE #1813, FE (this PR)
 - 2026-11-09 · N548 · C2, K: one fix, on one moment, its tool by the kind of its weakness. The fix is the weakest (its voice shows the problem the AI clip teaches): its Clearer version first when its words need help too, else its AI clip; the moment whose words need help most is the fix only when no moment's voice shows a problem. A Clearer version the walk cannot draw gives its place to the same moment's AI clip when the server flags `voice_too`, else no fix (`oneThing` in `walkPlan.ts`, `voiceToo`). Words retired: "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." What stops: a fix on a moment chosen for its words while a weaker voice went unfixed, the closest exercise, and an AI clip asked for a moment whose voice had nothing to teach · BE N548, FE (this PR)
 - 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
