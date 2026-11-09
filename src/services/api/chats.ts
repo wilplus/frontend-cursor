@@ -25,6 +25,10 @@ export type Chat = {
   joined_through?: string | null;
   /** You have blocked the other person (backend N466). */
   blocked?: boolean;
+  /** Whose assistant answers in this chat, "{name}'s assistant" (backend
+   *  N578 item 1, N580 items 1 and 3), only for the chat builder's ring
+   *  (`chat_builder`, N579 item 2); null or absent otherwise. */
+  assistant?: string | null;
   /** An asking chat: a matched Take that reached you, not yet a chat of its
    *  own (backend N485, #1712). Drawn by InquiryThread. */
   inquiry?: Inquiry;

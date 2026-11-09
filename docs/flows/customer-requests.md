@@ -908,6 +908,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N578, N580, N586 · C1: behind the ring row `chat_builder` (N579 item 2), a chat with a person in the list says whose assistant answers there, "{name}'s assistant" after who they are, with the assistant's mark (Will's three dots, small) on their circle; the join page of a tester's link names the assistant with the mark and takes Will's line from the backend (N586 item 2, drafted, waiting for the founder's OK). Without the ring the backend sends neither and nothing changes · BE #1852, FE (this PR)
 - 2026-11-09 · N569 · B8: the switch "Put this chat on your website" is hidden; the add sheet shows the link alone. B12: a website visitor's answers read "{Visitor n}'s answers" (was "Widget's answers") · BE #1831, FE (this PR)
 
 - 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to the first page (N568, N471 item 4), and a link into a chat through sign-in back to it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, N568, FE (this PR)

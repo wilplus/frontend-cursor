@@ -582,6 +582,18 @@ N576 item 1); a voice answer with no words shows none.","O1 -> ""the pill asks, 
 O2 -> ""I tap through the owner's question and ask one of three""
 O3 -> ""Keep this chat opens the join page with my chat""
 O4 -> ""the owner's voice answer opens its words behind Read it, and Hide closes them""",
+src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, and my link's join page to name my assistant and what Will's chat is for, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3, N586 item 2; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-1: with the ring, a chat with a person in my list says
+""Tomek's assistant"" under the name, with the assistant's mark on the
+circle; without the ring (no `assistant` from the backend) the row is
+as it was, with no mark.
+O2  HOST-N586-2: the join page of a tester's link says ""Tomek's
+assistant"" and Will's line in the backend's words (""Will's chat is
+where you can set up a chat of your own.""); anyone else's link keeps
+""Your own chat with Will, your speaking coach"" and no assistant.
+O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
+from the backend only when it sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
+O2 -> ""HOST-N586-2: a tester's join page names the assistant and Will's chat""
+O3 -> ""HOST-N586-2: the join page's read keeps the two lines only when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
