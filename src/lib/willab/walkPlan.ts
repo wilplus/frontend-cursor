@@ -95,6 +95,10 @@ export type WalkMoment = {
   /** The One thing walk's one fix as the server chose it (backend
    *  `_one_thing`, on its strongest block): the Sniper when "tempo". */
   oneFix?: OneFix | null;
+  /** A Clearer version whose moment's voice shows a problem too (backend
+   *  N548): when the walk cannot draw the Clearer version, the same
+   *  moment's AI clip is the fix. */
+  voiceToo?: boolean;
 };
 
 /** The One thing walk's one fix, as the server chose it (C-SNIPER): the
@@ -199,10 +203,6 @@ export type WalkStep = WalkScreen & {
   /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
-  /** The One thing walk's fix walked with the closest exercise we have: the
-   *  server chose a Clearer version that did not reach the walk (backend
-   *  N536). Its screen says so, and that the coach was asked. */
-  closest?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the
    *  fix's; with no fix and no Sniper, their best's, backend N374). Not
    *  `moment`, so reaching it never settles that moment twice. */
@@ -238,10 +238,10 @@ function practiseOpening(m: WalkMoment, practiceOn: boolean): WalkStep[] {
 const isPractiseMoment = (m: WalkMoment) => Boolean(m.clearer || m.exercise || m.practise);
 
 /** A between with no Clearer version that is not the plan level's moment:
- *  no fix on a Take served with no choice (N381); when the server chose it,
- *  its Clearer version was lost on the way, and the closest exercise stands
- *  in (N536). */
-const lostClearer = (m: WalkMoment) => m.slot === "between" && !m.clearer && !m.level;
+ *  no fix (N381, N547 item 2), unless its own voice shows a problem too
+ *  (`voiceToo`): then its AI clip is the fix, on the same moment (backend
+ *  N548). Never the closest exercise. */
+const lostClearer = (m: WalkMoment) => m.slot === "between" && !m.clearer && !m.level && !m.voiceToo;
 
 /** The whole walk for one Take, in the locked order. */
 export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
@@ -281,11 +281,11 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
 
 /** The One thing walk (founder 2026-10-31, N309 items 1 to 4): their best,
  *  the picker's strongest, praised with nothing to practise; one fix, the
- *  slot whose tool fits (the between's Clearer version first, words come
- *  first, else the weakest's AI clip; the server serves one, N309; a
- *  between with no Clearer version is left out unless it is the plan
- *  level's moment, N381, or the server chose it, its Clearer version lost
- *  on the way: then the closest exercise, N536); the Sniper when the server chose it (`oneFix`
+ *  moment the server chose, its tool by the kind of its weakness (its
+ *  Clearer version when its words need help, else its AI clip, backend
+ *  N548; the server serves one, N309; a between with no Clearer version
+ *  is left out unless it is the plan level's moment, N381, or its voice
+ *  shows a problem too: then its AI clip, N548); the Sniper when the server chose it (`oneFix`
  *  "tempo", its step there before its stretch arrives), or, served with no
  *  choice, with no moment to fix and the tempo step offered; a coach's
  *  answer on any other moment, on its own screen; from Take 2 one moment of
@@ -301,12 +301,12 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
   // The server's choice of the one fix (C2, T: the Sniper and then no
   // moment); with none served, the Sniper when no moment is fixed.
   const served = moments.find((m) => m.oneFix)?.oneFix ?? null;
-  const drawn = served === "moment" ? fixes : fixes.filter((m) => !lostClearer(m));
+  const drawn = fixes.filter((m) => !lostClearer(m));
   const found = drawn.find((m) => m.clearer) ?? drawn[0];
   const sniper = !input.guest && (served ? served === "tempo" : !found && (input.interventions ?? []).includes("tempo"));
   const fix = sniper ? undefined : found;
   if (best) out.push(momentStep(best, "praise", { one: true }));
-  if (fix) out.push(...oneFix(fix, input.practiceOn, lostClearer(fix)));
+  if (fix) out.push(...oneFix(fix, input.practiceOn));
   else if (sniper) out.push({ key: "tempo", one: true });
   for (const m of moments) {
     if (m !== best && m !== fix && m.coach) out.push(momentStep(m, "coach"));
@@ -324,14 +324,13 @@ function oneThing(moments: readonly WalkMoment[], input: WalkPlanInput): WalkSte
 
 /** The fix's screens before its first try: the Clearer version, or the AI
  *  clip after their best (the voice Exercise), then the recorder. With
- *  practice off, the fix alone. `closest`: the Exercise stands in for a
- *  Clearer version that did not arrive (N536). */
-function oneFix(m: WalkMoment, practiceOn: boolean, closest = false): WalkStep[] {
+ *  practice off, the fix alone. */
+function oneFix(m: WalkMoment, practiceOn: boolean): WalkStep[] {
   if (m.clearer) {
     if (!practiceOn) return [momentStep(m, "clearer", { kind: "accept", one: true })];
     return [momentStep(m, "clearer", { one: true }), momentStep(m, "practise", { kind: "words", attempt: 1, one: true })];
   }
-  const exercise = momentStep(m, "exVideo", { one: true, ...(closest ? { closest } : {}) });
+  const exercise = momentStep(m, "exVideo", { one: true });
   if (!practiceOn) return [exercise];
   const kind = m.exercise ? "instruction" : "moment";
   return [exercise, momentStep(m, "practise", { kind, attempt: 1, one: true })];
@@ -502,6 +501,8 @@ export type WalkFeedbackItem = {
   planLevel?: string | null;
   /** The One thing walk's one fix as the server chose it (`oneFix`). */
   oneFix?: OneFix | null;
+  /** Its AI clip stands behind its Clearer version (`voiceToo`, backend N548). */
+  voiceToo?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -579,6 +580,7 @@ function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(slot ? { slot } : {}),
       ...(has((i) => Boolean(i.planLevel)) ? { level: true } : {}),
       ...(oneFix ? { oneFix } : {}),
+      ...(has((i) => Boolean(i.voiceToo)) ? { voiceToo: true } : {}),
       judged: true,
       ...(has((i) => Boolean(i.coachAnswered)) ? { coach: true } : {}),
       ...(has((i) => Boolean(i.coachExercise)) ? { coachExercise: true } : {}),

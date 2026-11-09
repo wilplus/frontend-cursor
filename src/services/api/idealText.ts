@@ -286,6 +286,10 @@ export interface DocumentSuggestion {
    *  when the Sniper is the fix, "moment" when a moment is, "none" with no
    *  fix. A word, never a score; absent on older payloads. */
   oneFix?: OneFix | null;
+  /** A Clearer version whose moment's voice shows a problem too (backend
+   *  N548): a walk that cannot draw it walks the same moment's AI clip. A
+   *  flag, never a score. */
+  voiceToo?: boolean;
   /** On a plan, the moment where this week's level shows most (backend
    *  G7, N209): the level's key, a word, never a score. */
   planLevel?: string | null;
@@ -784,6 +788,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     confidentPractice: record.confident_practice === true,
     walkSlot: readEnum(record.walk_slot, WALK_SLOTS),
     oneFix: readEnum(record.one_fix, ONE_FIXES),
+    voiceToo: record.voice_too === true,
     planLevel: readNonEmptyString(record.plan_level),
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,
