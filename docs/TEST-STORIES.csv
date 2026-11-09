@@ -587,7 +587,13 @@ src/components/willab/chats/InquiryThread.test.tsx,Story,"As someone suggested f
 after it, the Take's player with ""Read it"" under it, its words
 closed; ""Read it"" opens them under the player, one paragraph per
 slide, and ""Hide"" closes them (App Model MATCH-13; N331, N576
-item 1).","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""","Founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
+item 1).
+O2  Once my answer is sent and its Undo time is over, nothing asks me
+anything about it: no card after Sent, no ""Help Will hear what you
+heard?"", no ""Teach Will"", no rating; the asking chat goes and my list
+is read again (App Model MATCH-04; N518 item 1). The rating inside
+the answer waits for its prototype (N518 item 9) and is not built.","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""
+O2 -> ""no card follows Sent: the answer goes and nothing asks about it""","O2: founder, 5 November 2026, N518 item 1 (""No, never ask"") and item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
 photos and files we shared; with none, ""No photos yet."" and ""No files
 yet.""; no pencil and no Edit.
@@ -1384,7 +1390,15 @@ the choice (""Next, ask someone who knows. Tap + to start.""), and
 typed words; ""Record Take 2"" stays faded until the walk is done
 (FT-14, WAYIN-N592-1..4; N592).
 W7  The way in is the speaking chat's: every call names it (WAYIN-N590-1;
-N590).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2."
+N590).
+W8  A newcomer who came by the link of someone at a business is offered
+that business's community once, after ""Here's how others will see
+you:"" and before the first choice's taps: ""{inviter} is in {name}'s
+community on WillpowerLab. Join it, so people there can answer your
+Takes?"" with ""Join"" and ""Not now""; either answer is sent once and
+the choice comes back; with no offer, or a 404, no bubble. Its words
+are drafted, so it stays off until the founder signs them (MATCH-06;
+N559 item 1, Never 4).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2. W8: N559 item 1 (founder, 9 November 2026), backend PR #1862."
 src/components/willab/practiceStep.test.tsx,Story,"As a speaker, I want my answer on a bookmark with no exercise to lead to the right lane, so that a No always leads somewhere and Audio unclear leads nowhere.","O1  No (a recognised problem, no exercise): the sheet says the coach is
 working on it, with my recording, and Next closes the sheet.
 O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.

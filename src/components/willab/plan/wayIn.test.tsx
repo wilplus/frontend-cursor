@@ -35,9 +35,18 @@
  *       (FT-14, WAYIN-N592-1..4; N592).
  *   W7  The way in is the speaking chat's: every call names it (WAYIN-N590-1;
  *       N590).
+ *   W8  A newcomer who came by the link of someone at a business is offered
+ *       that business's community once, after "Here's how others will see
+ *       you:" and before the first choice's taps: "{inviter} is in {name}'s
+ *       community on WillpowerLab. Join it, so people there can answer your
+ *       Takes?" with "Join" and "Not now"; either answer is sent once and
+ *       the choice comes back; with no offer, or a 404, no bubble. Its words
+ *       are drafted, so it stays off until the founder signs them (MATCH-06;
+ *       N559 item 1, Never 4).
  * PROVES   each test's name begins with the story it proves.
  * WHY      backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in);
  *          N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2.
+ *          W8: N559 item 1 (founder, 9 November 2026), backend PR #1862.
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -54,6 +63,18 @@ import { WayInTop } from "./WayIn";
 type Reply = { kind: string; ok: boolean; body: unknown };
 const bffFetch = vi.hoisted(() => vi.fn(async (_url: string, _init?: unknown): Promise<Reply> => ({ kind: "response", ok: true, body: {} })));
 vi.mock("@/lib/api/bffFetch", () => ({ bffFetch }));
+// The community offer's words wait for the founder (Never 4): off as
+// shipped; a test turns it on to prove the beat.
+const words = vi.hoisted(() => ({ signed: false }));
+vi.mock("@/lib/willab/wayIn", async (importOriginal) => {
+  const actual = await importOriginal<object>();
+  return {
+    ...actual,
+    get COMMUNITY_OFFER_SIGNED() {
+      return words.signed;
+    },
+  };
+});
 
 let host: HTMLDivElement;
 let root: Root;
@@ -62,6 +83,7 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   bffFetch.mockReset();
+  words.signed = false;
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -455,4 +477,77 @@ it("WAYIN-N590-1: the speaking way in is Artur's chat alone: every call, typed o
   bffFetch.mockClear();
   await show(planWith(null, { first_take: false, waiting: false, status: "active" }), [], true);
   expect(posts()).toEqual([]);
+});
+
+// ── MATCH-06 ───────────────────────────────────────────────────────────────
+
+const OFFER = { id: "biz-1", name: "Invita", inviter: "Maya Lindqvist" };
+
+/** The backend with the community offer route (backend #1862). */
+function withOffer(plan: Plan, offer: unknown) {
+  bffFetch.mockImplementation(async (url: string, init?: unknown) => {
+    if (url.startsWith("/api/v2/me/community-offer")) {
+      const method = (init as { method?: string } | undefined)?.method;
+      if (offer === 404) return { kind: "response", ok: false, body: { error: "NOT_FOUND" } };
+      return { kind: "response", ok: true, body: method === "POST" ? { offer: null, joined: true } : { offer } };
+    }
+    if (url.startsWith("/api/v2/plan/way-in")) return { kind: "response", ok: true, body: { plan, messages: [] } };
+    return { kind: "response", ok: true, body: { enabled: true, plan } };
+  });
+}
+async function showOffer(plan: Plan, messages: LoungeMessage[], offer: unknown) {
+  act(() => root.unmount());
+  root = createRoot(host);
+  withOffer(plan, offer);
+  await act(async () => root.render(<Chat messages={messages} />));
+  await act(async () => {});
+  await act(async () => {});
+}
+const offerPosts = () =>
+  bffFetch.mock.calls
+    .filter(([url, init]) => String(url).startsWith("/api/v2/me/community-offer") && (init as { method?: string })?.method === "POST")
+    .map(([, init]) => (init as { json?: unknown }).json);
+
+it("MATCH-06: after the profile, the business's community is offered once with \"Join\" and \"Not now\"; either answer is sent and the choice comes back", async () => {
+  words.signed = true;
+  for (const [tapped, answer] of [["Join", "join"], ["Not now", "not_now"]] as const) {
+    bffFetch.mockReset();
+    await showOffer(planWith({ asking: "choice", done: ["opener", "profile"] }), [CHOICE], OFFER);
+    const offer = host.querySelector("[data-community-offer]") as HTMLElement;
+    expect(offer.textContent).toBe(
+      "Maya Lindqvist is in Invita's community on WillpowerLab. Join it, so people there can answer your Takes?",
+    );
+    // The first choice waits under it.
+    expect(host.querySelector("[data-way-in-choice]")).toBeNull();
+    expect(labels(host.querySelector("[data-community-offer-ask]") as HTMLElement)).toEqual(["Join", "Not now"]);
+    await tap(thread(), tapped);
+    expect(offerPosts()).toEqual([{ id: "biz-1", answer }]);
+    expect(host.querySelector("[data-community-offer]")).toBeNull();
+    expect(labels(host.querySelector("[data-way-in-choice]") as HTMLElement)).toEqual([
+      "Something else", "Learn from others", "Share what I know", "Prepare a talk",
+    ]);
+  }
+  // With no one's name on the link, the ask names the business alone.
+  await showOffer(planWith({ asking: "choice", done: ["opener", "profile"] }), [CHOICE], { ...OFFER, inviter: null });
+  expect(host.querySelector("[data-community-offer]")?.textContent).toBe(
+    "Join Invita's community on WillpowerLab, so people there can answer your Takes?",
+  );
+});
+
+it("MATCH-06: no offer, a 404, the profile still asked, or the words not yet signed: no bubble", async () => {
+  words.signed = true;
+  for (const offer of [null, 404]) {
+    await showOffer(planWith({ asking: "choice", done: ["opener", "profile"] }), [CHOICE], offer);
+    expect(host.querySelector("[data-community-offer]")).toBeNull();
+    expect(host.querySelector("[data-way-in-choice]")).not.toBeNull();
+  }
+  // Before "Here's how others will see you:" has its answer, never.
+  await showOffer(planWith({ asking: "profile" }), [CARD], OFFER);
+  expect(host.querySelector("[data-community-offer]")).toBeNull();
+  // As shipped, until the founder signs its words (Never 4): not even asked.
+  words.signed = false;
+  bffFetch.mockReset();
+  await showOffer(planWith({ asking: "choice", done: ["opener", "profile"] }), [CHOICE], OFFER);
+  expect(host.querySelector("[data-community-offer]")).toBeNull();
+  expect(bffFetch.mock.calls.some(([url]) => String(url).startsWith("/api/v2/me/community-offer"))).toBe(false);
 });

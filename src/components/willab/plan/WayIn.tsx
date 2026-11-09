@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { wayIn, wayInVoice, type Plan, type PlanState, type WayInAnswer } from "@/services/api/plan";
 import {
+  COMMUNITY_OFFER_SIGNED,
+  COMMUNITY_OFFER_WORDS,
+  communityOfferDue,
+  communityOfferLine,
   linkLabel,
   profileOf,
   rowLinks,
@@ -19,6 +23,7 @@ import { ChatLink, ChatLinks, PickRow, TapRow } from "@/components/willab/WillQu
 import { CopyLinkLine } from "@/components/willab/chats/JoinSetup";
 import { SEND_PICKED } from "@/components/willab/chats/joinCopy";
 import { TypingGlyph } from "@/components/willab/TypingDots";
+import { answerCommunityOffer, getCommunityOffer, type CommunityOffer } from "@/services/api/communityOffer";
 import { DatePickSheet, usePlanVoice } from "./PlanDock";
 
 /* -------------------------------------------------------------------------- */
@@ -187,6 +192,45 @@ function WayInAnswers({
   );
 }
 
+/** The newcomer's one offer to join their business's community, as Will's
+ *  bubble with Join and Not now (backend N559 item 1, MATCH-06). Either
+ *  answer is sent once and the way in goes on; it never waits for it. */
+function CommunityOfferAsk({ offer, onAnswer }: { offer: CommunityOffer; onAnswer: (answer: "join" | "not_now") => void }) {
+  return (
+    <>
+      <div data-row="app" data-bubble data-community-offer="" className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground">
+        {communityOfferLine(offer)}
+      </div>
+      <TapRow
+        labels={[COMMUNITY_OFFER_WORDS.join, COMMUNITY_OFFER_WORDS.notNow]}
+        onTap={(label) => onAnswer(label === COMMUNITY_OFFER_WORDS.join ? "join" : "not_now")}
+        dataAttr={{ "data-community-offer-ask": "" }}
+      />
+    </>
+  );
+}
+
+/** The offer, read once when the way in has begun; gone once answered. */
+function useCommunityOffer(begun: boolean): [CommunityOffer | null, (answer: "join" | "not_now") => void] {
+  const [offer, setOffer] = useState<CommunityOffer | null>(null);
+  useEffect(() => {
+    if (!begun || !COMMUNITY_OFFER_SIGNED) return;
+    let live = true;
+    void getCommunityOffer().then((got) => {
+      if (live) setOffer(got);
+    });
+    return () => {
+      live = false;
+    };
+  }, [begun]);
+  const answer = (choice: "join" | "not_now") => {
+    if (!offer) return;
+    setOffer(null);
+    void answerCommunityOffer(offer.id, choice);
+  };
+  return [offer, answer];
+}
+
 export type WayIn = {
   /** The taps under Will's open beat, in the thread. */
   asks: ReactNode;
@@ -272,10 +316,17 @@ export function useWayIn({
     setPicked((now) => (on ? [...now, label] : now.filter((p) => p !== label)));
     if (on && label === WAY_IN_WORDS.somethingElse) onWords?.();
   };
-  const choosing = ask?.kind === "choice";
+  const [offer, answerOffer] = useCommunityOffer(plan?.way_in != null && !plan.way_in.walk_done);
+  // The offer comes before the first choice, which waits under it (N559 item 1).
+  const offering = offer !== null && communityOfferDue(plan, ask);
+  const choosing = ask?.kind === "choice" && !offering;
   const typed = choosing && picked.includes(WAY_IN_WORDS.somethingElse);
   return {
-    asks: ask ? <WayInAnswers ask={ask} busy={busy} picked={picked} onToggle={toggle} onAnswer={answer} /> : null,
+    asks: offering ? (
+      <CommunityOfferAsk offer={offer} onAnswer={answerOffer} />
+    ) : ask ? (
+      <WayInAnswers ask={ask} busy={busy} picked={picked} onToggle={toggle} onAnswer={answer} />
+    ) : null,
     barMiddle:
       choosing && picked.length > 0 && !typed ? (
         <button

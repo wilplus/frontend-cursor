@@ -9,8 +9,15 @@ OUTCOME
       closed; "Read it" opens them under the player, one paragraph per
       slide, and "Hide" closes them (App Model MATCH-13; N331, N576
       item 1).
+  O2  Once my answer is sent and its Undo time is over, nothing asks me
+      anything about it: no card after Sent, no "Help Will hear what you
+      heard?", no "Teach Will", no rating; the asking chat goes and my list
+      is read again (App Model MATCH-04; N518 item 1). The rating inside
+      the answer waits for its prototype (N518 item 9) and is not built.
 PROVES   O1 -> "Read it opens the Take's words under its player, one paragraph per slide"
-WHY      Founder, the App Model of 9 November 2026, MATCH-13 (its Then: "the
+         O2 -> "no card follows Sent: the answer goes and nothing asks about it"
+WHY      O2: founder, 5 November 2026, N518 item 1 ("No, never ask") and
+         item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: "the
          Take's words open under its player, one paragraph per slide"); a
          voice's words are closed behind "Read it" (backend N331).
 */
@@ -40,11 +47,15 @@ const api = vi.hoisted(() => ({
   getInquiry: vi.fn(),
   acceptInquiry: vi.fn(),
   declineInquiry: vi.fn(async () => true),
+  answerInquiry: vi.fn(async () => "sent" as const),
+  undoInquiry: vi.fn(async () => "sent" as const),
   inquiryAudioSrc: (id: string) => `/api/v2/take-matches/${id}/recording`,
 }));
 vi.mock("@/services/api/takeMatches", () => api);
+vi.mock("@/services/api/projects", () => ({ createProject: vi.fn(async () => ({ kind: "ok", projectId: "answer-project" })) }));
 
 import InquiryThread, { inquiryChatId } from "./InquiryThread";
+import { answerRecorded, answerTake, endAnswer, forgetAnswers, startAnswer, UNDO_MS, type AnswerFor } from "@/lib/willab/chatAnswer";
 import type { Chat } from "@/services/api/chats";
 
 let root: Root;
@@ -98,4 +109,43 @@ it("Read it opens the Take's words under its player, one paragraph per slide", a
   await tap(read);
   expect(open!.querySelector("[data-chat-words]")).toBeNull();
   expect(read?.textContent).toBe("Read it");
+});
+
+it("no card follows Sent: the answer goes and nothing asks about it", async () => {
+  vi.useFakeTimers();
+  try {
+    forgetAnswers();
+    api.getInquiry.mockResolvedValue(OPENED);
+    const chat = { id: inquiryChatId("m1"), kind: "inquiry", title: "Amira", subtitle: "Sales lead" } as unknown as Chat;
+    const onGone = vi.fn();
+    let asked: AnswerFor | null = null;
+    await act(async () => {
+      root.render(
+        createElement(InquiryThread, { chat, inquiry: OPENED, onBack: () => {}, onGone, onRecordAnswer: (a: AnswerFor) => (asked = a) }),
+      );
+    });
+    await tap(host.querySelector("[data-chat-record-answer]"));
+    expect(asked).not.toBeNull();
+    // Recorded and sent: the answer waits its five seconds for Undo.
+    await act(async () => {
+      await startAnswer(asked!, null, () => {});
+      answerRecorded(42_000);
+      answerTake("answer-take");
+      endAnswer();
+    });
+    expect(api.answerInquiry).toHaveBeenCalledWith("m1", "answer-take", 42_000, expect.any(Number));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(UNDO_MS + 100);
+    });
+    expect(onGone).toHaveBeenCalled();
+    // Nothing after Sent (N518 item 1): no card, no ask, no rating.
+    const text = document.body.textContent ?? "";
+    for (const line of ["Help Will hear what you heard?", "Teach Will", "Will would have said", "Does the speaker sound confident here?"]) {
+      expect(text).not.toContain(line);
+    }
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  } finally {
+    forgetAnswers();
+    vi.useRealTimers();
+  }
 });
