@@ -98,7 +98,7 @@ export interface AppMenuProps {
   /** The account's name, when it has one; the email is shown under it. */
   userName?: string | null;
   /** "Copy my link" (backend N308, N367): resolves to the full link, or
-   *  null. Passed only where the chats are on. Since N566 item 1 the row
+   *  null. Passed only where the chats are on. Since N567 item 1 the row
    *  opens "Add someone to chat with", as the list's "+" does, with its small
    *  switch for the website; it no longer copies at once. */
   onCopyLink?: (() => Promise<string | null>) | null;

@@ -37,7 +37,7 @@ OUTCOME
       words, once ready, are closed behind "Read it" under the player, and
       "Hide" closes them again (N331).
   O8  The + on the list opens my own link, with the add sheet's signed
-      words and "Only the two of you are in it." (N566 item 1; was: three
+      words and "Only the two of you are in it." (N567 item 1; was: three
       steps), and Copy my link puts the whole link on the clipboard and says
       "✓ Copied" (N308, N310, N367).
   O9  In a chat I joined through someone's link, one line above the

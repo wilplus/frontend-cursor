@@ -51,7 +51,7 @@ export const askingForWhatYouKnow = (pseudonym: string) =>
   `${pseudonym} is asking for what you know. Your answer starts a knowledge base you build together.`;
 export const itsAbout = (topic: string) => `It's about ${topic.replace(/[.\s]+$/, "")}.`;
 
-/* Your chat on any website (backend N566; all signed, founder 2026-11-05). */
+/* Your chat on any website (backend N567; all signed, founder 2026-11-05). */
 /** The add sheet's card under its title, with the small switch. */
 export const WEBSITE_SWITCH = "Put this chat on your website";
 export const WEBSITE_LINE =

@@ -21,7 +21,7 @@ import {
 /*  to finish (`?join=1`). Joined, /chat opens on the list of chats, the chat */
 /*  with the person who invited you its first row, marked new (N357; was     */
 /*  N348 item 1). Your own link, or a link that stops working on the way,     */
-/*  lands on /chat: no new words. From the widget's "Keep this chat" (N566     */
+/*  lands on /chat: no new words. From the widget's "Keep this chat" (N567     */
 /*  item 7), the page opens with the visitor's secret after `#g=`: it is kept */
 /*  in this browser while they sign in, and Join takes the widget's chat,    */
 /*  named after them, instead of making a new one.                           */

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-/* Your chat on any website (backend N566): the page w.js opens in an iframe
+/* Your chat on any website (backend N567): the page w.js opens in an iframe
    on someone's site, the one page any site may frame (middleware.ts). The
    site's host comes from w.js as `?site=`. A wrong, replaced or switched-off
    link is the not-found page, and w.js shows nothing. */

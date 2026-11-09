@@ -30,7 +30,7 @@ function generateNonce(): string {
 /** Exported for `csp.test.ts`. The policy is the single piece of this file
  *  that can take every route down at once, so it is worth asserting directly
  *  rather than only through a running browser. */
-/** Your chat on any website (backend N566): the widget's page, `/w/<token>`,
+/** Your chat on any website (backend N567): the widget's page, `/w/<token>`,
  *  is the one page any site may frame; every other page may be framed by
  *  none. */
 export function framedAnywhere(pathname: string): boolean {

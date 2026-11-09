@@ -7,7 +7,7 @@ OUTCOME
   O1  Signed in, the menu reads: my name and email (opening my profile),
       Copy my link, Settings, Tokens with the balance, then Sign out. No
       Lab, no Log out.
-  O2  Copy my link opens "Add someone to chat with" (N566 item 1; was: it
+  O2  Copy my link opens "Add someone to chat with" (N567 item 1; was: it
       copied at once): Copy my link there copies the whole link; its small
       switch, "Put this chat on your website", turns it into the line of code
       for a site, with my link's token, and Copy my code copies that.

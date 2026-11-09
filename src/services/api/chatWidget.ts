@@ -1,7 +1,7 @@
 import type { ChatMessage } from "@/services/api/chats";
 
 /* -------------------------------------------------------------------------- */
-/*  Your chat on any website (backend N566): the widget's calls, made from     */
+/*  Your chat on any website (backend N567): the widget's calls, made from     */
 /*  `/w/<token>` inside the iframe w.js opens. The visitor has no account:     */
 /*  no sign-in is sent; their secret, kept in this browser for this site,     */
 /*  travels in one header. Every call answers null when it does not go.       */

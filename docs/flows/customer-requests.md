@@ -78,7 +78,7 @@ rest is built in.
 7. Sending creates the customer's guest identity and one request row in the
    workspace, and the request lands in the answerer's chat.
 
-**A person's widget** (N566; built). The same widget for one person, made from
+**A person's widget** (N567; built). The same widget for one person, made from
 their join link: no workspace, no form, a visitor who only taps.
 
 8. **One link, two ways to share it.** "Add someone to chat with" (the list's
@@ -892,7 +892,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-05 · N566 · B8 to B13: a person's widget. The add sheet's switch, "Put this chat on your website", turns the link into one line of code; the three tiles become one line, "Only the two of you are in it."; Copy my link in the ☰ menu opens the sheet (was: copied at once). `w.js` draws "Ask {name}" on any site and opens `/w/<token>` in an iframe; the visitor taps Agree and start, the owner's questions, one of three questions and the emoji, and hears the answer there; the owner's list has "Widget / Visitor {n}" with "From {site}"; Keep this chat makes it theirs ("Widget / {name}") · BE (this branch), FE (this PR)
+- 2026-11-05 · N567 · B8 to B13: a person's widget. The add sheet's switch, "Put this chat on your website", turns the link into one line of code; the three tiles become one line, "Only the two of you are in it."; Copy my link in the ☰ menu opens the sheet (was: copied at once). `w.js` draws "Ask {name}" on any site and opens `/w/<token>` in an iframe; the visitor taps Agree and start, the owner's questions, one of three questions and the emoji, and hears the answer there; the owner's list has "Widget / Visitor {n}" with "From {site}"; Keep this chat makes it theirs ("Widget / {name}") · BE (this branch), FE (this PR)
 - 2026-11-06 · N534 · C1: until the questions for people who join are set, the "+" shows a note at the bottom, the bar at the top of Will's chat moved down, with "Set them" (Will's setup) and ✕, in place of opening Will's chat; once set, the "+" opens the add sheet as before (`ChatList.tsx`, `joinCopy.ts`, `chats.ts`) · BE (wilplus/backend-cursor, `"set"` on GET join-questions), FE (this change)
 - 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)
 - 2026-11-06 · N533 · C1: at the end of the join setup, under "You're set." and its two links, Will says "All is set. You can now start practising." (backend `services/join_setup.py` writes it as his own line, `{"step": "say"}`, drawn by `JoinSetup.tsx` as any of his lines); the summary opened again ends at "Saved. …" as before. Was: "You're set." was Will's last line · BE N533 (#1787), BE #1789, FE (this PR)
