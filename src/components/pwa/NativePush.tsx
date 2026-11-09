@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSignedIn } from "@/components/willab/useSignedIn";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { afterChatBoot } from "@/lib/chatBoot";
 
 /* Push in the iPhone app (backend N385), started once signed in: see
  * src/lib/nativePush.ts. On the web it does nothing. Renders nothing.
@@ -11,7 +12,12 @@ import { isNativeApp } from "@/lib/auth/nativeSignIn";
  * bridge and the notebook's API client with it, which every web page (and
  * /login, signed out) used to download for a function that returned at once
  * off the phone. In the app it is one small chunk, the push plugin's own
- * import (already lazy) right behind it, and /chat usually has it loaded. */
+ * import (already lazy) right behind it, and /chat usually has it loaded.
+ *
+ * A tapped push is listened for at once: the tap that opened the app opens its
+ * page. Registering the device, and its POST to the backend, wait for the chat
+ * to paint (afterChatBoot, founder 2026-10-16), as the wallet and Life state
+ * do; on a page with no chat to boot (an account page) they run on idle. */
 export default function NativePush() {
   const signedIn = useSignedIn();
   useEffect(() => {
@@ -19,7 +25,7 @@ export default function NativePush() {
     let stop: (() => void) | null = null;
     let gone = false;
     void import("@/lib/nativePush")
-      .then(({ startNativePush }) => startNativePush())
+      .then(({ startNativePush }) => startNativePush(afterChatBoot))
       .then((cleanup) => (gone ? cleanup() : (stop = cleanup)))
       .catch((err) => console.warn("[push] not started", err));
     return () => {

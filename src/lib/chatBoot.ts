@@ -11,9 +11,10 @@
 /*  Founder 2026-10-16: the token chip and top-up card may appear after the   */
 /*  thread paints; profile, discoveries and Life state may arrive after first */
 /*  paint; a stale guest token may be claimed in the background. This module  */
-/*  is that signal and nothing else: useWillabFlow marks a boot started where */
-/*  it starts the prefetch, useLoungeThread marks it settled when the thread  */
-/*  has loaded, and `afterChatBoot` runs a callback then. Outside a chat boot */
+/*  is that signal and nothing else: /chat's open (prefetchChatOpen, signed   */
+/*  in) and useWillabFlow mark a boot started where they start the reads,     */
+/*  useLoungeThread marks it settled when the thread has loaded, and          */
+/*  `afterChatBoot` runs a callback then. Outside a chat boot                 */
 /*  (any other page, or a thread that never mounts because the Phase-1 gate   */
 /*  holds) the callback runs on idle, or by SETTLE_LIMIT_MS at the latest, so */
 /*  nothing waits on a thread that is not coming.                             */
