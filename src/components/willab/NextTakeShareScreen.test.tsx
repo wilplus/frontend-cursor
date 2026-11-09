@@ -26,12 +26,20 @@ OUTCOME
       (and not my recording's feedback); Continue shares that Take as I
       now chose, stamped with the words I saw, and its line says the new
       choice; "Only me" takes it back from every community.
+  O6  With sending on, opened for a Take, my own chats come best fit first:
+      the person who can best answer this Take is first, by the matcher's
+      order of chats, the others after in the list's order; "Last sent"
+      stays under the name of whoever I sent to last and everyone stays
+      ticked; no score is shown. If the order cannot be read, the list
+      keeps its own order (N559 item 2, App Model MATCH-07).
 PROVES   O3 -> "with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once"
          O4 -> "with sending on, a sent Take's line opens the screen to add people, never to unsend"
          O5 -> "with sending on, a failed send from a Take's line keeps the screen and says so; Continue again sends it"
+         O6 -> "with sending on, my own chats come best fit first for this Take, and keep their order when it cannot be read"
          O1 -> "starts with nothing ticked; Continue waits for a choice, Only me counts"
          O2 -> "the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take"
-WHY      O3, O4: founder 2026-11-04, backend N470 (#1702) and N479
+WHY      O6: founder 2026-11-09, backend N559 item 2 ("Rank my chats"),
+         #1861. O3, O4: founder 2026-11-04, backend N470 (#1702) and N479
          (#1704), the prototype "Specialist Side" tab 1. O5: founder
          2026-11-06, backend N541 ("Fix both"), for N470 item 8. O1, O2 (sending
          off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder
@@ -60,6 +68,9 @@ const send = vi.hoisted(() => ({
   sendTake: vi.fn(async (): Promise<unknown> => [{ userId: "u", chatId: "c", messageId: "m" }]),
 }));
 vi.mock("@/services/api/takeSends", () => send);
+// The matcher's order of my chats for a Take (N559 item 2): none unless a test gives one.
+const match = vi.hoisted(() => ({ getChatOrder: vi.fn(async (): Promise<string[] | null> => null) }));
+vi.mock("@/services/api/takeMatches", async (importOriginal) => ({ ...(await importOriginal<object>()), ...match }));
 const appended = vi.hoisted(() => [] as Array<{ body: string; metadata?: Record<string, unknown> | null }>);
 vi.mock("./LoungeThreadContext", () => ({
   useLoungeThreadMaybe: () => ({ append: async (draft: (typeof appended)[number]) => appended.push(draft) }),
@@ -79,6 +90,8 @@ beforeEach(() => {
   root = createRoot(host);
   api.shareTake.mockClear();
   send.sendTake.mockClear();
+  match.getChatOrder.mockReset();
+  match.getChatOrder.mockResolvedValue(null);
   send.fetchSendPeople.mockResolvedValue({ enabled: false, people: [] });
   send.fetchLastSend.mockResolvedValue({ enabled: false, choice: null });
   localStorage.clear();
@@ -273,4 +286,40 @@ it("with sending on, a failed send from a Take's line keeps the screen and says 
   expect(onDone).toHaveBeenCalledTimes(1);
   expect(appended.map((d) => d.body)).toEqual(["Artur, Maya Lindqvist"]);
   expect(appended[0].metadata).toMatchObject({ take_session_id: "take-3", share: { kind: "people", user_ids: ["u-artur", "u-maya"] } });
+});
+
+it("with sending on, my own chats come best fit first for this Take, and keep their order when it cannot be read", async () => {
+  const names = () => [...host.querySelectorAll("[data-walk-option] b")].map((b) => b.textContent);
+  const open = async () => {
+    await act(async () => {
+      root.render(
+        createElement(NextTakeShareScreen, {
+          takeCount: 3,
+          takeSessionId: "take-3",
+          send: { enabled: true, people: [ARTUR, MAYA, DANIEL], choice: null },
+          onDone: () => {},
+          onClose: () => {},
+        }),
+      );
+    });
+  };
+  match.getChatOrder.mockResolvedValue(["c-daniel", "c-maya"]);
+  await open();
+  expect(match.getChatOrder).toHaveBeenCalledWith("take-3");
+  // Best fit first, then the list's own order.
+  expect(names()).toEqual(["Daniel Okafor", "Maya Lindqvist", "Artur"]);
+  // "Last sent" stays under the one sent to last; everyone stays ticked.
+  expect(option("Artur").textContent).toContain("Last sent");
+  expect(option("Daniel Okafor").textContent).not.toContain("Last sent");
+  expect([ticked("Daniel Okafor"), ticked("Maya Lindqvist"), ticked("Artur")]).toEqual(["true", "true", "true"]);
+  // No score anywhere on the rows (Never 1).
+  for (const row of host.querySelectorAll("[data-walk-option]")) expect(row.textContent).not.toMatch(/\d/);
+
+  // The order cannot be read: the list keeps its own order.
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  match.getChatOrder.mockRejectedValue(new Error("down"));
+  await open();
+  expect(names()).toEqual(["Artur", "Maya Lindqvist", "Daniel Okafor"]);
+  expect(option("Artur").textContent).toContain("Last sent");
 });

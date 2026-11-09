@@ -268,6 +268,20 @@ O4  Switched on, a pending row the backend says is cancellable offers
 O2 -> ""archived projects are marked and can be unarchived; a failure changes nothing""
 O3 -> ""asks first with the signed words, and sends nothing until confirmed""
 O4 -> ""offers Cancel deletion, which puts the row back""","Founder 2026-09-26 (N14). O3/O4 pin the delete contract for the day it is switched on; the rest of it (failure, training line, window words) is not tested while Delete cannot run."
+src/components/account/SpeakingMatchCard.test.tsx,Story,"As a person whose practice buddies are matched by how I speak, I want the signed card ""Matching by how you speak"" in Settings, with Turn off, so that I can stop it at any time and have what Will learned from how I speak deleted, my chats kept.","O1  The card shows only while matching by how people speak is switched
+on at all (`available`) and I have it on; off by default, it is not
+there, nor when the switch cannot be read.
+O2  On, it reads the signed words with ""Turn off""; Turn off asks first,
+""Turn off matching by how you speak?"", ""We delete what Will learned
+from how you speak. Your buddies stay."", and sends nothing until
+confirmed; Cancel leaves it on.
+O3  Confirmed, the backend is told to turn it off, and only once it has
+the card says ""Off. We deleted what Will learned from how you
+speak."" with ""Turn on"", which turns it back on.
+O4  A turn-off the backend could not finish says so and leaves it on.","O1 -> ""the card is there only when matching by how you speak is available and on""
+O2 -> ""Turn off asks first in the signed words, and Cancel leaves it on""
+O3 -> ""Turn off deletes what Will learned, says so, and Turn on turns it back on""
+O4 -> ""a turn-off that fails says so and leaves it on""","Founder, 4 November 2026, N463 item 2 (opt-in, off by default) and N465 items 1 and 2 (the Settings card, signed as drawn on the prototype's screen 5); 9 November 2026, N559 item 6 (the off switch, built before the speaking part is switched on); App Model MATCH-11; backend #1861 (GET/POST /v2/me/speaking-match)."
 src/components/account/TrainingConsentCard.test.tsx,Story,"As a speaker, I want the training switch hidden until offered, off by default, and turned off only after a signed confirm, so that training uses my moments only with my yes (consent).","O1  Nobody sees the switch while the backend keeps it closed, has no
 policy sentence, or cannot be read; the page is told it is not offered.
 O2  Offered, it shows the backend's sentence under the signed title, off
@@ -417,11 +431,18 @@ it on.
 O2  The line under my latest Take opens the screen with my choice ticked
 (and not my recording's feedback); Continue shares that Take as I
 now chose, stamped with the words I saw, and its line says the new
-choice; ""Only me"" takes it back from every community.","O3 -> ""with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once""
+choice; ""Only me"" takes it back from every community.
+O6  With sending on, opened for a Take, my own chats come best fit first:
+the person who can best answer this Take is first, by the matcher's
+order of chats, the others after in the list's order; ""Last sent""
+stays under the name of whoever I sent to last and everyone stays
+ticked; no score is shown. If the order cannot be read, the list
+keeps its own order (N559 item 2, App Model MATCH-07).","O3 -> ""with sending on, everyone is ticked, Select all unticks all, and the one ticked gets the next Take once""
 O4 -> ""with sending on, a sent Take's line opens the screen to add people, never to unsend""
 O5 -> ""with sending on, a failed send from a Take's line keeps the screen and says so; Continue again sends it""
+O6 -> ""with sending on, my own chats come best fit first for this Take, and keep their order when it cannot be read""
 O1 -> ""starts with nothing ticked; Continue waits for a choice, Only me counts""
-O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O3, O4: founder 2026-11-04, backend N470 (#1702) and N479 (#1704), the prototype ""Specialist Side"" tab 1. O5: founder 2026-11-06, backend N541 (""Fix both""), for N470 item 8. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
+O2 -> ""the latest Take's line opens the screen ticked as it stands, and a change re-stamps that Take""","O6: founder 2026-11-09, backend N559 item 2 (""Rank my chats""), #1861. O3, O4: founder 2026-11-04, backend N470 (#1702) and N479 (#1704), the prototype ""Specialist Side"" tab 1. O5: founder 2026-11-06, backend N541 (""Fix both""), for N470 item 8. O1, O2 (sending off): founder 2026-10-15 (Privacy 3.6 section 4d). O2: founder 2026-10-31, backend N309 item 5; G4 (each Take stamped and revocable)."
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
@@ -562,6 +583,11 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/chats/InquiryThread.test.tsx,Story,"As someone suggested for a Take, I want ""Read it"" in the asking chat to open the Take's words under its player, one paragraph per slide, so that I can read what the speaker said before I answer.","O1  Before ""Open Take"" the asking chat shows no words and no ""Read it"";
+after it, the Take's player with ""Read it"" under it, its words
+closed; ""Read it"" opens them under the player, one paragraph per
+slide, and ""Hide"" closes them (App Model MATCH-13; N331, N576
+item 1).","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""","Founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
 photos and files we shared; with none, ""No photos yet."" and ""No files
 yet.""; no pencil and no Edit.

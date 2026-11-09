@@ -384,6 +384,28 @@ the only way in.
   N507 item 2 is the founder's OK for this one row. The screen it opens:
   [`principles.md`](principles.md) T.
 
+### Amended 2026-11-09: "Matching by how you speak" (backend N465, N559 item 6)
+
+- **One card on the Settings page** (`SpeakingMatchCard.tsx`), after
+  Personal answers in your plan, as the signed prototype
+  <https://claude.ai/artifact/CKYJznNCva7EPmHtCkNQMS> draws it (screen 5;
+  N465 item 2 joins it to this page): **Matching by how you speak**, "On.
+  Will uses your pace, your pauses and how you build an answer to choose
+  your practice buddies. Nobody sees it, you included." and **Turn off**.
+  Turn off asks first in the card: **Turn off matching by how you speak?**,
+  "We delete what Will learned from how you speak. Your buddies stay.",
+  **Cancel** and **Turn off**. Once the backend has turned it off and
+  deleted what Will learned from how they speak (their chats, Takes and
+  feedback stay), "Off. We deleted what Will learned from how you speak."
+  and **Turn on**. A failure says the page's own "Couldn’t save that. Try again."
+  and leaves it as it was. Every word is N465's, signed.
+- **Shown only** while matching by how people speak is switched on at all
+  (`GET /v2/me/speaking-match` answers `available: true`, the backend's
+  `TAKE_MATCH_SKILLS`) and the person has it on, or has just turned it off
+  here. Off by default (N463 item 2): someone who never said yes sees no
+  card, because the signed off line says something was deleted; a line for
+  them waits for the founder's words (§3).
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -392,6 +414,14 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 - **One "Messages" place** · on Data & consent: WhatsApp on or off with the number, email on or off, practice reminders on or off with their time, in place of the WhatsApp card, the email's unsubscribe links and the reminder in "Change your plan" · Data & consent · decided (backend N189), drawn later (backend N338 item 4) · BE #1360
 
 ## 3. Still open
+
+- **The card for someone who never turned it on.** "Matching by how you
+  speak" shows only to someone who has it on (or just turned it off): the
+  signed off line, "Off. We deleted what Will learned from how you speak.",
+  is untrue for someone who never said yes. Drafted for the founder's OK
+  (Never 4): "Off. Will doesn't use how you speak to choose your practice
+  buddies." with "Turn on". Until then the opt-in is the ask in Will's chat
+  (N465 item 1), not built.
 
 - **§1 in the present tense.** §1 is the lock as written, with its amendments after it. The next change to
   this screen rewrites the part it touches in the present tense, the way the walk's page did (backend N107).
@@ -435,11 +465,13 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/MVyWmdoWUqisttfkW8qb8D>
 - <https://claude.ai/artifact/VqrCoZ3ddRkkiSayMfnTJp>
 - <https://claude.ai/artifact/HSELYXuS99xctnHRVBo1e4>
+- <https://claude.ai/artifact/CKYJznNCva7EPmHtCkNQMS>
 
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N465, N559 item 6 · §1: the signed card "Matching by how you speak" after Personal answers in your plan: On with Turn off, the ask in the card, Off with Turn on; Turn off deletes what Will learned from how you speak (`SpeakingMatchCard.tsx`, `getSpeakingMatch`/`setSpeakingMatch` in `takeMatches.ts`, BFF `/api/v2/me/speaking-match`). Shown only while `available` and on; nobody sees it today (`TAKE_MATCH_SKILLS` unset) · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N401 items 6, 7 · the sign-up and sign-in pages: "Microsoft" beside Google under "or" (Supabase's Azure provider, asking for the email; the one restart on a refused replay, as the others), the four small buttons two by two; hidden until the founder turns the Azure provider on in Supabase and sets `NEXT_PUBLIC_MICROSOFT_SIGNIN=on` on Vercel (`MicrosoftAuthButton.tsx`, `OtherWays.tsx`). The backend calls it "Microsoft" · BE (Microsoft name), FE (this PR)
 - 2026-11-05 · N567 · §1 the ☰ menu: Copy my link opens "Add someone to chat with", the sheet the list's "+" opens, with its switch for the website (customer-requests.md B8). Was: it copied the link at once and said "✓ Copied" (N367) · BE, FE (this PR)
 - 2026-11-06 · N540 item 1 · The Data & consent row "Open to the dump screen" shows only in the iPhone app; a browser has no dump screen, so no row (`DumpScreenCard.tsx`). Its words are unchanged · BE N540 (#1797), FE (this PR)
