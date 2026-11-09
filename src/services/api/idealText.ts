@@ -290,6 +290,10 @@ export interface DocumentSuggestion {
    *  N548): a walk that cannot draw it walks the same moment's AI clip. A
    *  flag, never a score. */
   voiceToo?: boolean;
+  /** A good Take (backend N551): no fix, and no moment below the floor; on
+   *  their best's row. The walk says "Nothing to fix this time." A flag,
+   *  never a score. */
+  nothingToFix?: boolean;
   /** On a plan, the moment where this week's level shows most (backend
    *  G7, N209): the level's key, a word, never a score. */
   planLevel?: string | null;
@@ -789,6 +793,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     walkSlot: readEnum(record.walk_slot, WALK_SLOTS),
     oneFix: readEnum(record.one_fix, ONE_FIXES),
     voiceToo: record.voice_too === true,
+    nothingToFix: record.nothing_to_fix === true,
     planLevel: readNonEmptyString(record.plan_level),
     praiseReason: readPraiseReason(record.praise_reason),
     practicePrompt: record.practice_prompt === true,

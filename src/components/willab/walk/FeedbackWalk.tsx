@@ -640,6 +640,17 @@ export default function FeedbackWalk<R = unknown>({
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, tempo]);
+  // "Nothing to fix this time." (backend N551): told to the chat once, as a
+  // good Take's walk reaches its helper words.
+  const toldClear = useRef(new Set<number>());
+  useEffect(() => {
+    if (seq === null || !step || step.replay || !step.clear || toldClear.current.has(seq)) return;
+    toldClear.current.add(seq);
+    const said: WalkStep = { key: "one" };
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, ONE_THING_COPY.nothingToFix);
+    // Once per opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, step]);
   // The line between moments and after the last (N285): told to the chat
   // once, before the step it leads into; never for a step played again.
   const toldLead = useRef(new Set<string>());
@@ -2208,6 +2219,14 @@ function renderThread<R>(
         <div key="one" data-walk-one className="contents">
           <WalkMessage>
             <span>{ONE_THING_COPY.one}</span>
+          </WalkMessage>
+        </div>
+      ) : null,
+      // A good Take: no fix, so it says so where the fix would be (N551).
+      opener?.clear ? (
+        <div key="clear" data-walk-clear className="contents">
+          <WalkMessage>
+            <span>{ONE_THING_COPY.nothingToFix}</span>
           </WalkMessage>
         </div>
       ) : null,

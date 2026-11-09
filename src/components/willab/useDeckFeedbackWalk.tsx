@@ -467,6 +467,8 @@ function walkItemOf(
           oneFix: item.oneFix ?? null,
           // Its AI clip stands behind its Clearer version (backend N548).
           voiceToo: item.voiceToo === true,
+          // A good Take: nothing to fix (backend N551).
+          nothingToFix: item.nothingToFix === true,
         }
       : {}),
     openCard: item.openCard ?? null,

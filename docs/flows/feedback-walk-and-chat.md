@@ -390,7 +390,11 @@ step; the loop never waits for a coach.
   Take 1 "Hi {name}, great to meet you!" (N120), which a Take served before
   N289 still says.
 - **C0a Last time** (N309 item 1; every fix, the pace game too, N347 item
-  3). When last Take's fix rose on this Take (backend
+  3). The last Take's fix is one the walk opened on screen, named by what
+  it showed (a Clearer version, or the voice Exercise its lost Clearer
+  version gave its place to); a fix the speaker never saw is never named
+  (backend `take_progress.walk_gave`, the walk's "opened" moment events).
+  When last Take's fix rose on this Take (backend
   `take_progress.last_fix`, route `GET
   /v2/explore/arc/<arc>/review/last-fix/<take>`): "Last time: {the tip}.
   You did." under the hello, with this Take's best clip on that slide as
@@ -463,8 +467,11 @@ step; the loop never waits for a coach.
   gate (C5), else its AI clip after their best (C4). Only a Take where no
   moment's voice shows a problem gives the fix to the moment whose words
   need help most, with its Clearer version (C5); with none that passes, no
-  moment is the fix and the walk can end with their best alone (N381);
-  then, when the Take's least confident moment reads below the floor, no
+  moment is the fix and the walk can end with their best alone (N381):
+  on a good Take, no moment below the floor, "Nothing to fix this time."
+  where "And now, one thing to improve:" would be, before the helper words
+  (N551; backend `nothing_to_fix` on their best's row,
+  `ONE_THING_COPY.nothingToFix`); then, when the Take's least confident moment reads below the floor, no
   tool we have reaches it and it goes to a coach, blind, as a moment to
   judge; the speaker sees nothing new, and a coach's answer comes back on
   its own screen (N550; backend `moment_pick.unfixed`,
@@ -1820,7 +1827,8 @@ October (backend N111).
   “{words}” more room." (the pace game's, signed 2026-11-02, N347 item 3,
   `paceTip`), "This was your most
   confident moment.", "Why it worked: {the moment's signed cue line}",
-  "And now, one thing to improve:", "Say it straight:", "Say this one like
+  "And now, one thing to improve:", "Nothing to fix this time." (N551),
+  "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your
   confident moment" (the chip, N379), "Try it", "Keep mine", "Your words
   it is." (N435), "You rushed here. Let it breathe." (N435), "You slowed
@@ -2333,6 +2341,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N551 · C2, K: a good Take (no fix, no moment below the floor) says "Nothing to fix this time." where "And now, one thing to improve:" would be, before the helper words, and the chat says it once; the coach case (N550) and a lost fix stay silent (`oneThing` in `walkPlan.ts`, `clear` on the words step, `FeedbackWalk.tsx`, `ONE_THING_COPY.nothingToFix`; backend `nothing_to_fix`). What stops: a good Take ending in a silence that reads like nothing was found · BE N551 (wilplus/backend-cursor#1819), FE (this PR)
+- 2026-11-09 · N309, N359 · C0a: "Last time" names only a fix the walk opened on screen, by what it showed; a fix the speaker never saw is never named, and the Takes table shows no fix for a walk never opened (backend `take_progress.walk_gave`). No new words. What stops: "Last time" naming a fix the server chose but the speaker never met · BE wilplus/backend-cursor#1817, FE (this PR)
 - 2026-11-09 · N550 · C2: a walk with no fix sends the Take's least confident moment to a coach, blind, when it reads below the floor (no tool reaches it); a good Take sends nothing. The speaker sees nothing new. Stored as raised at the open, its trace naming it (`fix_without_tool`). What stops: a weak moment no tool reaches going nowhere, unseen by a coach · BE N550 (wilplus/backend-cursor#1814), FE (this PR)
 - 2026-11-09 · N548 · C2: a Clearer version the walk cannot draw is no Clearer version to the walk's plan either, so the fix falls to the same moment's AI clip (`voice_too`) or to none, never to a Clearer version screen the walk then drops; the voice fix's practice opens on the picker's own clip (the Confident Voice row), not the rewrite's, so its AI clip is made on the clip that was measured (`buildFeedbackWalk`, `practiseItem` in `feedbackWalkModel.ts`). The server makes a moment the AI clip's fix only when its clip can be made (backend `_voice_problem`, wilplus/backend-cursor#1813). No new words. What stops: the fix vanishing when its Clearer version could not be drawn, and an AI clip asked for on a clip the picker did not measure · BE #1813, FE (this PR)
 - 2026-11-09 · N548 · C2, K: one fix, on one moment, its tool by the kind of its weakness. The fix is the weakest (its voice shows the problem the AI clip teaches): its Clearer version first when its words need help too, else its AI clip; the moment whose words need help most is the fix only when no moment's voice shows a problem. A Clearer version the walk cannot draw gives its place to the same moment's AI clip when the server flags `voice_too`, else no fix (`oneThing` in `walkPlan.ts`, `voiceToo`). Words retired: "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." What stops: a fix on a moment chosen for its words while a weaker voice went unfixed, the closest exercise, and an AI clip asked for a moment whose voice had nothing to teach · BE N548, FE (this PR)
