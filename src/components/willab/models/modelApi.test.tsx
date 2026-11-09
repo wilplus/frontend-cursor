@@ -390,7 +390,7 @@ describe("a model's API and money (MOD-39 to MOD-48, MOD-51)", () => {
     await tap("Download the data");
     expect(bff.calls.some((c) => c.path.endsWith("/pitch/download?rows=1"))).toBe(true);
     const saved = JSON.parse(await made[0].text());
-    expect(saved[0].teacher).toMatch(/^teacher-/);
+    expect(saved[0]).toMatchObject({ example: 1, teacher: 1 });
     expect(Object.keys(saved[0])).not.toContain("content");
   });
 
