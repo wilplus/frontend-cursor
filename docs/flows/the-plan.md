@@ -658,10 +658,38 @@ Waiting for the founder's OK:
     with the plan's topic, its slides the project's new slides from Take 2
     (N257), so its recording screen says "Take 2 · Slide 1 of 3"; the
     set-up's slides step says "Skip for now" when no slides were added.
-  - Next: Take 1's processing as a row on top of Will's chat
-    with the checks during it (N401 item 3); "Here's how others will see
-    you" (N400); the team's question and the agreement; the personal
-    questions and a guest's first Take, once decided.
+  - Built (backend #1854, FE this PR; N453, N564 item 1, N572, N573,
+    N590, N592): the speaking way in while Take 1 is processed, in Will's
+    chat only (the calls name the speaking chat, N590). Take 1's wait is a
+    thin row on top of the chat ("Processing your recording") in place of
+    the full wait; it turns orange, "Your feedback is ready.", and a tap
+    opens the walk, which no longer opens by itself for that Take (N453
+    items 1 and 7). Meanwhile the app asks the backend for the beats
+    (`POST /v2/plan/way-in`, every few seconds while it waits on the
+    Take, each call idempotent) and draws them from `metadata.way_in`:
+    "While your feedback is being prepared, check what I heard."; "Here's
+    how others will see you:" and the card (the name, the role, About,
+    "Ask about {topic}") with "That's right" and "Change it", "Tell me what
+    to change." answered out loud ("Record your answer"); "What would you
+    like to do here first?" with "Something else" (it opens the box),
+    "Learn from others", "Share what I know", "Prepare a talk", several,
+    then "Send" in the bar's middle; "When is it?" with "Pick a date" and
+    "No date yet"; the questions for people who join as their own rows;
+    the plan card; "Do you accept it?" with "I agree"; one "You're set.",
+    for sharers with "Copy my link ›" and "Your questions for people who
+    join ›"; then one bubble by state, "Your feedback is almost ready. It
+    will appear at the top of this chat." or "Your feedback is ready."
+    with "Open your feedback ›", and after the walk one by the choice,
+    "Tell me what you'd like to do, and I'll show you where." answered by
+    typing. "Record Take 2" stays faded until the walk is done
+    (`plan.way_in.record_next`). The plan's own questions stand down while
+    the way in runs, so nobody is asked "When is your deadline?".
+  - Next: the facts the app knows for the tree (a team, a speaking
+    coach's link, N572 item 1) are not sent yet, so the backend takes
+    neither (no agreement for a team, no coach's own way); the after-walk
+    bubble for sharers does not open the setup chat yet (N578 item 4);
+    "Something else" after the walk is typed, not yet spoken; the
+    personal questions and a guest's first Take, once decided.
 - **The plan** · all of §1 · decided from 24 October 2026 (N129 onward;
   the latest are in §6), drawn on the prototype (§5) · the build plan:
   <https://claude.ai/artifact/5wuXkBNDctRcbxYs9V7R8A>
@@ -746,8 +774,12 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
   small month grid (`MonthGrid.tsx`), the card (`PlanCard.tsx`, which
   reads the calls' ring row `plan_calls`, N315), the rows in
   the thread (`PlanRows.tsx`), the two sheets (`PlanSheet.tsx`), the voice
-  player and the hook the Lounge calls (`usePlanLounge.tsx`).
-- `src/lib/willab/planCopy.ts`: the words the app draws itself.
+  player and the hook the Lounge calls (`usePlanLounge.tsx`), and the
+  speaking way in (`WayIn.tsx`: its rows, its taps, "Send", the thin row
+  on top while Take 1 is processed, and `useWayIn`, which asks the backend).
+- `src/lib/willab/planCopy.ts`: the words the app draws itself;
+  `src/lib/willab/wayIn.ts`: the way in read from its rows and the plan's
+  `way_in` (what waits, when to ask again, "Record Take 2" faded).
 - `src/services/api/plan.ts` and `src/app/api/v2/plan/`: the calls to the
   backend's `/v2/plan` (backend `services/plan.py`, `services/plan_flow.py`).
 - The plan's own yes: `src/components/legal/PlanReadMore.tsx` (Read more),
@@ -804,6 +836,8 @@ The design is the prototype; the newest wins where two disagree.
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-09 · N453, N564, N572, N573, N590, N592 · §2, §4: the speaking way in while Take 1 is processed, drawn from the backend's rows (`metadata.way_in`) through `POST /api/v2/plan/way-in` and its spoken twin `/api/v2/plan/way-in/voice` (`plan/WayIn.tsx`, `lib/willab/wayIn.ts`, `usePlanLounge`, `Lounge.tsx`); Take 1's wait is the thin row on top, orange when the walk is ready, and the walk waits for the tap; "Record Take 2" faded until the walk is done; `PickRow` moves beside `TapRow` (`WillQuestion.tsx`). What stops: for Take 1 on the way in, the full wait after the hand-over and the walk opening by itself; the plan's own questions while the way in runs. No new words: every line is the backend's · BE #1854, FE (this PR)
 
 - 2026-11-06 · N538 · D1, H2: on a plan made from Takes or "Keep practising", "Two quick taps before your plan." ends on "You're all set. Here's your plan." and the card, the plan not begun again; a new project's first Take asks "Is this for {date}?" on such a plan and on one read from the first Take, and after its Yes the ratings it came in place of follow, then the plan. Was: nothing after the second tap, and no question, the ratings in its place and never asked after a Yes. No new words · BE N538 (backend `services/plan_flow.py`, guarded by `tests/test_plan_flow.py` O7, O17), FE (this PR)
 - 2026-11-06 · N537 · G13: a question the plan asks after a Take (its own yes, the ratings, a new project's) comes last, under the goodbye and the plan's bar, right above its answers (backend `after_take.end_rows`). No new words. Was: "Some of my questions are personal…" above "Good job. See you {day}." and the bar, its buttons far below it · BE, FE (this PR)

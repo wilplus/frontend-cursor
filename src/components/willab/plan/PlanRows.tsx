@@ -9,13 +9,14 @@ import PlanCard, { PlanBar, usePlanCallsOn } from "./PlanCard";
 import { VoicePlayer } from "./VoicePlayer";
 import { recordedPast } from "@/components/willab/afterTake";
 import { TypingGlyph } from "@/components/willab/TypingDots";
+import { wayInRowFor, type WayInRowCtx } from "./WayIn";
 
 /* The plan's rows in the Lounge thread (rules: the-plan.md §1 B, E, G, I;
    prototype version 27). The backend writes them as ordinary rows; their
    metadata says how each is drawn. A plan row with plain words is drawn as
    any of Will's bubbles, so it isn't here. */
 
-export type PlanRowCtx = {
+export type PlanRowCtx = WayInRowCtx & {
   plan: Plan | null;
   onSeePlan: () => void;
   onChangePlan: () => void;
@@ -198,6 +199,9 @@ function Card({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
 export function planRowFor(message: LoungeMessage, ctx: PlanRowCtx | undefined): ReactNode | null {
   const meta = (message.metadata ?? {}) as Meta;
   if (!ctx || typeof meta.plan !== "string") return null;
+  // The speaking way in's beats (backend N572, N592): its own drawing, or
+  // any of Will's bubbles.
+  if (typeof meta.way_in === "string") return wayInRowFor(message, ctx);
   if (meta.plan_voice) return <VoiceBubble message={message} />;
   if (meta.plan_answered === "rating") return <LockedAnswer message={message} />;
   if (meta.plan_card) return <Card message={message} ctx={ctx} />;

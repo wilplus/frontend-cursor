@@ -7,7 +7,7 @@ import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
-import { TapRow } from "@/components/willab/WillQuestion";
+import { PickRow, TapRow } from "@/components/willab/WillQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
 import { PLAN_COPY, fmtShort, isoDay } from "@/lib/willab/planCopy";
 import {
@@ -528,31 +528,6 @@ export function setupWaits(messages: readonly ChatMessage[] | null): { message: 
   return null;
 }
 
-/** A question that takes more than one answer (N502 item 3): each tap fills
- *  an answer or empties it, in TapRow's own look; Send is in the bar. */
-function PickRow({ labels, picked, onToggle }: { labels: string[]; picked: string[]; onToggle: (label: string) => void }) {
-  return (
-    <div data-chat-setup-picks="" className="ml-auto flex max-w-[86%] flex-wrap justify-end gap-2 pt-0.5">
-      {labels.map((label) => {
-        const on = picked.includes(label);
-        return (
-          <button
-            key={label}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onToggle(label)}
-            className={`min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-2.5 text-left text-[15px] font-semibold leading-snug ${
-              on ? "bg-primary text-primary-foreground" : "bg-background text-primary"
-            }`}
-          >
-            {label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /** "When do you need to be ready?": the plan's month grid in a sheet, then
  *  Done (N502 item 4), for "Yes" to "Are you in a hurry?". */
 function ReadyBySheet({ onDone, onClose }: { onDone: (day: string) => void; onClose: () => void }) {
@@ -842,7 +817,7 @@ function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, onSent
   const toggle = (label: string) => setPicked((now) => (now.includes(label) ? now.filter((p) => p !== label) : [...now, label]));
   return {
     answers: question.multi ? (
-      <PickRow labels={question.answers} picked={picked} onToggle={toggle} />
+      <PickRow labels={question.answers} picked={picked} onToggle={toggle} dataAttr={{ "data-chat-setup-picks": "" }} />
     ) : (
       <TapRow labels={question.answers} onTap={tap} dataAttr={{ "data-chat-setup": "" }} />
     ),

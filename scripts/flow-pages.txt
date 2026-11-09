@@ -118,3 +118,4 @@ docs/flows/the-plan.md
   src/lib/willab/planCopy.ts
   src/services/api/plan.ts
   src/app/api/v2/plan/
+  src/lib/willab/wayIn.ts

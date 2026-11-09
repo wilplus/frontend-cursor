@@ -27,6 +27,8 @@ import { NOT_NOW } from "@/lib/willab/leaveWords";
 import { newestOneOf, PendingBooked, PendingVoice, type PlanRowCtx } from "./PlanRows";
 import { followNewest } from "@/components/willab/usePinThreadBottom";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
+import { useWayIn } from "./WayIn";
+import { firstTakeWayIn, recordWaits } from "@/lib/willab/wayIn";
 
 /* The plan in the Lounge (rules: docs/flows/the-plan.md; backend
    services/plan_flow.py). One hook the Lounge calls: it reads the plan when
@@ -72,6 +74,20 @@ export type PlanLounge = {
   /** The plan's topic, read from what was said: the real talk's set-up after
    *  the first Take (backend N401 item 4). */
   topic: string | null;
+  /** The speaking way in (backend N572, N573, N592): "Send" for the bar's
+   *  middle while the first choice has picks, else null. */
+  barMiddle: ReactNode;
+  /** The way in waits for typed words: the box stays open. */
+  wordsWait: boolean;
+  /** Typed words for the way in when it waits for them; false otherwise. */
+  say: (words: string) => boolean;
+  /** "Record Take 2" stays faded until Take 1's walk is done (N592 item 3). */
+  recordWaits: boolean;
+  /** The Take being processed is the way in's Take 1: the thin row on top
+   *  of the chat, not the full wait, and the walk waits for a tap (N453). */
+  firstTakeWayIn: boolean;
+  /** The plan says Take 1's walk is ready (backend `walk_ready`). */
+  wayInWalkReady: boolean;
 };
 
 /** How the plan's one button starts a recording: the first Take's five
@@ -131,12 +147,22 @@ export function usePlanLounge({
   setThinking,
   onStartRecording,
   recordHeld,
+  onOpenFeedback,
+  onJoinQuestions,
+  onWords,
 }: {
   signedIn: boolean;
   thread: Thread;
   setThinking: (on: boolean) => void;
   onStartRecording?: (topic: string | null, start?: PlanStart) => void;
+  /** A Take is being processed (or is still landing). */
   recordHeld: boolean;
+  /** "Open your feedback ›" in the way in: Take 1's walk (N592 item 1). */
+  onOpenFeedback?: () => void;
+  /** "Your questions for people who join ›" (N572 item 1). */
+  onJoinQuestions?: () => void;
+  /** "Something else" opens the box for one's own words (N573 item 1). */
+  onWords?: () => void;
 }): PlanLounge {
   const [state, setState] = useState<PlanState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -213,6 +239,13 @@ export function usePlanLounge({
     [reload, setThinking],
   );
 
+  // A plan read in the background (the way in's calls while Take 1 is
+  // processed): kept as `run` keeps one.
+  const apply = useCallback(
+    (got: PlanState) => setState((s) => ({ ...(s ?? got), ...got, plan: got.plan ?? s?.plan ?? null })),
+    [],
+  );
+
   const plan: Plan | null = state?.enabled ? state.plan : null;
   // The recording screens read it: "How do you feel?" before a plan's Takes.
   useEffect(() => rememberPlan(plan), [plan]);
@@ -252,6 +285,16 @@ export function usePlanLounge({
   const kind = dockFor(plan, booking);
   const asks = planAsks(kind);
   const { voice, notNow } = usePlanHear(plan, kind, !busy && sent === null, actions.answer);
+  const way = useWayIn({
+    plan,
+    messages: thread.messages,
+    firstTakeInFlight: recordHeld,
+    busy,
+    run,
+    apply,
+    reload,
+    onWords,
+  });
   // A practice day's one thing, while it holds the chat's one record button
   // and the plan stands nothing else there: "Record Take N" under the chat,
   // alone (N294 item 7, N296 state 4).
@@ -260,7 +303,7 @@ export function usePlanLounge({
   // What stands in for the bar: a call's calendar, the recording bar while
   // an answer is said. Otherwise the bar stays with its one black button,
   // "Start your first recording" included (N483).
-  const replaces = kind === "book" || voice.recording;
+  const replaces = kind === "book" || voice.recording || way.recording;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
@@ -271,6 +314,7 @@ export function usePlanLounge({
     <div className={replaces ? undefined : "mb-2"} data-plan-dock-slot>
       <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
       {voice.bar}
+      {way.voiceBar}
     </div>
   ) : null;
   const sheets = plan ? (
@@ -306,19 +350,25 @@ export function usePlanLounge({
         onSeePlan: () => setSheet("see"),
         onChangePlan: () => setSheet("change"),
         onBook: openBook,
+        onOpenFeedback,
+        onJoinQuestions,
       }
     : undefined;
 
   return {
     dock,
     sheets,
-    asks:
-      plan && asks && !thread.loading ? (
-        <>
-          <PlanAsk plan={plan} busy={busy} booking={booking} actions={actions} onBookNow={openBook} newEventHeld={recordHeld} />
-          {notNow}
-        </>
-      ) : null,
+    asks: (
+      <>
+        {plan && asks && !thread.loading ? (
+          <>
+            <PlanAsk plan={plan} busy={busy} booking={booking} actions={actions} onBookNow={openBook} newEventHeld={recordHeld} />
+            {notNow}
+          </>
+        ) : null}
+        {way.asks}
+      </>
+    ),
     pending: sent ? (
       <PendingVoice src={sent.src} durationMs={sent.ms} />
     ) : bookedLine ? (
@@ -326,7 +376,7 @@ export function usePlanLounge({
     ) : null,
     rows,
     composerDisplay: (base) => (replaces ? "hidden" : base),
-    hear: voice.waiting,
+    hear: voice.waiting ?? way.hear,
     typingOff: asks,
     startFirst: firstStart(plan, actions.startFirst),
     holdsEmpty: signedIn && (state === null || plan !== null),
@@ -334,5 +384,11 @@ export function usePlanLounge({
     one,
     holdsPrinciples: signedIn && (state === null || plan?.onboarding === true),
     topic: plan?.topic ?? null,
+    barMiddle: way.barMiddle,
+    wordsWait: way.wordsWait,
+    say: way.say,
+    recordWaits: recordWaits(plan),
+    firstTakeWayIn: firstTakeWayIn(plan),
+    wayInWalkReady: plan?.way_in?.walk_ready === true,
   };
 }
