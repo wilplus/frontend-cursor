@@ -1031,6 +1031,12 @@ the way on, and the no-number check on the drawn sheet).
 NOT PINNED, on purpose: a weak moment where a problem fired, nothing in
 the library matched, AND a rewrite rides the paragraph. That cell is open
 work (audit 2026-10-05, item 3).",
+src/components/willab/labEntryOpensAtOnce.test.tsx,Story,"As a speaker, I want ""How do you feel?"" on screen the moment I tap ""Record Take N"", so that the next Take never makes me wait on a screen I already passed (founder 2026-11-09, backend N549).","O1  Once this tab has read ""authorized"", the Lab's first screen draws on
+the first render, while the Lab's own read is still out.
+O2  The door still holds: until that read answers the entry is not
+fresh (nothing starts a Take), and a read that says the terms changed
+puts the acceptance flow in front of the screen.","O1 -> ""draws the first screen at once after an earlier authorized read""
+O2 -> ""the fresh read still decides, and can put the acceptance flow in front""",The Lab used to wait for a network read behind a loader before every later Take's first screen.
 src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still uploading, and not be offered that once the server has it, so that a bad Take leaves no trace and I am never promised something that cannot happen.","O1  ""Discard this take"" shows while the upload is in flight.
 O2  Once the server has answered (canDiscard false) it is gone, and the
 waiting screen is still there.

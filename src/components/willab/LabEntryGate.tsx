@@ -7,6 +7,7 @@ import AccountEndedState from "./AccountEndedState";
 import { GateRetry, gateStateFor } from "./Phase1AcceptanceGate";
 import {
   fetchAuthorization,
+  lastAuthorized,
   type AuthorizationStatus,
 } from "@/services/api/processingAuthorization";
 
@@ -26,6 +27,10 @@ import {
 
 export interface LabEntry {
   status: AuthorizationStatus | null;
+  /** This entry's own read has answered. Until then `status` may be the
+   *  tab's last "authorized", so the first screen draws on the tap; nothing
+   *  starts a Take before `fresh`. */
+  fresh: boolean;
   attempt: number;
   readAgain: () => void;
   accepted: () => void;
@@ -34,13 +39,20 @@ export interface LabEntry {
 /** One read per Lab entry, held by the overlay so the three pre-recording
  *  screens share it. */
 export function useLabEntry(): LabEntry {
-  const [status, setStatus] = useState<AuthorizationStatus | null>(null);
+  // A later Take opens on the tab's last "authorized" (founder 2026-11-09:
+  // "make it an instant open of the emotions assessment"); the read below
+  // still runs, and puts the acceptance flow in front if it says otherwise.
+  const [status, setStatus] = useState<AuthorizationStatus | null>(lastAuthorized);
+  const [fresh, setFresh] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    setStatus(null);
+    setFresh(false);
+    if (attempt > 0) setStatus(null);
     void fetchAuthorization().then((next) => {
-      if (active) setStatus(next);
+      if (!active) return;
+      setStatus(next);
+      setFresh(true);
     });
     return () => {
       active = false;
@@ -54,7 +66,7 @@ export function useLabEntry(): LabEntry {
       ),
     [],
   );
-  return { status, attempt, readAgain, accepted };
+  return { status, fresh, attempt, readAgain, accepted };
 }
 
 export function LabEntryGate({ entry, children }: { entry: LabEntry; children?: ReactNode }) {

@@ -15,12 +15,21 @@ import { readSession } from "@/lib/supabase/session";
 /*  Tracks `onAuthStateChange` so a sign-in mid-session flips it live.         */
 /* -------------------------------------------------------------------------- */
 
-export function useSignedIn(): boolean | null {
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+/* What the probe last found in this tab, for a screen that opens on it. */
+let lastKnown: boolean | null = null;
+
+/** `fromLast`: start from what this tab last found rather than null, so a
+ *  screen opened again draws at once (the probe still runs and corrects it). */
+export function useSignedIn(fromLast = false): boolean | null {
+  const [signedIn, setSignedInState] = useState<boolean | null>(() => (fromLast ? lastKnown : null));
 
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+    const setSignedIn = (value: boolean) => {
+      lastKnown = value;
+      setSignedInState(value);
+    };
 
     readSession()
       .then((session) => {
