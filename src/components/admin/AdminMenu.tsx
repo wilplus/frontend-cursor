@@ -24,9 +24,6 @@ type Item = [href: string, label: string, Icon: typeof Home];
 const GROUPS: [string, Item[]][] = [
   ["Overview", [
     ["/admin/ceo", "CEO", Home],
-    // The training corpus, from the CEO panel's button (backend N511). It
-    // took the Roadmap's place in the menu (founder, 2026-11-04).
-    ["/admin/training-corpus", "Training corpus", AudioLines],
   ]],
   ["People", [
     ["/admin/users", "Users", Users],
@@ -43,6 +40,9 @@ const GROUPS: [string, Item[]][] = [
   ]],
   ["Data", [
     ["/admin/project-deletions", "Project deletions", Trash2],
+    // The training corpus, under Data beside Project deletions (backend N511
+    // item 1; it had sat under Overview with no decision logged).
+    ["/admin/training-corpus", "Training corpus", AudioLines],
   ]],
 ];
 
