@@ -120,7 +120,7 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
    moment. A note that cannot leave the phone waits there under a small
    clock and goes the next time the app is open with a connection, once
    (the app names each note, and the backend keeps a name once). It goes
-   only under the person who said it (N560): another person signed in on
+   only under the person who said it (N562): another person signed in on
    the same phone neither sees nor sends it, and a sign-in never deletes
    it. A note saved before notes named their owner goes only under a
    sign-in that began before it was said, and otherwise waits, with no
@@ -636,7 +636,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-09 · N560 · B4: whose note it is, what becomes of a note saved before notes named their owner, and which refusals keep a note, built in FE #1312, are the founder's decision now and written into B4. Was: only the line below, citing N194 · BE (N560), FE (this PR)
+- 2026-11-09 · N562 · B4: whose note it is, what becomes of a note saved before notes named their owner, and which refusals keep a note, built in FE #1312, are the founder's decision now and written into B4. Was: only the line below, citing N194 · BE (N562, #1821), FE (this PR)
 - 2026-11-09 · N194 item 3 · B4, T1: a note left on the phone (the dump screen's and the notebook's) goes only under the person who said it: each note is kept with whose it is, and another person signed in on the same phone neither sees nor sends it; it stays there for its owner and is never deleted on a sign-in. A note left before this names nobody: it goes only under a sign-in that began before it was said (then no one else can have been signed in since), and otherwise waits. A refusal that can change keeps the note on the phone: a sign-in run out (401), a policy update to accept (403), the notebook's Yes not given (409); it goes after the next sign-in or the Accept. Only no audio (400), no notebook (404), too long (413) and no words heard (422) throw it away. A note counts as kept on the phone once its write is complete. No new words on screen. Was: every note waiting went under whoever was signed in, and any refusal but 429 threw it away · FE (this PR)
 - 2026-11-06 · N540 · T4, T6: the dump screen is the iPhone app's only: in a browser it never opens (not first, not by the pull) and Data & consent hides its switch; in the app it never opens first while anything is open over the chat (a recording, the wait, the Ideal Text, the walk, any sheet) and waits for the next open. Was: built on the web for every device (N506, N507), opening first over whatever was on screen (N522) · BE N540 (#1797), FE (this PR)
 - 2026-11-05 · N506 item 5 · T6: when the iPhone app's native dump screen has sent a dump, Will's chat reads the thread at once, so "Noted." shows without waiting. Was: it showed at the chat's next reload · FE (this PR)
