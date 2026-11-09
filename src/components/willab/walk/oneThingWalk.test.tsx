@@ -13,6 +13,7 @@ OUTCOME
   O9  With practice off there is nothing to try: Next on the fix posts nothing and the walk says nothing about skipping; a try that could not be checked keeps "Try it" with Skip while a try is left (backend N440).
   O11 When the fix the server chose comes without its Clearer version and its voice shows a problem too, the walk gives that same moment's AI clip after my best: "Say this one like your confident moment:", practised on the clip the picker measured (backend N548; was the closest exercise, N536).
   O12 A good Take (no fix, nothing below the floor) says "The rest of this Take held up just as well." where the fix would be, before my helper words; a walk with no fix that the server does not call good says nothing new (backend N551, N550).
+  O13 Their best is praised as how it sounded to us, never as a verdict: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", in turn. When the walk_voice ring reaches me, Will's own written words take their place, with the typing dots while they come, and the signed lines when they don't (backend N565).
   O8  The thread shows no slide names, the bar does; after "Keep mine" the walk says "Your words it is." and my helper words leave out the hesitations my sentence opens with; the Sniper opens with "You rushed here. Let it breathe." in the scale's bubble and the bar names its slide (backend N435).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
@@ -41,6 +42,7 @@ PROVES   O1 -> walks hello, their best and why it worked, then one thing to impr
                 the Sniper's try lands after a short beat, then Will's line after the dots, under the scale, which never lands again (B7, N440)
          O11 -> the fix the server chose without its Clearer version is its own AI clip when its voice shows a problem too
          O12 -> a good Take says there is nothing to fix this time, before my helper words
+         O13 -> their best is praised as how it sounded to us, in Will's own words when his voice is on
          O9 -> with practice off, Next on the fix posts nothing and says nothing about skipping,
                a try that could not be checked keeps Try it with Skip
 WHY      Founder 2026-10-31 (backend N309: "apply to it the one thing walk but only the walk only untill the moment that lesson done; message to close the walk NOT to record next take"; "ok, this finally good"); 2026-11-02 ("please implement"; backend N323: "you can allow helper words to be longer than 8 words"); 2026-11-03 (backend N374: a walk with no fix left no helper words; "go with the recommendations"); 2026-11-03 ("so it really matches the design and the prototype": the clips' words, prototype X4gDmGfHH7ivuoRZ9ufiy9); 2026-11-03 (backend N435, on the prototype beside the app: "remove the skip - cause trash acts like a skip", "rest is fien do it"); 2026-11-03 (backend N440, the walk's run-through: "fix 1 to 9 and 11").
@@ -56,6 +58,10 @@ vi.mock("@/services/api/otherSpeakers", () => ({
 }));
 import { fetchOtherClips } from "@/services/api/otherSpeakers";
 /** The Sniper's microphone, open and silent: a try reads as slow, never lands. */
+vi.mock("@/services/api/walkVoice", () => ({ askWalkVoice: vi.fn(async () => null) }));
+import { askWalkVoice } from "@/services/api/walkVoice";
+import { resetWalkVoice } from "./useWalkVoice";
+import { bestLine } from "@/lib/willab/walkLines";
 vi.mock("@/lib/willab/pace/paceMic", () => ({
   startPaceMic: vi.fn(async () => ({ meter: {}, voiceLike: () => 0, stop: () => undefined })),
 }));
@@ -172,7 +178,7 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-hello]")!.textContent).toBe("Hi Maya.");
     expect(screen()).toBe("walk-screen-praise");
     expect([...now()!.querySelectorAll("[data-walk-best]")].map((n) => n.textContent)).toEqual([
-      ONE_THING_COPY.best,
+      bestLine("p1"),
       "Why it worked: smooth and steady, no stumbling. That sounded confident!",
     ]);
     // Nothing to practise on their best: Next.
@@ -380,6 +386,36 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-helper-words]")!.textContent).toBe(best);
     expect(props.onSaveHelperWords).toHaveBeenCalledWith(expect.objectContaining({ partId: "p1", auto: true, span: expect.objectContaining({ text: best }) }));
     expect(screen()).toBe("walk-screen-done");
+  });
+
+  it("their best is praised as how it sounded to us, in Will's own words when his voice is on", async () => {
+    const written = "To us, \"matches every transaction\" sounded calm and sure.";
+    const items: FeedbackWalkItem<string>[] = [{ ...ITEMS[0], clip: { ...ITEMS[0].clip!, snippetId: "s1" } }, ITEMS[1]];
+    const model = buildFeedbackWalk<string>({ items, coachNote: false, practiceOn: true, guest: false, judge: false });
+    const best = () => [...now()!.querySelectorAll("[data-walk-best]")].map((n) => n.textContent);
+    // His voice off (the default): the signed lines, "to us" or "to our ears".
+    draw({ seq: 1, at: at("praise") }, { model, takeId: "t1" });
+    expect(best()[0]).toMatch(/^To (our ears|us), this one sounded really sure\.$/);
+    expect(vi.mocked(askWalkVoice)).not.toHaveBeenCalled();
+    // On: the dots while Will writes, then his words, once.
+    resetWalkVoice();
+    let answer: (text: string | null) => void = () => {};
+    vi.mocked(askWalkVoice).mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 2, at: at("praise") }, { model, takeId: "t1", walkVoiceOn: true });
+    expect(now()!.querySelector("[data-walk-typing]")).not.toBeNull();
+    await act(async () => answer(written));
+    expect(best()).toEqual([written]);
+    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith("t1", "praise", "s1");
+    // No words came back: the signed lines.
+    resetWalkVoice();
+    vi.mocked(askWalkVoice).mockResolvedValueOnce(null);
+    act(() => root.unmount());
+    root = createRoot(host);
+    draw({ seq: 3, at: at("praise") }, { model, takeId: "t2", walkVoiceOn: true });
+    await settle();
+    expect(best()[0]).toBe(bestLine("p1"));
   });
 
   it("a good Take says there is nothing to fix this time, before my helper words", async () => {

@@ -455,7 +455,10 @@ step; the loop never waits for a coach.
   pass through").
 - **C2 Their best, and one fix** (founder 2026-10-31, N309 item 1). The
   picker still chooses (N289, N293; H1): its strongest is **their best**:
-  the clip with its words, then one bubble, "This was your most confident moment." and
+  the clip with its words, then one bubble, "To our ears, this one sounded
+  really sure." or "To us, this one sounded really sure." (the same for the
+  same moment, `bestLine`; how it sounded to us, never a verdict or a
+  ranking, N565 item 7; was "This was your most confident moment.") and
   "Why it worked: {the moment's signed cue line}" (B01–B09 or the cue's
   sentence, lower-cased after the colon), then Next; nothing to practise,
   no level line (W1–W10) and no reason bubble. Then **one thing to
@@ -1825,8 +1828,8 @@ October (backend N111).
   2026-11-02; `ONE_THING_COPY`, `idealEditCopy.ts`):** "Hi {name}." (no
   name: "Hi."), "Last time: {the tip}. You did.", "Last time: give
   “{words}” more room." (the pace game's, signed 2026-11-02, N347 item 3,
-  `paceTip`), "This was your most
-  confident moment.", "Why it worked: {the moment's signed cue line}",
+  `paceTip`), "To our ears, this one sounded really sure." and "To us, this
+  one sounded really sure." (N565), "Why it worked: {the moment's signed cue line}",
   "And here's one moment to try another way:", "The rest of this Take held up just as well." (N551, N557),
   "Say it straight:", "Say this one like
   your confident moment:", the tip ending ", like this:", "Your
@@ -2341,6 +2344,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N565 · C2, K: their best is praised as how it sounded to us: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", the same for the same moment (`bestLine`; was "This was your most confident moment."). When the `walk_voice` ring reaches the speaker, Will's own written words for it stand in for that bubble and its "Why it worked", asked as the walk opens (`useBestSaid`, `askWalkVoice`, BFF `/api/v2/walk-voice`), the typing dots while they come (four seconds at most), the signed lines when none come; the chat says what the walk drew. What stops: praise that ranks the speaker ("your most confident moment") · BE N565 (wilplus/backend-cursor#1823), FE (this PR)
 - 2026-11-09 · N557 · C2, K, and every line quoting them: the fix opens with "And here's one moment to try another way:" (was "And now, one thing to improve:"), and a good Take says "The rest of this Take held up just as well." (was "Nothing to fix this time.", N551), so the walk speaks of a moment to try, never of a speaker to fix (`ONE_THING_COPY.one`, `.nothingToFix`). What stops: words that told the speaker something in them was broken · BE N557, FE (this PR)
 - 2026-11-09 · N555 · E1: the lesson price bar ("Artur set a price for you: a 1-on-1 lesson for …" with See times) is the web only, like the promo's: the iPhone app shows no price and no way to buy (N495; `NoticeBar.tsx` `isPriceAsk`). What stops: a price in money, and a button to the booking page and its checkout, inside the iPhone app · BE N555 (#1818), FE (this PR)
 - 2026-11-09 · N551 · C2, K: a good Take (no fix, no moment below the floor) says "Nothing to fix this time." where "And now, one thing to improve:" would be, before the helper words, and the chat says it once; the coach case (N550) and a lost fix stay silent (`oneThing` in `walkPlan.ts`, `clear` on the words step, `FeedbackWalk.tsx`, `ONE_THING_COPY.nothingToFix`; backend `nothing_to_fix`). What stops: a good Take ending in a silence that reads like nothing was found · BE N551 (wilplus/backend-cursor#1819), FE (this PR)

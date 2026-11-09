@@ -8,7 +8,8 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
-import WalkThread, { WalkEdited, WalkLanding, WalkPart, WalkSpeakerBubble, WalkThreadMark, useMountedAsPast, useWalkHeld, useWalkPart } from "./WalkThread";
+import WalkThread, { WalkEdited, WalkLanding, WalkPart, WalkSpeakerBubble, WalkThreadMark, WalkTyping, useMountedAsPast, useWalkHeld, useWalkPart } from "./WalkThread";
+import { useBestSaid, type WalkVoiceSaid } from "./useWalkVoice";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
@@ -161,6 +162,9 @@ type Props<R> = {
   /** The Take's id: other speakers' moments are the server's set for it
    *  (N119). */
   takeId?: string | null;
+  /** Will's written messages reach this speaker (the walk_voice ring, N565):
+   *  null while the ring read is on its way; off by default. */
+  walkVoiceOn?: boolean | null;
   /** A guest known to the caller. Without it the page's guest gate decides
    *  (GuestGateContext), exactly as the Feedback sheet asks it. */
   guest?: boolean;
@@ -368,6 +372,7 @@ export default function FeedbackWalk<R = unknown>({
   firstName = null,
   takeIndex = null,
   takeId = null,
+  walkVoiceOn = false,
   guest = false,
   onGuest,
   onSaveHelperWords,
@@ -446,6 +451,12 @@ export default function FeedbackWalk<R = unknown>({
   }, [seq]);
 
   const plan = walk.plan;
+  // Will's written praise for their best (backend N565), when the
+  // walk_voice ring reaches the speaker: asked as the walk opens, so it is
+  // ready by the time their best is shown.
+  const bestStep = plan.find((s) => s.one && s.key === "praise" && !s.replay);
+  const bestSnippet = bestStep?.moment != null ? (walk.moments[bestStep.moment]?.clip?.snippetId ?? null) : null;
+  const bestSaid = useBestSaid(takeId, bestSnippet, walkVoiceOn);
   const step = plan[at] ?? plan[0];
   const scroll = walk.scroll === true;
 
@@ -674,8 +685,13 @@ export default function FeedbackWalk<R = unknown>({
       reachedRef.current?.(step, moment);
       return;
     }
+    // Their best waits for Will's words, so the chat says what the walk drew
+    // (N565): his message, or the signed lines when there is none.
+    if (step.one && step.key === "praise" && !step.replay && !bestSaid.settled) return;
     const line =
-      step.key === "improved"
+      step.one && step.key === "praise" && !step.replay
+        ? bestSaid.text
+        : step.key === "improved"
         ? improvedLine(plan, at)
         : step.key === "encourage"
           ? encourageLine(plan, at)
@@ -690,9 +706,9 @@ export default function FeedbackWalk<R = unknown>({
       shownRef.current?.(above, moment, (bank) => sayLine(above, bank), null, null);
     }
     shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
-    // aiKey changes when the clip's answer lands.
+    // aiKey changes when the clip's answer lands; bestSaid when Will's words do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seq, step, walk.moments, aiKey]);
+  }, [seq, step, walk.moments, aiKey, bestSaid.settled]);
   // The Exercise's chat bubble (founder 2026-10-20, WIL-89): once the walk
   // knows whether an AI clip is coming (the ask answered, a second or two),
   // even when the speaker already tapped Practise and moved on.
@@ -866,6 +882,7 @@ export default function FeedbackWalk<R = unknown>({
 
   const ctx: ScreenCtx<R> = {
     walk,
+    bestSaid,
     reasons,
     at: (s) => plan.indexOf(s),
     bare: (s) => bare(s, plan.indexOf(s)),
@@ -1108,6 +1125,8 @@ type ScreenCtx<R = unknown> = {
   takeIndex: number | null;
   /** The Take the walk is about: other speakers' set for it (N119). */
   takeId: string | null;
+  /** Will's written praise for their best, or the signed line (N565). */
+  bestSaid: WalkVoiceSaid;
   /** The pill: on to the next step that waits. */
   forward: () => void;
   forwardFrom: (step: WalkStep) => void;
@@ -1357,13 +1376,24 @@ function Best(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
       footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
     >
       <Clip moment={moment} words={saidWords(moment)} />
-      <WalkMessage>
-        {bestBubble(moment).map((line, i) => (
-          <span key={i} data-walk-best={i === 0 ? "" : "why"}>
-            {line}
-          </span>
-        ))}
-      </WalkMessage>
+      {/* Will's own words for it when the walk_voice ring reaches the
+          speaker (N565), the typing dots while they come, else the signed
+          lines. Never swapped in place: the bubble lands once. */}
+      {!ctx.bestSaid.settled ? (
+        <WalkTyping />
+      ) : ctx.bestSaid.text ? (
+        <WalkMessage>
+          <span data-walk-best="written">{ctx.bestSaid.text}</span>
+        </WalkMessage>
+      ) : (
+        <WalkMessage>
+          {bestBubble(moment).map((line, i) => (
+            <span key={i} data-walk-best={i === 0 ? "" : "why"}>
+              {line}
+            </span>
+          ))}
+        </WalkMessage>
+      )}
       <CoachAnswerBubble moment={moment} />
     </WalkOverlay>
   );

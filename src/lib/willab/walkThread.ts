@@ -551,7 +551,8 @@ function oneThingSaid(
   const one = [step];
   switch (step.key) {
     case "praise":
-      return moment ? app(bestBubble(moment).join("\n")) : null;
+      // Will's written praise when the walk drew it (N565), else the signed lines.
+      return moment ? app(line ?? bestBubble(moment).join("\n")) : null;
     case "clearer":
       return moment?.clearer?.say ? app(`${ONE_THING_COPY.sayStraight}\n${moment.clearer.say}`) : null;
     case "exVideo": {
