@@ -313,6 +313,10 @@ export function pickExercise<R>(
 const isPraise = (i: FeedbackWalkItem) =>
   i.openCard === "praise" || i.feedbackFamily === "great_formulation";
 
+/** A rewrite on this item the walk can draw as a Clearer version. */
+const drawable = (i: FeedbackWalkItem<unknown>): boolean =>
+  i.rewrite != null && clearerPieces(i.rewrite.quote, i.rewrite.proposedText) != null;
+
 function clearerOf<R>(group: readonly FeedbackWalkItem<R>[]): FeedbackWalkClearer<R> | null {
   for (const i of group) {
     if (!i.rewrite) continue;
@@ -363,8 +367,13 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     // moment with neither a rewrite nor an exercise is the moment said
     // again (C2, C4), and without an item its step was dropped and the
     // moment vanished from the walk (founder 2026-10-20).
+    // A Clearer version the walk cannot draw leaves the voice fix on the
+    // picker's own clip, the Confident Voice row's (the audit's 4.4): the
+    // AI clip is measured and made on the clip the picker chose, never on
+    // the rewrite's.
     practiseItem:
-      group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ??
+      group.find((i) => i.item != null && ((i.rewrite != null && clearerOf(group) != null) || i.openCard === "coach_request"))?.item ??
+      group.find((i) => i.item != null && i.feedbackFamily === "confident_voice")?.item ??
       group.find((i) => i.item != null)?.item ??
       null,
     exercise: pickExercise(group.flatMap((i) => (i.exercise ? [i.exercise] : []))),
@@ -407,7 +416,10 @@ export function buildFeedbackWalk<R = unknown>(input: {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
   const plan = buildWalkPlan({
-    moments: walkMoments(input.items),
+    // A rewrite the walk cannot draw is no Clearer version to the plan
+    // either, so the fix falls to its voice (`voiceToo`, backend N548) or to
+    // none, never to a Clearer version screen the walk then drops (4.4).
+    moments: walkMoments(input.items.map((i) => (i.hasRewrite && !drawable(i) ? { ...i, hasRewrite: false } : i))),
     coachNote: input.coachNote,
     practiceOn: input.practiceOn,
     guest: input.guest,
