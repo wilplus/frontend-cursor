@@ -8,6 +8,7 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
+import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
   submitLabRecording,
@@ -532,11 +533,21 @@ export default function LabOverlay({
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadCancelRef = useRef<(() => void) | null>(null);
   const [uploadInFlight, setUploadInFlight] = useState(false);
+  /* The last Take the server answered that it has (201 or 202). A new
+     recording is a new Blob, so this never speaks for the next Take. */
+  const [heldBlob, setHeldBlob] = useState<Blob | null>(null);
   // NO PULL-TO-REFRESH WHILE THE TAKE LIVES ONLY IN THIS TAB (founder
   // 2026-10-06: pulling down on the recording screen reloaded it), nor on
   // "Getting your mic ready" before a later Take (founder lock 2026-10-07).
   // Behaviour only: nothing on the screen moves or changes.
   useLabNoPull(state, mic.state.status);
+  // THE BROWSER'S OWN "LEAVE PAGE?" (founder 2026-11-09, backend N553 item
+  // 1): from the first sound until the server has the Take, a refresh or a
+  // close in a browser asks first, in the browser's words. A discard, or
+  // leaving these screens, ends it. Behaviour only: nothing on screen.
+  useLeaveGuard(
+    takeNotYetAccepted({ state, micStatus: mic.state.status, blob, heldBlob }),
+  );
   // "Record Take N" from the text: the recording screens fade in over the
   // text (Q-B14 A, D-RC-7). Paint only — the Take starts exactly as before.
   const recordingEntryFade = useRecordingEntryFade(state);
@@ -835,6 +846,10 @@ export default function LabOverlay({
       // request the server has already answered.
       uploadAbortRef.current = null;
       setUploadInFlight(false);
+      // The moment the server has the Take (N553 item 1): from here a refresh
+      // no longer loses it. Before the guard below, so a run that has lost
+      // interest in the answer still records it.
+      setHeldBlob((held) => (serverHasTake(result) ? blob : held));
       // A DISCARD NEEDS NO BRANCH OF ITS OWN HERE. discardUploadingTake calls
       // the canceller above before it aborts, so this run is already inactive
       // by the time the rejected fetch lands and the existing guard returns.
