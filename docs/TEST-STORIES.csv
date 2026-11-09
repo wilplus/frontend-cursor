@@ -986,6 +986,12 @@ the recording longer.","O1 -> ""is ● Record Take N and a grey Close, the one w
 O2 -> ""asks at Take 2, then records Take 3 at once with the remembered choice""
 O3 -> ""asks again after a community is added or when the words changed""
 O4 -> ""with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take). O4: founder 2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3."
+src/components/willab/idealTextCantLoad.test.tsx,Story,"As a speaker whose Ideal Text could not load, I want the page to try again by itself and give me Try again, so that I never have to close and reopen it to see my words.","O1  The line shows with ""Try again"" under it; the page reads again by
+itself 3 s and 10 s after the failed load, the line staying on screen
+while it reads, and then stops.
+O2  ""Try again"" reads at once, and a tap that fails too starts the two
+tries afresh; a read that answers shows the page.","O1 -> ""reads again by itself at 3 s and 10 s, then stops""
+O2 -> ""Try again reads at once, and an answer shows the page""","Founder 2026-11-09, ""Both"" (backend N552); Never 3."
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions
