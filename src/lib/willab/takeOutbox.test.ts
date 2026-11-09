@@ -16,8 +16,11 @@ OUTCOME
       being deleted, too large, recording consent withdrawn), deletes it.
   O4  Signed in as someone else, or signed out, it is never sent.
   O5  A newer Take of the same project already on the server means the old
-      copy is deleted, not sent; a single later Take with no line yet may be
-      this very one, and goes (the server answers duplicate).
+      copy is deleted, not sent. The server names each Take's upload key, so
+      a later Take with another key is newer, and one with this copy's key is
+      this very Take, which goes (the server answers duplicate). Where the
+      server names no keys, a single later Take with no line yet may be this
+      one, and goes.
   O6  Past 7 days it is deleted, not sent.
   O7  A save the device refuses never stops or delays the upload.
 PROVES   O1 -> "a Take whose answer never came is sent again at the next open, with the same key, and shows as processing"
@@ -287,6 +290,25 @@ describe("a Take kept on the device until the server has it (backend N556)", () 
     await resendKeptTakes(lounge(ANA).deps);
     expect(uploads.map((u) => u.get("upload_idempotency_key"))).toEqual(["key-2"]);
     await settled("key-2");
+
+    // The server names each Take's upload key: a single later Take with
+    // another key is newer, even with no line in this thread (another device).
+    keepTakeAtFinish(finished({ key: "key-3", blob: new Blob(["third"], { type: "audio/webm" }) }));
+    arcs = [{ arc_id: "p-1", takes: [{ session_id: "s-4", take_index: 4, created_at: later, upload_key: "key-laptop" }] }];
+    await resendKeptTakes(lounge(ANA).deps);
+    expect(uploads).toHaveLength(1);
+    expect(await keys()).toEqual([]);
+
+    // One whose key is this copy's is this very Take: it goes, and the server answers duplicate.
+    keepTakeAtFinish(finished({ key: "key-4", blob: new Blob(["fourth"], { type: "audio/webm" }) }));
+    arcs = [{ arc_id: "p-1", takes: [
+      { session_id: "s-4", take_index: 4, created_at: later, upload_key: "key-4" },
+      { session_id: "s-0", take_index: 1, created_at: later, upload_key: null },
+    ] }];
+    uploadAnswer = { status: 200, body: { duplicate: true, session_id: "s-4", project_id: "p-1", arc_id: "p-1" } };
+    await resendKeptTakes(lounge(ANA).deps);
+    expect(uploads.map((u) => u.get("upload_idempotency_key"))).toEqual(["key-2", "key-4"]);
+    await settled("key-4");
 
     // On this phone: a newer Take of the project reached the server, so an older copy goes.
     const older = finished({ key: "key-old", blob: new Blob(["older"], { type: "audio/webm" }) });
