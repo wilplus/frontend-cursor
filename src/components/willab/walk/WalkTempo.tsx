@@ -113,7 +113,7 @@ export default function WalkTempo({
   useEffect(() => {
     if (past) return;
     // Told once what opens its part was told, the parent's own effect after
-    // this one: the chat says "And now, one thing to improve:" first (N309).
+    // this one: the chat says "And here's one moment to try another way:" first (N309).
     let on = true;
     queueMicrotask(() => {
       if (on) tell.current?.({ kind: "opened" });

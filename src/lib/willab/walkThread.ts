@@ -544,7 +544,7 @@ function oneThingSaid(
   line: string | null,
 ): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null | undefined {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
-  // Last time, "And now, one thing to improve:" and the helper words, in
+  // Last time, "And here's one moment to try another way:" and the helper words, in
   // the words the walk drew.
   if (step.key === "last" || step.key === "one" || step.key === "words") return app(line);
   if (!step.one) return undefined;

@@ -291,7 +291,7 @@ export interface DocumentSuggestion {
    *  flag, never a score. */
   voiceToo?: boolean;
   /** A good Take (backend N551): no fix, and no moment below the floor; on
-   *  their best's row. The walk says "Nothing to fix this time." A flag,
+   *  their best's row. The walk says "The rest of this Take held up just as well." A flag,
    *  never a score. */
   nothingToFix?: boolean;
   /** On a plan, the moment where this week's level shows most (backend
