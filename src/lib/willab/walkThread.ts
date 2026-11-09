@@ -933,6 +933,22 @@ export function latestShareLine(messages: readonly LoungeMessage[]): ShareLineCh
   };
 }
 
+/** Will's written words (N565) as the chat kept them for one Take, by the
+ *  key each was asked by (`metadata.walk_voice`, VOICE-18), so a walk played
+ *  again says what it said the first time (N373 item 2). The told row's
+ *  body is the written line itself (`oneThingSaid`). Pure. */
+export function walkVoiceLines(messages: readonly LoungeMessage[], take: string | null): Record<string, string> {
+  const lines: Record<string, string> = {};
+  if (!take) return lines;
+  for (const m of messages) {
+    const meta = m.metadata ?? {};
+    if (m.kind !== "walk_step" || meta.take_session_id !== take || typeof meta.walk_voice !== "string") continue;
+    const body = m.body.trim();
+    if (body) lines[meta.walk_voice] = body;
+  }
+  return lines;
+}
+
 /** The Take's summary as the chat holds it, for the walk to show (D4,
  *  N192): its words, and the words before a coach's note rewrote them
  *  (D5). Null: not written yet. */

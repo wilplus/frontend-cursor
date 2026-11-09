@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { readAiVoiceOnce } from "@/services/api/aiVoice";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { aiVoiceChat, answerBody, coachNoteToChat, fixClipsIn, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { aiVoiceChat, answerBody, coachNoteToChat, fixClipsIn, helperWordsSaid, lastFixTip, momentChat, othersAnswered, othersChat, othersLevelFor, othersOneChat, praiseChat, shownStep, skipReply, sniperWords, storedSummaryOf, tempoSaidIn, walkStepDraft, walkVoiceLines, wordsEditedIn, wordsPickedIn, type WalkAuthor, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
@@ -1182,6 +1182,8 @@ export function useDeckFeedbackWalk(args: {
   // The One thing walk's fix as the chat kept it: its AI clip's practice and
   // its tip, so a walk played again shows them (N373 item 2).
   const fixKept = useMemo(() => (threadMessages && take ? fixClipsIn(threadMessages, take) : null), [threadMessages, take]);
+  // Will's written words as the chat kept them (VOICE-18): said again on replay.
+  const voiceLines = useMemo(() => walkVoiceLines(threadMessages ?? [], take), [threadMessages, take]);
   const [triedByPractice, setTriedByPractice] = useState<Readonly<Record<string, ReplayTries | null>>>({});
   const askedPractices = useRef(new Set<string>());
   useEffect(() => {
@@ -1236,8 +1238,9 @@ export function useDeckFeedbackWalk(args: {
         },
         interventions: replayInterventions,
         judge: judgesOne,
+        lines: voiceLines,
       }),
-    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, fixKept, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne],
+    [replayItems, replayReady, coachMessage, practiceOn, helperWordsOf, triedByPart, triedByPractice, fixKept, args.coachOnly, args.coachWordOnly, replayInterventions, judgesOne, voiceLines],
   );
   /* THE WHOLE TAKE'S WALK AS IT STANDS (founder 2026-10-21, B10: every door
      opens the whole walk, "live while that step waits"): what is answered as
@@ -1744,6 +1747,7 @@ export function useDeckFeedbackWalk(args: {
       line?: string | null,
       fixTip?: string | null,
       phrase?: string | null,
+      voice?: string | null,
     ) => {
       const { coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
@@ -1769,7 +1773,10 @@ export function useDeckFeedbackWalk(args: {
       const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
-      if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
+      // Will's written words keep the key they were asked by, so a replay
+      // says them again (VOICE-18, N373 item 2).
+      const kept = voice && line ? { walk_voice: voice } : {};
+      if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part, ...kept } });
       // The coach's answer on the moment: their bubble in the chat too.
       const answer = moment?.coachAnswer;
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {

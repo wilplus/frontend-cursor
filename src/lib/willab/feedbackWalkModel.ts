@@ -252,6 +252,9 @@ export type FeedbackWalkReplay = {
   answers: Readonly<Record<number, ConfidenceRatingValue>>;
   tries?: Readonly<Record<number, ReplayTries>>;
   clips?: Readonly<Record<number, ReplayFixClip>>;
+  /** Will's written words (N565) as the chat kept them, by the key each was
+   *  asked by (VOICE-18): the replay says them again, never asks anew. */
+  lines?: Readonly<Record<string, string>>;
 };
 
 /** The screens this phase draws (D-FW-14 to D-FW-18, sharing D-FW-20).
@@ -723,6 +726,8 @@ export function buildFeedbackReplay<R = unknown>(input: {
   interventions?: readonly WalkIntervention[];
   /** The One thing walk judged one moment (from Take 2, N309 item 2). */
   judge?: boolean;
+  /** Will's written words the chat kept, by key (walkVoiceLines, VOICE-18). */
+  lines?: Readonly<Record<string, string>>;
 }): FeedbackWalkModel<R> {
   const items = input.items.map((i) =>
     i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
@@ -750,7 +755,7 @@ export function buildFeedbackReplay<R = unknown>(input: {
     const answer = moment.judgeItem != null ? input.answerOf(moment.judgeItem) : null;
     if (answer) answers[moment.index] = answer;
   }
-  return { ...base, plan, replay: { picks, answers, tries, clips: fixClips(plan, base.moments, input.clipOf) }, scroll: true };
+  return { ...base, plan, replay: { picks, answers, tries, clips: fixClips(plan, base.moments, input.clipOf), lines: input.lines ?? {} }, scroll: true };
 }
 
 /** The One thing walk's fixes played again, as the chat kept each one, by

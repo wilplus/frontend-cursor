@@ -232,6 +232,9 @@ type Props<R> = {
     /** The One thing walk's fix: the AI clip's phrase, bold in the chat's
      *  copy of the speaker's words as in the walk (founder 2026-11-03). */
     phrase?: string | null,
+    /** `line` is Will's written words (N565): the key they were asked by,
+     *  kept on the row so a replay says them again (VOICE-18). */
+    voice?: string | null,
   ) => void;
   /** A screen reached the speaker: the host tells the server at once (the
    *  coach's queue, N48.2), before the chat hears what it showed. */
@@ -455,7 +458,7 @@ export default function FeedbackWalk<R = unknown>({
   // Will's written lines (backend N565), when the walk_voice ring reaches
   // the speaker: their best, the moment to try and a good Take's line, asked
   // as the walk opens; his reply after a try, as the walk reaches it.
-  const { bestSaid, fixSaid, clearSaid, trySaid } = useWalkVoices(takeId, plan, walk.moments, step, walkVoiceOn);
+  const { bestSaid, fixSaid, clearSaid, trySaid, keys: voiceKeys } = useWalkVoices(takeId, plan, walk.moments, step, walkVoiceOn, walk.replay?.lines);
   const scroll = walk.scroll === true;
 
   // `how` is kept for the callers; the thread does not slide (2026-10-20).
@@ -647,7 +650,8 @@ export default function FeedbackWalk<R = unknown>({
     if (step.key !== "tempo" && !fixSaid.settled) return;
     toldOne.current.add(seq);
     const said: WalkStep = { key: "one", ...(step.moment != null ? { moment: step.moment } : {}) };
-    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, (step.key !== "tempo" ? fixSaid.text : null) ?? ONE_THING_COPY.one);
+    const written = step.key !== "tempo" ? fixSaid.text : null;
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, written ?? ONE_THING_COPY.one, null, null, written ? voiceKeys.fix : null);
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, tempo, fixSaid.settled]);
@@ -658,7 +662,7 @@ export default function FeedbackWalk<R = unknown>({
     if (seq === null || !step || step.replay || !step.clear || toldClear.current.has(seq) || !clearSaid.settled) return;
     toldClear.current.add(seq);
     const said: WalkStep = { key: "one" };
-    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, clearSaid.text ?? ONE_THING_COPY.nothingToFix);
+    shownRef.current?.(said, null, (bank) => sayLine(said, bank), null, clearSaid.text ?? ONE_THING_COPY.nothingToFix, null, null, clearSaid.text ? voiceKeys.clear : null);
     // Once per opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, clearSaid.settled]);
@@ -696,7 +700,7 @@ export default function FeedbackWalk<R = unknown>({
     if (at === openedAt.current && step.key === "helpers" && above?.key === "praise" && above.moment === step.moment) {
       shownRef.current?.(above, moment, (bank) => sayLine(above, bank), null, null);
     }
-    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line);
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), chatAi(step, at), line, null, null, line ? chatVoice(step, bestSaid, trySaid, voiceKeys.best, afterTryKey(takeId, step, walk.moments)) : null);
     // aiKey changes when the clip's answer lands; bestSaid when Will's words do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, walk.moments, aiKey, bestSaid.settled, trySaid.settled]);
@@ -876,7 +880,7 @@ export default function FeedbackWalk<R = unknown>({
     bestSaid,
     fixSaid,
     clearSaid,
-    trySaid: (s) => (s === step ? trySaid : afterTrySaidNow(takeId, s, walk.moments)),
+    trySaid: (s) => (s === step ? trySaid : afterTrySaidNow(takeId, s, walk.moments, walk.replay?.lines)),
     reasons,
     at: (s) => plan.indexOf(s),
     bare: (s) => bare(s, plan.indexOf(s)),
@@ -1362,6 +1366,14 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
 
 const WAIT = Symbol("wait");
 
+/** The key Will's written words told for `step` were asked by, kept on its
+ *  row so a replay says them again (VOICE-18); null for a signed line. */
+function chatVoice(step: WalkStep, bestSaid: WalkVoiceSaid, trySaid: WalkVoiceSaid, bestKey: string | null, tryKey: string | null): string | null {
+  if (!step.one || step.replay) return null;
+  if (step.key === "praise") return bestSaid.text ? bestKey : null;
+  return AFTER_TRY[step.key] != null && trySaid.text ? tryKey : null;
+}
+
 /** The line the chat records for the step at `at` (D-FW-3): Will's written
  *  words for their best and after a try when he wrote them (N565), WAIT
  *  while they come, else the signed line of a try's answer, else null. */
@@ -1377,32 +1389,56 @@ function chatLine(plan: readonly WalkStep[], at: number, bestSaid: WalkVoiceSaid
   return null;
 }
 
-/** The walk's written lines (N565), each settled with null off the ring. */
+/** The walk's written lines (N565), each settled with null off the ring.
+ *  A line the chat kept for its key (`lines`: a walk played again, VOICE-18,
+ *  N373 item 2) is said again as it was, and nothing is asked anew. `keys`:
+ *  what each line is asked and kept by, for its row in the chat. */
 function useWalkVoices(
   takeId: string | null,
   plan: readonly WalkStep[],
   moments: readonly FeedbackWalkMoment<unknown>[],
   step: WalkStep | undefined,
   voiceOn: boolean | null,
+  lines: Readonly<Record<string, string>> | undefined,
 ) {
   const snippetOf = (s: WalkStep | undefined) => (s?.moment != null ? (moments[s.moment]?.clip?.snippetId ?? null) : null);
-  const bestSnippet = snippetOf(plan.find((s) => s.one && s.key === "praise" && !s.replay));
-  const fixStep = plan.find((s) => s.one && (s.key === "clearer" || s.key === "exVideo") && !s.replay);
+  const keyOf = (kind: string, snippet: string | null) => (takeId && snippet ? `${takeId}:${kind}:${snippet}` : null);
+  const kept = (key: string | null): WalkVoiceSaid | null => (key && lines?.[key] ? { settled: true, text: lines[key] } : null);
+  // Asked only for a step walked now with nothing kept for it.
+  const ask = (key: string | null, live: boolean) => (live && key && !kept(key) ? key : null);
+  const bestStep = plan.find((s) => s.one && s.key === "praise");
+  const bestSnippet = snippetOf(bestStep);
+  const fixStep = plan.find((s) => s.one && (s.key === "clearer" || s.key === "exVideo"));
   const fixSnippet = snippetOf(fixStep);
-  const good = plan.some((s) => s.key === "words" && s.clear && !s.replay);
-  const bestSaid = useBestSaid(takeId, bestSnippet, voiceOn);
+  const goodStep = plan.find((s) => s.key === "words" && s.clear);
+  const keys = {
+    best: keyOf("praise", bestSnippet),
+    fix: keyOf("try", fixSnippet),
+    clear: goodStep ? keyOf("good_take", bestSnippet) : null,
+  };
+  const bestAsk = ask(keys.best, Boolean(bestStep && !bestStep.replay));
+  const fixAsk = ask(keys.fix, Boolean(fixStep && !fixStep.replay));
+  const clearAsk = ask(keys.clear, Boolean(goodStep && !goodStep.replay));
+  const bestSaid = useBestSaid(bestAsk ? takeId : null, bestSnippet, voiceOn);
   const fixSaid = useWalkSaid(
-    takeId && fixSnippet && fixStep
-      ? { key: `${takeId}:try:${fixSnippet}`, takeId, step: "try", snippetId: fixSnippet, tool: fixStep.key === "clearer" ? "clearer" : "voice" }
+    fixAsk && takeId && fixSnippet && fixStep
+      ? { key: fixAsk, takeId, step: "try", snippetId: fixSnippet, tool: fixStep.key === "clearer" ? "clearer" : "voice" }
       : null,
     voiceOn,
   );
   const clearSaid = useWalkSaid(
-    takeId && good && bestSnippet ? { key: `${takeId}:good_take:${bestSnippet}`, takeId, step: "good_take", snippetId: bestSnippet } : null,
+    clearAsk && takeId && bestSnippet ? { key: clearAsk, takeId, step: "good_take", snippetId: bestSnippet } : null,
     voiceOn,
   );
-  const trySaid = useWalkSaid(afterTryRequest(takeId, step, moments), voiceOn);
-  return { bestSaid, fixSaid, clearSaid, trySaid };
+  const tryKey = afterTryKey(takeId, step, moments);
+  const trySaid = useWalkSaid(kept(tryKey) ? null : afterTryRequest(takeId, step, moments), voiceOn);
+  return {
+    bestSaid: kept(keys.best) ?? bestSaid,
+    fixSaid: kept(keys.fix) ?? fixSaid,
+    clearSaid: kept(keys.clear) ?? clearSaid,
+    trySaid: kept(tryKey) ?? trySaid,
+    keys,
+  };
 }
 
 const AFTER_TRY: Readonly<Record<string, "landed" | "once_more" | "last">> = {
@@ -1420,12 +1456,13 @@ function afterTryRequest(
   moments: readonly FeedbackWalkMoment<unknown>[],
 ): WalkVoiceRequest | null {
   const outcome = step ? AFTER_TRY[step.key] : undefined;
-  if (!takeId || !step || !outcome || !step.one || step.replay || step.moment == null) return null;
+  const key = afterTryKey(takeId, step, moments);
+  if (!takeId || !step || !outcome || step.replay || !key || step.moment == null) return null;
   const snippetId = moments[step.moment]?.clip?.snippetId ?? null;
   if (!snippetId) return null;
   const moved = step.kind?.startsWith("cue:") ? step.kind.slice(4) : undefined;
   return {
-    key: `${takeId}:after_try:${snippetId}:${step.key}:${step.attempt ?? 1}`,
+    key,
     takeId,
     step: "after_try",
     snippetId,
@@ -1433,8 +1470,25 @@ function afterTryRequest(
   };
 }
 
-/** An earlier try's reply as it was said; the signed line when none was. */
-function afterTrySaidNow(takeId: string | null, step: WalkStep, moments: readonly FeedbackWalkMoment<unknown>[]): WalkVoiceSaid {
+/** The key Will's reply after a try at `step` is asked and kept by, played
+ *  live or again (VOICE-18). Null for any other step. */
+function afterTryKey(takeId: string | null, step: WalkStep | undefined, moments: readonly FeedbackWalkMoment<unknown>[]): string | null {
+  if (!takeId || !step || !AFTER_TRY[step.key] || !step.one || step.moment == null) return null;
+  const snippetId = moments[step.moment]?.clip?.snippetId ?? null;
+  return snippetId ? `${takeId}:after_try:${snippetId}:${step.key}:${step.attempt ?? 1}` : null;
+}
+
+/** An earlier try's reply as it was said, live or kept in the chat
+ *  (`lines`, VOICE-18); the signed line when none was. */
+function afterTrySaidNow(
+  takeId: string | null,
+  step: WalkStep,
+  moments: readonly FeedbackWalkMoment<unknown>[],
+  lines: Readonly<Record<string, string>> | undefined,
+): WalkVoiceSaid {
+  const key = afterTryKey(takeId, step, moments);
+  const kept = key ? lines?.[key] : undefined;
+  if (kept) return { settled: true, text: kept };
   const request = afterTryRequest(takeId, step, moments);
   return (request ? walkVoiceSaidNow(request.key) : null) ?? { settled: true, text: null };
 }
