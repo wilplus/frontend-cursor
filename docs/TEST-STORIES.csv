@@ -1408,6 +1408,11 @@ O4  A sales week offers the sale's four steps and ""Add a new step"" in place of
 O2 -> reopens where it stands
 O3 -> knows which case waits
 O4 -> offers the sale's steps for a sales week",
+src/components/willab/takeBubbleReadIt.test.tsx,Story,"As a speaker, I want my Take's bubble in Will's chat to open what I said, slide by slide, so that I can read it back without leaving the chat, while the voice stays the first thing I meet.","O1  ""Read it"" sits under the Take's player, closed by default; it opens
+what was said, one paragraph per slide in the slides' order, and
+""Hide"" closes it; reading never opens the Take's feedback (N576).
+O2  Nothing shows before there are words (N576 item 1, N331 item 2).","O1 -> ""a Take's bubble opens its words slide by slide behind Read it, and Hide closes them""
+O2 -> ""a Take with no words yet shows no Read it""","Backend N576 items 1 to 3 (founder, 9 November 2026): every voice bubble opens its words, a Take's in Will's chat too; the words are the Lounge read's `metadata.words` (backend services/lounge_clips.py attach_take_words)."
 src/components/willab/takeIntoWalk.test.tsx,Story,"As a speaker who just recorded a Take, I want the walk to open the moment its processing is done, with nothing in between, so that the loop goes straight from my Take to my feedback.","O1  When the Take's processing is done the wait stays over the walk
 as it opens, from the Take's own marker, also when the Lounge was
 not following that job (I came back to the app, or left the wait

@@ -34,6 +34,7 @@ import type { IdealTextPast } from "@/lib/willab/pastIdealText";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import type { ShareLineChange } from "@/lib/willab/walkThread";
 import { afterChatBoot, useAfterChatBoot } from "@/lib/chatBoot";
+import { VoiceWords } from "./chats/ChatThread";
 
 // The sharing screen opens on a tap of the latest Take's line, and the match
 // suggestion only when one comes: off the boot bundle (with the walk's frame
@@ -579,6 +580,10 @@ function renderInsightOrRecordingSummaryReportCard(
           <SnippetWavePlayer seed={message.client_id} src={takeSrc} size="compact" tone="me" label="Your Recording" />
         </span>
       ) : null}
+      {/* What was said, one paragraph per slide, closed under the player so
+          the voice is heard first (backend N576, N331); nothing before there
+          are words. Its taps stay out of the bubble's own open. */}
+      <TakeWords meta={message.metadata} />
       {/* Who heard this Take, in the sharing choice's own words (G1, N192):
           the question asked before it leaves no bubbles of its own. On the
           latest Take it opens the sharing screen to change it (N309 item 5). */}
@@ -648,6 +653,27 @@ function deckRefOf(meta: LoungeMessage["metadata"]): string | null | undefined {
 function takeAudioOf(meta: LoungeMessage["metadata"]): string | null {
   const audio = (meta as { audio?: { src?: unknown } } | null | undefined)?.audio;
   return typeof audio?.src === "string" && audio.src ? audio.src : null;
+}
+
+/** A Take's words as the Lounge read attaches them (backend N576 item 2):
+ *  one paragraph per slide, in the slides' order; null before there are any. */
+export function takeWordsOf(meta: LoungeMessage["metadata"]): string | null {
+  const words = (meta as { words?: unknown } | null | undefined)?.words;
+  if (!Array.isArray(words)) return null;
+  const paragraphs = words.filter((w): w is string => typeof w === "string" && !!w.trim()).map((w) => w.trim());
+  return paragraphs.length ? paragraphs.join("\n\n") : null;
+}
+
+/** "Read it" under a Take's player (backend N576); nothing before there are
+ *  words. Its taps stay out of the bubble's own open. */
+function TakeWords({ meta }: { meta: LoungeMessage["metadata"] }) {
+  const words = takeWordsOf(meta);
+  if (!words) return null;
+  return (
+    <span className="flex flex-col" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <VoiceWords words={words} mine />
+    </span>
+  );
 }
 
 export default function ReportCard({

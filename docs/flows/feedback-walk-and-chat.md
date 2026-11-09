@@ -374,6 +374,14 @@ step; the loop never waits for a coach.
   is "That's your 15 minutes for today.", the goodbye, the plan's bar,
   then the question with its answers under it (D4). Was: the plan's yes
   over the goodbye and the bar, its buttons far below it.
+- **B17** **A Take's bubble opens its words** (backend N576, for N331): under
+  the player of "Your Recording" in Will's chat, "Read it" opens what was
+  said, one paragraph per slide in the slides' order, inside the bubble;
+  "Hide" closes it. Closed by default, so the voice is heard first; nothing
+  shows before there are words. The words are the Lounge read's
+  `metadata.words`, from the speaker's own Take only (backend
+  `services/lounge_clips.py` `attach_take_words`); the same `VoiceWords`
+  as every chat with a person (`chats/ChatThread.tsx`).
 
 ### C · The walk, in order
 
@@ -2344,6 +2352,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N576 · B17: a Take's bubble in Will's chat opens its words behind "Read it", one paragraph per slide, "Hide" closes them; closed by default, nothing before there are words (`ReportCard.tsx` `TakeWords`, `takeWordsOf`, with `VoiceWords` from `chats/ChatThread.tsx`). Was: only the chats with people, the inquiry and the website chat had it · BE (the Take's words on the Lounge read), FE (this PR)
 - 2026-11-09 · N483, N505 · the bar where the code had drifted from the locked bar file ("The Bar, Clickable" v12, N498): the bar in a chat with a person is centred inside, 4px between, 44px tall inside, with N505's 8px above, on each side and below (was `items-end`, 16px sides, 12px above; `ChatThread.tsx`); its emoji box 42px with 40×38 buttons (was 40px, 38×38); the answers to tap 9px 16px (was 10px; `TapRow`); the Sending and Not sent pill's words #5F5F5F 500 and its Undo and Send again #121212 700 (was the text colour 400 and 600, unreadable in the dark); the recording bar's trash named "Throw it away" with the lock's trash icon (was "Delete", `trash-2`; `RecordingBar.tsx`; the walk's tests find it by that name); Will's box 42px at one line, Send 5px in from the right and the bottom (was 40px, 4px; `Lounge.tsx`). No new words on screen. What stops: the bar's frame, the emoji box, the answers, the Sending pill, the trash and Will's box each a few pixels off the locked file · BE N483, N505, FE (this PR)
 - 2026-11-09 · N565 · C2, C7, K: with the `walk_voice` ring, Will also writes the line that opens the moment to try (in place of "And here's one moment to try another way:", never over the Sniper; told what the moment is walked with, the Clearer version or the AI clip), a good Take's line (in place of "The rest of this Take held up just as well.") and his reply after a try (in place of "Yes. That's it.", "Close. Once more." and "Good try. Take it with you."; told how it went, and offering one more try only when one is left). The first two are asked as the walk opens, the reply as the walk reaches it (three seconds at most after the check); the typing dots while they come, the signed lines when none come; the chat says what the walk drew (`useWalkSaid`, `afterTryRequest`, `OneTryLine`). Off the ring, nothing changes · BE N565 (wilplus/backend-cursor#1835), FE (this PR)
 - 2026-11-09 · N565 · C2, K: their best is praised as how it sounded to us: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", the same for the same moment (`bestLine`; was "This was your most confident moment."). When the `walk_voice` ring reaches the speaker, Will's own written words for it stand in for that bubble and its "Why it worked", asked as the walk opens (`useBestSaid`, `askWalkVoice`, BFF `/api/v2/walk-voice`), the typing dots while they come (four seconds at most), the signed lines when none come; the chat says what the walk drew. What stops: praise that ranks the speaker ("your most confident moment") · BE N565 (wilplus/backend-cursor#1823), FE (this PR)
