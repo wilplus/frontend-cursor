@@ -437,7 +437,7 @@ describe("the One thing walk (N309)", () => {
     draw({ seq: 1, at: good.plan.findIndex((s) => s.key === "praise") }, { model: good });
     click(testId("walk-forward"));
     await settle();
-    expect(live()!.querySelector("[data-walk-clear]")!.textContent).toBe(ONE_THING_COPY.nothingToFix);
+    expect(live()!.querySelector("[data-walk-clear]")!.textContent).toBe("The rest of this Take held up just as well.");
     expect(live()!.querySelector("[data-walk-one]")).toBeNull();
     expect(text()).toContain(ONE_THING_COPY.helperWords);
     // No fix, but not a good Take (its weak moment went to a coach): nothing new.
