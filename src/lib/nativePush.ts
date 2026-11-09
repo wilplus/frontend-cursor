@@ -44,10 +44,15 @@ export function noteFeedbackSeen(): void {
   if (isNativeApp()) write(FEEDBACK_SEEN, "1");
 }
 
-/** On each open of the app, signed in: register when allowed, ask once when
- *  the first feedback has been seen, open the page a tapped push names.
- *  Returns the cleanup. */
-export async function startNativePush(): Promise<() => void> {
+/** On each open of the app, signed in: open the page a tapped push names (its
+ *  listener is in place at once, for the tap that opened the app), and, when
+ *  `later` runs it, register when allowed and ask once when the first
+ *  feedback has been seen. NativePush passes afterChatBoot, so the device's
+ *  address goes to the backend after the chat has painted, not beside its
+ *  boot reads. Returns the cleanup. */
+export async function startNativePush(
+  later: (go: () => void) => () => void,
+): Promise<() => void> {
   if (!isNativeApp()) return () => {};
   const { PushNotifications } = await import("@capacitor/push-notifications");
   const handles = await Promise.all([
@@ -68,12 +73,18 @@ export async function startNativePush(): Promise<() => void> {
       });
     }),
   ]);
-  let { receive } = await PushNotifications.checkPermissions();
-  if (receive === "prompt" && read(FEEDBACK_SEEN)) {
-    ({ receive } = await PushNotifications.requestPermissions());
-  }
-  if (receive === "granted") await PushNotifications.register();
-  return () => handles.forEach((h) => void h.remove());
+  const register = async () => {
+    let { receive } = await PushNotifications.checkPermissions();
+    if (receive === "prompt" && read(FEEDBACK_SEEN)) {
+      ({ receive } = await PushNotifications.requestPermissions());
+    }
+    if (receive === "granted") await PushNotifications.register();
+  };
+  const cancel = later(() => void register().catch((err) => console.warn("[push] not registered", err)));
+  return () => {
+    cancel();
+    handles.forEach((h) => void h.remove());
+  };
 }
 
 /** Sign-out: this phone stops getting the account's pushes. */

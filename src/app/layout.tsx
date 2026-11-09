@@ -17,11 +17,18 @@ import BookingReturn from "@/components/booking/BookingReturn";
 // var(--font-dm-serif) — defined here. Self-hosted woff2 (latin subset) so
 // the build has no Google Fonts network dependency. Founder-approved
 // 2026-08-04: headings shifting to DM Serif is the intended design.
+//
+// Not preloaded: only /voice-album, /unsubscribe and /admin/booking draw a
+// `font-heading` heading, and a preload made every page (/login and /chat in
+// the app among them) fetch the 25 kB file at high priority on every cold
+// open. The browser now fetches it when a heading uses it; `swap` shows the
+// fallback serif until it is in.
 const dmSerifDisplay = localFont({
   src: "./fonts/DMSerifDisplay-Regular-latin.woff2",
   weight: "400",
   style: "normal",
   display: "swap",
+  preload: false,
   variable: "--font-dm-serif",
 });
 

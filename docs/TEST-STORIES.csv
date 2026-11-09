@@ -317,6 +317,12 @@ number pad comes up with that tap.
 O3  A full number pasted with + picks its own country, and a leading 0 is
 dropped.","O1, O2 -> ""Poland first, then the US, then A to Z; search finds the UK""
 O3 -> ""a pasted number picks its country""","Founder 2026-10-28, backend N230."
+src/components/pwa/pushAfterChatBoot.test.tsx,Story,"As a speaker opening the iPhone app, I want my chat drawn before the phone signs up for pushes, and a notification I tapped to open its page at once, so that the chat appears fast and pushes still reach me.","O1  Opening the chat, the phone's push address goes to the server only
+once the thread has painted, even while the members check is still
+out; the tap that opened the app is listened for at once.
+O2  On a page with no chat to open, the phone signs up for pushes at once,
+as before.","O1 -> ""opening the chat, the phone signs up for pushes after the thread has painted""
+O2 -> ""on any other page, the phone signs up for pushes at once""","Loading time (2026-11-09): the push-device POST went out in the app's opening burst, beside the chat's boot reads (founder 2026-10-16, chatBoot.ts)."
 src/components/rings/RingAnnouncementSheet.test.tsx,Story,"As a speaker, I want a feature announcement I can dismiss with Not now, and its Yes off until a policy exists, so that nothing turns on or records consent without me.","O1  Not now records the decision, hides the sheet, records no consent.
 O2  Without a policy, Yes is a disabled button (no link to the data
 choices), the sheet says why, and pressing it records nothing.
