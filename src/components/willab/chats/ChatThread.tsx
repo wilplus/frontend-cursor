@@ -40,6 +40,7 @@ import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
 import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
+import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
 // the coach's queue still imports TopBar from here.
@@ -850,6 +851,7 @@ export default function ChatThread({
   open = true,
   onBack,
   onRecordAnswer,
+  onOpenChat,
 }: {
   chat: Chat;
   /** False while the chat is pulled in from the list's right edge, or slides
@@ -857,6 +859,8 @@ export default function ChatThread({
   open?: boolean;
   onBack: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
+  /** Opens another chat in the list (the answers gathered under a Take). */
+  onOpenChat?: (chatId: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const pending = usePendingAnswer(chat.id);
@@ -971,7 +975,9 @@ export default function ChatThread({
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
               <AssistantSays key={message.id} name={assistantName} message={message}>
                 <AnswerQuote message={message}>
-                  <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                  <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
+                    <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                  </TakeAnswersUnder>
                 </AnswerQuote>
               </AssistantSays>,
               ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"

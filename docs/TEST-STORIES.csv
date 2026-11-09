@@ -805,6 +805,13 @@ tester with no recipe; with a recipe, or without the ring, it is not.","O1 -> ""
 O2 -> ""HOST-N590-8: the joiner meets the host's welcome first, as the assistant's""
 O3 -> ""HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words""
 O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
+src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
+who answered and the names the backend shows (my coach's and the best
+other); a tap opens all of them under ""On your speaking"" and ""On the
+matter"", each with the way into that person's chat, which opens it.
+O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
+under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
+O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.

@@ -321,7 +321,17 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
               onRecordAnswer={onRecordAnswer}
             />
           ) : (
-            <ChatThread chat={chat} open={open} onBack={toList} onRecordAnswer={onRecordAnswer} />
+            <ChatThread
+              chat={chat}
+              open={open}
+              onBack={toList}
+              onRecordAnswer={onRecordAnswer}
+              onOpenChat={(id) => {
+                // The answers under a Take open that person's chat (N587 item 3).
+                const other = chats?.find((c) => c.id === id);
+                if (other) setView({ at: "chat", chat: other });
+              }}
+            />
           )
         }
       />
