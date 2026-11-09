@@ -407,9 +407,12 @@ O2 -> ""the latest Take's line opens the screen ticked as it stands, and a chang
 src/components/willab/NoticeBar.test.tsx,Story,"As a speaker, I want a question or a price the founder sent me, and the WhatsApp ask, to come as a bar at the top of the chat, one at a time, never in the buttons I record with, so that it never competes with my next Take.","O1  The ask comes in the bar with its own words (the WhatsApp ask under
 its opener), once a visit, and is reported shown.
 O2  ✕ closes the bar.
-O3  The promo price never shows in the iPhone app (it has no buying).","O1 -> ""shows the ask in the bar once a visit""
+O3  No price shows in the iPhone app, the promo's or the lesson's (it
+has no buying, N495, N555); on the web the lesson price shows with
+See times.","O1 -> ""shows the ask in the bar once a visit""
 O2 -> ""closes on Not now""
-O3 -> ""never shows the promo in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
+O3 -> ""never shows the promo in the iPhone app""
+O3 -> ""shows the lesson price on the web, never in the iPhone app""","Founder 2026-11-03 (backend N391): ""do not mix notifications ... with the main screen buttons. The notifications should come as notifications at the top as a separate bar."""
 src/components/willab/OtherAccountLink.test.tsx,Story,"As a speaker who opens my coach's WhatsApp or email link while signed in to my other account, I want to be told so and taken to log in with the right one, so that I reach my coach's feedback instead of a wait that never ends.","O1  The server's ""arc not found"" (the project is not in this account)
 reads as another account's link, never as a text still being built;
 any other 404 still reads as pending.
@@ -983,6 +986,12 @@ the recording longer.","O1 -> ""is ● Record Take N and a grey Close, the one w
 O2 -> ""asks at Take 2, then records Take 3 at once with the remembered choice""
 O3 -> ""asks again after a community is added or when the words changed""
 O4 -> ""with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked once; replaces G1's ask before every Take). O4: founder 2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3."
+src/components/willab/idealTextCantLoad.test.tsx,Story,"As a speaker whose Ideal Text could not load, I want the page to try again by itself and give me Try again, so that I never have to close and reopen it to see my words.","O1  The line shows with ""Try again"" under it; the page reads again by
+itself 3 s and 10 s after the failed load, the line staying on screen
+while it reads, and then stops.
+O2  ""Try again"" reads at once, and a tap that fails too starts the two
+tries afresh; a read that answers shows the page.","O1 -> ""reads again by itself at 3 s and 10 s, then stops""
+O2 -> ""Try again reads at once, and an answer shows the page""","Founder 2026-11-09, ""Both"" (backend N552); Never 3."
 src/components/willab/idealTextLoad.test.ts,Story,"As a speaker, I want my Ideal Text page to show the coach's note as soon as it arrives and keep the feedback shown while a new read loads, so that the page never goes blank or flickers.","O1  The coach's message is shown before the slower feedback arrives, and
 both are on the page once it does.
 O2  When the page re-reads, the feedback bars, style changes, additions
@@ -1037,6 +1046,16 @@ O2  The door still holds: until that read answers the entry is not
 fresh (nothing starts a Take), and a read that says the terms changed
 puts the acceptance flow in front of the screen.","O1 -> ""draws the first screen at once after an earlier authorized read""
 O2 -> ""the fresh read still decides, and can put the acceptance flow in front""",The Lab used to wait for a network read behind a loader before every later Take's first screen.
+src/components/willab/labLeaveGuard.test.tsx,Story,"As a speaker, I want refreshing or closing the page by mistake while my Take is recorded, or before the server has it, to ask me first, so that I never lose a Take silently.","O1  While a Take records (paused by a call and finishing included), and
+while it goes up, the page's unload is held for the browser's own
+""Leave page?"".
+O2  Once the server answers that it has the Take (201 or 202), nothing
+asks; a failed upload still asks.
+O3  Before Record nothing asks.
+O4  After ""Discard this take?"", and once the screens close, nothing asks.","O1 -> ""asks while a Take records and while it goes up""
+O2 -> ""stops asking once the server has the Take, and keeps asking after a failed upload""
+O3 -> ""asks nothing before Record""
+O4 -> ""asks nothing after a discard, nor once the screens close""","Founder 2026-11-09, backend N553 item 1 (""Both: A now, B next""): a refresh or a close before the server confirmed the Take lost it. Never 3."
 src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still uploading, and not be offered that once the server has it, so that a bad Take leaves no trace and I am never promised something that cannot happen.","O1  ""Discard this take"" shows while the upload is in flight.
 O2  Once the server has answered (canDiscard false) it is gone, and the
 waiting screen is still there.
@@ -1918,6 +1937,26 @@ O2  Take 1 marked as unconfirmed reads back as that state.","O1 -> never exposes
 O2 -> preserves the distinct Take 1 Ideal Text terminal state",
 src/lib/willab/richMarkers.test.ts,Story,"As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.","O1  Whatever the broken input, no formatting symbol reaches the screen.","O1 -> no grammar character survives, whatever the malformation",
 src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.","O1  Another account, or someone signed out, sees none of my drafts.","O1 -> is scoped per account, so a switch never shows another person's draft",
+src/lib/willab/takeOutbox.test.ts,Story,"As a speaker on the iPhone app, I want a Take I finished to stay on my phone until the server has it, and to go up again by itself when I next open the app or my connection comes back, so that closing the app or losing the connection never loses a Take, and it is never made twice or put over a newer one.","O1  A Take whose answer never came goes up again at the next open, with
+the same upload key, and shows as processing with its ""Your
+Recording"" line.
+O2  Once the server names the Take (accepted, a duplicate, a 504 with its
+session) its copy is deleted; no connection, 401, 429, 5xx or a 504
+without a session keeps it.
+O3  Discarding it, or a refusal for good (no speech, 400, 404, a project
+being deleted, too large, recording consent withdrawn), deletes it.
+O4  Signed in as someone else, or signed out, it is never sent.
+O5  A newer Take of the same project already on the server means the old
+copy is deleted, not sent; a single later Take with no line yet may be
+this very one, and goes (the server answers duplicate).
+O6  Past 7 days it is deleted, not sent.
+O7  A save the device refuses never stops or delays the upload.","O1 -> ""a Take whose answer never came is sent again at the next open, with the same key, and shows as processing""
+O2 -> ""an accepted or duplicate answer deletes the copy, and a dropped connection keeps it""
+O3 -> ""a discard and a refusal for good delete it""
+O4 -> ""another signed-in person never sends it""
+O5 -> ""a newer Take of the same project on the server deletes the old copy, unsent""
+O6 -> ""past 7 days it is deleted""
+O7 -> ""a failed save never stops or delays the upload""","Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2, N556): ""Ship B; line in next version"", ""At Finish only, for now"", ""Yes, all of them"". Never 3 (record, process, Ideal Text, next Take) and Never 5 (an older Take never becomes the Ideal Text)."
 src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, let me move on once a try really lands and push me for one more when it only came closer, so that I feel my pace change without a score and never have to decide whether to go again.","O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.

@@ -8,10 +8,13 @@ OUTCOME
   O1  The ask comes in the bar with its own words (the WhatsApp ask under
       its opener), once a visit, and is reported shown.
   O2  ✕ closes the bar.
-  O3  The promo price never shows in the iPhone app (it has no buying).
+  O3  No price shows in the iPhone app, the promo's or the lesson's (it
+      has no buying, N495, N555); on the web the lesson price shows with
+      See times.
 PROVES   O1 -> "shows the ask in the bar once a visit"
          O2 -> "closes on Not now"
          O3 -> "never shows the promo in the iPhone app"
+         O3 -> "shows the lesson price on the web, never in the iPhone app"
 WHY      Founder 2026-11-03 (backend N391): "do not mix notifications ...
          with the main screen buttons. The notifications should come as
          notifications at the top as a separate bar."
@@ -78,6 +81,24 @@ describe("NoticeBar", () => {
     await act(async () => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Not now"]')!.click();
     });
+    expect(container.textContent).toBe("");
+  });
+
+  it("shows the lesson price on the web, never in the iPhone app", async () => {
+    const lesson: BarAsk = {
+      id: "a4", kind: "lesson", consent_key: null,
+      lesson: { slug: "artur", host_name: "Artur", duration_min: 60, price_cents: 4000, list_price_cents: 6000, currency: "eur" },
+    };
+    await mount(lesson);
+    expect(container.textContent).toContain("See times");
+
+    // A new visit, in the iPhone app: nothing.
+    act(() => root.unmount());
+    window.sessionStorage.clear();
+    container = document.createElement("div");
+    root = createRoot(container);
+    native.isNativeApp.mockReturnValue(true);
+    await mount(lesson);
     expect(container.textContent).toBe("");
   });
 

@@ -996,9 +996,9 @@ praised moment:
   your number."; done once shown); and the CEO panel's asks to one person,
   which no longer wait for the end of a Take: WhatsApp, a consent question
   ("One question about how we use your data is still open. You can look
-  at it and answer yes or no."), the promo price with See prices (the web
-  only: the iPhone app has no buying, N365 item 1) and the lesson price
-  with See times. Tapping WhatsApp or consent opens its form as a sheet
+  at it and answer yes or no."), the promo price with See prices and the
+  lesson price with See times, both the web only: the iPhone app shows no
+  price and no way to buy (N365 item 1, N495, N555). Tapping WhatsApp or consent opens its form as a sheet
   from the top (the WhatsApp form; the consent card with No | Yes); the
   price bars go to their page. Not now on a CEO panel's ask brings it back
   on the next visit. **The home-screen ask is deleted** (N391): the next
@@ -2342,6 +2342,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-09 · N557 · C2, K, and every line quoting them: the fix opens with "And here's one moment to try another way:" (was "And now, one thing to improve:"), and a good Take says "The rest of this Take held up just as well." (was "Nothing to fix this time.", N551), so the walk speaks of a moment to try, never of a speaker to fix (`ONE_THING_COPY.one`, `.nothingToFix`). What stops: words that told the speaker something in them was broken · BE N557, FE (this PR)
+- 2026-11-09 · N555 · E1: the lesson price bar ("Artur set a price for you: a 1-on-1 lesson for …" with See times) is the web only, like the promo's: the iPhone app shows no price and no way to buy (N495; `NoticeBar.tsx` `isPriceAsk`). What stops: a price in money, and a button to the booking page and its checkout, inside the iPhone app · BE N555 (#1818), FE (this PR)
 - 2026-11-09 · N551 · C2, K: a good Take (no fix, no moment below the floor) says "Nothing to fix this time." where "And now, one thing to improve:" would be, before the helper words, and the chat says it once; the coach case (N550) and a lost fix stay silent (`oneThing` in `walkPlan.ts`, `clear` on the words step, `FeedbackWalk.tsx`, `ONE_THING_COPY.nothingToFix`; backend `nothing_to_fix`). What stops: a good Take ending in a silence that reads like nothing was found · BE N551 (wilplus/backend-cursor#1819), FE (this PR)
 - 2026-11-09 · N309, N359 · C0a: "Last time" names only a fix the walk opened on screen, by what it showed; a fix the speaker never saw is never named, and the Takes table shows no fix for a walk never opened (backend `take_progress.walk_gave`). No new words. What stops: "Last time" naming a fix the server chose but the speaker never met · BE wilplus/backend-cursor#1817, FE (this PR)
 - 2026-11-09 · N550 · C2: a walk with no fix sends the Take's least confident moment to a coach, blind, when it reads below the floor (no tool reaches it); a good Take sends nothing. The speaker sees nothing new. Stored as raised at the open, its trace naming it (`fix_without_tool`). What stops: a weak moment no tool reaches going nowhere, unseen by a coach · BE N550 (wilplus/backend-cursor#1814), FE (this PR)

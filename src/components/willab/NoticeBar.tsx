@@ -34,9 +34,10 @@ const WARM: Partial<Record<BarAsk["kind"], () => void>> = {
 /*    whatsapp  the next visit's ask, or the CEO panel's: tap, its form as a  */
 /*              sheet from the top                                            */
 /*    consent   the CEO panel's question: tap, No | Yes as a sheet            */
-/*    promo     their plan price: See prices (the web only: the iPhone app    */
-/*              has no buying, N365 item 1)                                   */
+/*    promo     their plan price: See prices                                  */
 /*    lesson    their lesson price: See times                                 */
+/*  Both price bars are the web only: the iPhone app shows no price and no    */
+/*  way to buy (N365 item 1, N495, N555).                                     */
 /*  ✕ is Not now: the CEO panel's ask comes back on the next visit; the       */
 /*  app's own WhatsApp ask is done once shown (the backend counts it).        */
 /*  Every line is already signed (Never 4).                                   */
@@ -96,6 +97,12 @@ export function barText(ask: BarAsk): string | null {
   return ask.kind === "whatsapp" ? OFFER_PROMPT.whatsapp : CONSENT_LINE;
 }
 
+/** A bar that names a price in money and leads to buying: the web only
+ *  (N495, N555). */
+function isPriceAsk(ask: BarAsk): boolean {
+  return ask.kind === "promo" || ask.kind === "lesson";
+}
+
 const ICON = { whatsapp: MessageCircle, consent: ShieldCheck, promo: Tag, lesson: CalendarDays };
 
 export default function NoticeBar({ signedIn, whatsapp }: { signedIn: boolean; whatsapp: WhatsAppOffer }) {
@@ -110,7 +117,7 @@ export default function NoticeBar({ signedIn, whatsapp }: { signedIn: boolean; w
     if (!signedIn || !newVisit()) return;
     void bffFetch("/api/v2/user/lounge/visit", { method: "POST", cache: "no-store", json: {} }).then((r) => {
       const next = r.kind === "response" && r.ok ? ((r.body as { ask?: BarAsk | null } | null)?.ask ?? null) : null;
-      if (!next || !barText(next) || (next.kind === "promo" && isNativeApp())) return;
+      if (!next || !barText(next) || (isPriceAsk(next) && isNativeApp())) return;
       setAsk(next);
       report(next.id, "shown");
       WARM[next.kind]?.();

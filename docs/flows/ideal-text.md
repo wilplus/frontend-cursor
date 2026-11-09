@@ -412,6 +412,21 @@ my go"), on the prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
 - The words are signed (N380). The rules for the cards: the walk's page,
   F1.
 
+### When the page can't load (2026-11-09, N552)
+
+Signed by the founder in the Claude Code chat on 9 November 2026 ("Both").
+
+- **It tries again by itself.** When the page can't load it says
+  "Couldn't load your ideal text. Try again in a moment." and reads again,
+  quietly, 3 seconds and then 10 seconds after the failed load, then stops
+  trying on its own. The line stays on screen while it reads, with no
+  loader in its place; a read that answers shows the page as usual.
+- **"Try again" under the line** (the signed "Try again", outlined and
+  round like the app's other failed reads) reads the page again at once,
+  whenever tapped; when that read fails too, the two tries start again from
+  it. No new words. Was: the line alone, with no second read until the
+  page was closed and opened again.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -464,6 +479,7 @@ Every prototype link in §1, in the order it first appears:
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-09 · N557 · `ONE_THING_COPY` in `idealEditCopy.ts`: "And here's one moment to try another way:" and "The rest of this Take held up just as well." replace the fix's opener and the good Take's line; nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N557, FE (this PR)
+- 2026-11-09 · N552 · when the page can't load (`IdealTextOverlay.tsx`), it reads again by itself 3 s and 10 s after the failed load and then stops, "Couldn't load your ideal text. Try again in a moment." staying on screen meanwhile, and an outlined "Try again" under the line (`IDEAL_EDIT_COPY.feedbackRetry`) reads at once, a failed tap starting the two tries afresh; §1 gains "When the page can't load". No new words. What stops: the line alone, with no second read until the page was closed and opened again · BE N552 (#1818), FE (this PR)
 - 2026-11-09 · N551 · `ONE_THING_COPY` in `idealEditCopy.ts` gains "Nothing to fix this time." for the walk of a good Take; nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2 · BE N551 (wilplus/backend-cursor#1819), FE (this PR)
 - 2026-11-09 · N548 · `ONE_THING_COPY` in `idealEditCopy.ts` loses the closest exercise's two lines ("We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you."); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2 · BE N548 (wilplus/backend-cursor#1811), FE wilplus/frontend-cursor#1305 and this PR
 - 2026-11-06 · N539 · `TranscriptReviewDeck.tsx` tells the walk whether the Take's coach word is still unseen (`coachUnseen`), so a door from the chat after the walk's first opening opens it as a scroll unless that word waits; nothing on the Ideal Text page itself changes, and its own doors (a paragraph, helper words) open as before. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) B10 · BE N539, FE (this PR)
