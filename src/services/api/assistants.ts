@@ -190,3 +190,35 @@ export async function answerBundle(bundleId: string, take: string, durationMs: n
   });
   return typeof body?.sent === "number" ? body.sent : null;
 }
+
+/* ── One Take, its answers in one place (backend N587, N588 item 4) ───── */
+
+/** One answer to my Take: who answered, in which chat, under which heading
+ *  ("On your speaking" or "On the matter", the backend's), and whether it
+ *  is my coach's (the chat the Take was first sent in). */
+export type TakeAnswer = { messageId: string; chat: string; coach: boolean; name: string | null; title: string };
+export type TakeAnswers = { shown: TakeAnswer[]; faces: string[]; groups: { title: string; answers: TakeAnswer[] }[] };
+
+function takeAnswerOf(raw: unknown): TakeAnswer[] {
+  const a = raw as Record<string, unknown> | null;
+  if (!a || typeof a.message_id !== "string" || typeof a.chat !== "string" || typeof a.title !== "string") return [];
+  return [{ messageId: a.message_id, chat: a.chat, coach: a.coach === true, name: typeof a.name === "string" && a.name ? a.name : null, title: a.title }];
+}
+
+/** The answers gathered under my Take, or null: no ring, a Take sent
+ *  nowhere (404), or any failure. */
+export async function getTakeAnswers(takeSessionId: string): Promise<TakeAnswers | null> {
+  const body = await call(`/api/v2/user/takes/${encodeURIComponent(takeSessionId)}/answers`, { method: "GET" });
+  const bubble = body?.bubble as Record<string, unknown> | undefined;
+  if (!body || !bubble || !Array.isArray(body.groups)) return null;
+  return {
+    shown: Array.isArray(bubble.shown) ? bubble.shown.flatMap(takeAnswerOf) : [],
+    faces: strings(bubble.faces),
+    groups: body.groups.flatMap((raw) => {
+      const g = raw as Record<string, unknown> | null;
+      if (!g || typeof g.title !== "string") return [];
+      const answers = Array.isArray(g.answers) ? g.answers.flatMap(takeAnswerOf) : [];
+      return answers.length ? [{ title: g.title, answers }] : [];
+    }),
+  };
+}
