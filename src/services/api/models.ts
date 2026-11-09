@@ -193,3 +193,164 @@ export async function getModelInvite(inviteId: string): Promise<ModelInvite | nu
   const body = await call(`/api/v2/models/invites/${id(inviteId)}`);
   return body && Array.isArray(body.lines) && typeof body.action === "string" ? (body as unknown as ModelInvite) : null;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  A model's API and its money (backend N528 items 6, 7 and 12, N531, N566   */
+/*  items 8 to 10, N577, N583; the rules and their words in                   */
+/*  services/model_api.py, the routes in routes/v2/model_api.py). Prices are  */
+/*  tokens, drawn by the backend ("300 tokens"); the screens never count.     */
+/*  Each read answers null on a 404 (below the ring, or before the backend    */
+/*  has the routes), and a null hides the way in.                             */
+/* -------------------------------------------------------------------------- */
+
+export type LabelRow = { label: string; value: string };
+export type ModelCard = {
+  title: string;
+  line: string;
+  description: string;
+  rows: LabelRow[];
+  foot: string;
+  /** ["Use it in your business", "Try it"]. */
+  actions: string[];
+  for_sale: boolean;
+};
+export type TryReply = { sub: string; text: string; sure: boolean; mark?: string };
+export type LimitOption = { units: number; label: string; line: string };
+export type ModelTerms = {
+  title: string;
+  /** A person who may not create a key reads why, and nothing else. */
+  refused?: string;
+  lines?: string[];
+  price_units?: number;
+  price?: string;
+  price_line?: string;
+  test_key?: { label: string; line: string; free_answers: number };
+  limit?: { label: string; default_units: number; options: LimitOption[] };
+  training?: string;
+  /** The model's own owner: "Use Pitch Coach in your own product." (MOD-48). */
+  own_product?: string;
+  actions: string[];
+};
+export type ShownKey = { id: string | null; title: string; line: string; key: string; note: string; actions: string[] };
+export type ModelCode = {
+  title: string;
+  line: string;
+  tabs: { lang: string; label: string; code: string }[];
+  sure: string;
+  actions: string[];
+};
+export type UsageKey = { id: string; kind: "test" | "live"; label: string; version: number };
+export type ModelUsage = {
+  title: string;
+  line: string;
+  alerts: { title: string; line: string; action: string }[];
+  rows: LabelRow[];
+  pays_teachers: string;
+  send_unsure: { label: string; line: string; on: boolean };
+  keys: UsageKey[];
+  version: { title?: string; line: string; action?: string };
+  /** ["Back to the list", "Delete this key"]. */
+  actions: string[];
+};
+export type SplitRow = { part: "infra" | "founder" | "teachers"; label: string; line?: string; units: number; amount: string };
+export type ModelPrice = {
+  title: string;
+  intro: string;
+  price_units: number;
+  price: string;
+  unit: string;
+  floor_units: number;
+  step_units: number;
+  minus_enabled: boolean;
+  suggestions: { units: number; label: string }[];
+  similar: string;
+  uses: number;
+  uses_line: string;
+  month: string;
+  split: SplitRow[];
+  action: string;
+};
+export type ModelEarnings = { title: string; line: string; rows: LabelRow[]; fixed?: string; minimum?: string; actions: string[] };
+export type ModelDownload = { title: string; refused?: string; lines?: string[]; actions: string[] };
+
+/** The uses a month the price screen asks about, as the backend clamps them. */
+export const PRICE_USES = { min: 1_000, max: 100_000, step: 1_000, start: 10_000 } as const;
+
+const has = (body: Record<string, unknown> | null, key: string) => Boolean(body && key in body);
+
+export async function getModelCard(modelId: string): Promise<ModelCard | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/card`);
+  return body && Array.isArray(body.rows) ? (body as unknown as ModelCard) : null;
+}
+
+/** "Try it": the model's answer, or its unsure line with its mark. */
+export async function tryModel(modelId: string, message: string): Promise<TryReply | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/try`, { method: "POST", json: { message } });
+  return body && typeof body.text === "string" ? (body as unknown as TryReply) : null;
+}
+
+export async function getModelTerms(modelId: string): Promise<ModelTerms | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/use`);
+  return body && typeof body.title === "string" && Array.isArray(body.actions) ? (body as unknown as ModelTerms) : null;
+}
+
+/** A test key, shown once (no live key is offered: nothing is charged yet). */
+export async function createTestKey(modelId: string, monthlyLimitUnits: number | null): Promise<ShownKey | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/keys`, {
+    method: "POST",
+    json: { kind: "test", monthly_limit_units: monthlyLimitUnits, allow_training: false },
+  });
+  return body && typeof body.key === "string" ? (body as unknown as ShownKey) : null;
+}
+
+export async function getModelCode(modelId: string): Promise<ModelCode | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/code`);
+  return body && Array.isArray(body.tabs) ? (body as unknown as ModelCode) : null;
+}
+
+export async function getModelUsage(modelId: string): Promise<ModelUsage | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/usage`);
+  return body && Array.isArray(body.keys) && Array.isArray(body.rows) ? (body as unknown as ModelUsage) : null;
+}
+
+export async function deleteModelKey(keyId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}`, { method: "DELETE" });
+  return body?.deleted === true;
+}
+
+export async function switchModelKey(keyId: string): Promise<number | null> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}/switch`, { method: "POST", json: {} });
+  return typeof body?.version === "number" ? body.version : null;
+}
+
+/** "Send the questions it wasn't sure about to its teachers", on or off. */
+export async function sendUnsure(keyId: string, on: boolean): Promise<boolean | null> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}/unsure`, { method: "POST", json: { on } });
+  return typeof body?.on === "boolean" ? body.on : null;
+}
+
+export async function getModelPrice(modelId: string, uses: number = PRICE_USES.start): Promise<ModelPrice | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/price?uses=${uses}`);
+  return body && Array.isArray(body.split) ? (body as unknown as ModelPrice) : null;
+}
+
+export async function setModelPrice(modelId: string, units: number): Promise<ModelPrice | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/price`, { method: "POST", json: { units } });
+  return body && Array.isArray(body.split) ? (body as unknown as ModelPrice) : null;
+}
+
+export async function getModelEarnings(): Promise<ModelEarnings | null> {
+  const body = await call("/api/v2/models/earnings");
+  return body && Array.isArray(body.rows) ? (body as unknown as ModelEarnings) : null;
+}
+
+export async function getModelDownload(modelId: string): Promise<ModelDownload | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/download`);
+  return body && typeof body.title === "string" && (has(body, "lines") || has(body, "refused")) ? (body as unknown as ModelDownload) : null;
+}
+
+/** The data itself: the teachers' own ratings and answers. */
+export async function getModelDownloadRows(modelId: string): Promise<{ model: string; rows: Record<string, unknown>[] } | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/download?rows=1`);
+  return body && Array.isArray(body.rows) ? (body as unknown as { model: string; rows: Record<string, unknown>[] }) : null;
+}

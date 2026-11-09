@@ -192,8 +192,8 @@ describe("the AI models: meeting them (MOD-02 to MOD-07, MOD-12, MOD-13)", () =>
     expect(bff.calls.some((c) => c.path === "/api/v2/models?filter=ready")).toBe(true);
   });
 
-  it("MOD-06: a public model's page in totals only, with \"Teach it\" and \"Try it\"", async () => {
-    serve(ALL);
+  it("MOD-06: a public model's page in totals only, with \"Teach it\" and \"Try it\" (once its API answers)", async () => {
+    serve({ ...ALL, "GET /api/v2/models/speak/code": { title: "", line: "", tabs: [], sure: "", actions: [] } });
     await render(createElement(ModelsChatRows));
     await tapEl(container.querySelector('[data-chat-row="models"]'));
     const card = [...container.querySelectorAll('[data-testid="model-card"]')].find((c) => c.textContent?.includes("Speaking confidence"));

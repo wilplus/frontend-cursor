@@ -6,6 +6,12 @@ import WalkFooter from "../walk/WalkFooter";
 import WalkMessage from "../walk/WalkMessage";
 import {
   getDoor,
+  getModelCard,
+  getModelCode,
+  getModelDownload,
+  getModelEarnings,
+  getModelPrice,
+  getModelUsage,
   getModelList,
   getModelPage,
   getQueue,
@@ -22,7 +28,7 @@ import {
 } from "@/services/api/models";
 import { cn } from "@/lib/utils";
 import { Badge, Bar, Card, Crown, Empty, Mini } from "./ModelBits";
-import { MODELS_WORDS as W, TO_SIGN } from "./modelsCopy";
+import { MODEL_API_WORDS as API, MODELS_WORDS as W, TO_SIGN } from "./modelsCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The AI models' screens (backend N528, N563, N566; the locked prototype    */
@@ -33,14 +39,17 @@ import { MODELS_WORDS as W, TO_SIGN } from "./modelsCopy";
 /*  the few modelsCopy.ts holds.                                              */
 /*                                                                            */
 /*  What is not built yet stays drawn as the prototype draws it and does      */
-/*  nothing: "Start your own" and a draft's "Continue" (the setup, MOD-24),   */
-/*  "Use it" (a model's card, MOD-39), "Try it" (MOD-45).                     */
+/*  nothing: "Start your own" and a draft's "Continue" (the setup, MOD-24).   */
+/*  The ways into a model's API and money ("Use it", "Try it", "Set your     */
+/*  price", "Your usage", "Download its data", "Your earnings";              */
+/*  ModelApiScreens.tsx) each show only once their own route answers, so     */
+/*  none shows before the backend has it, or below the ring.                 */
 /* -------------------------------------------------------------------------- */
 
 type Nav = { onBack?: () => void; onClose: () => void };
 
 /** Read once, again when `key` changes; null until it answers or on failure. */
-function useRead<T>(read: () => Promise<T | null>, key: string): T | null | undefined {
+export function useRead<T>(read: () => Promise<T | null>, key: string): T | null | undefined {
   const [value, setValue] = useState<T | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
@@ -58,8 +67,12 @@ function useRead<T>(read: () => Promise<T | null>, key: string): T | null | unde
 
 /* ── The list (d:2, d:8; MOD-05, MOD-13) ─────────────────────────────────── */
 
-function ModelCard({ model, onOpen, onTeach }: { model: ModelRow; onOpen: () => void; onTeach: () => void }) {
-  const act = (label: string) => (label === W.teach_it ? onTeach : label === W.open ? onOpen : undefined);
+function ModelCard({ model, onOpen, onTeach, onUse }: { model: ModelRow; onOpen: () => void; onTeach: () => void; onUse: () => void }) {
+  const sold = model.actions.includes(W.use_it);
+  /** "Use it" opens the model's card, and shows only once the card answers. */
+  const card = useRead(() => (sold ? getModelCard(model.id) : Promise.resolve(null)), `${model.id}${sold}`);
+  const act = (label: string) => (label === W.teach_it ? onTeach : label === W.open ? onOpen : label === W.use_it ? onUse : undefined);
+  const actions = model.actions.filter((label) => label !== W.use_it || card);
   return (
     <Card onOpen={onOpen} testId="model-card">
       <div className="flex items-center justify-between gap-2">
@@ -73,7 +86,7 @@ function ModelCard({ model, onOpen, onTeach }: { model: ModelRow; onOpen: () => 
       <Bar line={model.line} />
       <small className="text-[13px] text-muted-foreground">{model.line}</small>
       <div className="flex gap-2 pt-1">
-        {model.actions.map((label, i) => (
+        {actions.map((label, i) => (
           <Mini key={label} label={label} quiet={i > 0} onClick={act(label)} />
         ))}
       </div>
@@ -106,13 +119,28 @@ function Filters({ labels, on, onPick }: { labels: string[]; on: ModelFilter | n
   );
 }
 
-function ListBody({ list, onWhat, onOpen, onTeach, onClear }: {
-  list: ModelList;
+/** "Your earnings", for a teacher whose model earns (MOD-47); nothing until
+ *  the route answers with something earned. */
+function EarningsRow({ onEarnings }: { onEarnings: () => void }) {
+  const earnings = useRead(getModelEarnings, "earnings");
+  if (!earnings?.rows.length) return null;
+  return (
+    <button type="button" data-models-earnings onClick={onEarnings} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
+      <b>{earnings.title}</b>
+      <span className="text-[13.5px] text-muted-foreground">{earnings.line}</span>
+    </button>
+  );
+}
+
+type ListWays = {
   onWhat: () => void;
   onOpen: (id: string) => void;
   onTeach: (id: string) => void;
-  onClear: () => void;
-}) {
+  onUse: (id: string) => void;
+  onEarnings: () => void;
+};
+
+function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear }: ListWays & { list: ModelList; onClear: () => void }) {
   if (list.empty) {
     return (
       <>
@@ -127,6 +155,7 @@ function ListBody({ list, onWhat, onOpen, onTeach, onClear }: {
         <b>{list.what_do_i_get}</b>
         <span className="text-[13.5px] text-muted-foreground">{TO_SIGN.whatDoIGetLine}</span>
       </button>
+      <EarningsRow onEarnings={onEarnings} />
       {list.drafts.map((d) => (
         <Card key={d.id} draft testId="model-draft">
           <div className="flex items-center justify-between gap-2">
@@ -142,17 +171,13 @@ function ListBody({ list, onWhat, onOpen, onTeach, onClear }: {
         </Card>
       ))}
       {list.models.map((m) => (
-        <ModelCard key={m.id} model={m} onOpen={() => onOpen(m.id)} onTeach={() => onTeach(m.id)} />
+        <ModelCard key={m.id} model={m} onOpen={() => onOpen(m.id)} onTeach={() => onTeach(m.id)} onUse={() => onUse(m.id)} />
       ))}
     </>
   );
 }
 
-export function ModelListScreen({ onClose, onWhat, onOpen, onTeach }: Nav & {
-  onWhat: () => void;
-  onOpen: (id: string) => void;
-  onTeach: (id: string) => void;
-}) {
+export function ModelListScreen({ onClose, onUse = () => undefined, onEarnings = () => undefined, ...ways }: Nav & Omit<ListWays, "onUse" | "onEarnings"> & Partial<Pick<ListWays, "onUse" | "onEarnings">>) {
   const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ModelFilter | null>(null);
@@ -181,7 +206,7 @@ export function ModelListScreen({ onClose, onWhat, onOpen, onTeach }: Nav & {
             className="block min-h-[40px] w-full rounded-3xl border border-border bg-background py-2 pl-3.5 pr-4 text-[15px] leading-snug outline-none focus:border-primary"
           />
           <Filters labels={list.filters} on={filter} onPick={setFilter} />
-          <ListBody list={list} onWhat={onWhat} onOpen={onOpen} onTeach={onTeach} onClear={clear} />
+          <ListBody list={list} {...ways} onUse={onUse} onEarnings={onEarnings} onClear={clear} />
         </>
       ) : null}
     </WalkOverlay>
@@ -233,14 +258,60 @@ export function Ring({ percent }: { percent: number }) {
 /** Totals only for the public (N526 item 3): the backend sends no jar, no
  *  stage, no agreement and nothing about a person on a public page, and this
  *  draws none of what a teacher's page adds. */
-export function ModelPageScreen({ modelId, onBack, onClose, onTeach }: Nav & { modelId: string; onTeach: (page: ModelPage) => void }) {
+export type ApiWay = "card" | "try" | "price" | "usage" | "download";
+
+/** The ways into a model's API and money from its page, each probed on its
+ *  own route: "Try it" once the code answers (the API's routes are there),
+ *  the card once a version is released, the price for its founder, usage
+ *  once the caller has a key, the download for its owner and teachers. */
+function useApiWays(page: ModelPage | null | undefined): Set<ApiWay> {
+  const [ways, setWays] = useState<Set<ApiWay>>(new Set());
+  const key = page ? `${page.id}|${page.role}|${page.status}` : "";
+  useEffect(() => {
+    if (!page) return;
+    let alive = true;
+    const probes: [ApiWay, Promise<boolean>][] = [
+      ["try", page.status === "learning" || page.status === "ready" ? getModelCode(page.id).then(Boolean) : Promise.resolve(false)],
+      ["card", getModelCard(page.id).then(Boolean)],
+      ["price", page.role === "owner" ? getModelPrice(page.id).then(Boolean) : Promise.resolve(false)],
+      ["usage", getModelUsage(page.id).then((u) => Boolean(u?.keys.length))],
+      ["download", page.role === "public" ? Promise.resolve(false) : getModelDownload(page.id).then((d) => Boolean(d && !d.refused))],
+    ];
+    void Promise.all(probes.map(([way, ok]) => ok.then((yes) => (yes ? way : null)))).then((open) => {
+      if (alive) setWays(new Set(open.filter((w): w is ApiWay => w !== null)));
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return ways;
+}
+
+const API_LABEL: Record<Exclude<ApiWay, "try">, string> = {
+  card: API.use_it,
+  price: API.price_title,
+  usage: API.usage_title,
+  download: API.download_title,
+};
+
+export function ModelPageScreen({ modelId, onBack, onClose, onTeach, onApi = () => undefined }: Nav & {
+  modelId: string;
+  onTeach: (page: ModelPage) => void;
+  onApi?: (way: ApiWay, page: ModelPage) => void;
+}) {
   const page = useRead(() => getModelPage(modelId), modelId);
+  const ways = useApiWays(page);
   const footer = page ? (
     <WalkFooter
       pill={{ label: page.actions[0] ?? W.teach_it, onClick: () => onTeach(page) }}
-      links={page.actions.slice(1).map((label) => ({ label, onClick: () => undefined, disabled: true }))}
+      links={page.actions
+        .slice(1)
+        .filter((label) => label !== W.try_it || ways.has("try"))
+        .map((label) => (label === W.try_it ? { label, onClick: () => onApi("try", page) } : { label, onClick: () => undefined, disabled: true }))}
     />
   ) : null;
+  const more = (["card", "price", "usage", "download"] as const).filter((w) => ways.has(w));
   return (
     <WalkOverlay onBack={onBack} backLabel={page?.name} title={page?.name} onClose={onClose} footer={footer} testId="model-page">
       {page ? (
@@ -251,6 +322,13 @@ export function ModelPageScreen({ modelId, onBack, onClose, onTeach }: Nav & { m
           </div>
           {page.description ? <p className="m-0">{page.description}</p> : null}
           {page.status === "learning" ? <p className="m-0 text-[15px] text-muted-foreground">{TO_SIGN.pageTryNow}</p> : null}
+          {more.length ? (
+            <div data-model-api-ways className="flex flex-wrap gap-2">
+              {more.map((w) => (
+                <Mini key={w} label={API_LABEL[w]} quiet onClick={() => onApi(w, page)} />
+              ))}
+            </div>
+          ) : null}
         </>
       ) : null}
     </WalkOverlay>

@@ -1208,6 +1208,16 @@ O3 -> the strength again links to the Life Panel",
 src/components/willab/loungeYourWhy.test.tsx,Story,"As a speaker, I want to write my why, my vision and how I want to treat people once in my own words, and see one of them each day, so that I remember why I do this.","O1  Start opens the lens; three questions come one at a time, each with Skip; Will drafts each line only from my words and quotes them; Accept or my own words keep it, and ""Noted. Your why is set."" (backend N255 Q1, Q2).
 O2  The day's why's › opens that line as it is now; my change is kept, dated (Q6).","O1 -> sets my why from my answers, one question at a time
 O2 -> the day's why opens its line to change it",
+src/components/willab/models/modelApi.test.tsx,Story,"As a business, I want to read a ready model's card, try it, take a free test key that I see only once, put it in my product with the code, and follow my month's usage; as a model's founder, I want to set its price with − and + and see where the money goes; as a teacher, I want to see my earnings; and as its owner, to download its data; all in the locked prototype's words, in tokens, never in euros (backend N528, N531, N566, N577, N583; App Model MOD-39 to MOD-48, MOD-51). Before the backend has the routes, or below the ring, no way in shows.","O1  Every way in (the list's ""Use it"", the page's ""Try it"", ""Use it in
+your business"", ""Set your price"", ""Your usage"", ""Download its data"",
+""Your earnings"") hides while its route answers 404.
+O2  Each story's Then holds with the backend's exact words (the BFF answers
+with what services/model_api.py builds, modelApiFixtures.json), and
+prices read in tokens.
+O3  The key is shown once: after ""I copied it"" it is on no screen, and
+only a test key is ever asked for (no live charge).","O1 -> ""before the backend has the routes …""
+O2 -> one test per story, named by its id
+O3 -> ""MOD-42 …""",The App Model's stories are the contract the founder compares the code with (backend N574); hiding on 404 keeps the screens safe to merge before backend #1866 and its migration.
 src/components/willab/models/models.test.tsx,Story,"As a person in ring 6, I want to find AI models under my chats, open one, come through its door and teach it from one queue, and see the models I started and teach on my profile, in the locked prototype's words, so that what I know teaches a model without the machine's guess ever leading me (backend N528, N563, N566; App Model MOD-02 to MOD-23, MOD-49, MOD-50). Below the ring nothing of it shows.","O1  Below ring 6 (every /v2/models route answers 404) no row, no section
 and no invite card is drawn.
 O2  Each story's Then holds with the backend's exact words (the BFF answers
