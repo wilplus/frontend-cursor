@@ -157,7 +157,7 @@ export type WalkStepKey =
    *  2026-10-31, N309 item 1): never planned, drawn under the hello and
    *  told to the chat once. */
   | "last"
-  /** "And now, one thing to improve:" (N309 item 1): never planned, drawn
+  /** "And here's one moment to try another way:" (N309 item 1): never planned, drawn
    *  above the One thing walk's fix and told to the chat once. */
   | "one"
   /** The helper words, on their own (N309 item 3): no pick. */
@@ -205,7 +205,7 @@ export type WalkStep = WalkScreen & {
   /** A step of the One thing walk (founder 2026-10-31, N309): drawn and
    *  said with its own words; its practise allows two tries. */
   one?: boolean;
-  /** The helper words step of a good Take: "Nothing to fix this time."
+  /** The helper words step of a good Take: "The rest of this Take held up just as well."
    *  opens it, where the fix would be (backend N551). */
   clear?: boolean;
   /** The helper words step: the moment whose paragraph takes them (the

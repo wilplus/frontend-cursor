@@ -536,12 +536,12 @@ export const ONE_THING_COPY = {
   /** Their best: the clip, then this and why it worked. */
   best: "This was your most confident moment.",
   whyItWorked: (cue: string) => `Why it worked: ${cue}`,
-  /** Above the one fix. */
-  one: "And now, one thing to improve:",
+  /** Above the one fix (backend N557, signed 2026-11-09). */
+  one: "And here's one moment to try another way:",
   /** The Clearer version's lead, then the sentence in bold. */
   sayStraight: "Say it straight:",
-  /** A good Take, where the fix would be (backend N551, signed 2026-11-09). */
-  nothingToFix: "Nothing to fix this time.",
+  /** A good Take, where the fix would be (backend N551; words N557, signed 2026-11-09). */
+  nothingToFix: "The rest of this Take held up just as well.",
   /** The AI clip after their best played again. */
   likeConfident: "Say this one like your confident moment:",
   yourTurn: "Your turn.",
