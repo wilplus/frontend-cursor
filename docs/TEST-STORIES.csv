@@ -73,14 +73,17 @@ O3  The backend unreachable: 502 with the generic words.
 O4  A guest token never rides on an account's call; a signed-out
 guest's own token does.
 O5  A route's own knobs win: `failures` (its words), `relay` (its
-answer shape), `token: null` (no sign-in sent).","O1 -> ""a signed-in call carries the token and passes the answer through""
+answer shape), `token: null` (no sign-in sent).
+O6  The backend's own timings reach the browser's timing panel once,
+next to upstream and bff, whichever relay the route uses.","O1 -> ""a signed-in call carries the token and passes the answer through""
 O2 -> ""401 UNAUTHENTICATED with the shared copy when signed out""
 O3 -> ""502 PROXY_ERROR with the generic copy when fetch throws""
 O4 -> ""an account never sends the guest token along"",
 ""a signed-out guest sends its own token""
 O5 -> ""failures: a route keeps its own words"",
 ""relay: a route shapes its own answer"",
-""token: null sends no sign-in""",The one BFF->backend helper (audit Q-A8); ~150 routes rely on it. `server-only` and `next/headers` are mocked so the helper runs as plain Node.
+""token: null sends no sign-in""
+O6 -> ""the backend's timings ride next to upstream and bff, whatever the relay""","The one BFF->backend helper (audit Q-A8); ~150 routes rely on it. O6: founder 2026-11-09, the coach's queue showed only upstream and bff, so where its second went could not be seen. `server-only` and `next/headers` are mocked so the helper runs as plain Node."
 src/app/api/auth/callback/route.test.ts,Story,"As a speaker signing in through an old link, I want to land on the real sign-in callback with my code or error intact, so that my login works or tells me why.","O1  The code, the PKCE state and `next` reach /auth/callback unchanged.
 O2  A provider error reaches /auth/callback instead of being swallowed.
 O3  Nothing lands on /dashboard, even with no code at all.","O1 -> ""forwards the code, the PKCE state and next to the real callback""
