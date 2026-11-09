@@ -738,7 +738,7 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   const left = Math.max(0, Math.ceil((startedAt + UNDO_MS - now) / 1000));
   if (failed) {
     return (
-      <div data-chat-sending="failed" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
+      <div data-chat-sending="failed" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
         <span className="min-w-0 truncate text-foreground">{NOT_SENT}</span>
         <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-semibold text-foreground">
           {SEND_AGAIN}
@@ -747,7 +747,7 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
     );
   }
   return (
-    <div data-chat-sending="" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-muted pl-[18px] pr-1.5 text-[14.5px]">
+    <div data-chat-sending="" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
       <span className="min-w-0 truncate tabular-nums text-foreground">
         {sendingTo(name)}
         {waited ? "" : ` ${left}`}

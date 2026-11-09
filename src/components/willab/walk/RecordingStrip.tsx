@@ -44,7 +44,7 @@ export default function RecordingStrip({
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec);
   return (
-    <div data-walk-recording-strip className="flex h-12 items-center gap-2.5 rounded-full bg-muted pl-3.5 pr-[5px]">
+    <div data-walk-recording-strip className="flex h-12 items-center gap-2.5 rounded-full bg-[#F2F2F2] pl-3.5 pr-[5px]">
       <span
         className="h-2 w-2 shrink-0 rounded-full motion-safe:animate-rec-blink"
         style={{ backgroundColor: BAR_RED }}
@@ -67,7 +67,7 @@ export default function RecordingStrip({
         type="button"
         onClick={onStop}
         aria-label={stopLabel}
-        className="flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold text-white transition-transform hover:scale-[1.03]"
+        className="flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold text-white"
         style={{ backgroundColor: BAR_RED }}
       >
         <span className="h-2.5 w-2.5 rounded-[2px] bg-white" aria-hidden />
