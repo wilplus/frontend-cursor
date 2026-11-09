@@ -1,0 +1,588 @@
+{
+  "card": {
+    "title": "Job interview coach",
+    "line": "Job interview coach passed its final exam. Three people taught it.",
+    "description": "Helps you answer interview questions.",
+    "rows": [
+      {
+        "label": "Good at",
+        "value": "Answering common interview questions clearly"
+      },
+      {
+        "label": "Not so good at",
+        "value": "Very technical roles"
+      },
+      {
+        "label": "Not for",
+        "value": "Legal or medical advice"
+      },
+      {
+        "label": "On its final exam",
+        "value": "Coaches who didn’t know which answer was whose rated its answers as good as a coach’s about 8 times in 10."
+      },
+      {
+        "label": "When it isn’t sure",
+        "value": "It says so, and a coach answers instead"
+      },
+      {
+        "label": "Version",
+        "value": "1 · passed its exam on 2026-11-02"
+      }
+    ],
+    "foot": "Try it for free. Use it in your own product, and pay for each answer.",
+    "actions": [
+      "Use it in your business",
+      "Try it"
+    ],
+    "for_sale": true
+  },
+  "tryUnsure": {
+    "sub": "ready to use",
+    "text": "I’m not sure about this one, so I won’t guess. One of the coaches who taught me will answer it here within a day.",
+    "sure": false,
+    "mark": "Not sure · a coach will answer"
+  },
+  "trySure": {
+    "sub": "ready to use",
+    "text": "Name a real weakness, then what you do about it.",
+    "sure": true
+  },
+  "tryNotForSale": {
+    "sub": "trying it · not for sale yet",
+    "text": "Open with the problem, not your company.",
+    "sure": true
+  },
+  "terms": {
+    "title": "Use it in your business",
+    "lines": [
+      "You can put Job interview coach inside your own app or website.",
+      "You pay for each answer it gives. Part of what you pay goes to WillpowerLab, and the rest goes to the three people who taught it.",
+      "You may use its answers in your product. You may not copy the model or resell its data."
+    ],
+    "price_units": 300,
+    "price": "300 tokens an answer",
+    "price_line": "No monthly fee. Stop any time.",
+    "test_key": {
+      "label": "Start with a test key",
+      "line": "Free for your first 100 answers. It never bills you.",
+      "free_answers": 100
+    },
+    "limit": {
+      "label": "Set a monthly limit",
+      "default_units": 500000,
+      "options": [
+        {
+          "units": 200000,
+          "label": "200,000 tokens",
+          "line": "200,000 tokens · a mistake can never cost you more than you chose"
+        },
+        {
+          "units": 500000,
+          "label": "500,000 tokens",
+          "line": "500,000 tokens · a mistake can never cost you more than you chose"
+        },
+        {
+          "units": 1000000,
+          "label": "1,000,000 tokens",
+          "line": "1,000,000 tokens · a mistake can never cost you more than you chose"
+        }
+      ]
+    },
+    "training": "Your users’ questions are not used to train it unless you allow it.",
+    "actions": [
+      "Create a key",
+      "Not now"
+    ]
+  },
+  "termsOwn": {
+    "title": "Use it in your business",
+    "lines": [
+      "You can put Pitch Coach inside your own app or website.",
+      "You pay for each answer it gives. Part of what you pay goes to WillpowerLab, and the rest goes to the three people who taught it.",
+      "You may use its answers in your product. You may not copy the model or resell its data."
+    ],
+    "price_units": 300,
+    "price": "300 tokens an answer",
+    "price_line": "No monthly fee. Stop any time.",
+    "test_key": {
+      "label": "Start with a test key",
+      "line": "Free for your first 100 answers. It never bills you.",
+      "free_answers": 100
+    },
+    "limit": {
+      "label": "Set a monthly limit",
+      "default_units": 500000,
+      "options": [
+        {
+          "units": 200000,
+          "label": "200,000 tokens",
+          "line": "200,000 tokens · a mistake can never cost you more than you chose"
+        },
+        {
+          "units": 500000,
+          "label": "500,000 tokens",
+          "line": "500,000 tokens · a mistake can never cost you more than you chose"
+        },
+        {
+          "units": 1000000,
+          "label": "1,000,000 tokens",
+          "line": "1,000,000 tokens · a mistake can never cost you more than you chose"
+        }
+      ]
+    },
+    "training": "Your users’ questions are not used to train it unless you allow it.",
+    "actions": [
+      "Create a key",
+      "Not now"
+    ],
+    "own_product": "Use Pitch Coach in your own product."
+  },
+  "termsRefused": {
+    "title": "Use it in your business",
+    "refused": "This model can’t be used in a product yet. It opens once its first training passes its final exam.",
+    "actions": [
+      "Back to the list"
+    ]
+  },
+  "key": {
+    "title": "Your key",
+    "line": "This is your secret key. It lets your product talk to Job interview coach.",
+    "key": "wpl_sk_test_EXAMPLEkeyEXAMPLEkeyEXAMPLEkey12",
+    "note": "This is a test key: free for 100 answers. You see it only once. Keep it secret, like a password. If it leaks, delete it and make a new one.",
+    "actions": [
+      "Copy",
+      "I copied it"
+    ],
+    "id": "key1"
+  },
+  "keyOwn": {
+    "title": "Your key",
+    "line": "This is your secret key. It lets your product talk to Pitch Coach.",
+    "key": "wpl_sk_test_PITCHkeyPITCHkeyPITCHkeyPITCH34",
+    "note": "This is a test key: free for 100 answers. You see it only once. Keep it secret, like a password. If it leaks, delete it and make a new one.",
+    "actions": [
+      "Copy",
+      "I copied it"
+    ],
+    "id": "key2"
+  },
+  "code": {
+    "title": "Put it in your product",
+    "line": "Paste the key into your product, then send a question like this one. The answer comes back as text.",
+    "tabs": [
+      {
+        "lang": "js",
+        "label": "JavaScript",
+        "code": "const res = await fetch(\"https://api.willpowerlab.com/v2/models/job/answer\", {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${process.env.WILLPOWERLAB_KEY}`,\n             \"Content-Type\": \"application/json\" },\n  body: JSON.stringify({ message: \"How do I answer: what is your biggest weakness?\" }),\n});\nconst { answer, sure } = await res.json();"
+      },
+      {
+        "lang": "py",
+        "label": "Python",
+        "code": "import os, requests\n\nres = requests.post(\n    \"https://api.willpowerlab.com/v2/models/job/answer\",\n    headers={\"Authorization\": f\"Bearer {os.environ['WILLPOWERLAB_KEY']}\"},\n    json={\"message\": \"How do I answer: what is your biggest weakness?\"},\n)\nanswer, sure = res.json()[\"answer\"], res.json()[\"sure\"]"
+      },
+      {
+        "lang": "curl",
+        "label": "curl",
+        "code": "curl https://api.willpowerlab.com/v2/models/job/answer \\\n  -H \"Authorization: Bearer $WILLPOWERLAB_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"message\": \"How do I answer: what is your biggest weakness?\"}'"
+      }
+    ],
+    "sure": "Each answer comes with “sure”: true or false. When it is false, show the answer as a draft, or pass the question to a person.",
+    "actions": [
+      "Done",
+      "Send it to your developer"
+    ]
+  },
+  "usage": {
+    "title": "Your usage",
+    "line": "Job interview coach answered 1,240 questions for your users this month.",
+    "alerts": [],
+    "rows": [
+      {
+        "label": "Answers this month",
+        "value": "1,240"
+      },
+      {
+        "label": "You pay",
+        "value": "0 tokens"
+      },
+      {
+        "label": "Keys",
+        "value": "1 · a test key, 40 free answers left"
+      }
+    ],
+    "pays_teachers": "Every answer you pay for also pays the three people who taught it.",
+    "send_unsure": {
+      "label": "Send the questions it wasn’t sure about to its teachers",
+      "line": "124 this month, with your users’ names removed. Its teachers answer them, and it gets better at what your users ask.",
+      "on": false
+    },
+    "keys": [
+      {
+        "id": "key1",
+        "kind": "test",
+        "label": "wpl_sk_test_…ey12",
+        "version": 1
+      }
+    ],
+    "version": {
+      "line": "You use version 1. When version 2 passes the same exam, you choose when to switch."
+    },
+    "actions": [
+      "Back to the list",
+      "Delete this key"
+    ]
+  },
+  "usageNewer": {
+    "title": "Your usage",
+    "line": "Job interview coach answered 1,240 questions for your users this month.",
+    "alerts": [],
+    "rows": [
+      {
+        "label": "Answers this month",
+        "value": "1,240"
+      },
+      {
+        "label": "You pay",
+        "value": "0 tokens"
+      },
+      {
+        "label": "Keys",
+        "value": "1 · a test key, 40 free answers left"
+      }
+    ],
+    "pays_teachers": "Every answer you pay for also pays the three people who taught it.",
+    "send_unsure": {
+      "label": "Send the questions it wasn’t sure about to its teachers",
+      "line": "124 this month, with your users’ names removed. Its teachers answer them, and it gets better at what your users ask.",
+      "on": false
+    },
+    "keys": [
+      {
+        "id": "key1",
+        "kind": "test",
+        "label": "wpl_sk_test_…ey12",
+        "version": 1
+      }
+    ],
+    "version": {
+      "title": "Version 2 passed the same exam.",
+      "line": "You use version 1. Nothing changes until you switch.",
+      "action": "Switch to version 2"
+    },
+    "actions": [
+      "Back to the list",
+      "Delete this key"
+    ]
+  },
+  "usageFreeUsed": {
+    "title": "Your usage",
+    "line": "Job interview coach answered 100 questions for your users this month.",
+    "alerts": [
+      {
+        "title": "Your test key used its 100 free answers.",
+        "line": "Your product gets no more answers from it. Make a live key to go on; it bills you for each answer, up to your monthly limit.",
+        "action": "Make a live key"
+      }
+    ],
+    "rows": [
+      {
+        "label": "Answers this month",
+        "value": "100"
+      },
+      {
+        "label": "You pay",
+        "value": "0 tokens"
+      },
+      {
+        "label": "Keys",
+        "value": "1 · a test key, 0 free answers left"
+      }
+    ],
+    "pays_teachers": "Every answer you pay for also pays the three people who taught it.",
+    "send_unsure": {
+      "label": "Send the questions it wasn’t sure about to its teachers",
+      "line": "10 this month, with your users’ names removed. Its teachers answer them, and it gets better at what your users ask.",
+      "on": false
+    },
+    "keys": [
+      {
+        "id": "key1",
+        "kind": "test",
+        "label": "wpl_sk_test_…ey12",
+        "version": 1
+      }
+    ],
+    "version": {
+      "line": "You use version 1. When version 2 passes the same exam, you choose when to switch."
+    },
+    "actions": [
+      "Back to the list",
+      "Delete this key"
+    ]
+  },
+  "price": {
+    "title": "Set your price",
+    "intro": "Pitch Coach passed its final exam. Set the price for one answer; you can change it at any time.",
+    "price_units": 300,
+    "price": "300 tokens",
+    "unit": "for one answer",
+    "floor_units": 60,
+    "step_units": 10,
+    "minus_enabled": true,
+    "suggestions": [
+      {
+        "units": 200,
+        "label": "200 tokens"
+      },
+      {
+        "units": 300,
+        "label": "300 tokens"
+      },
+      {
+        "units": 500,
+        "label": "500 tokens"
+      }
+    ],
+    "similar": "Similar models charge 200 tokens to 500 tokens. The lowest is 60 tokens, what an answer costs to run.",
+    "uses": 10000,
+    "uses_line": "If businesses use it 10,000 times a month",
+    "month": "3,000,000 tokens a month would go here:",
+    "split": [
+      {
+        "part": "infra",
+        "label": "Infrastructure",
+        "line": "The AI company, our servers and WillpowerLab",
+        "units": 1080000,
+        "amount": "1,080,000 tokens"
+      },
+      {
+        "part": "founder",
+        "label": "You, who started it",
+        "units": 192000,
+        "amount": "192,000 tokens"
+      },
+      {
+        "part": "teachers",
+        "label": "The teachers, by their points",
+        "units": 1728000,
+        "amount": "1,728,000 tokens"
+      }
+    ],
+    "action": "Use 300 tokens"
+  },
+  "priceFloor": {
+    "title": "Set your price",
+    "intro": "Pitch Coach passed its final exam. Set the price for one answer; you can change it at any time.",
+    "price_units": 60,
+    "price": "60 tokens",
+    "unit": "for one answer",
+    "floor_units": 60,
+    "step_units": 10,
+    "minus_enabled": false,
+    "suggestions": [
+      {
+        "units": 200,
+        "label": "200 tokens"
+      },
+      {
+        "units": 300,
+        "label": "300 tokens"
+      },
+      {
+        "units": 500,
+        "label": "500 tokens"
+      }
+    ],
+    "similar": "Similar models charge 200 tokens to 500 tokens. The lowest is 60 tokens, what an answer costs to run.",
+    "uses": 10000,
+    "uses_line": "If businesses use it 10,000 times a month",
+    "month": "600,000 tokens a month would go here:",
+    "split": [
+      {
+        "part": "infra",
+        "label": "Infrastructure",
+        "line": "The AI company, our servers and WillpowerLab",
+        "units": 600000,
+        "amount": "600,000 tokens"
+      },
+      {
+        "part": "founder",
+        "label": "You, who started it",
+        "units": 0,
+        "amount": "0 tokens"
+      },
+      {
+        "part": "teachers",
+        "label": "The teachers, by their points",
+        "units": 0,
+        "amount": "0 tokens"
+      }
+    ],
+    "action": "Use 60 tokens"
+  },
+  "price310": {
+    "title": "Set your price",
+    "intro": "Pitch Coach passed its final exam. Set the price for one answer; you can change it at any time.",
+    "price_units": 310,
+    "price": "310 tokens",
+    "unit": "for one answer",
+    "floor_units": 60,
+    "step_units": 10,
+    "minus_enabled": true,
+    "suggestions": [
+      {
+        "units": 200,
+        "label": "200 tokens"
+      },
+      {
+        "units": 300,
+        "label": "300 tokens"
+      },
+      {
+        "units": 500,
+        "label": "500 tokens"
+      }
+    ],
+    "similar": "Similar models charge 200 tokens to 500 tokens. The lowest is 60 tokens, what an answer costs to run.",
+    "uses": 10000,
+    "uses_line": "If businesses use it 10,000 times a month",
+    "month": "3,100,000 tokens a month would go here:",
+    "split": [
+      {
+        "part": "infra",
+        "label": "Infrastructure",
+        "line": "The AI company, our servers and WillpowerLab",
+        "units": 1100000,
+        "amount": "1,100,000 tokens"
+      },
+      {
+        "part": "founder",
+        "label": "You, who started it",
+        "units": 200000,
+        "amount": "200,000 tokens"
+      },
+      {
+        "part": "teachers",
+        "label": "The teachers, by their points",
+        "units": 1800000,
+        "amount": "1,800,000 tokens"
+      }
+    ],
+    "action": "Use 310 tokens"
+  },
+  "price20k": {
+    "title": "Set your price",
+    "intro": "Pitch Coach passed its final exam. Set the price for one answer; you can change it at any time.",
+    "price_units": 300,
+    "price": "300 tokens",
+    "unit": "for one answer",
+    "floor_units": 60,
+    "step_units": 10,
+    "minus_enabled": true,
+    "suggestions": [
+      {
+        "units": 200,
+        "label": "200 tokens"
+      },
+      {
+        "units": 300,
+        "label": "300 tokens"
+      },
+      {
+        "units": 500,
+        "label": "500 tokens"
+      }
+    ],
+    "similar": "Similar models charge 200 tokens to 500 tokens. The lowest is 60 tokens, what an answer costs to run.",
+    "uses": 20000,
+    "uses_line": "If businesses use it 20,000 times a month",
+    "month": "6,000,000 tokens a month would go here:",
+    "split": [
+      {
+        "part": "infra",
+        "label": "Infrastructure",
+        "line": "The AI company, our servers and WillpowerLab",
+        "units": 2160000,
+        "amount": "2,160,000 tokens"
+      },
+      {
+        "part": "founder",
+        "label": "You, who started it",
+        "units": 384000,
+        "amount": "384,000 tokens"
+      },
+      {
+        "part": "teachers",
+        "label": "The teachers, by their points",
+        "units": 3456000,
+        "amount": "3,456,000 tokens"
+      }
+    ],
+    "action": "Use 300 tokens"
+  },
+  "earnings": {
+    "title": "Your earnings",
+    "line": "Pitch Coach version 1 earned you 41,000 tokens this month.",
+    "rows": [
+      {
+        "label": "Your share of version 1",
+        "value": "23%"
+      },
+      {
+        "label": "Your answers that trained it",
+        "value": "214"
+      },
+      {
+        "label": "Next payout",
+        "value": "When you have earned 200,000 tokens"
+      }
+    ],
+    "fixed": "Your share is fixed for version 1. It grows with each answer that counts; hard clips count for more. Answers you give now count toward version 2.",
+    "minimum": "We pay once a month when you have earned €20 or more. Before your first payout, we ask for your name and bank details, as every payment service must.",
+    "actions": [
+      "Back to the list"
+    ]
+  },
+  "earningsNone": {
+    "title": "Your earnings",
+    "line": "None of your models earns yet. A model earns once its first version passes its exam and businesses use it.",
+    "rows": [],
+    "actions": [
+      "Back to the list"
+    ]
+  },
+  "download": {
+    "title": "Download its data",
+    "lines": [
+      "You can download what Pitch Coach has learned from, and build your own on it.",
+      "You get your teachers’ ratings and answers. What speakers said is left out until the training yes says it may be shared. Recordings stay with WillpowerLab.",
+      "You may build on it, test it and research with it for free. To sell a product built on it, you need a licence, and its teachers share what that earns."
+    ],
+    "actions": [
+      "Download the data",
+      "Not now"
+    ]
+  },
+  "downloadRefused": {
+    "title": "Download its data",
+    "refused": "Only its owner and its teachers can download its data.",
+    "actions": [
+      "Back to the list"
+    ]
+  },
+  "downloadRows": {
+    "model": "Pitch Coach",
+    "rows": [
+      {
+        "example": "a1b2c3d4e5f6",
+        "kind": "clip",
+        "source": "teacher",
+        "step": "rate",
+        "question": "Does the opening hook you?",
+        "answer": "Yes",
+        "counted": true,
+        "teacher": "teacher-dd8d451f5c"
+      }
+    ]
+  }
+}

@@ -49,6 +49,18 @@ export const MODELS_WORDS = {
   profile_section: "AI models",
 } as const;
 
+/** Copied from backend services/model_api.py WORDS, key for key: the few a
+ *  screen draws itself, as the label of its way in. Everything else on the
+ *  API and money screens arrives in the backend's answers. */
+export const MODEL_API_WORDS = {
+  use_it: "Use it in your business",
+  try_it: "Try it",
+  price_title: "Set your price",
+  usage_title: "Your usage",
+  earn_title: "Your earnings",
+  download_title: "Download its data",
+} as const;
+
 /** The backend's JUDGE_ANSWERS: a voice model asking these is drawn as the
  *  coach panel's Judge, with its faces (N563 item 2). */
 export const JUDGE_ANSWERS = ["Yes", "In-between", "No"] as const;
