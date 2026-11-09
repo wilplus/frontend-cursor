@@ -298,6 +298,19 @@ green); the app shows the speaker's own slides, unchanged.
   recommendations". Lives in `LabOverlay.tsx` (`answerLook`,
   `RecordingWhere`), `recordingCopy.ts` (`answerWhere`) and
   `src/lib/willab/chatAnswer.ts` (`answerDeck`).
+- **2026-11-09 · the browser's own leave warning (N553 item 1).** While a
+  Take is recorded and until its upload is accepted, refreshing or closing
+  the page in a browser shows the browser's own leave warning, in its
+  words, never ours; iPhone Safari and the app ignore it, item 2 is for
+  them. It starts with the recording (a call's pause and Finish take's last
+  second included) and ends when the server answers that it has the Take
+  (201 or 202). A failed upload keeps it until the Take goes up; "Discard
+  this take?", or leaving these screens, ends it. Nothing else asks: not
+  the set-up, the wait once the server has the Take, the Ideal Text, the
+  walk, a file picked with "Upload a recording", or a move between the
+  app's own pages. Nothing on screen changes. Signed in the Claude Code
+  chat, 9 November 2026 ("Both: A now, B next"). Lives in
+  `src/components/willab/labLeaveGuard.ts` and `LabOverlay.tsx`.
 
 
 ## 2. In flight
@@ -348,6 +361,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-09 · N553 item 1 · while a Take is recorded and until the server answers that it has it (201 or 202), refreshing or closing the page in a browser shows the browser's own "Leave page?" warning, with no words of ours; a failed upload keeps it until the Take goes up, and a discard or leaving the screens ends it; iPhone Safari and the app ignore it, item 2 is for them (`labLeaveGuard.ts`, `LabOverlay.tsx`). Nothing on screen changes. Was: a refresh or a close lost the Take with no warning · BE N553 (#1818), FE (this PR)
 - 2026-11-09 · N549 · "Record Take N" opens "How do you feel?" at once: no 0.4 s fade into it, and the check draws from the tab's last "authorized" while the Lab's own consent read runs; a pick or Skip starts the Take only once that read agrees, and a read that says otherwise puts the acceptance flow in front (`LabOverlay.tsx`, `LabEntryGate.tsx`, `useSignedIn.ts`, `processingAuthorization.ts`). No new words. Was: the Lab faded in over 0.4 s and waited behind a loader for the read, so the page under it showed for a moment · BE (N549 log), FE (this PR)
 - 2026-11-09 · no rule changed · a bug fix: the wait's ✕ shows the chat landed on "Processing your recording", and the thread lands on that bubble whenever a Take's processing starts (`useLandOnProcessing` in `usePinThreadBottom.ts`, `Lounge.tsx`). Nothing on screen changes. Was: since the chat follows only a new message (2026-11-05), the bubble, which is not a message, could stay below the screen after the ✕, and looked gone · FE (this PR)
 - 2026-11-05 · no rule changed · "Discard this take?" takes the keyboard: focus moves onto "Keep recording" (or "Cancel") as it opens, Tab stays on its two answers, Escape keeps the Take; closed, focus is not handed back to the ✕, so the next Space still turns the slide (N70.1) (`DiscardTakeDialog.tsx`, as `ProcessingResumeOverlay.tsx` does). Nothing on screen changes. Was: focus stayed behind the dialog, Tab reached the screen under it and Escape did nothing · FE (this PR)

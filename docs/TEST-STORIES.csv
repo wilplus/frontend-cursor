@@ -1040,6 +1040,16 @@ O2  The door still holds: until that read answers the entry is not
 fresh (nothing starts a Take), and a read that says the terms changed
 puts the acceptance flow in front of the screen.","O1 -> ""draws the first screen at once after an earlier authorized read""
 O2 -> ""the fresh read still decides, and can put the acceptance flow in front""",The Lab used to wait for a network read behind a loader before every later Take's first screen.
+src/components/willab/labLeaveGuard.test.tsx,Story,"As a speaker, I want refreshing or closing the page by mistake while my Take is recorded, or before the server has it, to ask me first, so that I never lose a Take silently.","O1  While a Take records (paused by a call and finishing included), and
+while it goes up, the page's unload is held for the browser's own
+""Leave page?"".
+O2  Once the server answers that it has the Take (201 or 202), nothing
+asks; a failed upload still asks.
+O3  Before Record nothing asks.
+O4  After ""Discard this take?"", and once the screens close, nothing asks.","O1 -> ""asks while a Take records and while it goes up""
+O2 -> ""stops asking once the server has the Take, and keeps asking after a failed upload""
+O3 -> ""asks nothing before Record""
+O4 -> ""asks nothing after a discard, nor once the screens close""","Founder 2026-11-09, backend N553 item 1 (""Both: A now, B next""): a refresh or a close before the server confirmed the Take lost it. Never 3."
 src/components/willab/labProcessingDiscard.test.tsx,Story,"As a speaker, I want to discard a bad Take while it is still uploading, and not be offered that once the server has it, so that a bad Take leaves no trace and I am never promised something that cannot happen.","O1  ""Discard this take"" shows while the upload is in flight.
 O2  Once the server has answered (canDiscard false) it is gone, and the
 waiting screen is still there.
