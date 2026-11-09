@@ -576,7 +576,7 @@ it("nothing of the principles before my first Take", async () => {
   const reload = async () => {};
   function Lounge({ messages }: { messages: LoungeMessage[] }) {
     const plan = usePlanLounge({ signedIn: true, thread: { messages, loading: false, reload }, setThinking: () => {}, recordHeld: false });
-    useVoiceNotebook({ signedIn: true, threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer, reload });
+    useVoiceNotebook({ signedIn: true, userId: "u1", threadLoading: false, held: plan.holdsPrinciples, drawn: messages, openOffer, reload });
     return null;
   }
   const show = async (messages: LoungeMessage[]) => {

@@ -83,8 +83,18 @@ function audioName(audio: Blob, stem: string): string {
 }
 
 /** What became of a note sent: kept (with the user row's client_id), refused
- *  for good (nothing heard, no notebook), or not sent and to try again. */
+ *  for good (no audio, no notebook, too long, nothing heard), or not sent
+ *  and to try again. */
 export type SendOutcome = { kind: "kept"; clientId: string | null } | { kind: "refused" } | { kind: "retry" };
+
+/** The refusals a second try would get again (backend
+ *  routes/v2/voice_notebook.py, services/voice_notebook.py): 400 no audio,
+ *  404 no notebook, 413 longer than five minutes, 422 no words heard. Any
+ *  other answer keeps the note on the phone to go again (N194: only delete
+ *  throws a note away): 401 a sign-in that ran out, 403 a policy update not
+ *  yet accepted (or an account not yet let in), 409 the notebook's Yes not
+ *  given, 429, 5xx, and no answer at all. */
+const REFUSED_FOR_GOOD = new Set([400, 404, 413, 422]);
 
 /** One voice note. `key` names it, so a note sent again after the app was
  *  closed mid-send is kept once (backend N194). */
@@ -107,9 +117,7 @@ export async function sendVoiceNote(
       const rows = ((result.body as { messages?: { role?: string; client_id?: string }[] } | null)?.messages ?? []);
       return { kind: "kept", clientId: rows.find((r) => r.role === "user")?.client_id ?? null };
     }
-    // A refusal that will not change on a second try: nothing heard, too
-    // long, no notebook, no consent. Anything else (5xx, 429) is tried again.
-    return result.status >= 400 && result.status < 500 && result.status !== 429 ? { kind: "refused" } : { kind: "retry" };
+    return REFUSED_FOR_GOOD.has(result.status) ? { kind: "refused" } : { kind: "retry" };
   } catch {
     return { kind: "retry" };
   }
