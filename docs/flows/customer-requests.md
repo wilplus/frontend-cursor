@@ -146,9 +146,10 @@ their join link: no workspace, no form, a visitor who only taps.
    a person whose only chat was Will's, opened Will's chat (N274).
    **The iPhone app opens on the chats** (N561 item 1, amending N354 item
    1): signed in, straight on the list, with no stop at sign-in; signed
-   out, the server sends the app to sign-in (/login, with its "Sign up")
-   before anything of /chat is drawn, and a link into a chat comes back to
-   it after sign-in. The server knows the app by its user agent
+   out, the server sends the app to the first page, the website's (N568,
+   N471 item 4: the link field, "No link yet? Join the waitlist", "Sign in"
+   in its corner), before anything of /chat is drawn; a link into a chat
+   goes to sign-in and comes back to it after. The server knows the app by its user agent
    (`WillpowerLabApp`, `capacitor.config.ts`), so the website's /chat is
    unchanged, and the check costs a signed-in person nothing: the session in
    the cookie, no round trip. Was (N354 item 1): the app opened on sign-in,
@@ -905,7 +906,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to /login, with a link into a chat coming back after it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, FE (this PR)
+- 2026-11-09 · N561 · C1: the iPhone app opens on the chats (`appStartPath: "chat"`): signed in, the list at once; signed out, the middleware sends the app, known by its user agent, to the first page (N568, N471 item 4), and a link into a chat through sign-in back to it; the website's /chat is unchanged. And Capacitor's keyboard plugin: no grey bar with arrows and "Done", the page resized to end on the keyboard ("native"), the footer behind the keyboard while it is up. Was (N354 item 1): the app opened on /login; the keyboard covered the text box. Both from the next app build · BE N561, N568, FE (this PR)
 - 2026-11-05 · N567 · B8 to B13: a person's widget. The add sheet's switch, "Put this chat on your website", turns the link into one line of code; the three tiles become one line, "Only the two of you are in it."; Copy my link in the ☰ menu opens the sheet (was: copied at once). `w.js` draws "Ask {name}" on any site and opens `/w/<token>` in an iframe; the visitor taps Agree and start, the owner's questions, one of three questions and the emoji, and hears the answer there; the owner's list has "Widget / Visitor {n}" with "From {site}"; Keep this chat makes it theirs ("Widget / {name}") · BE (this branch), FE (this PR)
 - 2026-11-06 · N534 · C1: until the questions for people who join are set, the "+" shows a note at the bottom, the bar at the top of Will's chat moved down, with "Set them" (Will's setup) and ✕, in place of opening Will's chat; once set, the "+" opens the add sheet as before (`ChatList.tsx`, `joinCopy.ts`, `chats.ts`) · BE (wilplus/backend-cursor, `"set"` on GET join-questions), FE (this change)
 - 2026-11-06 · N535 · C: under "What should change?" Will understands the change however it is put (the model, under the person's processing authorization). Was: only a few fixed phrasings, so "make the choices polish and english and french" got "I couldn't tell what to change" · BE N535 (wilplus/backend-cursor#1791), FE (this PR)

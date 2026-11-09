@@ -217,16 +217,18 @@ function isAppChatOpen(req: NextRequest, pathname: string): boolean {
   return pathname === "/chat" && isAppUserAgent(req.headers.get("user-agent"));
 }
 
-/** Where a signed-out visitor goes first, or null to stay: sign-in, then
- *  back to the full address, query included. The app's bare /chat is the
- *  page it opens on, so plain sign-in, as the app opened on before (N354),
- *  and sign-in goes on to the chats as ever; a link into a chat (the coach's
- *  feedback) comes back. On the website /chat stays as it is: MembersOnly
+/** Where a signed-out visitor goes first, or null to stay. A signed-in-only
+ *  page: sign-in, then back to the full address, query included. The app's
+ *  bare /chat, the page it opens on: the first page, as the website's
+ *  (backend N568, N471 item 4), with the link field and "Sign in" in its
+ *  corner. A link into a chat in the app (the coach's feedback): sign-in,
+ *  then back to it. On the website /chat stays as it is: MembersOnly
  *  decides there. */
 function signInFirst(req: NextRequest, pathname: string, search: string, appChat: boolean): URL | null {
+  if (appChat && !search) return new URL("/", req.url);
   if (!appChat && !isProtected(pathname)) return null;
   const loginUrl = new URL("/login", req.url);
-  if (!appChat || search) loginUrl.searchParams.set("redirectTo", pathname + search);
+  loginUrl.searchParams.set("redirectTo", pathname + search);
   return loginUrl;
 }
 
@@ -381,7 +383,7 @@ export async function middleware(req: NextRequest) {
    * as no session so the user can log in again.
    *
    * The iPhone app opens on /chat (backend N561 item 1), and there that
-   * getSession() decides: signed out, the app goes to sign-in. Still no
+   * getSession() decides: signed out, the app goes to the first page (N568). Still no
    * getUser(): a valid token costs nothing, and no cookie is null at once. */
   const authStartedAt = Date.now();
   const appChat = isAppChatOpen(req, pathname);
@@ -413,8 +415,9 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Signed out on a signed-in-only page, or on the iPhone app's /chat (N561
-  // item 1): sign-in first, before anything of the page is drawn.
+  // Signed out on a signed-in-only page (sign-in first), or on the iPhone
+  // app's /chat (N561 item 1; the first page, N568), before anything of the
+  // page is drawn.
   const signIn = session ? null : signInFirst(req, pathname, url.search, appChat);
   if (signIn) return applyCsp(NextResponse.redirect(signIn), cspDirectives);
 

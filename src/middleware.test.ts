@@ -1,15 +1,15 @@
 /*
-STORY    As a person opening the iPhone app, I want it to open on my chats, or on sign-in when I am signed out, so that I never stop at sign-in when I am in, and never see the chats flash when I am out; the website's /chat stays as it is.
+STORY    As a person opening the iPhone app, I want it to open on my chats, or on the first page when I am signed out, so that I never stop at sign-in when I am in, and never see the chats flash when I am out; the website's /chat stays as it is.
 OUTCOME
   O1  The app starts on /chat, a path Capacitor can start on (its folder is in webDir).
-  O2  Signed out, an app open of /chat is sent to /login by the server; a link into a chat comes back after sign-in.
+  O2  Signed out, an app open of /chat is sent to the first page by the server (N568); a link into a chat goes to sign-in and comes back after it.
   O3  Signed in, an app open of /chat stays there, with no redirect.
   O4  On the website, a signed-out open of /chat is not redirected by the server, as before.
 PROVES   O1 -> opens on the chats, a page Capacitor can start on
-         O2 -> sends a signed-out app open to sign-in, and a link in a chat back after it
+         O2 -> sends a signed-out app open to the first page, and a link in a chat through sign-in back to it
          O3 -> keeps a signed-in app open on the chats
          O4 -> leaves a signed-out website open of /chat as it was
-WHY      Backend N561 item 1 (amends N354 item 1): the app opened on /login, a stop and a sign-in check on every open.
+WHY      Backend N561 item 1 (amends N354 item 1): the app opened on /login, a stop and a sign-in check on every open. N568: signed out, the first page (N471 item 4).
 */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -58,10 +58,10 @@ describe("the iPhone app opens on the chats (backend N561 item 1)", () => {
     expect(existsSync(join(config.webDir!, config.server!.appStartPath!, "index.html"))).toBe(true);
   });
 
-  it("sends a signed-out app open to sign-in, and a link in a chat back after it", async () => {
+  it("sends a signed-out app open to the first page, and a link in a chat through sign-in back to it", async () => {
     const bare = await open("/chat", APP);
     expect(bare.status).toBe(307);
-    expect(bare.headers.get("location")).toBe(`${SITE}/login`);
+    expect(bare.headers.get("location")).toBe(`${SITE}/`);
 
     const lens = await open("/chat?lens=arc1&take=t1", APP);
     const login = new URL(lens.headers.get("location")!);

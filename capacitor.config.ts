@@ -9,8 +9,9 @@ import type { CapacitorConfig } from "@capacitor/cli";
 //
 // The app opens on the chats (backend N561 item 1; was: on sign-in, N354
 // item 1): a signed-in person lands on the list with no stop at /login. A
-// signed-out one is sent to /login by the middleware, server-side, so the
-// chats never flash; it knows the app by `appendUserAgent` below, and the
+// signed-out one is sent by the middleware, server-side, to the first page
+// (N568, N471 item 4: the link field, the waitlist, "Sign in" in its
+// corner), so the chats never flash; it knows the app by `appendUserAgent` below, and the
 // website's /chat is unchanged. The path goes in `appStartPath`, never in
 // `server.url`: iOS keeps a page inside the app only when its address
 // starts with `server.url`, so ".../chat" there would send /login and
