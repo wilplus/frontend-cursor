@@ -163,7 +163,8 @@ import WillQuestionBubble, {
 } from "./WillQuestion";
 import { isWillVoice, useKeyLineHear, WillVoiceBubble } from "./WillVoiceAnswer";
 import { WillBarMiddle } from "./plan/PlanDock";
-import { JoinSetupBubble, joinSetupOf, joinSetupWaiting, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
+import { JoinSetupBubble, joinSetupOf, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
+import { ChatSetupBubble, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1565,8 +1566,12 @@ export default function Lounge({
   // his follow-up with no answers to tap, or "What was missing?".
   // Will's setup question that waits (backend N503): typed words answer it,
   // and "What should change?" keeps the box open.
-  const setupWaits = joinSetupWaiting(shownMessages);
+  // Will's other setup, one's own chat (backend N582, the chat builder's
+  // ring): the same box, the same taps.
   const joinSetup = useJoinSetup(reload, setBotThinking);
+  const chatSetup = useChatSetup(reload, setBotThinking);
+  const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup);
+  const assistant = useAssistantInWill(thread.signedIn, reload);
   // Will's key line asks to be said (backend N544): "Record your answer" in
   // the bar's middle records it in the small recording bar, no box for it.
   const keyLine = useKeyLineHear({
@@ -1642,7 +1647,7 @@ export default function Lounge({
       return;
     }
     if (setupWaits) {
-      await joinSetup.say(setupWaits.to, q);
+      await setupWaits.say(q);
       followAnswer();
       return;
     }
@@ -1863,9 +1868,21 @@ export default function Lounge({
       onWords={words.start}
     />
   );
+  const drawChatSetup = (item: ThreadItem, i: number, setup: ChatSetup) => (
+    <ChatSetupBubble
+      key={item.reactKey}
+      message={item.message}
+      setup={setup}
+      open={i === shownItems.length - 1}
+      onTap={(picked) => chatSetup.tap(item.message.client_id, picked).then(followAnswer)}
+      builder={assistant.builder}
+    />
+  );
   const drawItem = (item: ThreadItem, i: number) => {
     const setup = joinSetupOf(item.message);
-    return setup ? drawSetup(item, i, setup) : drawThreadItem(item, i);
+    if (setup) return drawSetup(item, i, setup);
+    const own = chatSetupOf(item.message);
+    return own ? drawChatSetup(item, i, own) : drawThreadItem(item, i);
   };
 
   // One shown row: a Take's Feedback walk with its card as one pair (N202),
@@ -1993,6 +2010,7 @@ export default function Lounge({
       {/* Notifications: one at a time, in a bar at the top, never in the
           buttons under the chat (founder 2026-11-03, backend N391). */}
       <NoticeBar signedIn={thread.signedIn} whatsapp={whatsapp} />
+      {assistant.sheet}
       {/* The speaking way in's Take 1 (backend N453 items 1 and 7, N592): a
           thin row on top of the chat while it is processed, in place of the
           full wait; orange once its walk is ready. */}
