@@ -28,7 +28,13 @@ export interface ProxyOptions {
   /** Forward the request's `Range` header: a recording played back, which
    *  Safari asks for in byte ranges (with `relayAudio`). */
   range?: boolean;
+  /** Your chat on any website (backend N567): forward the widget visitor's
+   *  secret header. "public" also needs no sign-in (the visitor has no
+   *  account); "signed-in" keeps sign-in required ("Keep this chat"). */
+  widgetGuest?: "public" | "signed-in";
 }
+
+export const WIDGET_GUEST_HEADER = "X-Willab-Widget-Guest";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Context = { params: Record<string, string> };
@@ -42,15 +48,17 @@ export function proxyRoute(method: Method, template: string, options: ProxyOptio
   return async function handler(req: NextRequest, context: Context): Promise<NextResponse> {
     const text = options.body ? await req.text() : null;
     const range = options.range ? req.headers.get("Range") : null;
+    const visitor = options.widgetGuest ? req.headers.get(WIDGET_GUEST_HEADER) : null;
+    const headers: Record<string, string> = {
+      ...(range ? { Range: range } : {}),
+      ...(text === null ? {} : { "Content-Type": "application/json" }),
+      ...(visitor ? { [WIDGET_GUEST_HEADER]: visitor } : {}),
+    };
     const response = await callBackend(fill(template, context?.params ?? {}), {
       method,
-      ...(range ? { headers: { Range: range } } : {}),
-      ...(text === null
-        ? {}
-        : {
-            headers: { "Content-Type": "application/json" },
-            body: options.body === "json" ? text || "{}" : text,
-          }),
+      ...(Object.keys(headers).length ? { headers } : {}),
+      ...(text === null ? {} : { body: options.body === "json" ? text || "{}" : text }),
+      ...(options.widgetGuest === "public" ? { requireAuth: false } : {}),
       ...(options.relay ? { relay: options.relay } : {}),
       ...(options.failures ? { failures: options.failures } : {}),
       ...(options.guest ? { guestOwnerFrom: req } : {}),
