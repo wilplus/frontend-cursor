@@ -185,15 +185,25 @@ async function resolveRequestId(
  *  includes the instance booting, which no stopwatch inside it can see. */
 let instanceWarm = false;
 
-/** The BFF's own stopwatch, after the backend's (`app`, `db`) in the same
- *  Server-Timing header: `upstream` is the backend round trip (network,
- *  Railway's proxy, gunicorn's queue and Flask), `bff` the whole handler.
- *  A browser wait far above `bff` is Vercel (routing, a cold boot). */
-function stampTiming(response: NextResponse, upstreamMs: number, totalMs: number): void {
+/** The BFF's own stopwatch, after the backend's (`app`, `db`, its calls'
+ *  wait and its named steps) in the same Server-Timing header: `upstream` is
+ *  the backend round trip (network, Railway's proxy, gunicorn's queue and
+ *  Flask), `bff` the whole handler. A browser wait far above `bff` is Vercel
+ *  (routing, a cold boot). A relay that builds a fresh answer
+ *  (relayLenient, relayLegacy, a route's own) drops the backend's part, so
+ *  it is carried over from the upstream here, once, for every route
+ *  (founder 2026-11-09: the coach's queue showed only upstream and bff). */
+function stampTiming(
+  response: NextResponse,
+  upstream: Response,
+  upstreamMs: number,
+  totalMs: number
+): void {
   const parts = [`upstream;dur=${upstreamMs.toFixed(0)}`, `bff;dur=${totalMs.toFixed(0)}`];
   if (!instanceWarm) parts.push(`cold;desc="first call of this server instance"`);
   instanceWarm = true;
-  const existing = response.headers.get("Server-Timing");
+  const existing =
+    response.headers.get("Server-Timing") || upstream.headers.get("Server-Timing");
   response.headers.set("Server-Timing", existing ? `${existing}, ${parts.join(", ")}` : parts.join(", "));
 }
 
@@ -312,6 +322,6 @@ export async function callBackend(
   // The id goes back to the browser too, so a bug report can quote it.
   const response = await relay(upstream);
   response.headers.set(REQUEST_ID_HEADER, requestId);
-  stampTiming(response, upstreamMs, performance.now() - started);
+  stampTiming(response, upstream, upstreamMs, performance.now() - started);
   return response;
 }
