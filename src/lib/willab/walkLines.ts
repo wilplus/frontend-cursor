@@ -152,9 +152,18 @@ export function cueLineOf(moment: { praiseWords: readonly string[]; praiseLead?:
 /** Their best's bubble (N309 item 1): "This was your most confident
  *  moment." and "Why it worked: {the cue line}", lower-cased after the
  *  colon as the prototype shows. Pure. */
-export function bestBubble(moment: { praiseWords: readonly string[]; praiseLead?: readonly string[] }): string[] {
+export function bestBubble(moment: { praiseWords: readonly string[]; praiseLead?: readonly string[]; partId?: string | null }): string[] {
   const cue = cueLineOf(moment);
-  return cue ? [ONE_THING_COPY.best, ONE_THING_COPY.whyItWorked(lowerFirst(cue))] : [ONE_THING_COPY.best];
+  const best = bestLine(moment.partId);
+  return cue ? [best, ONE_THING_COPY.whyItWorked(lowerFirst(cue))] : [best];
+}
+
+/** "To our ears…" or "To us…", in turn (backend N565 item 7): the same one
+ *  for the same moment wherever it is drawn or told. Pure. */
+export function bestLine(seed: string | null | undefined): string {
+  let sum = 0;
+  for (const c of seed ?? "") sum = (sum + c.charCodeAt(0)) % 2;
+  return sum === 0 ? ONE_THING_COPY.best : ONE_THING_COPY.bestToUs;
 }
 
 /** The clearer version's opening lines, above the new words. Words that

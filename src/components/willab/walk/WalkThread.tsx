@@ -250,7 +250,7 @@ export const landingWelcome = () =>
   !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** The typing dots, as a grey bubble of the walk's size. */
-function WalkTyping() {
+export function WalkTyping() {
   return (
     <div data-walk-typing aria-hidden="true" className="flex">
       <span className="rounded-[22px] bg-muted px-[17px] py-[19px]">
