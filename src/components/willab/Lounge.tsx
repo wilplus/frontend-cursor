@@ -173,7 +173,7 @@ import {
 } from "@/lib/productDiscovery";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import { useWaitScreen } from "./useWaitScreen";
-import { useKeepPlaceAbove, usePinThreadBottom } from "./usePinThreadBottom";
+import { useKeepPlaceAbove, useLandOnProcessing, usePinThreadBottom } from "./usePinThreadBottom";
 import { clearerPieces, type ClearerPiece } from "@/lib/willab/clearerPieces";
 import { usePlanLounge, type PlanStart } from "./plan/usePlanLounge";
 import { isFirstTakeArc } from "@/lib/willab/firstTake";
@@ -1490,6 +1490,11 @@ export default function Lounge({
     atBottomRef.current = true;
     pinBottom();
   }, [pinBottom]);
+  // THE PROCESSING BUBBLE IS SHOWN (founder lock 2026-10-12, section 1):
+  // it is not a message, so no new message brings it into view. When it
+  // comes, and when the wait's ✕ shows the chat, the thread lands on it
+  // (founder 2026-11-09: closing the wait left it below the screen).
+  useLandOnProcessing(processingResume, followAnswer);
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
   // The box only when Will asks for words (N483 item 2): "Something else",
   // his follow-up with no answers to tap, or "What was missing?".
@@ -2375,6 +2380,8 @@ export default function Lounge({
           onClose={() => {
             waitScreen.lift();
             closeProcessingOverlay();
+            // The chat it shows lands on the processing bubble.
+            followAnswer();
           }}
         />
       ) : null}
