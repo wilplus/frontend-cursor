@@ -13,7 +13,7 @@ OUTCOME
   O9  With practice off there is nothing to try: Next on the fix posts nothing and the walk says nothing about skipping; a try that could not be checked keeps "Try it" with Skip while a try is left (backend N440).
   O11 When the fix the server chose comes without its Clearer version and its voice shows a problem too, the walk gives that same moment's AI clip after my best: "Say this one like your confident moment:", practised on the clip the picker measured (backend N548; was the closest exercise, N536).
   O12 A good Take (no fix, nothing below the floor) says "The rest of this Take held up just as well." where the fix would be, before my helper words; a walk with no fix that the server does not call good says nothing new (backend N551, N550).
-  O13 Their best is praised as how it sounded to us, never as a verdict: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", in turn. When the walk_voice ring reaches me, Will's own written words take their place, with the typing dots while they come, and the signed lines when they don't (backend N565).
+  O13 Their best is praised as how it sounded to us, never as a verdict: "To our ears, this one sounded really sure." or "To us, this one sounded really sure.", in turn. When the walk_voice ring reaches me, Will's own written words take their place, and open the moment to try too, with the typing dots while they come, and the signed lines when they don't (backend N565).
   O8  The thread shows no slide names, the bar does; after "Keep mine" the walk says "Your words it is." and my helper words leave out the hesitations my sentence opens with; the Sniper opens with "You rushed here. Let it breathe." in the scale's bubble and the bar names its slide (backend N435).
 PROVES   O1 -> walks hello, their best and why it worked, then one thing to improve, with no picker, no second moment and no summary
          O2 -> the helper words come on their own and are saved without a pick,
@@ -390,7 +390,10 @@ describe("the One thing walk (N309)", () => {
 
   it("their best is praised as how it sounded to us, in Will's own words when his voice is on", async () => {
     const written = "To us, \"matches every transaction\" sounded calm and sure.";
-    const items: FeedbackWalkItem<string>[] = [{ ...ITEMS[0], clip: { ...ITEMS[0].clip!, snippetId: "s1" } }, ITEMS[1]];
+    const items: FeedbackWalkItem<string>[] = [
+      { ...ITEMS[0], clip: { ...ITEMS[0].clip!, snippetId: "s1" } },
+      { ...ITEMS[1], clip: { ...ITEMS[1].clip!, snippetId: "s2" } },
+    ];
     const model = buildFeedbackWalk<string>({ items, coachNote: false, practiceOn: true, guest: false, judge: false });
     const best = () => [...now()!.querySelectorAll("[data-walk-best]")].map((n) => n.textContent);
     // His voice off (the default): the signed lines, "to us" or "to our ears".
@@ -400,17 +403,25 @@ describe("the One thing walk (N309)", () => {
     // On: the dots while Will writes, then his words, once.
     resetWalkVoice();
     let answer: (text: string | null) => void = () => {};
-    vi.mocked(askWalkVoice).mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+    const tryLine = "To us, \"I think we're seeing traction\" came out fast. Want to try it straight?";
+    vi.mocked(askWalkVoice).mockImplementation((ask) =>
+      ask.step === "praise" ? new Promise((resolve) => { answer = resolve; }) : Promise.resolve(ask.step === "try" ? tryLine : null));
     act(() => root.unmount());
     root = createRoot(host);
     draw({ seq: 2, at: at("praise") }, { model, takeId: "t1", walkVoiceOn: true });
     expect(now()!.querySelector("[data-walk-typing]")).not.toBeNull();
     await act(async () => answer(written));
     expect(best()).toEqual([written]);
-    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith("t1", "praise", "s1");
+    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith(expect.objectContaining({ takeId: "t1", step: "praise", snippetId: "s1" }));
+    // The moment to try opens with his line, asked as the walk opened, told
+    // what it is walked with.
+    expect(vi.mocked(askWalkVoice)).toHaveBeenCalledWith(expect.objectContaining({ step: "try", snippetId: "s2", tool: "clearer" }));
+    click(testId("walk-forward"));
+    await settle();
+    expect(live()!.querySelector("[data-walk-one]")!.textContent).toBe(tryLine);
     // No words came back: the signed lines.
     resetWalkVoice();
-    vi.mocked(askWalkVoice).mockResolvedValueOnce(null);
+    vi.mocked(askWalkVoice).mockImplementation(async () => null);
     act(() => root.unmount());
     root = createRoot(host);
     draw({ seq: 3, at: at("praise") }, { model, takeId: "t2", walkVoiceOn: true });
