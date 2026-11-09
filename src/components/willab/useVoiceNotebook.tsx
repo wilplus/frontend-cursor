@@ -16,7 +16,8 @@ import {
 import type { OfferType } from "./loungeOffers";
 import { useVoiceNote } from "./useVoiceNote";
 import RecordingBar from "./RecordingBar";
-import { dropNote, waitingNotes, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
+import { dropNote, outboxOwner, waitingNotes, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
+import { usePolicyUpdate } from "./PolicyUpdate";
 import { wordsOf, type LiveWord } from "@/lib/willab/liveNoteWords";
 import TypingDots, { TypingGlyph } from "./TypingDots";
 
@@ -33,12 +34,14 @@ import TypingDots, { TypingGlyph } from "./TypingDots";
 /*  Written as it is said (backend N194): the note grows in the thread while  */
 /*  it is said; on send it settles, then a tick under it and "Noted.". A note */
 /*  that cannot leave the phone waits in the outbox under a clock and goes    */
-/*  when the app is open with a connection. A tap on one's own note opens its */
-/*  words to fix one.                                                         */
+/*  when the app is open with a connection, only under the person who said    */
+/*  it: another person's notes on the phone are neither shown nor sent. A    */
+/*  tap on one's own note opens its words to fix one.                        */
 /* -------------------------------------------------------------------------- */
 
 export function useVoiceNotebook({
   signedIn,
+  userId,
   threadLoading,
   held,
   drawn,
@@ -46,6 +49,8 @@ export function useVoiceNotebook({
   reload,
 }: {
   signedIn: boolean;
+  /** The person signed in: a change shows and sends their own notes. */
+  userId: string | null;
   threadLoading: boolean;
   /** The speaker is being onboarded: no mic, no ask (backend N243). */
   held: boolean;
@@ -99,15 +104,16 @@ export function useVoiceNotebook({
     }
     flushingRef.current = true;
     try {
-      const saying = currentKeyRef.current();
-      const notes = (await waitingNotes()).filter((n) => n.key !== saying);
+      // Only the signed-in person's own notes, read from the token the
+      // upload carries; another person's wait on the phone, untouched.
+      const notes = await waitingNotes(await outboxOwner(), currentKeyRef.current());
       setWaiting(notes);
       for (const n of notes) {
         setSending(n.key);
         const outcome = await sendVoiceNote(n.audio, n.durationMs, n.key, n.liveMs);
         if (outcome.kind === "retry") {
           setOffline((now) => new Set(now).add(n.key));
-          break; // the connection is gone: the rest wait too
+          break; // no connection, a sign-in run out, an update to accept: the rest wait too
         }
         await dropNote(n.key);
         if (outcome.kind === "kept" && outcome.clientId) {
@@ -151,7 +157,9 @@ export function useVoiceNotebook({
   currentKeyRef.current = note.currentKey;
 
   // Notes left by a closed app, or by a lost connection, go when the app is
-  // open and online again.
+  // open and online again; held back by a sign-in that ran out (401) or a
+  // policy update to accept (403), after the next sign-in or the Accept.
+  const awaitingAcceptance = usePolicyUpdate()?.policy != null;
   useEffect(() => {
     if (!state?.consented) return;
     void flush();
@@ -164,7 +172,7 @@ export function useVoiceNotebook({
       window.removeEventListener("online", again);
       document.removeEventListener("visibilitychange", again);
     };
-  }, [state?.consented, flush]);
+  }, [state?.consented, userId, awaitingAcceptance, flush]);
 
   // Fixing a note's words (N194): the note's row, and the words in the box.
   const [fixing, setFixing] = useState<{ clientId: string; draft: string } | null>(null);

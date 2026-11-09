@@ -1437,6 +1437,7 @@ export default function Lounge({
   // The founder's voice notebook (Will learning plan, step 1, 2026-10-20).
   const notebook = useVoiceNotebook({
     signedIn: thread.signedIn,
+    userId,
     threadLoading,
     held: plan.holdsPrinciples,
     drawn,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { hearPiece } from "@/services/api/voiceNotebook";
 import { openLiveStream, type LiveStream } from "@/lib/willab/liveStream";
 import { liveWords, type LiveWord } from "@/lib/willab/liveNoteWords";
-import { dropNote, keepNote, noteKey, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
+import { dropNote, keepNote, noteKey, outboxOwner, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { tapHaptic } from "@/lib/phone/haptic";
 import { TAKE_MIC_AUDIO } from "@/hooks/useDualCaptureMic";
 import { hushVoices } from "@/lib/willab/oneVoice";
@@ -33,7 +33,8 @@ import { hushVoices } from "@/lib/willab/oneVoice";
 /*                                                                            */
 /*  Only delete throws a note away. What is recorded so far goes to the       */
 /*  phone's outbox every few seconds, and leaving the app sends the note, so  */
-/*  closing the app at any moment keeps what was said.                        */
+/*  closing the app at any moment keeps what was said. Each note is kept with */
+/*  the person who said it, read as it starts, so it goes only under them.   */
 /*                                                                            */
 /*  The tap answers at once, as WhatsApp's does: a light buzz and the         */
 /*  recording bar, while the phone is still opening the mic. A trash or send */
@@ -132,6 +133,9 @@ export function useVoiceNote({
   onDoneRef.current = onDone;
   const keyRef = useRef("");
   const savedAtRef = useRef(0);
+  /** Who is saying this note: read from the session as it starts. Every
+   *  write of the note to the outbox waits for it, in the order made. */
+  const ownerRef = useRef<Promise<string | undefined>>(Promise.resolve(undefined));
 
   // The words: finished pieces by their order, and the piece being heard.
   const pieceRef = useRef<Piece | null>(null);
@@ -164,7 +168,7 @@ export function useVoiceNote({
   const saveToOutbox = useCallback((open: boolean) => {
     if (!notebook || !keyRef.current || !chunksRef.current.length) return;
     savedAtRef.current = Date.now();
-    void keepNote({
+    const note: OutboxNote = {
       key: keyRef.current,
       audio: new Blob(chunksRef.current, { type: recorderRef.current?.mimeType || pickType() || "audio/webm" }),
       durationMs: Date.now() - startedRef.current,
@@ -172,7 +176,8 @@ export function useVoiceNote({
       tail: tail(),
       open,
       at: startedRef.current,
-    });
+    };
+    void ownerRef.current.then((owner) => keepNote(withOwner(note, owner)));
   }, [notebook]);
 
   const hear = useCallback(async (piece: Piece, finished: boolean) => {
@@ -241,6 +246,8 @@ export function useVoiceNote({
     if (phase !== "idle" || startingRef.current || typeof navigator === "undefined" || !navigator.mediaDevices) return;
     startingRef.current = true;
     endedEarlyRef.current = null;
+    // Who is saying it, read while the mic opens.
+    const owner = notebook ? outboxOwner().then((me) => me?.id, () => undefined) : Promise.resolve(undefined);
     // At once, in the tap: the buzz and the recording bar. Opening the mic
     // takes the phone a moment, and the speaker should not feel it.
     tapHaptic();
@@ -289,6 +296,7 @@ export function useVoiceNote({
     waveRef.current = [];
     writtenToRef.current = 0;
     keyRef.current = noteKey();
+    ownerRef.current = owner;
     setWords([]);
     setWave([]);
     setWrittenTo(0);
@@ -308,7 +316,7 @@ export function useVoiceNote({
       setWords([]);
       setWave([]);
       if (!keepRef.current || !audio.size) {
-        if (notebook) void dropNote(key);
+        if (notebook) void owner.then(() => dropNote(key)); // after the saves made before it
         setPhase("idle");
         return;
       }
@@ -330,8 +338,10 @@ export function useVoiceNote({
       // Into the outbox first: from here the note survives the app closing.
       // The thread shows it at once, with the wave not yet written (N199).
       setPhase("idle");
-      void keepNote(note).then(() => {
-        if (mountedRef.current) void onDoneRef.current(note);
+      void owner.then(async (who) => {
+        const kept = withOwner(note, who);
+        await keepNote(kept);
+        if (mountedRef.current) void onDoneRef.current(kept);
       });
     };
     recorderRef.current = recorder;
@@ -455,6 +465,11 @@ export function useVoiceNote({
     send: () => stop(true),
     cancel: () => stop(false),
   };
+}
+
+/** The note named as the person's who said it, when they are known. */
+function withOwner(note: OutboxNote, owner: string | undefined): OutboxNote {
+  return owner ? { ...note, owner } : note;
 }
 
 /** m:ss for the running note. */
