@@ -182,6 +182,7 @@ import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
+import { useTakeResend } from "./useTakeResend";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
@@ -257,6 +258,11 @@ function failedNoteSession(
 ): string | null {
   if (labOpen || !resume || resume.status !== "failed") return null;
   return resume.sessionId;
+}
+
+/** A Take is being worked: the analysis phase or the document phase. */
+function takeAnalysing(resume: { status: "analyzing" | "failed" } | null, settling: boolean): boolean {
+  return resume?.status === "analyzing" || settling;
 }
 
 /** The in-flight wait covers only its own project's text (founder
@@ -1154,8 +1160,12 @@ export default function Lounge({
   // or the document phase (settle hook). Record holds and the ideal text
   // blocks on the SAME truth, so the two can never disagree about whether
   // a take is being worked.
-  const takeInFlight =
-    processingResume?.status === "analyzing" || documentSettle.pending;
+  const analysing = takeAnalysing(processingResume, documentSettle.pending);
+  // A Take kept on this device whose upload never finished goes up again
+  // (backend N553 item 2, N556): while it does, Record waits with its signed
+  // line, as for any Take still landing.
+  const resending = useTakeResend({ userId, labOpen: isLabOverlay(state), busy: analysing, thread });
+  const takeInFlight = analysing || resending;
 
   // The plan in the Lounge (docs/flows/the-plan.md): its rows, its answers
   // in the thread with the Lounge's bar under them (N319 item 1), its sheets.

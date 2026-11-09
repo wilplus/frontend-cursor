@@ -82,6 +82,11 @@ export async function requestAccountDeletion(): Promise<AccountDeletionRequest> 
       }),
     });
     if (!(res.status === 202 || res.ok)) return { ok: false, pending: null };
+    // The Takes still kept on this device for this person go too (backend
+    // N556): nothing of theirs waits here to be sent again.
+    void import("@/lib/willab/takeOutbox")
+      .then((outbox) => outbox.forgetSignedInTakes())
+      .catch(() => undefined);
     const body: unknown = await res.json().catch(() => null);
     return { ok: true, pending: mapPendingDeletion(body, "account") };
   } catch {
