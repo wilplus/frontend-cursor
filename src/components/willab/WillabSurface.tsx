@@ -299,6 +299,7 @@ export default function WillabSurface({
       {chats.back}
       <Lounge
         state={flow.state}
+        onRecordAnswer={recordAnswer}
         onStart={flow.startRecording}
         onStartNewProject={() => {
           clearExploreArc(userId);

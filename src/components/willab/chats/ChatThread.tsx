@@ -39,7 +39,7 @@ import {
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
 import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
-import { AssistantAbout, AssistantSays, useHost } from "./HostChat";
+import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
 // the coach's queue still imports TopBar from here.
@@ -970,7 +970,9 @@ export default function ChatThread({
             withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
               <AssistantSays key={message.id} name={assistantName} message={message}>
-                <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                <AnswerQuote message={message}>
+                  <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                </AnswerQuote>
               </AssistantSays>,
               ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"
                 ? [<DeadlineLine key={`deadline-${message.id}`} iso={(message.meta!.setup_answer as { deadline: string }).deadline} />]

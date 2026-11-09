@@ -164,6 +164,8 @@ import WillQuestionBubble, {
 import { isWillVoice, useKeyLineHear, WillVoiceBubble } from "./WillVoiceAnswer";
 import { WillBarMiddle } from "./plan/PlanDock";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
+import BundleQueue from "./chats/BundleQueue";
+import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -382,8 +384,12 @@ export default function Lounge({
   recordingProgress = null,
   waitHandedOver,
   onWaitHandedOverShown,
+  onRecordAnswer,
 }: {
   state: WillabState;
+  /** "Record one answer" in the queue of bundles (backend N584), handed to
+   *  the recording screens as a chat's "Record your answer" is. */
+  onRecordAnswer?: (answer: AnswerFor) => void;
   onStart: () => void;
   /** Bypass project selection after the user explicitly chose a fresh project. */
   onStartNewProject?: () => void;
@@ -2079,6 +2085,10 @@ export default function Lounge({
             return drawShown(item, i);
           })
         )}
+
+        {/* The questions people asked, bundled, for the chat builder's ring
+            (backend N584 item 2); nothing without it. */}
+        <BundleQueue signedIn={thread.signedIn} onRecord={onRecordAnswer} />
 
         {/* The plan's answers under Will's question, the after-walk way
             (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}
