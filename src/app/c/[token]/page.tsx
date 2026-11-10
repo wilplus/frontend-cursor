@@ -26,6 +26,7 @@ export default async function Page({ params, searchParams }: {
       name={info.name}
       assistant={info.assistant}
       willLine={info.willLine}
+      about={info.about}
       finish={searchParams.join === "1"}
     />
   );

@@ -37,10 +37,15 @@ export function useHost(chatId: string): Host | null {
 /** Who the host is and what you can learn with them (N586 item 1), above
  *  the messages; nothing without lines. */
 export function AssistantAbout({ host }: { host: Host | null }) {
-  if (!host || host.about.length === 0) return null;
+  return <HostAboutLines lines={host?.about ?? []} />;
+}
+
+/** The host's about lines as one card (the chat's top, and the join page). */
+export function HostAboutLines({ lines }: { lines: readonly string[] }) {
+  if (lines.length === 0) return null;
   return (
     <div data-host-about="" className="mb-2 flex max-w-[86%] flex-col gap-1 self-center rounded-xl bg-muted px-3 py-2 text-center text-[13.5px] leading-snug text-foreground">
-      {host.about.map((line) => (
+      {lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
     </div>

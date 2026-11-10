@@ -6,6 +6,7 @@ import { joinChatLink } from "@/services/api/chats";
 import { keepWidgetChat } from "@/services/api/chatWidget";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { AssistantMark } from "@/components/willab/chats/ChatList";
+import { HostAboutLines } from "@/components/willab/chats/HostChat";
 import {
   JOIN_BUTTON,
   JOIN_NOBODY_ELSE,
@@ -58,6 +59,7 @@ export default function JoinPage({
   finish,
   assistant = null,
   willLine = null,
+  about = [],
 }: {
   token: string;
   name: string;
@@ -66,6 +68,9 @@ export default function JoinPage({
   assistant?: string | null;
   /** Will's line in the backend's words (N586 item 2), for that ring. */
   willLine?: string | null;
+  /** Who the host is and what you can learn with them, in their own words
+   *  (N586 item 1), as the backend sends them; none otherwise. */
+  about?: readonly string[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -130,6 +135,7 @@ export default function JoinPage({
         {(Array.from(name.trim())[0] ?? "").toUpperCase()}
       </span>
       <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">{joinTitle(name)}</h1>
+      <HostAboutLines lines={about} />
       <ul className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3 text-[15px] leading-snug text-foreground">
         <li>{joinChatWith(name)}</li>
         {assistant ? (
