@@ -77,7 +77,7 @@ export type WayInAsk =
   | { kind: "voice"; beat: string }
   /** After the walk, "Tell me what you'd like to do, and I'll show you
    *  where.": the typing box (N592 item 2), and the first choice's other
-   *  answers as taps, one of which answers it (backend N601). */
+   *  answers as taps, one of which answers it (backend N604). */
   | { kind: "words"; beat: "else"; chips: string[] };
 
 /** The newest row of the way in, Will's or the speaker's; other rows (the

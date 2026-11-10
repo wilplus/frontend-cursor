@@ -32,7 +32,7 @@
  *       the choice ("Next, ask someone who knows. Tap + to start."), and
  *       "Tell me what you'd like to do, and I'll show you where." waits for
  *       typed words, with the first choice's other answers as taps, one of
- *       which answers it (WAYIN-N601-1; backend N601); "Record Take 2"
+ *       which answers it (WAYIN-N604-1; backend N604); "Record Take 2"
  *       stays faded until the walk is done (FT-14, FT-15,
  *       WAYIN-N592-1..4; N592).
  *   W7  The way in is the speaking chat's: every call names it (WAYIN-N590-1;
@@ -464,7 +464,7 @@ it("WAYIN-N592-3: after the walk one bubble by the choice; \"Tell me what you'd 
   expect(lastAnswer()).toEqual({ beat: "else", said: "Maybe a book club" });
 });
 
-it("WAYIN-N601-1: \"Tell me what you'd like to do, and I'll show you where.\" offers the other choices as taps; one tap answers it", async () => {
+it("WAYIN-N604-1: \"Tell me what you'd like to do, and I'll show you where.\" offers the other choices as taps; one tap answers it", async () => {
   const next = will("Tell me what you'd like to do, and I'll show you where.", {
     way_in: "next",
     way_in_next: ["Something else"],
