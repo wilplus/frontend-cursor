@@ -657,7 +657,8 @@ describe("the chats in front of the Lounge", () => {
     expect([...answers!.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["No", "Yes"]);
     await tap([...answers!.querySelectorAll("button")].find((b) => b.textContent === "No"));
     expect(JSON.parse(String(calls("POST /api/v2/chats/c-ariel/setup/q1")[0]![1]!.body))).toEqual({ picked: ["No"] });
-    expect(container.querySelector("[data-chat-deadline]")?.textContent).toBe("Your deadline: Fri 4 Dec");
+    // "No" puts the day one plan step away: it is not theirs, so no line (backend N631 item 2).
+    expect(container.querySelector("[data-chat-deadline]")).toBeNull();
     // Several answers: each tap fills one; Send stands in the bar's middle.
     expect(container.querySelector("[data-chat-send-picked]")).toBeNull();
     const picks = container.querySelector("[data-chat-setup-picks]")!;

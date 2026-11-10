@@ -43,6 +43,10 @@ export type Plan = {
   /** ISO date: the talk's date, only for someone preparing a talk (backend
    *  N564 item 6); null for everyone else. */
   deadline: string | null;
+  /** The day was the app's, not the speaker's ("No date yet"'s two months,
+   *  a first Take with no day heard, a join link's "No"): never shown as
+   *  theirs (backend N631). */
+  deadline_given?: boolean;
   /** Is the speaker preparing a talk with a date? */
   talk?: boolean;
   /** "Sat 14 Nov". */

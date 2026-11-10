@@ -163,6 +163,22 @@ describe("a host's own chat", () => {
     expect(sent("PUT /api/v2/chats/recipe")).toEqual(mine);
   });
 
+  it("N631-2: in a host's chat, \"Your deadline\" only under a day the person picked, never after No", async () => {
+    const chat: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
+    const at = "2026-11-09T10:00:00Z";
+    const answer = (id: string, picked: string, extra: Record<string, unknown>) =>
+      ({ id, mine: true, author: "", kind: "text", body: picked, created_at: at, meta: { setup_answer: { to: "q1", i: 1, picked: [picked], ...extra } } });
+    routes["GET /api/v2/chats/c-1/messages"] = () =>
+      json({ messages: [
+        answer("a-old-no", "No", { deadline: "2026-12-10" }),
+        answer("a-no", "No", { deadline: "2026-12-12", deadline_chosen: false }),
+        answer("a-yes", "Yes", { deadline: "2026-12-04", deadline_chosen: true }),
+        answer("a-old-yes", "Yes", { deadline: "2026-12-05" }),
+      ] });
+    await render(createElement(ChatThread, { chat, onBack: () => undefined }));
+    expect([...container.querySelectorAll("[data-chat-deadline]")].map((d) => d.textContent)).toEqual(["Your deadline: Fri 4 Dec", "Your deadline: Sat 5 Dec"]);
+  });
+
   it("HOST-N590-8: the joiner meets the host's welcome first, as the assistant's", async () => {
     const chat: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
     const welcome = {
