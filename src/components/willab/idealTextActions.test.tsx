@@ -2,31 +2,23 @@
 /*
 STORY    As a speaker, I want the bottom of my Ideal Text page to offer
          "Record Take N+1" and a grey Close, so that the next Take is always
-         one tap away.
+         one tap away, and I want each Take to stay mine until I send it.
 OUTCOME
   O1  The only buttons are "Record Take 2" and "Close", even when a review
       is waiting; Close closes the page.
-  O2  Sharing is asked once: "Record Take 2" with no choice yet opens the
-      sharing screen; once I have chosen, "Record Take 3" starts the
-      recording at once, my choice kept for that Take (shared with the
-      words I saw) and stored as the line under its recording.
-  O3  With sending off, it is asked again when the server says so (a
-      community added since) or when my choice was given under other words
-      than the screen's.
-  O4  With sending on (N470, N479): "Record Take 3" records at once to the
-      people I chose, the line naming them and the upload sent to them; a
-      person who joined since my chosen people asks once, while "Everyone
-      in my list" takes them in; nobody in my list records with nothing
-      sent; a read that does not answer asks within 1.5 s, never holding
-      the recording longer.
+  O2  "Record Take N" records at once, whatever I chose for an earlier
+      Take: nothing is asked before it, nothing is sent or shared once it
+      is up, and its line reads "Only me" (in the people shape with sending
+      on, so the line opens "Who hears this Take" with nobody ticked; in the
+      community shape with sending off). A choice kept on the phone from
+      before is dropped, never applied. Nobody in my list: no line. A read
+      that does not answer still records within 1.5 s.
 PROVES   O1 -> "is ● Record Take N and a grey Close, the one way out"
-         O2 -> "asks at Take 2, then records Take 3 at once with the remembered choice"
-         O3 -> "asks again after a community is added or when the words changed"
-         O4 -> "with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks"
+         O2 -> "records at once with nothing sent, whatever was chosen before; its line is Only me"
 WHY      Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen.
-         O2, O3: founder 2026-10-31, backend N309 item 5 (sharing is asked
-         once; replaces G1's ask before every Take). O4: founder
-         2026-11-04, backend N470 (#1702), N479 (#1704) items 5 and 7, R1, R3.
+         O2: founder 2026-11-10, backend N626 ("I don't want to send it to
+         others now"; "Nothing by default"), replacing the remembered
+         choice of N309 item 5, N470 and N479 item 5.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -57,7 +49,7 @@ vi.mock("./LoungeThreadContext", () => ({
 }));
 
 import IdealTextActions from "./IdealTextActions";
-import { applyNextTakeShare, NEXT_SHARE_WORDS_VERSION } from "@/lib/willab/nextTakeShare";
+import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -108,21 +100,6 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
   });
 });
 
-const INVITA = "11111111-1111-4111-8111-111111111111";
-const remembered = (over: Record<string, unknown> = {}) => ({
-  ok: true,
-  data: {
-    ask: false,
-    choice: {
-      general: false,
-      communityIds: [INVITA],
-      none: false,
-      wordsVersion: NEXT_SHARE_WORDS_VERSION,
-      communities: [{ id: INVITA, name: "Invita" }],
-      ...over,
-    },
-  },
-});
 const screen = () => host.querySelector('[data-testid="share-screen"]');
 
 async function tapRecord() {
@@ -131,61 +108,9 @@ async function tapRecord() {
   });
 }
 
-describe("sharing is asked once (backend N309 item 5)", () => {
-  it("asks at Take 2, then records Take 3 at once with the remembered choice", async () => {
-    const onNewTake = vi.fn();
-    await act(async () => render({ takeCount: 1, onNewTake }));
-    await tapRecord();
-    expect(screen()).not.toBeNull();
-    expect(onNewTake).not.toHaveBeenCalled();
-
-    act(() => root.unmount());
-    act(() => {
-      root = createRoot(host);
-    });
-    api.fetchRememberedShare.mockResolvedValue(remembered());
-    await act(async () => render({ takeCount: 2, onNewTake, arcId: "arc-1" }));
-    await tapRecord();
-    expect(screen()).toBeNull();
-    expect(onNewTake).toHaveBeenCalledTimes(1);
-    // The line under Take 3's recording, carrying the choice it keeps.
-    expect(appended.map((d) => d.body)).toEqual(["Only my community (Invita)"]);
-    expect(appended[0].metadata).toMatchObject({ step: "share", arc_id: "arc-1", share: { community_ids: [INVITA] } });
-    // Take 3's upload is shared as remembered, stamped with the words seen.
-    applyNextTakeShare("take-3");
-    expect(api.shareTake).toHaveBeenCalledWith("take-3", {
-      general: false,
-      communityIds: [INVITA],
-      none: false,
-      shareWordsVersion: NEXT_SHARE_WORDS_VERSION,
-    });
-  });
-
-  it("asks again after a community is added or when the words changed", async () => {
-    const onNewTake = vi.fn();
-    // The server says ask: a community was added since the choice.
-    api.fetchRememberedShare.mockResolvedValue({ ok: true, data: { ...remembered().data, ask: true } });
-    await act(async () => render({ takeCount: 2, onNewTake }));
-    await tapRecord();
-    expect(screen()).not.toBeNull();
-
-    act(() => root.unmount());
-    act(() => {
-      root = createRoot(host);
-    });
-    // Other words than the screen's.
-    api.fetchRememberedShare.mockResolvedValue(remembered({ wordsVersion: "sharing-screen-2026-10-06" }));
-    await act(async () => render({ takeCount: 3, onNewTake }));
-    await tapRecord();
-    expect(screen()).not.toBeNull();
-    expect(onNewTake).not.toHaveBeenCalled();
-    expect(appended).toEqual([]);
-  });
-
-  it("with sending on, Take 3 goes at once to the people chosen; someone new asks once; nobody records anyway; a slow read asks", async () => {
+describe("a Take goes to nobody unless I send it (backend N626)", () => {
+  it("records at once with nothing sent, whatever was chosen before; its line is Only me", async () => {
     const ARTUR = { userId: "u-artur", name: "Artur", title: null, avatarUrl: null, chatId: "c1", lastSent: true };
-    const MAYA = { userId: "u-maya", name: "Maya Lindqvist", title: null, avatarUrl: null, chatId: "c2", lastSent: false };
-    const SOFIA = { userId: "u-sofia", name: "Sofia Marin", title: null, avatarUrl: null, chatId: "c3", lastSent: false };
     const onNewTake = vi.fn();
     const fresh = async (props: Record<string, unknown>) => {
       act(() => root.unmount());
@@ -195,48 +120,45 @@ describe("sharing is asked once (backend N309 item 5)", () => {
       await act(async () => render(props));
       await tapRecord();
     };
-    send.fetchSendPeople.mockResolvedValue({ enabled: true, people: [ARTUR, MAYA] });
-    send.fetchLastSend.mockResolvedValue({ enabled: true, choice: { all: false, userIds: ["u-artur", "u-maya"] } });
+    // Sending on, "Everyone in my list" chosen before, and a choice still
+    // kept on the phone from the old rule.
+    send.fetchSendPeople.mockResolvedValue({ enabled: true, people: [ARTUR] });
+    send.fetchLastSend.mockResolvedValue({ enabled: true, choice: { all: true, userIds: [] } });
+    localStorage.setItem("willab.nextTakeShare", JSON.stringify({ kind: "people", all: true, userIds: [], at: Date.now() }));
     await fresh({ takeCount: 2, onNewTake, arcId: "arc-1" });
     expect(screen()).toBeNull();
     expect(onNewTake).toHaveBeenCalledTimes(1);
-    expect(appended.map((d) => d.body)).toEqual(["Artur, Maya Lindqvist"]);
-    expect(api.fetchRememberedShare).not.toHaveBeenCalled();
+    expect(appended.map((d) => d.body)).toEqual(["Only me"]);
+    expect(appended[0].metadata).toMatchObject({ step: "share", arc_id: "arc-1", share: { kind: "people", all: false, user_ids: [] } });
     applyNextTakeShare("take-3");
-    expect(send.sendTake).toHaveBeenCalledWith("take-3", { all: false, userIds: ["u-artur", "u-maya"] });
+    expect(send.sendTake).not.toHaveBeenCalled();
     expect(api.shareTake).not.toHaveBeenCalled();
 
-    // Sofia joined since: chosen people ask once, with what was read.
-    send.fetchSendPeople.mockResolvedValue({ enabled: true, people: [ARTUR, MAYA, SOFIA] });
-    await fresh({ takeCount: 3, onNewTake });
-    expect(screen()).not.toBeNull();
-    expect(shown.at(-1)?.send).toMatchObject({ enabled: true, people: [ARTUR, MAYA, SOFIA] });
-    // "Everyone in my list" takes her in without asking.
-    send.fetchLastSend.mockResolvedValue({ enabled: true, choice: { all: true, userIds: [] } });
-    await fresh({ takeCount: 3, onNewTake });
-    expect(screen()).toBeNull();
-    expect(appended.at(-1)?.body).toBe("Everyone in my list");
+    // Sending off: the same, its line in the community shape.
+    send.fetchSendPeople.mockResolvedValue({ enabled: false, people: [] });
+    await fresh({ takeCount: 3, onNewTake, arcId: "arc-1" });
+    expect(onNewTake).toHaveBeenCalledTimes(2);
+    expect(appended.at(-1)?.metadata).toMatchObject({ share: { none: true, general: false, community_ids: [] } });
+    expect(api.fetchRememberedShare).not.toHaveBeenCalled();
 
-    // Nobody in the list: the Take records, nothing kept to send (R3).
+    // Nobody in the list: nobody to send it to, so no line (R3).
     send.fetchSendPeople.mockResolvedValue({ enabled: true, people: [] });
+    send.fetchLastSend.mockResolvedValue({ enabled: true, choice: null });
+    const lines = appended.length;
     await fresh({ takeCount: 4, onNewTake });
-    expect(screen()).toBeNull();
     expect(onNewTake).toHaveBeenCalledTimes(3);
-    send.sendTake.mockClear();
-    applyNextTakeShare("take-5");
-    expect(send.sendTake).not.toHaveBeenCalled();
+    expect(appended).toHaveLength(lines);
 
-    // A read that never answers asks after 1.5 s, never holding the tap (R1).
+    // A read that never answers still records within 1.5 s (R1).
     vi.useFakeTimers();
     try {
       send.fetchSendPeople.mockReturnValue(new Promise(() => {}));
       await fresh({ takeCount: 5, onNewTake });
-      expect(screen()).toBeNull();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1500);
       });
-      expect(screen()).not.toBeNull();
-      expect(onNewTake).toHaveBeenCalledTimes(3);
+      expect(screen()).toBeNull();
+      expect(onNewTake).toHaveBeenCalledTimes(4);
     } finally {
       vi.useRealTimers();
     }

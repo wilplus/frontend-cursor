@@ -380,9 +380,14 @@ my go"), on the prototype <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>.
   current it brings this one back and records without asking. On a project
   that is not archived nothing is asked (Never 3).
 
-### Record Take N and sharing (2026-11-02, N309 item 5)
+### Record Take N and sharing (2026-11-02, N309 item 5; 2026-11-10, N626)
 
-- **Sharing is asked once.** From Take 2, **Record Take N** asks the
+- **Nothing is sent unless the speaker sends it** (N626). **Record Take
+  N** records at once, with nothing asked first and nothing sent or
+  shared; the new Take's line reads "Only me" and opens "Who hears this
+  Take" for that Take afterwards. Opened from the chat's "Record Take N"
+  (share mode), the page does the same. The rules: the walk's page, G0.
+- Was (N309 item 5, N470, N479): **Sharing is asked once.** From Take 2, **Record Take N** asks the
   sharing screen only the first time ("Record Take 2"), and again only when
   its words change or a community is added; otherwise it records at once
   with the remembered choice, which goes with the new Take and is the line
@@ -478,6 +483,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)
 - 2026-11-09 · N565 · `ONE_THING_COPY` in `idealEditCopy.ts`: their best's line becomes "To our ears, this one sounded really sure." or "To us, this one sounded really sure." (`best`, `bestToUs`); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N565, FE (this PR)
 - 2026-11-09 · N557 · `ONE_THING_COPY` in `idealEditCopy.ts`: "And here's one moment to try another way:" and "The rest of this Take held up just as well." replace the fix's opener and the good Take's line; nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N557, FE (this PR)
 - 2026-11-09 · N552 · when the page can't load (`IdealTextOverlay.tsx`), it reads again by itself 3 s and 10 s after the failed load and then stops, "Couldn't load your ideal text. Try again in a moment." staying on screen meanwhile, and an outlined "Try again" under the line (`IDEAL_EDIT_COPY.feedbackRetry`) reads at once, a failed tap starting the two tries afresh; §1 gains "When the page can't load". No new words. What stops: the line alone, with no second read until the page was closed and opened again · BE N552 (#1818), FE (this PR)

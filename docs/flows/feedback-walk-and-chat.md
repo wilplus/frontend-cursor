@@ -1192,6 +1192,17 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
 (#1704); the prototype "Specialist Side"
 <https://claude.ai/artifact/CXHqV7paTVT4iVSA5uiyrV> tab 1, locked):
 
+- **G0** **A Take goes to nobody unless the speaker sends it** (founder
+  2026-11-10, backend N626: "I don't want to send it to others now";
+  "Nothing by default"). "Record Take N" records at once, with nothing
+  sent or shared: the screen below is never asked before a Take and no
+  earlier choice is reused (Never 3 stands). Each new Take's line under
+  its recording reads "Only me" and, on the latest Take, opens the screen
+  for that Take with nobody ticked; Continue sends it to the people
+  ticked (G3, G4). Nobody in the list: no line. Sends chosen before this
+  rule and still waiting on the phone keep going. This replaces G1's
+  remembered choice and its asking again (N479 item 5), below, which
+  stay as history (`useRecordAlone` in `IdealTextActions.tsx`).
 - **G1** Asked once, the first time "Record Take 2" is tapped, never before
   Take 1, on the walk's own screen (`NextTakeShareScreen`): the top bar
   names the Take; three grey bubbles, "Your knowledge is worth sharing, and
@@ -1211,14 +1222,15 @@ under "Was:" below (R3, R6). On (founder 2026-11-04, N470 (#1702), N479
   or guest accounts, nobody blocked either way; a speaker with no chat with
   a person has one with Artur, speaking coach (N470 item 3, N479 item 7).
   ✕ records nothing. The choice is remembered: every later "Record Take N"
-  records at once with it. Asked again only when someone joined your list
+  records at once with it (replaced by G0, N626: nothing is remembered). Asked again only when someone joined your list
   since a choice of chosen people (once; "Everyone in my list" takes them
   in silently), or when nobody of the choice is left (N479 item 5; never
   before every Take, Never 3). "Record Take N" waits for the people and the
   last choice 1.5 s at most, then asks (R1); with nobody in the list it
   records with nothing sent (R3).
 - **G2** Ticked by default: everyone (Select all), or the last choice
-  (`GET /v2/user/takes/send/last`). Unticking all leaves Continue waiting;
+  (`GET /v2/user/takes/send/last`); from a Take's "Only me" line, nobody
+  (G0, N626). Unticking all leaves Continue waiting;
   it is the only time it waits. There is no "Everyone on WillpowerLab" and
   no "Only me" (N470 item 2, N479 item 1).
 - **G3** Each ticked person gets the Take as your own message in your chat
@@ -2363,6 +2375,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N626 · G0 (new), G1, G2: a Take goes to nobody unless the speaker sends it. "Record Take N" records at once with nothing sent or shared, never asks first and reuses no earlier choice; each new Take's line reads "Only me" and opens "Who hears this Take" for that Take with nobody ticked (`useRecordAlone` in `IdealTextActions.tsx`). No new words ("Only me" was signed with the sharing screen, N309). What stops: the remembered choice ("Everyone in my list" or chosen people) going with every later Take, and the screen opening before "Record Take N" · BE #1907, FE (this PR)
 - 2026-11-10 · no rule changed · B8: a tap on "Did this help?" (Yes, No, Skip) shows the typing dots until Will's reply is in the thread, as a tap on Will's question and a typed answer do (`answerFeedbackCheck` in `Lounge.tsx`). Nothing new on screen. Was: nothing for a moment, then the reply (founder 2026-11-10) · FE (this PR)
 - 2026-11-10 · N624 · C4: the One thing walk's fix no longer plays their confident moment again when it has its own example (the AI clip, the exercise's video): "Say this one like your confident moment:" stands right above it, in the walk and the chat (`OneExerciseBody` in `FeedbackWalk.tsx`). With no example of its own, their best stays full after the line. No new words. Was: the "Your confident moment" chip between the line and the AI clip (N379 item 1) · BE #1902, FE (this PR)
 - 2026-11-10 · N623 · D4, B16: after the walk, on a plan, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`); D4 now says the goodbye and the bar as N564 left them (no "15 minutes", no "{n} of {total} practices done."). No new words. Was: the bar under the hello and again after every walk the same day · BE #1897, BE #1900, FE (this PR)
