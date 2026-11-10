@@ -7,6 +7,7 @@ import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
+import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { AddSomeoneSheet } from "./AddSomeoneSheet";
 
@@ -256,6 +257,8 @@ function SetupNote({ onClose, onOpenWill, onLink }: { onClose: () => void; onOpe
   const thread = useLoungeThreadMaybe();
   const setThem = () => {
     onClose();
+    // The blank setup, where its ring answers (backend N616 item 2).
+    if (openSetupFromNote()) return;
     void beginJoinSetup().then((started) => {
       if (!started) return onLink();
       // Will's chat reads its thread again, his first lines at the bottom.
@@ -340,6 +343,7 @@ export default function ChatList({
   willOpen = false,
   coachRow = null,
   modelsRows = null,
+  setupRows = null,
   onOpenWill,
   onOpen,
 }: {
@@ -350,6 +354,9 @@ export default function ChatList({
   /** The AI models' rows, under the people (backend N528 item 1): nothing
    *  below ring 6. */
   modelsRows?: ReactNode;
+  /** The host's own chat from the blank setup (backend N618 item 8):
+   *  nothing below the ring `chat_builder`. */
+  setupRows?: ReactNode;
   /** Will's chat is open over the list (its row's line is then seen). */
   willOpen?: boolean;
   /** The row you just came back from, lit for a moment ("will" for Will's). */
@@ -401,6 +408,7 @@ export default function ChatList({
         onOpen={onOpenWill}
       />
       {coachRow}
+      {setupRows}
       {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}
       {first ? row(first, true) : null}
       {chats.filter((chat) => !chat.inquiry).length === 0 ? (

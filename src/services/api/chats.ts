@@ -268,9 +268,13 @@ export function chatFileSrc(chatId: string, messageId: string): string {
 /** What a send that answers a question brings back: the answer, then the
  *  host's next lines; or the one message of a send that answers nothing. */
 function sentOf(body: Record<string, unknown> | null): ChatMessage[] | null {
-  if (body && Array.isArray(body.messages)) return body.messages as ChatMessage[];
+  // In a chat set up with the blank setup, what comes back follows at once
+  // (backend N616 item 4): {reply: {messages}}; {reply: {waits: true}} adds none.
+  const reply = (body?.reply as { messages?: unknown } | undefined)?.messages;
+  const after = Array.isArray(reply) ? (reply as ChatMessage[]) : [];
+  if (body && Array.isArray(body.messages)) return [...(body.messages as ChatMessage[]), ...after];
   const message = messageOf(body);
-  return message ? [message] : null;
+  return message ? [message, ...after] : null;
 }
 
 /** Typed words sent in a chat (backend N610 item 8, backend #1880): the

@@ -24,7 +24,16 @@ export type Recipe = {
 };
 export type Builder = { assistant: string; recipe: Recipe | null; startingQuestions: RecipeQuestion[] };
 /** What someone in a host's chat reads of it (GET /v2/chats/<id>/host). */
-export type Host = { assistant: string; about: string[]; questions: RecipeQuestion[]; answerWith: AnswerWith };
+export type Host = {
+  assistant: string;
+  about: string[];
+  questions: RecipeQuestion[];
+  answerWith: AnswerWith;
+  /** A live v2 recipe's hello and taps ("Something else" added by the
+   *  backend); empty for a chat set up before the blank setup (N616 item 4). */
+  hello: string;
+  taps: string[];
+};
 
 /** The parts of a recipe a host may set (backend `assistants.DEFINABLE`). */
 const DEFINABLE = ["welcome", "questions", "answer_with", "about", "fit", "model"] as const;
@@ -143,11 +152,17 @@ export async function getHost(chatId: string): Promise<Host | null> {
   // In someone's chat, typing is on only where the read says so (N610): a
   // read with no `type` is a chat that takes no typing.
   const typing = (host.answer_with as { type?: unknown } | null | undefined)?.type === true;
+  // A live v2 recipe says what people send; the bar follows it (VIS-02).
+  const send = Array.isArray(host.send) ? strings(host.send) : null;
   return {
     assistant: host.assistant,
     about: strings(host.about),
     questions: questionsOf(host.questions),
-    answerWith: { ...answerWithOf(host.answer_with), type: typing },
+    answerWith: send
+      ? { tap: true, type: send.includes("text"), record: send.includes("rec") }
+      : { ...answerWithOf(host.answer_with), type: typing },
+    hello: typeof host.hello === "string" ? host.hello : "",
+    taps: strings(host.taps),
   };
 }
 

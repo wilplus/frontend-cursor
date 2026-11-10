@@ -167,6 +167,7 @@ import { JoinSetupBubble, joinSetupOf, useJoinSetup, type JoinSetup } from "./ch
 import BundleQueue from "./chats/BundleQueue";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
+import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1661,6 +1662,9 @@ export default function Lounge({
       followAnswer();
       return;
     }
+    // A host who set up their chat asks to change it: its parts open again
+    // (backend N618 item 8). No call for anyone without a set-up chat.
+    if (await sayToWill(q)) return;
     await runSend(q);
   }
 
