@@ -22,11 +22,17 @@ OUTCOME
       these"), a tap posts {to, picked}; typed words answer the question
       that waits for words ({to, said}); after "Your assistant is live."
       "Set up my chat ›" opens the builder.
+  O5  HOST-N582-11: typed words under a setup question that takes taps
+      only are an ordinary message to Will; words the setup refuses come
+      back to the box; Will's offer, once newer bubbles came under it,
+      carries "Set up my chat ›", which begins the setup again, until the
+      assistant is live.
   O4  HOST-N586-5: Will's offer is asked of the backend once, only for a
       tester with no recipe; with a recipe, or without the ring, it is not.
 PROVES   O1 -> "HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring"
          O2 -> "HOST-N590-8: the joiner meets the host's welcome first, as the assistant's"
          O3 -> "HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words"
+         O5 -> "HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again"
          O4 -> "HOST-N586-5: Will offers the setup once, only to a tester with no recipe"
 WHY      Every inviter has a chat of their own, set up in Will's chat
          (founder, 9 November 2026, N578 to N582, N586, N590).
@@ -40,7 +46,7 @@ vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => false }));
 
 import AssistantBuilder from "./AssistantBuilder";
 import ChatThread from "./ChatThread";
-import { ChatSetupBubble, chatSetupOf, resetAssistantInWill, useAssistantInWill, useChatSetup, willSetupWaiting } from "./ChatSetup";
+import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, resetAssistantInWill, useAssistantInWill, useChatSetup, willSetupWaiting } from "./ChatSetup";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Chat } from "@/services/api/chats";
 
@@ -252,7 +258,9 @@ describe("a host's own chat", () => {
     await render(createElement(Will, { rows: [offer, welcomeQ, nav] }));
     const taps = [...container.querySelectorAll("[data-chat-setup-answers] button")].map((b) => b.textContent);
     expect(taps.sort()).toEqual(["Any of these", "Record", "Tap answers", "Type"]);
-    expect(waiting).toMatchObject({ to: "q-2", words: false });
+    // A question of taps alone: typed words are an ordinary message to Will,
+    // never sent to the setup (which refuses them) and lost.
+    expect(waiting).toBeNull();
     await act(async () => button("Record")!.click());
     await flush();
     expect(sent("POST /api/v2/chats/recipe/setup/answer")).toEqual({ to: "q-2", picked: "Record" });
@@ -263,6 +271,58 @@ describe("a host's own chat", () => {
     await act(async () => button("Set up my chat›")!.click());
     await flush();
     expect(container.querySelector("[data-assistant-builder]")).toBeTruthy();
+  });
+
+  it("HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again", async () => {
+    const row = (client_id: string, body: string, chat_setup: Record<string, unknown>) =>
+      ({ client_id, role: "bot", kind: "text", body, metadata: { chat_setup }, client_created_at: "2026-11-09T10:00:00Z" }) as unknown as LoungeMessage;
+    const offer = row("q-0", "What you know can earn tokens.", { step: "offer", chips: ["Set up my chat"] });
+    const welcomeQ = row("q-1", "What should people read first when they open your chat?", { step: "welcome", chips: [] });
+    const live = row("q-3", "Your assistant is live.", { step: "live" });
+    const other = { client_id: "m-1", role: "bot", kind: "text", body: "Hello.", metadata: {}, client_created_at: "2026-11-09T10:01:00Z" } as unknown as LoungeMessage;
+    routes["POST /api/v2/chats/recipe/setup/answer"] = () => json({ error: "Tap one of the answers." }, 400);
+    routes["POST /api/v2/chats/recipe/setup"] = () => json({ started: true });
+    const reload = vi.fn(async () => undefined);
+    let waiting: ReturnType<typeof willSetupWaiting> = null;
+    let begin: () => Promise<boolean> = async () => false;
+    function Will({ rows }: { rows: LoungeMessage[] }) {
+      const [, setThinking] = useState(false);
+      const chatSetup = useChatSetup(reload, setThinking);
+      begin = chatSetup.begin;
+      waiting = willSetupWaiting(rows, { say: async () => undefined }, chatSetup);
+      return createElement(
+        "div",
+        null,
+        rows.map((m, i) => {
+          const setup = chatSetupOf(m);
+          return setup
+            ? createElement(ChatSetupBubble, {
+                key: m.client_id,
+                message: m,
+                setup,
+                open: i === rows.length - 1,
+                onTap: async () => undefined,
+                onBegin: chatSetupCanBegin(rows) ? () => void begin() : undefined,
+              })
+            : createElement("p", { key: m.client_id }, m.body);
+        }),
+      );
+    }
+
+    await render(createElement(Will, { rows: [offer, welcomeQ] }));
+    expect(await waiting!.say("Hi")).toBe(false); // refused: Will's chat puts the words back
+
+    await render(createElement(Will, { rows: [offer] }));
+    expect(button("Set up my chat›")).toBeUndefined(); // the newest bubble: its own tap
+
+    await render(createElement(Will, { rows: [offer, other] }));
+    await act(async () => button("Set up my chat›")!.click());
+    await flush();
+    expect(sent("POST /api/v2/chats/recipe/setup")).toEqual({});
+    expect(reload).toHaveBeenCalled();
+
+    await render(createElement(Will, { rows: [offer, other, live] }));
+    expect(button("Set up my chat›")).toBeUndefined(); // live: the builder's way in instead
   });
 
   it("HOST-N586-5: Will offers the setup once, only to a tester with no recipe", async () => {

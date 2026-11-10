@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Linkified from "../Linkified";
-import { TapRow } from "../WillQuestion";
+import { ChatLink, ChatLinks, TapRow } from "../WillQuestion";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { answerChatSetupStep, beginChatSetup, getBuilder, offerChatSetup } from "@/services/api/assistants";
 import AssistantBuilder from "./AssistantBuilder";
@@ -24,6 +24,10 @@ export type ChatSetup = { step: string; chips: string[] };
 /** The steps that wait for an answer (backend `chat_setup.WAITS`). */
 const WAITS = new Set(["offer", "welcome", "nav", "spec", "spec_own", "learn", "kind", "needs", "automate", "peek"]);
 
+/** The steps answered by a tap alone (backend `chat_setup.TAPPED`): typed
+ *  words there are refused, so they go to Will as an ordinary message. */
+const TAPPED = new Set(["offer", "nav", "kind", "needs", "automate", "peek"]);
+
 /** Will's row of the chat's setup, else null (one's own answers are drawn
  *  as any message of theirs). */
 export function chatSetupOf(message: Pick<LoungeMessage, "role" | "metadata">): ChatSetup | null {
@@ -34,25 +38,35 @@ export function chatSetupOf(message: Pick<LoungeMessage, "role" | "metadata">): 
   return { step: typeof setup.step === "string" ? setup.step : "say", chips };
 }
 
-/** Will's setup question waiting for an answer: the newest bubble drawn.
- *  `words`: he asks for words alone (the welcome, what people learn), so
- *  the box stays open. */
+/** Will's setup question waiting for typed words: the newest bubble drawn,
+ *  unless it takes taps only (then typed words are an ordinary message to
+ *  Will, never sent to the setup and lost). `words`: he asks for words
+ *  alone (the welcome, what people learn), so the box stays open. */
 export function chatSetupWaiting(
   drawn: readonly Pick<LoungeMessage, "client_id" | "role" | "metadata">[],
 ): { to: string; words: boolean } | null {
   const last = drawn[drawn.length - 1];
   const setup = last ? chatSetupOf(last) : null;
-  if (!last || !setup || !WAITS.has(setup.step)) return null;
+  if (!last || !setup || !WAITS.has(setup.step) || TAPPED.has(setup.step)) return null;
   return { to: last.client_id, words: setup.chips.length === 0 };
+}
+
+/** The setup can begin again from Will's offer once it is no longer the
+ *  newest bubble: until the assistant is live. */
+export function chatSetupCanBegin(drawn: readonly Pick<LoungeMessage, "role" | "metadata">[]): boolean {
+  return !drawn.some((m) => chatSetupOf(m)?.step === "live");
 }
 
 /** A tap, typed words or the setup begun again; each then reads Will's chat
  *  again, with the typing dots while it does. */
 export function useChatSetup(reload: () => Promise<void>, setThinking: (on: boolean) => void) {
-  const run = async (work: () => Promise<boolean>) => {
+  /** True when the backend took it (the caller keeps typed words otherwise). */
+  const run = async (work: () => Promise<boolean>): Promise<boolean> => {
     setThinking(true);
     try {
-      if (await work()) await reload();
+      const took = await work();
+      if (took) await reload();
+      return took;
     } finally {
       setThinking(false);
     }
@@ -73,13 +87,17 @@ export function ChatSetupBubble({
   open,
   onTap,
   builder = null,
+  onBegin,
 }: {
   message: LoungeMessage;
   setup: ChatSetup;
   open: boolean;
-  onTap: (picked: string) => Promise<void>;
+  onTap: (picked: string) => Promise<unknown>;
   /** The builder's way in, drawn under the "live" row. */
   builder?: ReactNode;
+  /** Will's offer, once newer bubbles came under it: "Set up my chat ›"
+   *  begins the setup again (or asks its open question again). */
+  onBegin?: () => void;
 }) {
   const sending = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -108,6 +126,11 @@ export function ChatSetupBubble({
       {open && labels.length > 0 ? (
         <TapRow labels={labels} disabled={busy} onTap={tap} dataAttr={{ "data-chat-setup-answers": "" }} />
       ) : null}
+      {!open && setup.step === "offer" && onBegin ? (
+        <ChatLinks>
+          <ChatLink label={SET_UP_MY_CHAT} onClick={onBegin} />
+        </ChatLinks>
+      ) : null}
     </>
   );
 }
@@ -118,8 +141,8 @@ export function ChatSetupBubble({
 export function willSetupWaiting(
   shown: readonly Pick<LoungeMessage, "client_id" | "role" | "metadata">[],
   join: { say: (to: string, said: string) => Promise<void> },
-  chat: { say: (to: string, said: string) => Promise<void> },
-): { to: string; words: boolean; say: (said: string) => Promise<void> } | null {
+  chat: { say: (to: string, said: string) => Promise<boolean> },
+): { to: string; words: boolean; say: (said: string) => Promise<boolean | void> } | null {
   const joining = joinSetupWaiting(shown);
   if (joining) return { ...joining, say: (said) => join.say(joining.to, said) };
   const own = chatSetupWaiting(shown);
