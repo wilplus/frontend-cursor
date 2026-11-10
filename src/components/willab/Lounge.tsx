@@ -195,6 +195,8 @@ import { useTakeResend } from "./useTakeResend";
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
+// What needs you, for the chat builder's ring (backend N629): off the boot bundle.
+const WillNeedsYou = dynamic(() => import("./chats/hostsetup/WillNeedsYou"), { ssr: false, loading: () => null });
 const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
 // Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
@@ -2122,6 +2124,10 @@ export default function Lounge({
         {/* The questions people asked, bundled, for the chat builder's ring
             (backend N584 item 2); nothing without it. */}
         <BundleQueue signedIn={thread.signedIn} onRecord={onRecordAnswer} />
+
+        {/* What needs you, for the chat builder's ring (backend N629 item 1);
+            nothing without it, where the setup's read is 404. */}
+        {thread.signedIn ? <WillNeedsYou /> : null}
 
         {/* The plan's answers under Will's question, the after-walk way
             (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}

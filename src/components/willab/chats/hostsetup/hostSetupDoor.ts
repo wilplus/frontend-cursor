@@ -10,12 +10,23 @@ import { editSaid, type SetupPart, type SetupRead } from "@/services/api/hostSet
 /* -------------------------------------------------------------------------- */
 
 export const OPEN_EVENT = "willab:host-setup-open";
-export type OpenDetail = { parts?: { line: string; parts: SetupPart[] } };
+/** What a way in opens over the list: the setup (or its parts), the drafted
+ *  answers, the AI models (their list, or their teaching queue), or one
+ *  model's check (Will's lines, backend N629). */
+export type OpenDetail = {
+  parts?: { line: string; parts: SetupPart[] };
+  open?: "drafts" | "models" | "teach" | "check" | "parts";
+  modelId?: string;
+};
 
 let known: SetupRead | null = null;
 
 export function knowSetup(read: SetupRead | null): void {
   known = read;
+}
+
+export function openOverList(detail: OpenDetail): void {
+  open(detail);
 }
 
 function open(detail: OpenDetail): void {
