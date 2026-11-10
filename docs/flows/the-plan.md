@@ -668,8 +668,8 @@ Waiting for the founder's OK:
     "Tell me what you'd like to do, and I'll show you where." answered by
     typing, or by a tap on one of the first choice's other answers ("Prepare
     a talk", "Share what I know", "Learn from others", those not chosen),
-    which brings that choice's next line (N604). "Record Take 2" stays faded until the walk is done
-    (`plan.way_in.record_next`). The plan's own questions stand down while
+    which brings that choice's next line (N604). "Record Take 2" stays
+    faded until the walk is done (`plan.way_in.record_next`). The plan's own questions stand down while
     the way in runs, so nobody is asked "When is your deadline?".
   - Built, off until its words are signed (N559 item 1, App Model
     MATCH-06; backend #1862, open): a newcomer who came by the link of
