@@ -128,9 +128,11 @@ export function Link({ label, onClick }: { label: string; onClick: () => void })
 }
 
 /** A choice to tap: its title and, under it, what follows. */
-export function Opt({ title, sub, on = false, tick, disabled = false, onClick, badge }: {
+export function Opt({ title, sub, on = false, tick, disabled = false, onClick, badge, under }: {
   title: string;
   sub?: string;
+  /** A line right under the badge. */
+  under?: string;
   on?: boolean;
   tick?: boolean;
   disabled?: boolean;
@@ -150,6 +152,7 @@ export function Opt({ title, sub, on = false, tick, disabled = false, onClick, b
       )}
       <span className="flex flex-col gap-0.5">
         {badge ? <span className="self-start rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#2F9E6E]">{badge}</span> : null}
+        {under ? <small className="text-[13.5px] text-muted-foreground">{under}</small> : null}
         <b className="text-[16px] font-semibold text-foreground">{title}</b>
         {sub ? <small className="text-[13.5px] text-muted-foreground">{sub}</small> : null}
       </span>

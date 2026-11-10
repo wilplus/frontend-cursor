@@ -90,6 +90,15 @@ export const W = {
   madeIt: (by: string) => `${by} made it.`,
   /** The AI models page's own words for a model still learning (N633 item 1). */
   stillLearning: "Still learning",
+  /** Under "Still learning" (N634 item 2). */
+  learningLine: "It says nothing yet. Your answers teach it.",
+  /** What a model of one's own is built on (N634 item 1): only a ready one taps. */
+  baseSay: "What should it be built on?",
+  bases: [
+    ["gpt", "GPT", "A general model from OpenAI. Ready now."],
+    ["claude", "Claude", "A general model from Anthropic. Not ready yet."],
+    ["own", "WillpowerLab's own", "Made for reading how people behave. Not ready yet."],
+  ] as const,
   eachUse: (by: string, price: number) => `${by} made it. ${price} tokens each use.`,
   needs: (by: string, needs: string) => `${by} made it. It needs ${needs.toLowerCase()}.`,
   smarterToday: "Your chat gets smarter today: it notices this with no training from you.",

@@ -14,7 +14,7 @@ export type WhoKind = "shadow" | "you" | "assistant";
 export type ModelDraft = { q: string; opts: string[]; says: string };
 /** `learning`: someone's model still learning (N633 item 1): free, it gives
  *  no line, and the host's answers teach it. */
-export type RecipeModel = ModelDraft & { own: boolean; model_id?: string; by?: string; price?: number; learning?: boolean };
+export type RecipeModel = ModelDraft & { own: boolean; model_id?: string; by?: string; price?: number; learning?: boolean; base?: string };
 export type Suggest = {
   line: string[];
   send: SendKind[];

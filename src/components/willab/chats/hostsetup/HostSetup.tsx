@@ -37,12 +37,12 @@ import HostCheck from "./HostCheck";
 
 type Step =
   | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
-  | "model" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+  | "base" | "model" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "base", "model", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
  *  `next`); "Your models" goes the whole way of a model, from "smart" to its
  *  check, as in the first run (N632 item 5). */
-const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "model", "teach", "check", "try", "live"];
+const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "base", "model", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
 const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who" };
 
@@ -66,6 +66,8 @@ type State = {
   mopts: number;
   ownQ: string | null;
   ownSeen: boolean;
+  /** What the host's own models are built on, once chosen (N634 item 1). */
+  base: string | null;
   shared: SharedModel[] | null;
   picked: SharedModel | null;
   edit: boolean;
@@ -114,6 +116,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   mopts: 0,
   ownQ: null,
   ownSeen: false,
+  base: recipe?.models?.find((m) => m.own && m.base)?.base ?? null,
   shared: null,
   picked: null,
   edit: !!parts && !!recipe,
@@ -163,6 +166,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       case "qmore": case "teach": case "check": return true;
       case "way": case "model": case "more": return noModels();
       case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
+      case "base": return noModels() || R.way !== "own" || !!S.base;
       case "order": return models().length < 2;
       case "share": return !models().some((m) => m.own);
       case "price": return !R.share;
@@ -273,7 +277,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, picked: null });
+        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, picked: null });
         go("care");
       } else paint();
     });
@@ -517,6 +521,15 @@ function StepScreen(c: Ctx) {
           {[W.ownWhat, W.ownWorth, W.ownNot].map(([b, s]) => <Card key={b} b={b} s={s} />)}
         </Frame>
       );
+    case "base":
+      return (
+        <Frame onBack={c.back}>
+          <Say>{W.baseSay}</Say>
+          {W.bases.map(([id, title, sub]) => (
+            <Opt key={id} title={title} sub={sub} on={S.base === id} disabled={id !== "gpt"} onClick={() => { S.base = id; c.next(); }} />
+          ))}
+        </Frame>
+      );
     case "model":
       return <ModelStep c={c} />;
     case "more":
@@ -599,6 +612,7 @@ function ModelStep({ c }: { c: Ctx }) {
             title={m.q}
             sub={`${m.opts.join(" · ")}\n${usable(m)}`}
             badge={m.learning ? W.stillLearning : undefined}
+            under={m.learning ? W.learningLine : undefined}
             disabled={!m.fits}
             onClick={() => { S.picked = m; c.paint(); }}
           />
@@ -616,7 +630,7 @@ function ModelStep({ c }: { c: Ctx }) {
         <>
           <Two
             left={<Btn out label={W.change} onClick={() => { if (S.ownQ) S.mopts += 1; else S.mi += 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => add({ ...d, own: true })} />}
+            right={<Btn label={W.keep} onClick={() => add({ ...d, own: true, base: S.base ?? "gpt" })} />}
           />
           <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => { S.ownQ = /\?$/.test(v) ? v : `${v}?`; }, W.modelPlaceholder)} />
         </>
