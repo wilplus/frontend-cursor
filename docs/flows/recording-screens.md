@@ -408,6 +408,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/ProcessingWait.tsx` — the wait's stage and percent (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
+- `src/lib/willab/takeUploading.ts` — a Take still going up after the ✕ closed the processing screen, for the chat's processing bubble (2026-11-10).
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-recording-screens-2026-10-07.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-recording-screens-2026-10-07.md) (history).
 

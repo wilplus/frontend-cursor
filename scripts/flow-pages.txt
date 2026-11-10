@@ -60,6 +60,7 @@ docs/flows/recording-screens.md
   src/components/willab/useRecordingGestures.ts
   src/lib/willab/recordingGesture.ts
   src/components/willab/DiscardTakeDialog.tsx
+  src/lib/willab/takeUploading.ts
   src/components/willab/RecordingAnalysisPresentation.tsx
   src/components/willab/ProcessingWait.tsx
   src/components/willab/SlideStage.tsx
