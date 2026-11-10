@@ -65,7 +65,9 @@ export default function WillNeedsYou() {
       )}
       <Said>{W.yoursAnyTime}</Said>
       <Row kind="models" title={W.aiModels} line={W.aiModelsLine} onOpen={over({ open: "models" })} />
-      {work.ownChat ? <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={over({ open: "parts" })} /> : null}
+      {/* With a chat set up, its parts; without one (a new account, or a chat
+          from the older builder), the setup from "What do you do?". */}
+      <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={over({ open: "parts" })} />
     </div>
   );
 }

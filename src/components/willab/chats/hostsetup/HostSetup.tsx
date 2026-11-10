@@ -78,7 +78,25 @@ type State = {
   backward: boolean;
 };
 
-const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
+/** A recipe Will has suggested every step for. Without that (a recipe from
+ *  before, or one whose suggestions came back empty) no step may draw an
+ *  empty suggestion, so the setup starts at "What do you do?", whose start
+ *  fills them all (FIRST-16; the founder's trial, 10 November 2026). */
+export function suggested(recipe: HostRecipe | null): recipe is HostRecipe {
+  const g = recipe?.suggest;
+  const some = (list: unknown) => Array.isArray(list) && list.length > 0;
+  return Boolean(
+    g && some(g.line) && some(g.send) && some(g.out) && some(g.hello) && some(g.qs) && some(g.models) &&
+      some(g.taps) && g.taps.every((t) => some(t)),
+  );
+}
+
+const fresh = (given: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => {
+  const recipe = suggested(given) ? given : null;
+  return start(recipe, recipe ? parts : null, cost);
+};
+
+const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
   at: parts && recipe ? "done" : recipe ? "care" : "what",
   history: [],
   recipe,
@@ -238,7 +256,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     paint();
     void startSetup(v).then((got) => {
       S.thinking = null;
-      if (got) {
+      if (suggested(got)) {
         S.recipe = got;
         S.qs = [];
         go("care");

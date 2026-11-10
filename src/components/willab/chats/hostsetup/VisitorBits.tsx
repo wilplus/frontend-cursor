@@ -46,14 +46,16 @@ export function HostHello({ hello, taps, messages, onTap }: {
   messages: readonly ChatMessage[] | null;
   onTap: (label: string) => void;
 }) {
-  if (!messages || messages.some((m) => m.mine) || (!hello && !taps.length)) return null;
+  // "Something else" alone is no choice: a recipe with no taps draws none.
+  const choices = taps.some((t) => t !== W.somethingElse) ? taps : [];
+  if (!messages || messages.some((m) => m.mine) || (!hello && !choices.length)) return null;
   return (
     <div data-host-hello="" className="flex flex-col gap-2 pt-1">
       {hello && !messages.length ? <Line>{hello}</Line> : null}
-      {taps.length ? (
+      {choices.length ? (
         <>
           <Line>{W.tellMe}</Line>
-          <TapRow even labels={[...taps]} dataAttr={{ "data-visitor-taps": "" }} onTap={onTap} />
+          <TapRow even labels={[...choices]} dataAttr={{ "data-visitor-taps": "" }} onTap={onTap} />
         </>
       ) : null}
     </div>

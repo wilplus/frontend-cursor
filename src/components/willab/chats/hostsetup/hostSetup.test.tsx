@@ -704,6 +704,27 @@ describe("the blank setup (FIRST-)", () => {
     await act(async () => { expect(await sayToWill("Can I change my chat's hello?")).toBe(true); });
   });
 
+  it("FIRST-16 a recipe with nothing suggested (from before, or empty) starts at What do you do?, never an empty step", async () => {
+    const empty = first({ suggest: { ...SUGGEST, taps: [], qs: [] } });
+    backend({ recipe: empty, parts: [{ part: "taps", title: "They can ask", value: "" }], own_chat: null, cost: FREE });
+    bff.routes["POST /api/v2/chats/setup/start"] = { recipe: empty };
+    await mount();
+    act(() => void openSetupFromNote());
+    await flush();
+    expect(text()).toContain("What do you do?");
+    expect(text()).not.toContain("They can ask");
+    // A start whose suggestions come back empty stays here too.
+    await tap("Answer");
+    await type("trichologist");
+    expect(text()).toContain("What do you do?");
+    expect(text()).not.toContain("People tap what they want:");
+    // Once Will has suggested every step, on as usual.
+    bff.routes["POST /api/v2/chats/setup/start"] = { recipe: first() };
+    await tap("Answer");
+    await type("trichologist");
+    expect(text()).toContain("Is your work about health, law or money?");
+  });
+
   it("FIRST-02 404: below the ring no way in opens anything and nothing is drawn", async () => {
     await mount();
     expect(openSetupFromWill(0)).toBe(false);
