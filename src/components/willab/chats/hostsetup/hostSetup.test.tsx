@@ -397,6 +397,21 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Do you know a case this model should learn from? Add it, then answer it yourself.");
     expect(text()).toContain("Upload a file");
     expect(text()).not.toContain("Someone's model");
+    // A written case of their own, with no answer; then answered as one of the first 10.
+    bff.routes["POST /api/v2/models/m-own/examples"] = { example_id: "ex1", note: null };
+    const file = container.querySelector<HTMLInputElement>("[data-model-add-file]")!;
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10Teach);
+    await act(async () => {
+      Object.defineProperty(file, "files", { value: [new File(["My scalp itches after I wash it."], "case.txt", { type: "text/plain" })], configurable: true });
+      file.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flush();
+    expect(bff.calls.find((c) => c.path === "/api/v2/models/m-own/examples")?.json).toEqual({ text: "My scalp itches after I wash it." });
+    expect(text()).toContain("How rushed does it sound?");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await madeModel();
     const back = container.querySelector<HTMLButtonElement>("[data-walk-nav] button, button[aria-label]")!;
     await act(async () => back.click());
     await flush();
