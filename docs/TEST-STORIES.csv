@@ -1429,6 +1429,16 @@ starts at once (N260).","O1 -> ""Start a new project asks, and Continue archives
 O2 -> ""another project asks; the current one and a first project do not""
 O3 -> ""Record Take N on an archived project asks; on the current one it never does""
 O4 -> ""Will's Create new project asks in place of the message box""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260."
+src/components/willab/ownBubble.test.tsx,Story,"As a speaker, when I tap an answer or send what I typed, I want my own bubble on screen at once and kept there while the answer is on its way, so that I know it went (backend N632 item 7, the founder on a phone, 10 November 2026: ""it disappears, and then the posted bubble by me appears when the answer appears"").","B1  A tap under Will's question (""When is it?"" → ""No date yet""): the
+bubble shows before the backend answers, stays, and once the
+backend's row is read it is there exactly once.
+B2  Words typed to Will: the bubble shows at once and a read of the
+thread that lands while it is still being sent keeps it; it is
+there exactly once after.
+B3  A tap on a host's join question in a person's chat (""Are you in a
+hurry?"" → ""No""): the bubble shows before the backend answers, the
+answers go, and the backend's row takes its place exactly once; a
+refused answer takes it away and the answers come back.",,backend N632 item 7; docs/flows/feedback-walk-and-chat.md.
 src/components/willab/paragraphPractise.test.tsx,Story,"As a speaker, I want Practise on a paragraph to open the same practise screens as the Feedback walk, recording at once on the right clip, so that practice feels the same everywhere.","O1  A clearer version's card opens the walk's practise screen with its
 words, the mic starts, and the practice opens on the moment's
 snippet; ✕ stops the mic and ends nothing else.
