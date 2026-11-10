@@ -15,6 +15,7 @@ import { useUserProfile } from "../useUserProfile";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { setWillChatCovered } from "./willChatInView";
 import { OPEN_EVENT, openSetupFromWill } from "./hostsetup/hostSetupDoor";
+import { useSiteBarCovered } from "./siteBarCover";
 
 // A person's chat opens on a tap, and only a coach has the queue's row: off
 // the boot bundle. A chat's code is fetched once Will's thread has painted
@@ -161,6 +162,8 @@ function listCovered(): boolean {
  *  "Record an answer" (backend N363), handed to the recording screens. */
 export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: AnswerFor) => void): ChatsDoor {
   const decided = useChatsDecided();
+  // The AI models open like a chat: no site bar above them (N632 item 6).
+  const barCovered = useSiteBarCovered();
   const on = decided === true;
   const { chats, reload } = useChatList(on);
   // The coach's way in is a row in the list (backend N521).
@@ -295,7 +298,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const atWill = view.at === "will";
   return {
     back: atWill ? <WillTopBar onBack={toList} /> : null,
-    navbar: view.at === "list",
+    navbar: view.at === "list" && !barCovered,
     front: (
       <ChatsFront
         atWill={atWill}

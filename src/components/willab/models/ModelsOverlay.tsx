@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useCoverSiteBar } from "../chats/siteBarCover";
 import { answerModelInvite, enterModel, getModelPage, type ModelPage } from "@/services/api/models";
 import type { SetupState, SetupStep } from "@/services/api/modelSetup";
 import { useBackDismiss } from "../useBackDismiss";
@@ -70,7 +71,9 @@ function useStack(start: ModelsScreen, onClose: () => void) {
   });
   const toList = () => setStack([{ at: "list" }]);
   const toQueue = () => setStack((was) => [...was.filter((s) => s.at === "list" || s.at === "queue").slice(0, 1), { at: "queue" }]);
-  const nav = { onBack: depth > 1 ? back : undefined, onClose };
+  // Back on the left of every screen, as a chat's header has; on the first
+  // it closes the stack to where it was opened from (N632 item 6).
+  const nav = { onBack: depth > 1 ? back : onClose, onClose };
   return { top: stack[stack.length - 1], push, back, swap, toList, toQueue, onClose, nav };
 }
 
@@ -227,8 +230,11 @@ export default function ModelsOverlay({ start, queueTitle, onClose }: {
   const st = useStack(start, onClose);
   const setup = useSetupWays(st);
   const { mark, column } = useWillColumn();
+  useCoverSiteBar();
+  // Opens like a chat (N632 item 6): no site bar above it, and Back on the
+  // left takes the close's place, so the top bar's ✕ is not drawn.
   const frame = (
-    <div data-models-overlay className="absolute inset-0 z-40 flex flex-col bg-background">
+    <div data-models-overlay className="absolute inset-0 z-40 flex flex-col bg-background [&_.walk-ovtop>button[aria-label=Close]]:hidden">
       <Top st={st} queueTitle={queueTitle} setup={setup} />
     </div>
   );

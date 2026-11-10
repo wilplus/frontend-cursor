@@ -5,6 +5,7 @@ import Linkified from "../Linkified";
 import { ChatLink, ChatLinks, TapRow } from "../WillQuestion";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { answerChatSetupStep, beginChatSetup, getBuilder, offerChatSetup } from "@/services/api/assistants";
+import { readSetup } from "@/services/api/hostSetup";
 import AssistantBuilder from "./AssistantBuilder";
 import { joinSetupWaiting } from "./JoinSetup";
 
@@ -29,10 +30,11 @@ const WAITS = new Set(["offer", "welcome", "nav", "spec", "spec_own", "learn", "
 const TAPPED = new Set(["offer", "nav", "kind", "needs", "automate", "peek"]);
 
 /** Will's row of the chat's setup, else null (one's own answers are drawn
- *  as any message of theirs). */
-export function chatSetupOf(message: Pick<LoungeMessage, "role" | "metadata">): ChatSetup | null {
+ *  as any message of theirs). `retired`: the new setup has taken over (N632
+ *  item 1), so the row is one of Will's plain lines. */
+export function chatSetupOf(message: Pick<LoungeMessage, "role" | "metadata">, retired = false): ChatSetup | null {
   const raw = message.metadata?.chat_setup;
-  if (message.role !== "bot" || !raw || typeof raw !== "object") return null;
+  if (retired || message.role !== "bot" || !raw || typeof raw !== "object") return null;
   const setup = raw as Record<string, unknown>;
   const chips = Array.isArray(setup.chips) ? setup.chips.filter((c): c is string => typeof c === "string") : [];
   return { step: typeof setup.step === "string" ? setup.step : "say", chips };
@@ -142,10 +144,12 @@ export function willSetupWaiting(
   shown: readonly Pick<LoungeMessage, "client_id" | "role" | "metadata">[],
   join: { say: (to: string, said: string) => Promise<void> },
   chat: { say: (to: string, said: string) => Promise<boolean> },
+  /** The new setup has taken over: the earlier one waits for nothing (N632 item 1). */
+  retired = false,
 ): { to: string; words: boolean; say: (said: string) => Promise<boolean | void> } | null {
   const joining = joinSetupWaiting(shown);
   if (joining) return { ...joining, say: (said) => join.say(joining.to, said) };
-  const own = chatSetupWaiting(shown);
+  const own = retired ? null : chatSetupWaiting(shown);
   return own ? { ...own, say: (said) => chat.say(own.to, said) } : null;
 }
 
@@ -154,11 +158,20 @@ export function willSetupWaiting(
 const OFFERED = "willab.assistant.offered";
 let offerAsked = false;
 let builderRead: ReturnType<typeof getBuilder> | null = null;
+let newSetupRead: Promise<boolean> | null = null;
 
 /** For tests: forget this page load's read and offer. */
 export function resetAssistantInWill(): void {
   offerAsked = false;
   builderRead = null;
+  newSetupRead = null;
+}
+
+/** Whoever the new setup answers for (GET /v2/chats/setup, the ring row
+ *  `chat_builder`) sets their chat up there alone (backend N632 item 1). */
+function hasNewSetup(): Promise<boolean> {
+  newSetupRead = newSetupRead ?? readSetup().then((read) => read !== null);
+  return newSetupRead;
 }
 
 function offeredHere(): boolean {
@@ -182,16 +195,26 @@ function markOffered(): void {
  *  it, and only once while it waits); the builder's way in under "Your
  *  assistant is live.", in the backend's own words ("Set up my chat"); the
  *  builder over the screen. Without the ring the read is 404: nothing is
- *  offered and the way in draws nothing. */
-export function useAssistantInWill(signedIn: boolean | undefined, reload: () => Promise<void>): { builder: ReactNode; sheet: ReactNode } {
+ *  offered and the way in draws nothing.
+ *
+ *  `retired`: the new setup answers for this person (N632 item 1). Then
+ *  none of this is read or drawn: no offer, no way in, no sheet; Will's
+ *  earlier setup rows are his plain lines and take no answer. The way in
+ *  is "Your chat" in Will's lines. */
+export function useAssistantInWill(
+  signedIn: boolean | undefined,
+  reload: () => Promise<void>,
+): { builder: ReactNode; sheet: ReactNode; retired: boolean } {
   const [label, setLabel] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [retired, setRetired] = useState(false);
   useEffect(() => {
     if (!signedIn) return;
     let alive = true;
-    // One read per page load, shared by every mount of Will's chat.
-    builderRead = builderRead ?? getBuilder();
-    void builderRead.then(async (builder) => {
+    const readBuilder = async () => {
+      // One read per page load, shared by every mount of Will's chat.
+      builderRead = builderRead ?? getBuilder();
+      const builder = await builderRead;
       if (!alive || !builder) return;
       setLabel(SET_UP_MY_CHAT);
       if (builder.recipe || offerAsked || offeredHere()) return;
@@ -200,6 +223,11 @@ export function useAssistantInWill(signedIn: boolean | undefined, reload: () => 
         markOffered();
         await reload().catch(() => undefined);
       }
+    };
+    void hasNewSetup().then((yes) => {
+      if (!alive) return;
+      if (yes) setRetired(true);
+      else void readBuilder();
     });
     return () => {
       alive = false;
@@ -207,13 +235,14 @@ export function useAssistantInWill(signedIn: boolean | undefined, reload: () => 
   }, [signedIn, reload]);
   const close = useCallback(() => setOpen(false), []);
   return {
-    builder: label ? (
+    retired,
+    builder: label && !retired ? (
       <button type="button" data-assistant-builder-open="" onClick={() => setOpen(true)} className="mr-auto flex items-center gap-1.5 px-0.5 py-1.5 text-[15px] font-medium text-foreground">
         {label}
         <span aria-hidden className="text-[20px] leading-none text-muted-foreground">›</span>
       </button>
     ) : null,
-    sheet: open ? <AssistantBuilder onClose={close} /> : null,
+    sheet: open && !retired ? <AssistantBuilder onClose={close} /> : null,
   };
 }
 

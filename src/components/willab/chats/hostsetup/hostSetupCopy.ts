@@ -136,6 +136,8 @@ export const W = {
   isOpen: "Your chat is open. Share your link.",
   isSaved: "Your chat is saved. Nobody can see it yet.",
   backToChats: "Back to my chats",
+  /** The earlier builder's signed button (N632 item 4). */
+  startAgain: "Start again",
   yourChat: "your chat",
   tellMe: "Tell me what you'd like to do, and I'll show you where.",
   goAhead: "Go ahead. Send it to me.",
