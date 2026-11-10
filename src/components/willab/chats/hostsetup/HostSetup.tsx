@@ -373,7 +373,7 @@ function YesNoStep(c: Ctx): ReactNode {
         <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.onClose), () => c.keep("live", true, c.onClose))}>
           <Say>{W.openToPeople}</Say>
           <Cap>{W.anyoneLink}</Cap>
-          <Card b={W.chatOf(c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${c.name}`)} />
+          <Card b={W.chatOf(S.ownChat?.title || c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${S.ownChat?.title || c.name}`)} />
         </Frame>
       );
     default:
@@ -470,8 +470,10 @@ function StepScreen(c: Ctx) {
       return (
         <Frame onBack={c.back}>
           <Say>{W.whoSay}</Say>
+          {/* "I answer at once" waits for a No to health, law or money: until
+              then the backend refuses it (sensitive defaults to true). */}
           {R.care ? <Cap>{W.careWho}</Cap> : null}
-          {WHO.filter(([kind]) => !(R.care && kind === "assistant")).map(([kind, title, sub], k) => (
+          {WHO.filter(([kind]) => !(R.care !== false && kind === "assistant")).map(([kind, title, sub], k) => (
             <Opt key={kind} title={title} sub={sub} on={R.who === kind} badge={k === 0 ? W.suggested : undefined} onClick={() => c.keep("who", kind)} />
           ))}
         </Frame>
