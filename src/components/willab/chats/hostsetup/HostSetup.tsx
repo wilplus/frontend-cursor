@@ -78,7 +78,25 @@ type State = {
   backward: boolean;
 };
 
-const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
+/** A recipe Will has suggested every step for. Without that (a recipe from
+ *  before, or one whose suggestions came back empty) no step may draw an
+ *  empty suggestion, so the setup starts at "What do you do?", whose start
+ *  fills them all (FIRST-16; the founder's trial, 10 November 2026). */
+export function suggested(recipe: HostRecipe | null): recipe is HostRecipe {
+  const g = recipe?.suggest;
+  const some = (list: unknown) => Array.isArray(list) && list.length > 0;
+  return Boolean(
+    g && some(g.line) && some(g.send) && some(g.out) && some(g.hello) && some(g.qs) && some(g.models) &&
+      some(g.taps) && g.taps.every((t) => some(t)),
+  );
+}
+
+const fresh = (given: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => {
+  const recipe = suggested(given) ? given : null;
+  return start(recipe, recipe ? parts : null, cost);
+};
+
+const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
   at: parts && recipe ? "done" : recipe ? "care" : "what",
   history: [],
   recipe,
@@ -238,7 +256,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     paint();
     void startSetup(v).then((got) => {
       S.thinking = null;
-      if (got) {
+      if (suggested(got)) {
         S.recipe = got;
         S.qs = [];
         go("care");
@@ -422,11 +440,18 @@ function StepScreen(c: Ctx) {
     case "send": {
       const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
       S.sendSet = set;
+      // Each row ticks on its own, any number of them; the last tick stays,
+      // so the screen never drops to none (FIRST-04).
+      const tick = (k: SendKind) => {
+        if (set.includes(k) && set.length === 1) return;
+        S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k];
+        c.paint();
+      };
       return (
         <Frame onBack={c.back} foot={<Btn label={W.done} disabled={!set.length} onClick={() => c.keep("send", R.suggest.send.filter((k) => set.includes(k)))} />}>
           <Say>{W.sendSay}</Say>
           {R.suggest.send.map((k) => (
-            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => { S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k]; c.paint(); }} />
+            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => tick(k)} />
           ))}
         </Frame>
       );

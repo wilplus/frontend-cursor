@@ -175,6 +175,17 @@ describe("what needs you is in Will (backend N629)", () => {
     expect(container.querySelector('[data-needs-you="models"]')).not.toBeNull();
   });
 
+  it("N629-1 without a chat of the new setup, Your chat opens the setup at What do you do?", async () => {
+    // A coach whose chat came from the older builder: no v2 recipe.
+    bff.routes["GET /api/v2/chats/setup"] = { recipe: null, parts: [], own_chat: null, cost: null };
+    act(() => root.render(createElement("div", null, createElement(WillNeedsYou), createElement(HostSetupRows))));
+    await flush();
+    expect(text()).toContain("Nothing needs you now.");
+    await act(async () => (container.querySelector('[data-needs-you="chat"]') as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-host-setup]")?.textContent).toContain("What do you do?");
+  });
+
   it("N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was", async () => {
     const list = () =>
       createElement(ChatList, {

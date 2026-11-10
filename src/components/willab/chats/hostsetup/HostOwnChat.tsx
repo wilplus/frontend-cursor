@@ -19,8 +19,8 @@ import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
 type Line = { w?: string; by?: string; me?: string };
 
 export default function HostOwnChat({ name, recipe, onBack }: { name: string; recipe: HostRecipe; onBack: () => void }) {
-  const [log, setLog] = useState<Line[]>(() => [{ w: recipe.hello }, { w: W.tellMe }]);
-  const [asking, setAsking] = useState(true);
+  const [log, setLog] = useState<Line[]>(() => [{ w: recipe.hello }, ...(recipe.taps.length ? [{ w: W.tellMe }] : [])]);
+  const [asking, setAsking] = useState(() => recipe.taps.length > 0);
   const [waiting, setWaiting] = useState(false);
   const [useful, setUseful] = useState(false);
   const add = (...lines: Line[]) => setLog((was) => [...was, ...lines]);

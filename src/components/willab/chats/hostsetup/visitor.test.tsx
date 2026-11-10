@@ -109,6 +109,17 @@ describe("what a visitor meets (VIS-)", () => {
     expect(container.querySelector("[data-visitor-taps]")).toBeNull();
   });
 
+  it("VIS-01 a chat whose recipe has no taps draws no lone Something else", async () => {
+    routes["GET /api/v2/chats/c-9/messages"] = () => json({ messages: [] });
+    routes["GET /api/v2/chats/c-9/host"] = () => json({ host: { ...host(["text"]).host, taps: ["Something else"] } });
+    await act(async () => root.render(createElement(ChatThread, { chat, onBack: () => undefined })));
+    await flush();
+    expect(thread()).toContain(HELLO);
+    expect(container.querySelector("[data-visitor-taps]")).toBeNull();
+    expect(thread()).not.toContain("Something else");
+    expect(thread()).not.toContain("Tell me what you'd like to do");
+  });
+
   it("VIS-02 the bar follows what the host takes: a message, the box; a recording alone, no box", async () => {
     await open([], ["text"]);
     expect(box()).not.toBeNull();
