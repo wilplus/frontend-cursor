@@ -24,8 +24,9 @@ vi.mock("@/lib/api/bffFetch", () => ({
     bff.calls.push(call);
     const answer = bff.routes[`${call.method} ${path}`];
     if (answer === undefined) return { kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } };
-    const body = typeof answer === "function" ? await (answer as (c: Call) => unknown)(call) : answer;
-    return { kind: "response", ok: true, status: 200, body };
+    const got = typeof answer === "function" ? await (answer as (c: Call) => unknown)(call) : answer;
+    const refused = got && typeof got === "object" && "status" in got ? (got as { status: number; body: unknown }) : null;
+    return refused ? { kind: "response", ok: false, ...refused } : { kind: "response", ok: true, status: 200, body: got };
   }),
 }));
 vi.mock("../../useUserProfile", () => ({ useUserProfile: () => ({ profile: { first_name: "Lena" }, loading: false, isCoach: false }) }));
@@ -77,7 +78,7 @@ function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null
   recipe = first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
-  for (const part of ["line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
+  for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
     bff.routes[`PUT /api/v2/chats/setup/${part}`] = (c: Call) => {
       recipe = { ...recipe, [part]: (c.json as R).value };
       return { recipe, cost: FREE };
@@ -139,6 +140,7 @@ async function begun() {
   await flush();
   await tap("Answer");
   await type("trichologist");
+  await tap("No");
 }
 /** On to a step, keeping Will's first suggestion on each. */
 async function keepTo(say: string) {
@@ -169,8 +171,51 @@ describe("the blank setup (FIRST-)", () => {
     await act(async () => answer({ recipe: first() }));
     await flush();
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "trichologist" });
+    expect(text()).toContain("Is your work about health, law or money?");
+  });
+
+  it("FIRST-15 health, law or money is asked first; with Yes, nothing goes out until the host sends it", async () => {
+    backend();
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    await tap("Answer");
+    await type("dermatologist");
+    expect(text()).toContain("Is your work about health, law or money?");
+    expect(text()).toContain("If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.");
+    await tap("Yes");
+    expect(puts("care")).toEqual([true]);
     expect(text()).toContain("People come to you for this:");
-    expect(text()).toContain(SUGGEST.line[0]);
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Not now");
+    expect(text()).toContain("Your work is about health, law or money, so nothing goes out until you send it.");
+    expect(text()).toContain("I draft, you send");
+    expect(text()).toContain("Only you");
+    expect(text()).not.toContain("I answer at once");
+  });
+
+  it("FIRST-03 the line says new people read it; refused words keep the screen and say so", async () => {
+    await begun();
+    expect(text()).toContain("New people read this before they join your chat.");
+    bff.routes["PUT /api/v2/chats/setup/line"] = { status: 400, body: { code: "RECIPE_WORDS" } };
+    await tap("Type my own");
+    await type("People come to you for a score out of ten.");
+    await tap("Keep");
+    expect(text()).toContain("People come to you for this:");
+    expect(text()).toContain("Try other words. Your chat can't show scores or verdicts.");
+    await tap("Change");
+    expect(text()).not.toContain("Try other words.");
+  });
+
+  it("FIRST-06 Type my own on the taps sends the one tap typed", async () => {
+    await begun();
+    await keepTo("People tap what they want:");
+    await tap("Type my own");
+    await type("Check my scalp");
+    expect(text()).toContain("Check my scalp");
+    expect(text()).toContain("Something else");
+    await tap("Keep");
+    expect(puts("taps")).toEqual([["Check my scalp"]]);
   });
 
   it("FIRST-03 one decision per screen: Change shows Will's next, Type my own comes back, Back keeps it", async () => {
@@ -218,6 +263,7 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     await tap("Answer");
     await type("speaking coach");
+    await tap("No");
     await tap("Keep");
     await tap("Done");
     expect(text()).toContain("They get back:");
