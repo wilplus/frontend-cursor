@@ -1596,8 +1596,8 @@ export default function Lounge({
   // and "What should change?" keeps the box open.
   // Will's other setup, one's own chat (backend N582, the chat builder's
   // ring): the same box, the same taps.
-  const joinSetup = useJoinSetup(reload, setBotThinking);
-  const chatSetup = useChatSetup(reload, setBotThinking);
+  const joinSetup = useJoinSetup(reload, setBotThinking, thread.own);
+  const chatSetup = useChatSetup(reload, setBotThinking, thread.own);
   const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup);
   // Will's key line asks to be said (backend N544): "Record your answer" in
   // the bar's middle records it in the small recording bar, no box for it.

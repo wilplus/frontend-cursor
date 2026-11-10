@@ -1,5 +1,6 @@
 "use client";
 
+import { withOwnBubble, type OwnBubble } from "../useLoungeThread";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Linkified from "../Linkified";
 import { ChatLink, ChatLinks, TapRow } from "../WillQuestion";
@@ -59,12 +60,14 @@ export function chatSetupCanBegin(drawn: readonly Pick<LoungeMessage, "role" | "
 
 /** A tap, typed words or the setup begun again; each then reads Will's chat
  *  again, with the typing dots while it does. */
-export function useChatSetup(reload: () => Promise<void>, setThinking: (on: boolean) => void) {
-  /** True when the backend took it (the caller keeps typed words otherwise). */
-  const run = async (work: () => Promise<boolean>): Promise<boolean> => {
+export function useChatSetup(reload: () => Promise<void>, setThinking: (on: boolean) => void, own?: OwnBubble) {
+  /** True when the backend took it (the caller keeps typed words otherwise).
+   *  The tap or the words show at once as one's own bubble (backend N632
+   *  item 7); the backend's row takes its place with the next read. */
+  const run = async (work: () => Promise<boolean>, mine: string | null = null): Promise<boolean> => {
     setThinking(true);
     try {
-      const took = await work();
+      const took = await withOwnBubble(own, mine, work, Boolean);
       if (took) await reload();
       return took;
     } finally {
@@ -72,8 +75,8 @@ export function useChatSetup(reload: () => Promise<void>, setThinking: (on: bool
     }
   };
   return {
-    tap: (to: string, picked: string) => run(() => answerChatSetupStep(to, { picked })),
-    say: (to: string, said: string) => run(() => answerChatSetupStep(to, { said })),
+    tap: (to: string, picked: string) => run(() => answerChatSetupStep(to, { picked }), picked),
+    say: (to: string, said: string) => run(() => answerChatSetupStep(to, { said }), said.split(/\s+/).join(" ")),
     begin: () => run(beginChatSetup),
   };
 }

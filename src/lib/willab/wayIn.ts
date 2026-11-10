@@ -1,5 +1,6 @@
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import type { Plan, WayInView } from "@/services/api/plan";
+import type { Plan, WayInAnswer, WayInView } from "@/services/api/plan";
+import { fmtDay } from "@/lib/willab/planCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The speaking way in while Take 1 is processed (rules: docs/flows/         */
@@ -193,4 +194,23 @@ export function communityOfferDue(plan: Plan | null, ask: WayInAsk | null): bool
   const view = wayInOf(plan);
   if (!view || view.walk_done || view.done.includes("choice")) return false;
   return ask === null || ask.kind === "choice";
+}
+
+/** The bubble the backend writes for an answer to the way in (backend
+ *  `way_in._on_choice`, `_on_talk_date`, `_on_else`), drawn as one's own the
+ *  moment it is tapped or typed (backend N632 item 7). `chips`: the open
+ *  beat's answers, in the order the backend keeps the choices. */
+export function wayInShown(answer: WayInAnswer, chips: readonly string[] = []): string | null {
+  const said = (answer.said ?? "").split(/\s+/).filter(Boolean).join(" ");
+  if (answer.beat === "talk_date") {
+    if (!answer.date) return WAY_IN_WORDS.noDate;
+    const day = new Date(`${answer.date}T00:00:00`);
+    return Number.isNaN(day.getTime()) ? null : fmtDay(day);
+  }
+  if (Array.isArray(answer.picked)) {
+    const picked = answer.picked;
+    const picks = chips.filter((chip) => picked.includes(chip) && chip !== WAY_IN_WORDS.somethingElse);
+    return [...picks, ...(said ? [said] : [])].join(", ") || null;
+  }
+  return answer.picked || said || null;
 }

@@ -75,6 +75,35 @@ export interface UseLoungeThreadReturn {
   setWriting: (on: boolean) => void;
   /** Replay the local thread into the server thread on sign-up, then rehydrate. */
   mergeFromLocal: () => Promise<void>;
+  /** The person's own bubble, drawn the moment they tap or type an answer
+   *  the backend writes (backend N632 item 7). */
+  own: OwnBubble;
+}
+
+/** One own bubble on screen before the backend's row: `settle` once the
+ *  answer is taken (the next read that lands puts the backend's row in its
+ *  place), `drop` when it was not (it goes, as the answer did). Until then
+ *  every read keeps it, under what the read brought. */
+export type OwnBubble = (body: string) => { settle: () => void; drop: () => void };
+
+/** `work` with the person's `body` on screen while it runs: settled when
+ *  `took` says the backend took it, gone otherwise. No body, no bubble. */
+export async function withOwnBubble<T>(
+  own: OwnBubble | undefined,
+  body: string | null,
+  work: () => Promise<T>,
+  took: (result: T) => boolean,
+): Promise<T> {
+  const bubble = own && body?.trim() ? own(body.trim()) : null;
+  try {
+    const result = await work();
+    if (took(result)) bubble?.settle();
+    else bubble?.drop();
+    return result;
+  } catch (err) {
+    bubble?.drop();
+    throw err;
+  }
 }
 
 /** The waits between reads of a history that had no answer at open; after
@@ -95,6 +124,22 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   messagesRef.current = messages;
   // Appends still being stored (idle).
   const pendingRef = useRef<Set<Promise<unknown>>>(new Set());
+  // Own bubbles not yet replaced by the backend's row (N632 item 7), and
+  // appends not yet stored: a read that lands meanwhile keeps them.
+  // A settled one goes with the first read begun after it was settled,
+  // which holds the backend's row; a read begun before keeps it.
+  const keptRef = useRef<Map<string, { message: LoungeMessage; settledAt: number | null }>>(new Map());
+  const readsRef = useRef(0);
+  const startRead = () => (readsRef.current += 1);
+  const withKept = useCallback((page: LoungeMessage[], read: number): LoungeMessage[] => {
+    const ids = new Set(page.map((m) => m.client_id));
+    const out = [...page];
+    for (const [id, kept] of keptRef.current) {
+      if (kept.settledAt !== null && read > kept.settledAt) keptRef.current.delete(id);
+      else if (!ids.has(id)) out.push(kept.message);
+    }
+    return out;
+  }, []);
 
   // Rehydrate on mount / auth change.
   useEffect(() => {
@@ -122,6 +167,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       if (cancelled || reading) return;
       reading = true;
       clearTimeout(timer);
+      const at = startRead();
       // Usually already in flight since mount (bootPrefetch.ts).
       const page = await takeLoungeHistory();
       reading = false;
@@ -141,7 +187,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       }
       stop();
       announceDiscoveriesFromPersistedMessages(page.messages);
-      setMessages(page.messages);
+      setMessages(withKept(page.messages, at));
       setHasMore(page.has_more);
       oldestCursorRef.current = page.oldest_cursor;
       setUnanswered(false);
@@ -155,7 +201,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     document.addEventListener("visibilitychange", again);
     void read();
     return stop;
-  }, [signedIn]);
+  }, [signedIn, withKept]);
 
   const append = useCallback(
     async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
@@ -166,6 +212,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
           ? prev
           : [...prev, msg]
       );
+      if (signedIn) keptRef.current.set(msg.client_id, { message: msg, settledAt: null });
       const stored = (async () => {
         if (signedIn) {
           const persisted = await appendLoungeMessages([msg]);
@@ -183,6 +230,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
         console.warn("useLoungeThread.append — persist failed:", err);
       } finally {
         pendingRef.current.delete(stored);
+        keptRef.current.delete(msg.client_id);
       }
       return msg;
     },
@@ -222,6 +270,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const clear = useCallback(async () => {
     if (signedIn) await clearLoungeThread();
     else clearLocalLoungeThread();
+    keptRef.current.clear();
     setMessages([]);
     setHasMore(false);
     oldestCursorRef.current = null;
@@ -230,14 +279,15 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const reload = useCallback(async () => {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
+    const at = startRead();
     const page = await fetchLoungeHistory();
     // A failed read never wipes the chat: what is on screen stays.
     if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
-    setMessages(page.messages);
+    setMessages(withKept(page.messages, at));
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;
-  }, [signedIn]);
+  }, [signedIn, withKept]);
 
   // The guest's chat was merged into this account after the thread loaded
   // (GuestProjectClaim): read it again so the Take's bubbles show now.
@@ -255,12 +305,29 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const mergeFromLocal = useCallback(async () => {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
+    const at = startRead();
     const page = await fetchLoungeHistory();
     if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
-    setMessages(page.messages);
+    setMessages(withKept(page.messages, at));
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;
+  }, [withKept]);
+
+  const own = useCallback<OwnBubble>((body) => {
+    const msg = stampLoungeMessage({ role: "user", kind: "text", body }, newestStamp(messagesRef.current));
+    keptRef.current.set(msg.client_id, { message: msg, settledAt: null });
+    setMessages((prev) => [...prev, msg]);
+    return {
+      settle: () => {
+        const kept = keptRef.current.get(msg.client_id);
+        if (kept) kept.settledAt = readsRef.current;
+      },
+      drop: () => {
+        keptRef.current.delete(msg.client_id);
+        setMessages((prev) => prev.filter((m) => m.client_id !== msg.client_id));
+      },
+    };
   }, []);
 
   return {
@@ -279,5 +346,6 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     mergeFromLocal,
     writing,
     setWriting,
+    own,
   };
 }
