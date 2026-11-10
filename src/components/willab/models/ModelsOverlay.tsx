@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { answerModelInvite, enterModel, getModelPage, type ModelPage } from "@/services/api/models";
 import type { SetupState, SetupStep } from "@/services/api/modelSetup";
 import { useBackDismiss } from "../useBackDismiss";
@@ -206,6 +207,17 @@ function Top({ st, queueTitle, setup }: { st: Stack; queueTitle: string; setup: 
   }
 }
 
+/** The overlay fills the column Will's chat and its bar fill (backend N618
+ *  item 10), not the narrower list of chats it opens from: the chats' front
+ *  is that column. On a phone the two are the same width. Drawn where it
+ *  stands when there is no such column around it; `undefined` until read. */
+function useWillColumn() {
+  const mark = useRef<HTMLSpanElement | null>(null);
+  const [column, setColumn] = useState<Element | null | undefined>(undefined);
+  useLayoutEffect(() => setColumn(mark.current?.closest("[data-chats-front]") ?? null), []);
+  return { mark, column };
+}
+
 export default function ModelsOverlay({ start, queueTitle, onClose }: {
   start: ModelsScreen;
   /** The queue row's own name ("Your queue"). */
@@ -214,9 +226,16 @@ export default function ModelsOverlay({ start, queueTitle, onClose }: {
 }) {
   const st = useStack(start, onClose);
   const setup = useSetupWays(st);
-  return (
+  const { mark, column } = useWillColumn();
+  const frame = (
     <div data-models-overlay className="absolute inset-0 z-40 flex flex-col bg-background">
       <Top st={st} queueTitle={queueTitle} setup={setup} />
     </div>
+  );
+  return (
+    <>
+      <span ref={mark} hidden />
+      {column === undefined ? null : column ? createPortal(frame, column) : frame}
+    </>
   );
 }
