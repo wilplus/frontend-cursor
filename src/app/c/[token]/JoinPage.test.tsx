@@ -2,15 +2,16 @@
 /*
 STORY    As someone who got a colleague's link in an email, I want to see who
          invites me and what I get, then join in one tap, signing in first if
-         I must, so that I land in my chat with them (N308, N328, N335, N348).
+         I must, so that I land in my chat with them (N308, N328, N348, N601).
 OUTCOME
-  O1  The page names who invites me and what I get, in the signed words,
-      with one button, Join (N307, N310, N335).
+  O1  The page is three lines and Join, nothing under it (N601): "Tomek
+      invited you", what I'll learn when the host's words are sent, "Only
+      the two of you are in this chat."; the old title and lines are gone.
   O2  Signed in, Join posts to the link and opens my chat with the one who
       invited me (/chat?with=<chat>).
   O3  Signed out, Join goes to sign in and comes back to this link to
       finish (?join=1); back here, it joins without a second tap.
-PROVES   O1 -> "the page names who invites me and what I get"
+PROVES   O1 -> "N601-1: the page is three lines and Join, nothing under it"
          O2 -> "signed in, Join joins and opens my chat with the one who invited me"
          O3 -> "signed out, Join goes to sign in and finishes on the way back"
 */
@@ -61,15 +62,25 @@ async function render(finish = false) {
 const joinPosts = () => fetchMock.mock.calls.filter(([url, init]) => init?.method === "POST" && String(url) === `/api/v2/chats/join/${LINK}`);
 
 describe("the join page", () => {
-  it("the page names who invites me and what I get", async () => {
+  it("N601-1: the page is three lines and Join, nothing under it", async () => {
     await render();
-    const text = container.textContent ?? "";
-    expect(text).toContain("Tomek asks you to join them on WillpowerLab");
-    expect(text).toContain("A chat with Tomek");
-    expect(text).toContain("Your own chat with Will, your speaking coach");
-    expect(text).toContain("Nobody else can reach you here unless you open their link too.");
-    expect(text).toContain("Opens in your browser. Nothing to install.");
+    const main = container.querySelector("[data-join-page]")!;
+    expect(main.querySelector("h1")?.textContent).toBe("Tomek invited you");
+    expect(main.querySelector("[data-join-only-two]")?.textContent).toBe("Only the two of you are in this chat.");
+    expect(main.querySelector("[data-join-learn]")).toBeNull();
     expect(container.querySelector("[data-join-button]")?.textContent).toBe("Join");
+    // Nothing under Join.
+    expect(container.querySelector("[data-join-button]")?.nextElementSibling).toBeNull();
+    const text = container.textContent ?? "";
+    for (const gone of [
+      "asks you to join them on WillpowerLab",
+      "A chat with Tomek",
+      "Your own chat with Will, your speaking coach",
+      "Nobody else can reach you here unless you open their link too.",
+      "Opens in your browser. Nothing to install.",
+    ]) {
+      expect(text).not.toContain(gone);
+    }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

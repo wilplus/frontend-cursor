@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadJoinLink } from "@/lib/chats/server";
-import { joinTitle } from "@/components/willab/chats/joinCopy";
+import { joinInvited } from "@/components/willab/chats/joinCopy";
 import JoinPage from "./JoinPage";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { token: string } }): Promise<Metadata> {
   const info = await loadJoinLink(params.token);
-  return info ? { title: joinTitle(info.name), robots: { index: false, follow: false } } : {};
+  return info ? { title: joinInvited(info.name), robots: { index: false, follow: false } } : {};
 }
 
 export default async function Page({ params, searchParams }: {
@@ -24,8 +24,6 @@ export default async function Page({ params, searchParams }: {
     <JoinPage
       token={params.token}
       name={info.name}
-      assistant={info.assistant}
-      willLine={info.willLine}
       about={info.about}
       finish={searchParams.join === "1"}
     />
