@@ -420,6 +420,21 @@ describe("the AI models: the queue and release (MOD-14, MOD-15, MOD-21 to MOD-23
   });
 });
 
+describe("the AI models: the overlay fills Will's column (backend N618 item 10)", () => {
+  it("opened from the list of chats, the overlay is drawn in the column Will's chat fills, and closes from there", async () => {
+    serve({ ...ALL, "GET /api/v2/models/queue": F.queueEmpty });
+    await render(
+      createElement("div", { "data-chats-front": "" }, createElement("div", { "data-narrow-list": "" }, createElement(ModelsChatRows))),
+    );
+    await tapEl(container.querySelector('[data-chat-row="models-queue"]'));
+    const overlay = container.querySelector("[data-models-overlay]");
+    expect(overlay?.parentElement?.hasAttribute("data-chats-front")).toBe(true);
+    expect(overlay?.textContent).toContain("Nothing waits for you.");
+    await tap("Back to your chats");
+    expect(container.querySelector("[data-models-overlay]")).toBeNull();
+  });
+});
+
 describe("the AI models: the invite and the profile (MOD-49, MOD-50)", () => {
   it("MOD-49: an invite stays in the chat after Not now, with \"Open\"", async () => {
     const onOpen = vi.fn();
