@@ -31,8 +31,10 @@
  *       ready." with "Open your feedback ›"; after the walk one bubble by
  *       the choice ("Next, ask someone who knows. Tap + to start."), and
  *       "Tell me what you'd like to do, and I'll show you where." waits for
- *       typed words; "Record Take 2" stays faded until the walk is done
- *       (FT-14, WAYIN-N592-1..4; N592).
+ *       typed words, with the first choice's other answers as taps, one of
+ *       which answers it (WAYIN-N604-1; backend N604); "Record Take 2"
+ *       stays faded until the walk is done (FT-14, FT-15,
+ *       WAYIN-N592-1..4; N592).
  *   W7  The way in is the speaking chat's: every call names it (WAYIN-N590-1;
  *       N590).
  *   W8  A newcomer who came by the link of someone at a business is offered
@@ -460,6 +462,22 @@ it("WAYIN-N592-3: after the walk one bubble by the choice; \"Tell me what you'd 
   expect(sayRef.current?.("Maybe a book club")).toBe(true);
   await act(async () => {});
   expect(lastAnswer()).toEqual({ beat: "else", said: "Maybe a book club" });
+});
+
+it("WAYIN-N604-1: \"Tell me what you'd like to do, and I'll show you where.\" offers the other choices as taps; one tap answers it", async () => {
+  const next = will("Tell me what you'd like to do, and I'll show you where.", {
+    way_in: "next",
+    way_in_next: ["Something else"],
+    way_in_asks: "else",
+    chips: ["Prepare a talk", "Share what I know", "Learn from others"],
+  });
+  await show(planWith({ done: ["set", "next"], walk_done: true, record_next: true }), [next]);
+  expect(labels(thread())).toEqual(["Prepare a talk", "Share what I know", "Learn from others"]);
+  expect(wordsWaitRef.current).toBe(true);
+  await act(async () => {
+    (Array.from(thread().querySelectorAll("button")).find((b) => b.textContent === "Prepare a talk") as HTMLButtonElement).click();
+  });
+  expect(lastAnswer()).toEqual({ beat: "else", picked: "Prepare a talk" });
 });
 
 it("WAYIN-N592-4: \"Record Take 2\" stays faded until the walk is done", async () => {

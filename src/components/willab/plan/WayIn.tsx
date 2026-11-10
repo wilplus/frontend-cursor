@@ -165,7 +165,8 @@ export function WayInTop({
 }
 
 /** The taps under Will's open beat: one tap answers; "Pick a date" opens the
- *  date sheet (N564 item 1); the choice takes several (N573). */
+ *  date sheet (N564 item 1); the choice takes several (N573); after the
+ *  walk, "Something else"'s bubble takes one of the other choices (N604). */
 function WayInAnswers({
   ask,
   busy,
@@ -182,6 +183,12 @@ function WayInAnswers({
   const [dating, setDating] = useState(false);
   if (ask.kind === "choice") {
     return <PickRow labels={ask.chips} picked={picked} onToggle={onToggle} dataAttr={{ "data-way-in-choice": "" }} />;
+  }
+  if (ask.kind === "words") {
+    // After the walk: the first choice's other answers; one tap answers
+    // "Tell me what you'd like to do, and I'll show you where." (N604).
+    if (busy || ask.chips.length === 0) return null;
+    return <TapRow labels={ask.chips} onTap={(label) => onAnswer({ beat: "else", picked: label })} dataAttr={{ "data-way-in-ask": "else" }} />;
   }
   if (ask.kind !== "taps" || busy) return null;
   const tap = (label: string) => {
