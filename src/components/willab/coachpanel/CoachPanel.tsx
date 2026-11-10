@@ -371,6 +371,12 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
   return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
+/** The panel's frame on a computer: the column Will's chat fills (mx-auto,
+ *  max-w-3xl, as WillabSurface draws it; backend N627, as N618 item 10 for
+ *  the AI models). Every screen and sheet of the panel sits in it; on a
+ *  phone it is the window's width. */
+export const WILL_COLUMN = "md:mx-auto md:max-w-3xl";
+
 export default function CoachPanel({ state, dispatch, speakers, loading, settled = true, refresh }: CoachPanelProps) {
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
@@ -664,8 +670,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
 
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
-      {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
-      <WalkStage screen={stage} dir={state.dir} render={screenFor} className="walk-stage-column md:mx-auto md:max-w-[430px]"
+      {/* On a computer, the column Will's chat fills (backend N627). */}
+      <WalkStage screen={stage} dir={state.dir} render={screenFor} className={`walk-stage-column ${WILL_COLUMN}`}
         backdrop="fixed inset-0 z-50 hidden bg-muted md:block" />
       <input ref={fileInput} type="file" multiple accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => {
@@ -679,25 +685,25 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
         }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}
       {blindOpen === "audit" && blind.audit ? (
-        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
           <CoachAuditSheet queue={blind.audit} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setAudit(null); }} />
         </div>
       ) : null}
       {blindOpen === "picks" && blind.picks ? (
-        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
           <CoachBlockPickSheet queue={blind.picks} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setPicks(null); }} />
         </div>
       ) : null}
       {blindOpen === "v4picks" && blind.v4Picks ? (
-        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
           <V4MomentPickSheet queue={blind.v4Picks} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setV4Picks(null); }} />
         </div>
       ) : null}
       {blindOpen === "v4surer" && blind.v4Surer ? (
-        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
           <V4SurerSheet queue={blind.v4Surer} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setV4Surer(null); }} />
         </div>
