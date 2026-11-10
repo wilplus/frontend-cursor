@@ -76,8 +76,9 @@ export type WayInAsk =
   /** Will asks for words out loud ("Tell me what to change."). */
   | { kind: "voice"; beat: string }
   /** After the walk, "Tell me what you'd like to do, and I'll show you
-   *  where.": the typing box (N592 item 2). */
-  | { kind: "words"; beat: "else" };
+   *  where.": the typing box (N592 item 2), and the first choice's other
+   *  answers as taps, one of which answers it (backend N601). */
+  | { kind: "words"; beat: "else"; chips: string[] };
 
 /** The newest row of the way in, Will's or the speaker's; other rows (the
  *  walk, the plan card, the questions for people who join) don't count. */
@@ -95,7 +96,7 @@ export function wayInAsk(messages: readonly LoungeMessage[], plan: Plan | null):
   const row = newestWayInRow(messages);
   if (!view || !row || row.role === "user") return null;
   const meta = (row.metadata ?? {}) as Meta;
-  if (meta.way_in_asks === "else") return view.walk_done ? { kind: "words", beat: "else" } : null;
+  if (meta.way_in_asks === "else") return view.walk_done ? { kind: "words", beat: "else", chips: strings(meta.chips) } : null;
   const beat = wayInBeat(row) as string;
   if (beat !== view.asking) return null;
   if (meta.plan_ask === "way_in_voice") return { kind: "voice", beat };
