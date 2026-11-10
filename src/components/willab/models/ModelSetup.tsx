@@ -6,7 +6,6 @@ import {
   answerFirstTen,
   beginSetup,
   getFirstTen,
-  getInviteLink,
   getSetup,
   saveSetupStep,
   startNow,
@@ -17,6 +16,7 @@ import {
   type SetupStep,
 } from "@/services/api/modelSetup";
 import { getModelCode } from "@/services/api/models";
+import { getMyChatLink } from "@/services/api/chats";
 import { TeachStep } from "./ModelTeach";
 import {
   AiStep,
@@ -231,8 +231,10 @@ export default function ModelSetup({ first, onBack, onClose, onList, onTeachOthe
           key={key}
           {...p}
           onCopyLink={() => {
-            void getInviteLink(id).then((link) => {
-              if (link) void navigator.clipboard?.writeText(link).catch(() => undefined);
+            // The owner's own chat link (backend N598): no separate teacher link.
+            const own = screen.chat_link ? Promise.resolve(screen.chat_link) : getMyChatLink();
+            void own.then((path) => {
+              if (path) void navigator.clipboard?.writeText(`${window.location.origin}${path}`).catch(() => undefined);
             });
           }}
         />

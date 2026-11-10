@@ -19,7 +19,8 @@ import { AddExampleScreen, AnswerAdded, type Added } from "./ModelAdd";
 /*               ("This is my field" joins it, MOD-07), else teaching at once  */
 /*    list   → Start your own (the setup, MOD-24) · a draft's Continue        */
 /*               (MOD-25) · an invite's Open → the door: "This is my field"   */
-/*               accepts it, "Not now" keeps it (MOD-49)                      */
+/*               accepts it and opens the inviter's chat when it has one      */
+/*               (N598), "Not now" keeps it (MOD-49)                          */
 /*    the setup: ✕ keeps the draft and goes back to the list; "Teach this     */
 /*               one" goes to that model's door; a model's own page opens one  */
 /*               step again ("Make those two clearer", a checklist item)      */
@@ -116,8 +117,17 @@ function DoorTop({ st, id, invite }: { st: Stack; id: string; invite?: string })
     <DoorScreen
       {...st.nav}
       onYes={() => {
-        const joined = invite ? answerModelInvite(invite, true).then(Boolean) : enterModel(id);
-        void joined.then((yes) => {
+        if (invite) {
+          // An accepted invite opens the inviter's own chat, where the
+          // teacher teaches (backend N598); without one, teaching as before.
+          void answerModelInvite(invite, true).then((answered) => {
+            if (!answered) return;
+            if (answered.chat_link) window.location.assign(answered.chat_link);
+            else st.swap({ at: "teach", only: id });
+          });
+          return;
+        }
+        void enterModel(id).then((yes) => {
           if (yes) st.swap({ at: "teach", only: id });
         });
       }}
