@@ -171,12 +171,25 @@ describe("what a visitor meets (VIS-)", () => {
     root = createRoot(container);
     forgetHostWork();
     delete routes["GET /api/v2/chats/setup"];
-    await open([row("m-0", "Hi", null, true)], ["text"]);
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box()!, "Hello");
-      box()!.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    // Not on the ring, in a chat whose host is not either: as before.
+    routes["GET /api/v2/chats/c-9/messages"] = () => json({ messages: [row("m-0", "Hi", null, true)] });
+    routes["GET /api/v2/chats/c-9/host"] = () => json({ host: null });
+    await act(async () => root.render(createElement(ChatThread, { chat, onBack: () => undefined })));
+    await flush();
+    // The bar is as it was: "Ask {name}", no box and no Send.
+    expect(container.querySelector("[data-chat-ask]")).not.toBeNull();
     expect(container.querySelector("[data-chat-send]")).toBeNull();
+  });
+
+  it("TRIAL-1b not on the ring, in a ring host's chat (the founder's customers): Will's Send shows there too", async () => {
+    // No setup read (not on the ring); the host read answers: a ring host's chat.
+    await open([row("m-0", "Hi", null, true)], ["text"]);
+    const input = box()!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Hello");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.querySelector("[data-chat-send]")?.getAttribute("aria-label")).toBe("Send");
   });
 
   it("VIS-02 the bar follows what the host takes: a message, the box; a recording alone, no box", async () => {

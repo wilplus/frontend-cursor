@@ -371,7 +371,9 @@ describe("the bar in a host's chat and between people (N610)", () => {
     await tap(bar().querySelector("[data-chat-plus]"));
     await tap(within("[data-ask-sheet]", "Type your answer"));
     await say("The gentle one");
-    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    // The words are back in the box, so Will's Send shows inside it (a ring
+    // host's chat; the founder's trial, item 1b).
+    expect(inBar()).toEqual(["Add", "Type your answer", "Send"]);
     expect(box()?.value).toBe("The gentle one");
   });
 });
