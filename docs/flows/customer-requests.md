@@ -105,16 +105,22 @@ workspace, no form.
     `w.js` what to make room for: the pill's size, or the open chat (at most
     400 × 660, 8px from the edges on a phone). A new message from the owner
     puts an orange dot on the pill.
-11. **The visitor writes as the host's chat allows** (`WidgetChat.tsx`,
-    N591 items 1 and 2): "Your taps go to {name} through WillpowerLab.
-    Privacy" (word for word; counsel reads it, N567 item 9) and **Agree and
-    start**; then the host's welcome and the host's own questions (N590
-    item 2), one at a time, their answers on the visitor's side (a date for
-    "Yes" to "Are you in a hurry?", with Send); then the visitor writes as
-    the host's recipe allows (`writes` from the backend): the three emoji,
-    and, when typing is on, "Write to {name}" with Send. No recording before
-    the sign-up (the processing-authorization path has no one to ask); after
-    it, in the app. No fixed greeting and no fixed questions (N591 item 5;
+11. **The visitor writes at once, as the host's chat allows** (`WidgetChat.tsx`,
+    N591 items 1 and 2, N595 item 1): no consent card, no "Agree and
+    start"; agreeing comes with signing up, whose page keeps "By signing up,
+    you agree to our Terms of Service and Privacy Policy." (counsel's view
+    on the visitor's consent stays open). Their first message makes their
+    chat (the backend's `start`), with the host's welcome and the host's
+    own questions (N590 item 2), one at a time, tapped above the bar (a
+    date for "Yes" to "Are you in a hurry?", with Send). **The bar** follows
+    the host's recipe (`writes` from the backend) as in a host's chat (N600):
+    "+" on the left (once the chat exists), the typing box in the middle
+    when it takes words, else the three emoji, and a small mic on the right
+    when it takes recordings, which for a visitor is only after the sign-up
+    (the processing-authorization path has no one to ask before). The same
+    bar whether or not a question waits. Signed up, "+" and the mic open the
+    chat in WillpowerLab, where the recording is made; before it, "+" opens
+    the sign-up. No fixed greeting and no fixed questions (N591 item 5;
     N567's "Hi, I'm {name}. Tap to answer, and I'll answer you out loud.",
     the three questions and "{name} answers out loud…" are gone, N569 item
     2). The browser keeps the visitor's chat on that site; the chat is read
@@ -128,20 +134,21 @@ workspace, no form.
     goes by itself through the bundles (N584, backend). Typing in the bar
     (N483) waits for the founder's OK on the locked bar, so the host does
     not type yet. Block and Report as in every chat.
-13. **The sign-up, after asking** (N591 item 4; was "Keep this chat",
-    N567 item 7): once the visitor has written (`sign_up` from the
-    backend), a card: "Sign up to get {name}'s answer, by email or on your
-    phone." (or, when an answer already waits behind it, `answered`,
-    "{name} has answered. Sign up to see it."), **Sign up** and **Not now**;
-    Not now leaves **Sign up ›** left of "with WillpowerLab". Until the
-    sign-up the backend holds the host's answers back. Sign up opens the
-    join page in a new tab with the visitor's secret after `#g=`; Join,
-    after signing in with a phone, email, Google or another sign-in, posts
-    `/sign-up` and opens the chat in the app, now theirs, **Widget /
-    {name}** in the host's list. Back in the widget the answers then show,
-    a voice answer with "Read it". The first notice of the answer, by
-    email or phone, is the backend's, sent once its words are signed. The
-    words of this step are drafted, not signed (Never 4; N591 "Open").
+13. **The sign-up, after asking** (N591 item 4, N595 item 2; was "Keep this
+    chat", N567 item 7): once the visitor has written (`sign_up` from the
+    backend), a card: "To get {name}'s answer, sign up.", "The first notice
+    of the answer comes to your phone or email. After that, this chat is
+    yours.", **Sign up** and **Not now**; Not now leaves **Sign up** left of
+    "with WillpowerLab". Until the sign-up the backend holds the host's
+    answers back. Sign up opens the join page in a new tab with the
+    visitor's secret after `#g=`; Join, after signing in with a phone,
+    email, Google or another sign-in, posts `/sign-up` and opens the chat in
+    the app, now theirs, **Widget / {name}** in the host's list. Back in the
+    widget the answers then show, a voice answer with "Read it", and, when
+    the backend says where the first notice goes (`notice`), "Signed up. The
+    first notice of the answer comes to your phone." (or "… to your
+    email."). The notice itself, "{name} answered your question. Open it in
+    WillpowerLab.", is the backend's. All these words are signed (N595).
 
 ### C · The request in the answerer's chat
 
@@ -925,6 +932,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N595, N600 · B11, B13: no consent card in the website chat (the visitor writes at once; the first message makes the chat); the sign-up step in N595's signed words ("To get {name}'s answer, sign up." and its note, "Signed up. The first notice…"); the visitor's bar follows the recipe as in a host's chat: "+" left, the box (or the emoji) in the middle, a small mic on the right once signed up, the same while a question waits. Was: "Your taps go to {name} through WillpowerLab." with Agree and start, and the drafted sign-up words · BE #1868 (#1874, #1876 log), FE (this PR)
 - 2026-11-09 · N591 · B8 to B13: the website chat is the host's own chat on the public side. The visitor meets the host's welcome and own questions, then writes as the host's recipe allows (the emoji, and typed words when typing is on); after asking, a sign-up step ("Sign up to get {name}'s answer, by email or on your phone.", drafted) replaces "Keep this chat" and `/sign-up` replaces `/keep`; the host's answers wait behind it. Gone: the fixed greeting, the three questions, "answers out loud", the `/ask` route and "Record your answer" for a visitor. The switch stays hidden; the consent line is unchanged. Host typing in the locked bar waits for the founder's OK · BE #1868, FE (this PR)
 - 2026-11-09 · N587 items 3 to 5, N588 item 4 · C1: behind the ring row `chat_builder`, one Take's answers in one place, for the sender only: under my own Take in a chat, one bubble with the faces of everyone who answered and the names the backend shows (my coach's and the best other, "{names} answered"); a tap opens all of them under "On your speaking" and "On the matter", each with "Open your chat with {name}", which opens that chat. 404 (no ring, a Take sent nowhere) draws nothing. Not yet: "Read it" on each answer and "Share with {name}" (not in the route), and the strip at the top while an answer is new · BE #1859, FE (this PR)
 - 2026-11-09 · N584, N580 item 3 · C1: behind the ring row `chat_builder`, one recording answers everyone who asked the same thing. In Will's chat, each bundle still waiting is a card: its line in the backend's words ("{n} people asked: {question}"), each person's question with its colour for how sure the match is (green, yellow, red; never a number) and "Record one answer", which opens the recording screens on the first question; the Take then goes to the bundle's route at once, with no Undo (the route holds nothing), and the queue is read again. In the asker's chat, the answer comes under their own question quoted, with the colour. Not yet: split and merge (routes built, no screen), the assistant's draft in the card (not in the route) · BE #1857, FE (this PR)

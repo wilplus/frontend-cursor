@@ -28,6 +28,9 @@ export interface WidgetChat {
   signUp: boolean;
   /** An answer from the host waits behind the sign-up. */
   answered: boolean;
+  /** Signed up: where the first notice of the answer goes, when the backend
+   *  says (N595 item 2); null when it doesn't. */
+  notice: "phone" | "email" | null;
 }
 
 export const NO_WRITES: WidgetWrites = { tap: true, type: false, record: false };
@@ -60,7 +63,7 @@ async function call(url: string, guest: string | null, init: { method?: string; 
 }
 
 function chatOf(body: unknown): WidgetChat | null {
-  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown } | null;
+  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice?: unknown } | null;
   if (!b || typeof b.name !== "string" || !Array.isArray(b.messages)) return null;
   return {
     name: b.name,
@@ -69,6 +72,7 @@ function chatOf(body: unknown): WidgetChat | null {
     signedUp: b.signed_up === true,
     signUp: b.sign_up === true,
     answered: b.answered === true,
+    notice: b.notice === "phone" || b.notice === "email" ? b.notice : null,
   };
 }
 

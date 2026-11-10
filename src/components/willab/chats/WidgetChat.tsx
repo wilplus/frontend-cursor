@@ -16,33 +16,31 @@ import {
   type WidgetWrites,
 } from "@/services/api/chatWidget";
 import {
-  AGREE_AND_START,
   NOT_NOW,
-  PRIVACY,
   SEND_PICKED,
   SIGN_UP,
-  SIGN_UP_LATER,
+  WIDGET_SIGN_UP_NOTE,
   WITH_WILLPOWERLAB,
   askName,
-  widgetAnsweredLine,
-  widgetConsent,
   widgetSignUpLine,
-  widgetWriteTo,
+  widgetSignedUp,
 } from "@/components/willab/chats/joinCopy";
 
 /* -------------------------------------------------------------------------- */
-/*  The website chat (backend N591, amending N567 and N569; rules: docs/flows/ */
+/*  The website chat (backend N591, N595, N600; rules: docs/flows/            */
 /*  customer-requests.md B8 to B13). The page w.js opens in an iframe on       */
 /*  someone's site: the pill, "Ask {name}", and the host's own chat behind it, */
-/*  on the public side. "Agree and start" under the consent line; then the    */
-/*  host's welcome and the host's own questions (N590 item 2), tapped; then   */
-/*  the visitor writes as the host's recipe allows: the three emoji, and      */
-/*  typed words when typing is on (N591 item 2). After asking, they sign up   */
-/*  to get the answer (N591 item 4): until then the host's answers are held   */
-/*  back by the backend, and "answered" says one waits. The sign-up opens the */
-/*  join page in a new tab with the visitor's secret; once signed up, the     */
-/*  answers show here, a voice answer with "Read it". The secret is kept in   */
-/*  this browser for this site; w.js sizes the iframe to what is shown.       */
+/*  on the public side. No consent card (N595 item 1): the visitor writes at  */
+/*  once, and their first message makes their chat, with the host's welcome  */
+/*  and the host's own questions (N590 item 2), tapped above the bar. The bar */
+/*  follows the host's recipe as in a host's chat (N600): "+" on the left,    */
+/*  the typing box (or the three emoji) in the middle, a small mic on the     */
+/*  right once recording is open to them. After asking, they sign up to get  */
+/*  the answer (N591 item 4, N595's signed words): until then the host's      */
+/*  answers are held back by the backend. The sign-up opens the join page in */
+/*  a new tab with the visitor's secret; once signed up, the answers show    */
+/*  here, a voice answer with "Read it". The secret is kept in this browser  */
+/*  for this site; w.js sizes the iframe to what is shown.                    */
 /* -------------------------------------------------------------------------- */
 
 const KEY = (token: string) => `wpl-widget:${token}`;
@@ -119,24 +117,9 @@ function Bubble({ token, guest, message }: { token: string; guest: string; messa
   );
 }
 
-function ConsentCard({ name, busy, onAgree }: { name: string; busy: boolean; onAgree: () => void }) {
-  return (
-    <div data-widget-consent="" className="mx-3 mb-2.5 flex flex-col gap-2.5 rounded-2xl border border-border p-3">
-      <p className="text-[13.5px] leading-snug text-muted-foreground">
-        {widgetConsent(name)}{" "}
-        <a href="/privacy" target="_blank" rel="noopener" className="underline underline-offset-2">
-          {PRIVACY}
-        </a>
-      </p>
-      <button type="button" data-widget-agree="" disabled={busy} onClick={onAgree} className="h-11 rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60">
-        {AGREE_AND_START}
-      </button>
-    </div>
-  );
-}
-
-/** One of the host's own questions, answered by taps (N487, N590 item 2);
- *  "Yes" to "Are you in a hurry?" opens a date with Send. */
+/** One of the host's own questions, answered by taps above the bar (N487,
+ *  N590 item 2, N600 item 3); "Yes" to "Are you in a hurry?" opens a date
+ *  with Send. */
 function SetupAnswers({ waiting, busy, onAnswer }: {
   waiting: NonNullable<ReturnType<typeof setupWaits>>;
   busy: boolean;
@@ -167,11 +150,13 @@ function SetupAnswers({ waiting, busy, onAnswer }: {
   );
 }
 
-/** After asking, the sign-up step (N591 item 4): the line, Sign up, Not now. */
-function SignUpCard({ name, answered, onSignUp, onLater }: { name: string; answered: boolean; onSignUp: () => void; onLater: () => void }) {
+/** After asking, the sign-up step (N591 item 4), in N595's signed words:
+ *  the line, the note, Sign up, Not now. */
+function SignUpCard({ name, onSignUp, onLater }: { name: string; onSignUp: () => void; onLater: () => void }) {
   return (
     <div data-widget-sign-up="" className="mx-3 mb-2 flex flex-col gap-2 rounded-2xl border border-border p-3">
-      <p className="text-[14px] leading-snug text-foreground">{answered ? widgetAnsweredLine(name) : widgetSignUpLine(name)}</p>
+      <p data-widget-sign-up-line="" className="text-[15px] font-semibold leading-snug text-foreground">{widgetSignUpLine(name)}</p>
+      <p className="text-[13.5px] leading-snug text-muted-foreground">{WIDGET_SIGN_UP_NOTE}</p>
       <button type="button" data-widget-sign-up-go="" onClick={onSignUp} className="h-11 rounded-full bg-primary text-[15px] font-semibold text-primary-foreground">
         {SIGN_UP}
       </button>
@@ -182,20 +167,38 @@ function SignUpCard({ name, answered, onSignUp, onLater }: { name: string; answe
   );
 }
 
-/** How the visitor writes, as the host's recipe allows (N591 item 2): the
- *  three emoji, and a line to type in when typing is on. No recording here. */
-function WriteBar({ name, writes, busy, onSend }: { name: string; writes: WidgetWrites; busy: boolean; onSend: (kind: "emoji" | "text", body: string) => Promise<boolean> }) {
+/** The visitor's bar (N600 items 1 to 3, as for a host's chat): "+" on the
+ *  left; in the middle the typing box when the host's recipe takes words,
+ *  else the three emoji; a small mic on the right when it takes recordings
+ *  (for a visitor, only once signed up, N591). The same bar whether or not
+ *  a question waits: its tap answers sit above it. "+" and the mic open the
+ *  chat in WillpowerLab, where a recording goes through the
+ *  processing-authorization path; before the sign-up "+" opens the sign-up. */
+function WriteBar({ name, writes, busy, onSend, onPlus, onMic }: {
+  name: string;
+  writes: WidgetWrites;
+  busy: boolean;
+  onSend: (kind: "emoji" | "text", body: string) => Promise<boolean>;
+  onPlus: (() => void) | null;
+  onMic: () => void;
+}) {
   const [draft, setDraft] = useState("");
   const words = draft.trim();
   const send = async () => {
     if (words && (await onSend("text", words))) setDraft("");
   };
+  const round = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full";
   return (
-    <div className="flex flex-col gap-1.5 px-3 pb-1.5">
+    <div data-widget-bar="" className="flex items-center gap-2 px-3 pb-1.5">
+      {onPlus ? (
+        <button type="button" data-widget-plus="" aria-label="+" onClick={onPlus} className={`${round} border border-border text-[22px] leading-none text-foreground`}>
+          +
+        </button>
+      ) : null}
       {writes.type ? (
         <form
           data-widget-type=""
-          className="flex items-center gap-2"
+          className="flex min-w-0 flex-1 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
@@ -206,23 +209,31 @@ function WriteBar({ name, writes, busy, onSend }: { name: string; writes: Widget
             value={draft}
             maxLength={MAX_TEXT}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={widgetWriteTo(name)}
-            aria-label={widgetWriteTo(name)}
+            aria-label={name}
             className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-[15px]"
           />
-          <button type="submit" data-widget-send="" disabled={busy || !words} className="h-11 rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground disabled:opacity-50">
-            {SEND_PICKED}
-          </button>
+          {words ? (
+            <button type="submit" data-widget-send="" disabled={busy} className="h-11 shrink-0 rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-50">
+              {SEND_PICKED}
+            </button>
+          ) : null}
         </form>
-      ) : null}
-      {writes.tap ? (
-        <div data-widget-emoji="" className="flex h-[46px] items-center justify-around rounded-full border border-border">
+      ) : (
+        <div data-widget-emoji="" className="flex h-[46px] min-w-0 flex-1 items-center justify-around rounded-full border border-border">
           {CHAT_EMOJI.map((e) => (
-            <button key={e} type="button" disabled={busy} onClick={() => void onSend("emoji", e)} className="h-10 w-14 rounded-full text-[24px] disabled:opacity-60">
+            <button key={e} type="button" disabled={busy} onClick={() => void onSend("emoji", e)} className="h-10 w-12 rounded-full text-[24px] disabled:opacity-60">
               {e}
             </button>
           ))}
         </div>
+      )}
+      {writes.record ? (
+        <button type="button" data-widget-mic="" aria-label="🎤" onClick={onMic} className={`${round} text-[18px] text-muted-foreground`}>
+          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+        </button>
       ) : null}
     </div>
   );
@@ -233,7 +244,7 @@ function Foot({ signUpLater, onSignUp }: { signUpLater: boolean; onSignUp: () =>
     <footer data-widget-foot="" className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3.5 pb-2.5 pt-1.5 text-[12px] text-muted-foreground">
       {signUpLater ? (
         <button type="button" data-widget-sign-up-later="" onClick={onSignUp} className="py-1 text-[13.5px] font-semibold text-foreground">
-          {SIGN_UP_LATER}
+          {SIGN_UP}
         </button>
       ) : (
         <span />
@@ -255,7 +266,7 @@ function Foot({ signUpLater, onSignUp }: { signUpLater: boolean; onSignUp: () =>
 const seenCount = (chat: Pick<WidgetChatRead, "messages" | "answered">) =>
   String(chat.messages.filter((m) => !m.mine).length + (chat.answered ? 1 : 0));
 
-const NOTHING_YET = { signedUp: false, signUp: false, answered: false };
+const NOTHING_YET: Pick<WidgetChatRead, "signedUp" | "signUp" | "answered" | "notice"> = { signedUp: false, signUp: false, answered: false, notice: null };
 
 export default function WidgetChat({ token, name, writes: firstWrites, site }: { token: string; name: string; writes: WidgetWrites; site: string | null }) {
   const [open, setOpen] = useState(false);
@@ -272,7 +283,7 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
   const took = useCallback((chat: WidgetChatRead) => {
     setMessages(chat.messages);
     setWrites(chat.writes);
-    setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered });
+    setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered, notice: chat.notice });
   }, []);
 
   const read = useCallback(
@@ -342,14 +353,18 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
     }
   };
 
-  const agree = () =>
-    run(async () => {
-      const started = await startWidgetChat(token, site);
-      if (!started) return;
-      keep(KEY(token), started.guest);
-      setGuest(started.guest);
-      took(started.chat);
-    });
+  // No consent card (N595 item 1): the visitor writes at once. Their first
+  // message makes their chat with the host (the backend's "start"), with the
+  // host's welcome and questions, then goes into it.
+  const ensureChat = async (): Promise<string | null> => {
+    if (guest) return guest;
+    const started = await startWidgetChat(token, site);
+    if (!started) return null;
+    keep(KEY(token), started.guest);
+    setGuest(started.guest);
+    took(started.chat);
+    return started.guest;
+  };
 
   const tapSetup = (message: ChatMessage, picked: string[], date?: string) =>
     run(async () => {
@@ -359,10 +374,12 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
     });
 
   const send = async (kind: "emoji" | "text", body: string): Promise<boolean> => {
-    if (!guest || busy) return false;
+    if (busy) return false;
     let went = false;
     await run(async () => {
-      const sent = await sendWidgetMessage(token, guest, kind, body);
+      const who = await ensureChat();
+      if (!who) return;
+      const sent = await sendWidgetMessage(token, who, kind, body);
       if (!sent) return;
       went = true;
       setMessages((was) => [...was, sent.message]);
@@ -376,13 +393,19 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
 
   // The sign-up (N591 item 4): the join page in a new tab, carrying the
   // visitor's secret after `#g=`; sign in there with a phone, email, Google
-  // or another sign-in, and the chat becomes theirs.
+  // or another sign-in (the sign-up page keeps "By signing up, you agree to
+  // our Terms of Service and Privacy Policy.", N595 item 1), and the chat
+  // becomes theirs.
   const signUp = () => {
     if (!guest) return;
     const back = `${window.location.origin}/c/${encodeURIComponent(token)}?from=widget#g=${encodeURIComponent(guest)}`;
     window.open(back, "_blank", "noopener");
     setLater(true);
   };
+
+  // Signed up: "+" and the mic open the chat in WillpowerLab, where a
+  // recording goes through the processing-authorization path.
+  const inTheApp = () => window.open(`${window.location.origin}/chat`, "_blank", "noopener");
 
   if (!open) {
     return (
@@ -403,8 +426,8 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
   }
 
   const waiting = setupWaits(messages);
-  const started = Boolean(guest);
-  const signUpDue = started && !state.signedUp && state.signUp;
+  const signUpDue = Boolean(guest) && !state.signedUp && state.signUp;
+  const plus = state.signedUp ? inTheApp : guest ? signUp : null;
 
   return (
     <section data-widget-chat="" aria-label={name} className="fixed inset-0 flex flex-col overflow-hidden rounded-[22px] bg-background text-foreground">
@@ -420,16 +443,18 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
         {messages.map((m) => (
           <Bubble key={m.id} token={token} guest={guest ?? ""} message={m} />
         ))}
+        {state.signedUp && state.notice ? (
+          <p data-widget-signed-up="" className="mx-auto mt-1 max-w-[86%] rounded-[10px] bg-muted px-2.5 py-1.5 text-center text-[12.5px] text-muted-foreground">
+            {widgetSignedUp(state.notice)}
+          </p>
+        ) : null}
       </div>
-      {!started ? (
-        <ConsentCard name={name} busy={busy} onAgree={() => void agree()} />
-      ) : waiting && waiting.question ? (
+      {waiting && waiting.question ? (
         <SetupAnswers key={waiting.message.id} waiting={waiting} busy={busy} onAnswer={(m, picked, date) => void tapSetup(m, picked, date)} />
       ) : signUpDue && !later ? (
-        <SignUpCard name={name} answered={state.answered} onSignUp={signUp} onLater={() => setLater(true)} />
-      ) : (
-        <WriteBar name={name} writes={writes} busy={busy} onSend={send} />
-      )}
+        <SignUpCard name={name} onSignUp={signUp} onLater={() => setLater(true)} />
+      ) : null}
+      <WriteBar name={name} writes={writes} busy={busy} onSend={send} onPlus={plus} onMic={inTheApp} />
       <Foot signUpLater={signUpDue && later} onSignUp={signUp} />
     </section>
   );

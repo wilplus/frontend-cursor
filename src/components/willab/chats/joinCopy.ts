@@ -66,29 +66,26 @@ export const EACH_CUSTOMER = "Each customer has a chat of their own with you.";
 export const widgetCode = (origin: string, token: string) =>
   `<script src="${origin}/w.js" data-link="${token}" async></script>`;
 
-/** The website chat on someone's site (`/w/<token>`; N567, N591). Signed:
- *  the pill, the consent line (word for word; counsel reads it, N567 item 9),
- *  Privacy, Agree and start, "with WillpowerLab", Send, Not now. */
+/** The website chat on someone's site (`/w/<token>`; N567, N591, N595).
+ *  Signed: the pill, "with WillpowerLab", Send, Not now, Sign up (the
+ *  sign-up page's own button). */
 export const askName = (name: string) => `Ask ${name}`;
-export const widgetConsent = (name: string) => `Your taps go to ${name} through WillpowerLab.`;
-export const PRIVACY = "Privacy";
-export const AGREE_AND_START = "Agree and start";
 export const WITH_WILLPOWERLAB = "with WillpowerLab";
 export const NOT_NOW = "Not now";
-
-/** The sign-up step after asking (N591 item 4). DRAFTED, for the founder's
- *  OK (Never 4; N591 "Open"): nobody sees them while the website switch is
- *  hidden (AddSomeoneSheet's WEBSITE_SWITCH_SHOWN, N569 item 1). */
-export const widgetSignUpLine = (name: string) => `Sign up to get ${name}'s answer, by email or on your phone.`;
-export const widgetAnsweredLine = (name: string) => `${name} has answered. Sign up to see it.`;
 export const SIGN_UP = "Sign up";
-export const SIGN_UP_LATER = "Sign up ›";
-export const widgetWriteTo = (name: string) => `Write to ${name}`;
 
-/** RETIRED by N591 item 5 (and N569 item 2): shown nowhere. Kept only while
- *  the backend's App Model stories still name them (WID-14, WID-18, WID-24,
+/** The sign-up step after asking, the line after it and the notice: signed
+ *  by the founder, N595 item 2 (Never 4). */
+export const widgetSignUpLine = (name: string) => `To get ${name}'s answer, sign up.`;
+export const WIDGET_SIGN_UP_NOTE = "The first notice of the answer comes to your phone or email. After that, this chat is yours.";
+export const widgetSignedUp = (to: "phone" | "email") => `Signed up. The first notice of the answer comes to your ${to}.`;
+
+/** RETIRED by N595 item 1 (the consent card) and N591 item 5 (and N569 item
+ *  2): shown nowhere. Kept only while the backend's App Model stories still
+ *  name them (WID-13, WID-14, WID-18, WID-24,
  *  docs/design/app-model-2026-11-09/stories.json; npm run check:app-model);
- *  delete them once those stories follow N591. */
+ *  delete them once those stories follow N591 and N595. */
+export const widgetConsent = (name: string) => `Your taps go to ${name} through WillpowerLab.`;
 export const widgetHello = (name: string) => `Hi, I'm ${name}. Tap to answer, and I'll answer you out loud.`;
 export const widgetWaits = (name: string) => `${name} answers out loud when there's a moment. Come back here to listen.`;
 export const keepLine = (name: string) => `Join WillpowerLab to keep it, and hear ${name}'s answers on your phone.`;
