@@ -316,6 +316,48 @@ export default function LabOverlay({
       }),
     );
   };
+  /* THE TAKE LANDS EVEN WHEN THESE SCREENS ARE GONE (founder 2026-11-10: "the
+     takes are not being displayed on the chat and when I click to close the
+     processing screen it doesn't show me the loading progress bubble"). The
+     ✕ on the processing screen closes the Lab while the upload is still
+     going; the upload goes on and the server makes the Take, but its answer
+     came back to a run that had lost interest and was dropped: no "Your
+     Recording" line, no share, no marker. The Lounge then had nothing to
+     follow, so no "Processing your recording", no walk, no goodbye, and the
+     chat's "Record Take N" stayed on the Take before. Now the answer still
+     does what the Lounge needs: the line and the share, the project carried
+     on a finished Take, and the marker the Lounge picks up within half a
+     second (its bubble, then the walk as for any Take, N319 item 10). A
+     discarded Take, an answer in a chat and a refused upload land nothing. */
+  function landUnwatched(
+    result: Awaited<ReturnType<typeof uploadForProcessing>>,
+    run: {
+      discarded: boolean;
+      projectId: string | null;
+      waitStartedAt: number;
+      carried: (arc: string | null, take: number | null) => { returnedArcId: string; nextIdx: number; deck: ExploreArcDeck | undefined } | undefined;
+    },
+  ): void {
+    if (run.discarded || answer) return;
+    if (result.kind !== "ok" && result.kind !== "processing" && result.kind !== "ideal_text_unconfirmed") return;
+    const sessionId = result.sessionId;
+    const takeArc = result.arcId ?? run.projectId;
+    if (!sessionId || !takeArc) return;
+    appendRecordingSummary(sessionId, result.arcId, run.projectId);
+    const takeIndex = result.takeIndex ?? recordedTakeRef.current ?? arcTakeIndex;
+    const base = { sessionId, arcId: takeArc, takeIndex, startedAt: run.waitStartedAt, phaseStartedAt: Date.now() };
+    if (result.kind === "ideal_text_unconfirmed") {
+      writeProcessingTake(userId, { ...base, phase: "analysis", status: "failed_ideal_text_unconfirmed", progress: { stage: "ideal_text", percent: null } });
+      return;
+    }
+    if (result.kind === "processing") {
+      writeProcessingTake(userId, { ...base, progress: { stage: "processing_recording", percent: 5 } });
+      return;
+    }
+    const carried = run.carried(result.arcId, result.takeIndex);
+    if (carried) writeExploreArc(userId, carried.returnedArcId, carried.nextIdx, carried.deck, sessionId);
+    writeProcessingTake(userId, { ...base, phase: "document", progress: { stage: "document_assembly", percent: null } });
+  }
   // R4-5 — the Pre-record screen was removed: the Setup "Start recording" submit
   // now starts the mic directly and flips to lab_recording optimistically. This
   // flags the one pending initial start so the mic-state effect inits the slide
@@ -721,12 +763,16 @@ export default function LabOverlay({
       feeling: recordedFeelingRef.current,
     });
     let active = true;
+    // Only a discard throws the answer away; a run that merely lost interest
+    // (the ✕, an unmount) still lands it (`landUnwatched`).
+    let discarded = false;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
     // a result it has nothing to do with. Cleared alongside `active` below so
     // a stale run can never be cancelled twice or cancel its successor.
     uploadCancelRef.current = () => {
       active = false;
+      discarded = true;
     };
     void (async () => {
       // Shared arc bookkeeping for the sync (201) and async (202) accept paths:
@@ -873,7 +919,7 @@ export default function LabOverlay({
       // deliberate: it is deterministic (not "the dispatch probably re-ran the
       // effect first"), and it keeps this already-grandfathered function from
       // growing — the ratchet's own instruction.
-      if (!active) return;
+      if (!active) return landUnwatched(result, { discarded, projectId, waitStartedAt, carried: carryArc });
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take

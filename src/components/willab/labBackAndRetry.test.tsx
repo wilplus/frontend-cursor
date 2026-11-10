@@ -12,11 +12,18 @@ OUTCOME
       processing again" sends the new Take again, with the new Take's
       upload key, and never restarts the old one, whose "Processing" line
       keeps tracking it.
+  O3  The ✕ on the processing screen while the Take is still going up
+      closes the screens, and once the server has the Take the chat still
+      gets it: its "Your Recording" line and the marker the chat follows.
 PROVES   O1 -> "Back while recording asks first, and the Take keeps recording"
          O2 -> "after Record again, Try processing again sends the new Take, never the old one"
+         O3 -> "the ✕ while the Take goes up still brings it to the chat"
 WHY      Founder 2026-11-09, backend N560 items 1 and 2 ("Ask, like the ✕";
          "Yes, fix it"): Back threw the Take away without asking, and the
-         retry could restart the old Take (Never 3, Never 5).
+         retry could restart the old Take (Never 3, Never 5). O3: founder
+         2026-11-10, "the takes are not being displayed on the chat and when
+         I click to close the processing screen it doesn't show me the
+         loading progress bubble" (Never 3).
 */
 import { act, createElement, useCallback, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -78,7 +85,7 @@ vi.mock("@/services/api/projects", async (original) => ({
 /** A guest: the wait stays on these screens, where "Record again" lives. */
 vi.mock("./useSignedIn", () => ({ useSignedIn: () => false }));
 vi.mock("./useUserId", () => ({ useUserId: () => null }));
-const thread = vi.hoisted(() => ({ append: async () => undefined, reload: async () => undefined }));
+const thread = vi.hoisted(() => ({ append: vi.fn(async (_draft: unknown) => undefined), reload: async () => undefined }));
 vi.mock("./LoungeThreadContext", () => ({ useLoungeThreadCtx: () => thread }));
 const entry = vi.hoisted(() => ({
   status: { kind: "authorized" },
@@ -242,5 +249,27 @@ describe("the recording screens never lose a Take by mistake (backend N560)", ()
     expect(again.uploadIdempotencyKey).not.toBe(oldTry.uploadIdempotencyKey);
     // The old Take still finishes on the server, and its line tracks it.
     expect(readProcessingTake(null)?.sessionId).toBe("old-take");
+  });
+
+  it("the ✕ while the Take goes up still brings it to the chat", async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    api.submitLabRecording.mockImplementationOnce(() => new Promise((done) => (answer = done)));
+    thread.append.mockClear();
+    await openLaterTake();
+
+    await act(async () => void mic.finish());
+    await settle();
+    expect(api.submitLabRecording).toHaveBeenCalledTimes(1);
+    await act(async () => document.body.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+    await settle();
+    expect(closed).toHaveBeenCalledTimes(1);
+
+    // The server answers after the screens are gone.
+    await act(async () => answer({ kind: "processing", sessionId: "take-2", arcId: "arc-1", takeIndex: 2, takeCount: 2 }));
+    await settle();
+
+    expect(readProcessingTake(null)).toMatchObject({ sessionId: "take-2", arcId: "arc-1", takeIndex: 2, status: "processing" });
+    const lines = thread.append.mock.calls.map(([draft]) => draft as { kind: string; metadata?: Record<string, unknown> });
+    expect(lines.some((d) => d.kind === "recording_summary")).toBe(true);
   });
 });
