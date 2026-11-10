@@ -802,9 +802,9 @@ item 15, N225):
   for. Both are built on #1880's names (C1, "The bar") and stay off until
   its routes answer: the host's read is 404 before then, so nothing types
   and no question asks for a photo. A refused typed send (400, 409) takes
-  the words away without putting them back in the box. Also open: "Asked.
-  {name} answers here." (signed, N610 item 7), which the locked page does
-  not draw; the founder left it unbuilt for now.
+  the words away without putting them back in the box. Also open, for the
+  founder: "Asked. {name} answers here." (signed, N610 item 7), which the
+  locked page does not draw, so it is not built.
 - **The DPA and the form's consent**, for counsel, before the first real
   customer; what the client pays, before going live (N239 item 6).
 - **The locked screens it touches**, each needing its own page's line when
