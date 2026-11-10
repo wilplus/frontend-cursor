@@ -259,7 +259,8 @@ built and what is still to come.
    did, never with a measure of the voice, and never a points total, a
    score or a percentage (Never 1; N564 item 3). After the walk it is
    Will's grey bubble with the level's name and its marks, under the
-   goodbye (G13); after a level's fourth Take it shows that level full,
+   goodbye (G13), only on a day the hello (G5) did not already show it
+   (N623); after a level's fourth Take it shows that level full,
    though the next has begun. Was: one part per practice and "{n} of
    {total} practices done." (N319 item 7).
 4. The card uses one typeface, the app's own, and three sizes: the date, the
@@ -441,7 +442,8 @@ built and what is still to come.
    After a Take with an ask (Will's question, "Did this help?") the plan's
    lines wait until the ask is answered (N288). Then "Good job. See you
    next time." (no practice day is named), then one bubble with the plan's
-   bar (E3), then the bar's "Record Take N" (N483). A question the plan
+   bar (E3) unless that day's hello already showed it (N623), then the
+   bar's "Record Take N" (N483). A question the plan
    asks after the Take (its own yes, the ratings, a new project's) comes
    last, under the bar, right above its answers (N537,
    feedback-walk-and-chat.md B16). Was: "That's your 15 minutes for
@@ -840,6 +842,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N623 · E3, G13: after the walk, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`). No new words. Was: the bar under the hello and again after each walk the same day · BE #1900, FE (this PR)
 - 2026-11-10 · N604 · §2: after the walk, "Tell me what you'd like to do, and I'll show you where." carries the first choice's other answers as taps (`metadata.chips`, those not chosen); one tap answers it (`{beat: "else", picked}`), shows as the speaker's answer, and Will says that choice's line from N592 item 2. Words still answer it. Was: the typing box alone. No new words · BE, FE (this PR)
 - 2026-11-10 · N572, N578 item 4 · §2: the way in's poll backs off (5 s, then half as long again up to a minute) and stops after 20 minutes with nothing new, starting over whenever the way in moves on (`wayIn.ts`, `WayIn.tsx`); a sharer's after-walk bubble (`opens: "setup_chat"`) carries "Set up my chat ›", the setup's own words, which begins the setup of their own chat in Will's chat, drawn only with the chat builder's ring (`usePlanLounge`, `Lounge.tsx`). What stops: asking the way in every 5 s forever when Take 1 has no words · FE (this PR)
 - 2026-11-09 · N559 item 1 · §2, §3: the newcomer's one offer to join their business's community, built in the way in after the profile and before the first choice ("Join", "Not now"; `WayIn.tsx`, `wayIn.ts`, `communityOffer.ts`, BFF `/api/v2/me/community-offer`), off until its drafted words are signed (`COMMUNITY_OFFER_SIGNED`); a 404 or no offer, no bubble. Nothing changes on screen today · BE #1862 (open), FE (this PR)
