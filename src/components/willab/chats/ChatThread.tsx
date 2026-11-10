@@ -45,6 +45,7 @@ import { BlockedBar, useBlocking } from "./BlockReport";
 import { LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
 import { HostHello, ReplyBy, UsefulAsk } from "./hostsetup/VisitorBits";
+import { useHostWork } from "./hostsetup/hostWork";
 import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
@@ -801,6 +802,8 @@ function PeopleBar({
   const [sheet, setSheet] = useState(false);
   const [typing, setTyping] = useState(false);
   const picker = usePhotoPicker(onPhoto);
+  // Will's Send in the box, for the chat builder's ring (the founder's trial).
+  const ring = useHostWork(false).ring;
   const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
   const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
   const answers = middle !== "ask" && middle !== "ask-box";
@@ -827,6 +830,7 @@ function PeopleBar({
           middle={middle}
           name={chat.title}
           typing={typing && middle === "record-answer"}
+          sendButton={ring}
           onAsk={() => setSheet(true)}
           onRecordAnswer={() => onRecordAnswer?.({ ...base, question: asked.question ?? "", slides: asked.slides })}
           onPhoto={picker.pick}

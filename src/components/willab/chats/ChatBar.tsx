@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Image as ImageIcon, Plus } from "lucide-react";
+import { Image as ImageIcon, Plus, Send } from "lucide-react";
 import { TYPE_YOUR_ANSWER } from "@/components/willab/WillQuestion";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import type { AnswerWith } from "@/services/api/assistants";
@@ -177,10 +177,14 @@ export function BarButton({
 export function BarBox({
   hint,
   open = false,
+  sendButton = false,
   onSend,
   onLeave,
 }: {
   hint: string;
+  /** Will's own Send inside the box once there are words (the chat
+   *  builder's ring, the founder's trial of 10 November 2026). */
+  sendButton?: boolean;
   /** Opened from the "+": the caret is in it at once. */
   open?: boolean;
   /** True once the backend kept the words. */
@@ -205,10 +209,11 @@ export function BarBox({
   useEffect(() => {
     if (open) ref.current?.focus();
   }, [open]);
+  const showSend = sendButton && words.trim() !== "";
   return (
     <form
       data-chat-box=""
-      className="flex min-w-0 flex-1"
+      className="relative flex min-w-0 flex-1"
       onSubmit={(e) => {
         e.preventDefault();
         if (words.trim() && !going.current) void send(words);
@@ -226,8 +231,21 @@ export function BarBox({
         aria-label={hint}
         enterKeyHint="send"
         autoComplete="off"
-        className="h-10 w-full min-w-0 rounded-[22px] border border-[#E8E8E8] bg-background px-3 text-[14px] text-[#121212] caret-primary outline-none placeholder:text-[#A3A3A3] focus:border-primary"
+        className={`h-10 w-full min-w-0 rounded-[22px] border border-[#E8E8E8] bg-background pl-3 text-[14px] text-[#121212] caret-primary outline-none placeholder:text-[#A3A3A3] focus:border-primary ${showSend ? "pr-11" : "pr-3"}`}
       />
+      {showSend ? (
+        // Will's chat's Send, as it is there (Lounge): 44px to tap, 32px to
+        // see, inside the box's right edge.
+        <button
+          type="submit"
+          aria-label="Send"
+          data-chat-send=""
+          onMouseDown={(e) => e.preventDefault()}
+          className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-1.5 after:content-['']"
+        >
+          <Send className="h-5 w-5" />
+        </button>
+      ) : null}
     </form>
   );
 }
@@ -260,6 +278,7 @@ export function BarMiddle({
   middle,
   name,
   typing,
+  sendButton = false,
   onAsk,
   onRecordAnswer,
   onPhoto,
@@ -268,6 +287,8 @@ export function BarMiddle({
 }: {
   middle: Middle;
   name: string;
+  /** Will's Send in the box (the chat builder's ring). */
+  sendButton?: boolean;
   /** "Type your answer" was picked behind the "+": the box, for now. */
   typing: boolean;
   onAsk: () => void;
@@ -281,6 +302,7 @@ export function BarMiddle({
       <BarBox
         hint={TYPE_YOUR_ANSWER}
         open
+        sendButton={sendButton}
         onSend={async (words) => {
           // Sent: the button comes back. Refused: the box stays, with the words.
           const kept = await onType(words);
@@ -295,7 +317,7 @@ export function BarMiddle({
   if (middle === "record-answer") {
     return <BarButton label={RECORD_YOUR_ANSWER} mark="dot" onClick={onRecordAnswer} dataAttr={{ "data-chat-record-answer": "" }} />;
   }
-  if (middle === "answer-box") return <BarBox hint={TYPE_YOUR_ANSWER} onSend={onType} />;
-  if (middle === "ask-box") return <BarBox hint={askName(name)} onSend={onType} />;
+  if (middle === "answer-box") return <BarBox hint={TYPE_YOUR_ANSWER} sendButton={sendButton} onSend={onType} />;
+  if (middle === "ask-box") return <BarBox hint={askName(name)} sendButton={sendButton} onSend={onType} />;
   return <BarButton label={askName(name)} onClick={onAsk} dataAttr={{ "data-chat-ask": "" }} />;
 }
