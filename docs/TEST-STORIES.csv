@@ -626,19 +626,25 @@ O2  HOST-N601-1: the join page's read keeps only the name and the host's
 `about` words, and the page draws them as one line of what you'll
 learn, only when the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
 O2 -> ""HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
-src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584; behind the ring row chat_builder, N579 item 2).","O1  HOST-N584-1: in Will's chat, each bundle still waiting is one card:
-""2 people asked: How do I start a handstand?"", each person's question
-with its colour (green or yellow, never a number) and ""Record one
-answer""; an answered bundle is not shown; without the ring (404) the
-queue draws nothing.
+src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584, N602; behind the ring row chat_builder, N579 item 2).","O1  HOST-N602-1: in Will's chat, each bundle still waiting is one card,
+in the backend's words: ""2 people asked"", the question large, the
+faces of who asked, ""See who asked ›"" and ""Record one answer""; no
+list of every asker's question on the card; an answered bundle is not
+shown; without the ring or the route (404) the queue draws nothing.
+O4  HOST-N602-2: ""See who asked ›"" opens ""Who asked"": each person's own
+words and name with the match's colour (never a number); ""Split them
+up ›"" turns the rows into picks and ""Split them up"" sends the picked
+ones to the split route {questions}, then the queue is read again;
+a sheet the backend refuses (404) does not open.
 O2  HOST-N584-2: ""Record one answer"" hands the recording screens the first
 question and the bundle; once the Take is up it goes to the bundle's
 route {take, duration_ms}, at once and with no Undo, and the queue is
 read again.
 O3  HOST-N584-3: the person who asked meets the answer in their own chat
-with me, under their own question quoted, with the match's colour.","O1 -> ""HOST-N584-1: the queue shows each waiting bundle in the backend's words, and nothing without the ring""
+with me, under their own question quoted, with the match's colour.","O1 -> ""HOST-N602-1: each waiting bundle is one card in the backend's words, and nothing without the ring""
 O2 -> ""HOST-N584-2: one recording goes to the bundle's route, at once""
-O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
+O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""
+O4 -> ""HOST-N602-2: See who asked opens the sheet, and Split them up moves the picked questions out""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
