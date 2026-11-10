@@ -44,6 +44,7 @@ import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
 import { LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
+import { HostHello, ReplyBy, UsefulAsk } from "./hostsetup/VisitorBits";
 import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
@@ -1055,7 +1056,9 @@ export default function ChatThread({
               <AssistantSays key={message.id} name={assistantName} message={message}>
                 <AnswerQuote message={message}>
                   <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
-                    <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                    <ReplyBy message={message}>
+                      <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                    </ReplyBy>
                   </TakeAnswersUnder>
                 </AnswerQuote>
               </AssistantSays>,
@@ -1064,6 +1067,8 @@ export default function ChatThread({
                 : []),
             ])
           )}
+          {host ? <HostHello hello={host.hello} taps={host.taps} messages={messages} onTap={(label) => void send("text", label)} /> : null}
+          <UsefulAsk chatId={chat.id} messages={messages} />
           {setup.answers}
           {asks && !pending ? (
             <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />

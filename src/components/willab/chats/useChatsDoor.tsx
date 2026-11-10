@@ -14,6 +14,7 @@ import { useEdgeSwipe } from "./useEdgeSwipe";
 import { useUserProfile } from "../useUserProfile";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { setWillChatCovered } from "./willChatInView";
+import { OPEN_EVENT, openSetupFromWill } from "./hostsetup/hostSetupDoor";
 
 // A person's chat opens on a tap, and only a coach has the queue's row: off
 // the boot bundle. A chat's code is fetched once Will's thread has painted
@@ -27,6 +28,9 @@ const CoachChatRow = dynamic(() => import("../coachwalk/CoachChatRow"), { ssr: f
 // The AI models' rows under the people (backend N528, N563): nothing is drawn
 // below ring 6, where /v2/models/rows answers 404.
 const ModelsChatRows = dynamic(() => import("../models/ModelsChatRows"), { ssr: false, loading: () => null });
+// The blank setup's rows (backend N616, N618): nothing below the ring
+// `chat_builder`, where /v2/chats/setup answers 404.
+const HostSetupRows = dynamic(() => import("./hostsetup/HostSetupRows"), { ssr: false, loading: () => null });
 // A warm-up that fails costs nothing: the chat asks for its code again.
 function warmChats(): void {
   void import("./ChatThread").catch(() => undefined);
@@ -212,6 +216,15 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
     setView({ at: "list" });
     reload();
   };
+  // The blank setup opens over the list: from Will's chat ("I want to edit
+  // my chat"), the list comes back under it (backend N618 item 8).
+  const toListRef = useRef(toList);
+  toListRef.current = toList;
+  useEffect(() => {
+    const on = () => toListRef.current();
+    window.addEventListener(OPEN_EVENT, on);
+    return () => window.removeEventListener(OPEN_EVENT, on);
+  }, []);
   // The chat ahead, as the list now has it.
   const aheadNow: Ahead | null =
     ahead?.at === "chat" ? { at: "chat", chat: chats?.find((c) => c.id === ahead.chat.id) ?? ahead.chat } : ahead;
@@ -299,7 +312,11 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             willOpen={atWill}
             coachRow={isCoach ? <CoachChatRow /> : null}
             modelsRows={<ModelsChatRows />}
-            onOpenWill={() => setView({ at: "will" })}
+            setupRows={<HostSetupRows />}
+            onOpenWill={() => {
+              // The first person ever meets Will's "What do you do?" (FIRST-02).
+              if (!openSetupFromWill(chats.length)) setView({ at: "will" });
+            }}
             onOpen={(chat) => {
               if (chat.id === joined) setJoined(null);
               setCameFrom(null);
