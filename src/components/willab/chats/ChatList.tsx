@@ -8,6 +8,8 @@ import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
 import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
+import { useHostWork } from "./hostsetup/hostWork";
+import { W as HOST_WORDS } from "./hostsetup/hostSetupCopy";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { AddSomeoneSheet } from "./AddSomeoneSheet";
 
@@ -372,6 +374,15 @@ export default function ChatList({
   const openAdd = useAddSomeone(setAdding);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
   const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
+  // The chat builder's ring (backend N629 items 2 and 5): the list holds Will
+  // and people only, and Will's line says how much needs you. Everyone else:
+  // as it was.
+  // Read here without the coach's moments; Will's chat, mounted under the
+  // list, reads them again as a coach (hostWork.ts).
+  const work = useHostWork(false);
+  const willPreview = work.ring
+    ? work.lines.length ? HOST_WORDS.thingsNeedYou(work.lines.length) : HOST_WORDS.nothingNeedsYouRow
+    : will.preview;
   const row = (chat: Chat, justJoined = false) => (
     <ChatListRow
       key={chat.id}
@@ -401,13 +412,13 @@ export default function ChatList({
         id={WILL_CHAT}
         circle={<WillMark />}
         title={WILL_ROW_TITLE}
-        preview={will.preview}
+        preview={willPreview}
         isNew={will.isNew}
         pinned
         cameFrom={cameFrom === WILL_CHAT}
         onOpen={onOpenWill}
       />
-      {coachRow}
+      {work.ring ? null : coachRow}
       {setupRows}
       {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}
       {first ? row(first, true) : null}
@@ -426,7 +437,7 @@ export default function ChatList({
         />
       ) : null}
       {newestFirst(chats.filter((chat) => chat !== first && !chat.inquiry)).map((chat) => row(chat))}
-      {modelsRows}
+      {work.ring ? null : modelsRows}
       </div>
       <button
         type="button"

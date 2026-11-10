@@ -160,3 +160,29 @@ export async function answerCheck(modelId: string, exampleId: string, answer: st
   const json = answer === null ? { example_id: exampleId, keep: true } : { example_id: exampleId, keep: false, answer };
   return checkOf(await call(`/api/v2/models/${encodeURIComponent(modelId)}/check`, { method: "POST", json }));
 }
+
+/* ── Drafted answers, one per screen (backend N618 item 9, N629 item 3) ─── */
+
+export type Draft = {
+  message_id: string;
+  thread_id: string;
+  from: string;
+  said: string;
+  answer: string;
+  lines: { body: string; by: string }[];
+  sensitive: boolean;
+};
+
+export async function getDrafts(): Promise<Draft[] | null> {
+  const body = await call("/api/v2/chats/setup/drafts", { method: "GET" });
+  return body ? list<Draft>(body.drafts) : null;
+}
+
+/** Send one draft: as drafted, or with the host's own words. */
+export async function sendDraft(messageId: string, own: string | null): Promise<boolean> {
+  const body = await call(`/api/v2/chats/setup/drafts/${encodeURIComponent(messageId)}/send`, {
+    method: "POST",
+    json: own === null ? {} : { body: own },
+  });
+  return Boolean(body);
+}

@@ -904,6 +904,14 @@ src/components/willab/chats/hostsetup/hostSetup.test.tsx,Story,"As the first per
 the backend as one part in the recipe v2 shape (backend #1893).
 O2  Change cycles Will's suggestions with no call; Back keeps the answer.
 O3  Below the ring the read is 404 and no way in opens anything.","one test per story, named by its id",
+src/components/willab/chats/hostsetup/needsYou.test.tsx,Story,"As a host with the chat builder's ring, I find what needs me in Will: the answers he drafted, my speakers' moments, examples to teach and models to check, each opening its work; the list of chats holds Will and people only; and I send drafted answers one per screen, changing the words where I want (backend N629).","O1  Drafted answers, one per screen, in N629's words; Change sends my own
+words, Back never sends a sent one twice; then ""All sent."" and Done.
+O2  Will's lines count my own work from routes that exist, in N629's
+words, singular and plural, each opening its work.
+O3  With the ring the list has no ""Your queue"" and no ""AI models"" rows and
+Will's line says how many things need me; without it, as it was.","O1 -> ""N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice""
+O2 -> ""N629-1 Will says what needs you, each line opening its work; nothing waiting says so""
+O3 -> ""N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was""",
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
