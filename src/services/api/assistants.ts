@@ -140,7 +140,15 @@ export async function getHost(chatId: string): Promise<Host | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/host`, { method: "GET" });
   const host = body?.host as Record<string, unknown> | null | undefined;
   if (!host || typeof host.assistant !== "string" || !host.assistant) return null;
-  return { assistant: host.assistant, about: strings(host.about), questions: questionsOf(host.questions), answerWith: answerWithOf(host.answer_with) };
+  // In someone's chat, typing is on only where the read says so (N610): a
+  // read with no `type` is a chat that takes no typing.
+  const typing = (host.answer_with as { type?: unknown } | null | undefined)?.type === true;
+  return {
+    assistant: host.assistant,
+    about: strings(host.about),
+    questions: questionsOf(host.questions),
+    answerWith: { ...answerWithOf(host.answer_with), type: typing },
+  };
 }
 
 /* ── One recording answers everyone who asked (backend N584) ──────────── */

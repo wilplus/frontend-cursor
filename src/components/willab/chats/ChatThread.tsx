@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, Plus, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import TypingDots from "@/components/willab/TypingDots";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
@@ -21,16 +21,20 @@ import {
   usePendingAnswer,
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
-import AskSheet, { askName } from "./AskSheet";
+import AskSheet from "./AskSheet";
+import { BarMiddle, BarPlus, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, takesOf, thanksDue, usePhotoPicker, type Takes } from "./ChatBar";
+import { photoForUpload } from "./photoForUpload";
 import {
-  CHAT_EMOJI,
   answerChatSetup,
   declineInChat,
   chatFileSrc,
   chatVoiceSrc,
   getChatThread,
   setupOf,
+  answerChatPhoto,
   sendChatEmoji,
+  sendChatPhoto,
+  sendChatText,
   type Chat,
   type ChatEmoji,
   type ChatMessage,
@@ -38,8 +42,8 @@ import {
 } from "@/services/api/chats";
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
-import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
-import { AnswerQuote, AssistantAbout, AssistantSays, HostMic, hostBar, useHost } from "./HostChat";
+import { LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
 import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
@@ -59,18 +63,20 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  the circle with the first letter, the name and who they are. Then the     */
 /*  Lounge's own chat design (N301): its grey and orange bubbles, no picture  */
 /*  beside them, each with its time; the messages start at the bottom, by the */
-/*  bar, under the day ("Today"). The locked bar (N483): the "+" on the left, */
-/*  which opens "Ask {name}" (a question recorded over the default           */
-/*  presentation, N498), and the three emoji in the middle. A question about  */
-/*  a product or a treatment (Will marks it, N361 item 1), or one they asked  */
-/*  you, takes one black "Record your answer" in the middle (N483 items 3     */
-/*  and 5), "Not now" under it: the recording screens, then "Sending to       */
+/*  bar, under the day ("Today"). The locked bar (N610, ./ChatBar.tsx): two   */
+/*  places, the "+" on the left, which never moves and opens "Ask {name}"    */
+/*  (a question recorded over the default presentation, N498; "Send a        */
+/*  photo"), and the one thing to do now in the middle: "Ask {name}" while   */
+/*  nothing is asked; "Record your answer" for a question about a product or  */
+/*  a treatment (Will marks it, N361 item 1), one they asked you, or their    */
+/*  Take, "Not now" under it: the recording screens, then "Sending to         */
 /*  {name}…" with Undo for 5 seconds (N345), then the answer or the question, */
-/*  with "Sent to {name}" under it (N342, N361). No mic, no typing.           */
-/*  Only the conversation shows here; no asks (N305). Blocked from their      */
-/*  profile, the bar is one grey pill with Unblock; the messages stay (N466). */
-/*  In a host's chat the bar follows the host's answer_with (N600): the mic   */
-/*  on the right for Record, never "Record your answer" in the middle.       */
+/*  with "Sent" under it (N342, N361, N504). After a person's answer, three   */
+/*  thanks to tap above the bar, once. A host's chat follows the host's       */
+/*  answer_with: a box where the host chose typing (backend #1880).         */
+/*  Only the conversation shows here; no asks (N305). Blocked from            */
+/*  their profile, the bar is one grey pill with Unblock; the messages stay   */
+/*  (N466).                                                                   */
 /* -------------------------------------------------------------------------- */
 
 /** The device's Back (the iPhone's swipe, the browser's Back) closes the
@@ -100,7 +106,7 @@ export function ChatTopBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () =>
  *  WhatsApp" (N342). */
 /** One label for answering anyone (backend N483 item 5; was "Record an
  *  answer", N361). */
-export const RECORD_YOUR_ANSWER = PLAN_COPY.recordAnswer;
+export { RECORD_YOUR_ANSWER };
 export const UNDO = "Undo";
 export const NOT_SENT = "Not sent";
 export const SEND_AGAIN = "Send again";
@@ -620,26 +626,35 @@ export function answerWaits(messages: readonly ChatMessage[] | null): string | n
   return words.trim() || null;
 }
 
-/** What waits for my spoken answer in this chat (N361, N483 item 3, N493
- *  item 3): their marked question, or their Take, when it is the newest
- *  message, until "Not now" leaves it (the emoji come back until the chat is
- *  opened again, and they are told nothing). A Take is answered over its
- *  own slides, by their titles, once its words have been read. */
+/** What waits for my answer in this chat (N361, N483 item 3, N493 item 3,
+ *  N610 item 4): their marked question, their Take, or a photo they ask
+ *  for, when it is the newest message, until "Not now" leaves it (the bar
+ *  rests until the chat is opened again, and they are told nothing). A Take
+ *  is answered over its own slides, by their titles, once its words have
+ *  been read. `left`: what "Not now" has left, the link owner's question to
+ *  tap included. */
 function useAnswerWait(chatId: string, messages: readonly ChatMessage[] | null, canAnswer: boolean) {
   const newest = messages?.at(-1) ?? null;
-  const [left, setLeft] = useState<string | null>(null);
-  const waiting = canAnswer && newest?.id !== left ? answerWaits(messages) : null;
+  const [left, setLeft] = useState<readonly string[]>([]);
+  const stays = newest !== null && !left.includes(newest.id);
+  const waiting = canAnswer && stays ? answerWaits(messages) : null;
   const theirTake = takeWaits(messages);
-  const takeAsks = canAnswer && theirTake && theirTake.id !== left ? theirTake : null;
+  const takeAsks = canAnswer && stays && theirTake ? theirTake : null;
   const take = useChatTake(chatId, takeAsks?.id ?? null);
   const topic = takeAsks ? takeTopic(takeAsks) : null;
   return {
     question: waiting ?? topic,
     slides: topic && take?.slides.length ? take.slides.map((slide) => slide.title || topic) : undefined,
-    leave: () => {
+    /** The question typed words answer (`to`), when one waits. */
+    id: waiting && newest ? newest.id : null,
+    /** The question that asks for a photo, while it waits. */
+    photo: [photoWaits(messages)?.id ?? null].find((id) => id !== null && !left.includes(id)) ?? null,
+    left,
+    /** "Not now": the newest message and, when it waits, the question to tap. */
+    leave: (tapped: string | null) => {
       if (!newest) return;
-      setLeft(newest.id);
-      void declineInChat(chatId, newest.id);
+      setLeft((was) => [...was, newest.id, ...(tapped ? [tapped] : [])]);
+      void declineInChat(chatId, tapped ?? newest.id);
     },
   };
 }
@@ -740,96 +755,111 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   );
 }
 
-/** The bar in a chat with a person (backend N483, the locked prototype "The
- *  Bar, Clickable" v12): the "+" on the left, which asks them ("Ask
- *  {name}"), the one thing to do now in the middle (the three emoji,
- *  "Record your answer", or "Sending to {name}…"). No mic and no typing: no
- *  voice notes between people. Until it is first tapped, while nothing else
- *  is asked of you and before your first question, the "+" is a filled
- *  orange circle, still: the one orange thing in the bar (N483 item 4). Was
- *  (N368, N460 items 1 and 2): the mic on the right, orange while their
- *  words waited; the "+" opened four tiles (N351). */
-function EmojiBar({
-  name,
+/** The bar in a chat with a person (backend N610, ./ChatBar.tsx): the "+"
+ *  and the one thing to do now, with the "+"'s sheet. "Send" for several
+ *  picked answers (N487) and "Sending to {name}…" (N368) stand in the
+ *  middle while they last. Was (N483, N600): the three emoji in the middle,
+ *  a small mic on the right in a host's chat. */
+function PeopleBar({
+  chat,
+  takes,
+  asked,
+  status,
+  fresh,
   onPlus,
-  onPick,
-  plusNew = false,
-  middle = null,
+  onRecordAnswer,
+  onSay,
+  onPhoto,
 }: {
-  name: string;
-  onPlus: () => void;
-  onPick: (emoji: ChatEmoji) => void;
+  chat: Chat;
+  takes: Takes;
+  /** What the chat asks of me now. */
+  asked: { question: string | null; slides?: string[]; taps: boolean; photo: boolean };
+  /** What stands in the middle for now: "Send", or "Sending to {name}…". */
+  status: ReactNode;
   /** The "+" orange: not tapped yet, nothing asked of you. */
-  plusNew?: boolean;
-  /** What stands in the middle instead of the emoji. */
-  middle?: ReactNode;
+  fresh: boolean;
+  onPlus: () => void;
+  onRecordAnswer?: (answer: AnswerFor) => void;
+  /** Typed words; `answers`: they answer what the chat asks. */
+  onSay: (words: string, answers: boolean) => Promise<boolean>;
+  onPhoto: (photo: File) => void;
 }) {
+  const [sheet, setSheet] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const picker = usePhotoPicker(onPhoto);
+  const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
+  const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
+  const answers = middle !== "ask" && middle !== "ask-box";
+  // A chat that takes only typing has no recording in it.
+  const recordQuestion =
+    onRecordAnswer && (takes.record || !takes.type)
+      ? () => {
+          // Always the default presentation (N483 item 4).
+          setSheet(false);
+          onRecordAnswer({ ...base, question: "", asks: true });
+        }
+      : undefined;
   return (
     <>
-      <button
-        type="button"
-        onClick={onPlus}
-        aria-label={askName(name)}
-        data-chat-plus=""
-        data-plus-new={plusNew ? "" : undefined}
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-          plusNew ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Plus className="h-5 w-5" aria-hidden />
-      </button>
-      {middle ?? (
-      <div data-chat-emoji-box className="flex h-[42px] min-w-0 flex-1 items-center justify-around rounded-3xl border border-border bg-background px-2">
-        {CHAT_EMOJI.map((emoji) => (
-          <button
-            key={emoji}
-            type="button"
-            aria-label={EMOJI_MEANING[emoji]}
-            onClick={() => onPick(emoji)}
-            className="flex h-[38px] w-10 shrink-0 items-center justify-center rounded-full text-[23px] leading-none transition-colors hover:bg-muted"
-          >
-            {emoji}
-          </button>
-        ))}
-      </div>
+      <BarPlus
+        fresh={fresh}
+        onClick={() => {
+          onPlus();
+          setSheet(true);
+        }}
+      />
+      {status ?? (
+        <BarMiddle
+          middle={middle}
+          name={chat.title}
+          typing={typing && middle === "record-answer"}
+          onAsk={() => setSheet(true)}
+          onRecordAnswer={() => onRecordAnswer?.({ ...base, question: asked.question ?? "", slides: asked.slides })}
+          onPhoto={picker.pick}
+          onType={(words) => onSay(words, answers)}
+          onTypingDone={() => setTyping(false)}
+        />
       )}
+      {picker.input}
+      {sheet ? (
+        <AskSheet
+          name={chat.title}
+          answers={answers}
+          firstTime={!askedBefore()}
+          onClose={() => setSheet(false)}
+          onRecord={recordQuestion}
+          onType={
+            takes.type && middle === "record-answer"
+              ? () => {
+                  setSheet(false);
+                  setTyping(true);
+                }
+              : undefined
+          }
+          onPhoto={() => {
+            setSheet(false);
+            picker.pick();
+          }}
+        />
+      ) : null}
     </>
-  );
-}
-
-/** The mic on the right of a host's bar (N600), when Record is chosen: the
- *  answer to what waits, else a question, as "Record your answer" and the
- *  "+" did. */
-function hostMicFor(
-  bar: { mic: boolean } | null,
-  chat: Chat,
-  answer: { question: string | null; slides?: string[] },
-  onRecordAnswer?: (answer: AnswerFor) => void,
-): ReactNode {
-  if (!bar?.mic || !onRecordAnswer) return null;
-  const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
-  const question = answer.question;
-  return (
-    <HostMic
-      label={question ? RECORD_YOUR_ANSWER : askName(chat.title)}
-      onClick={() =>
-        onRecordAnswer(question ? { ...base, question, slides: answer.slides } : { ...base, question: "", asks: true })
-      }
-    />
   );
 }
 
 let localSeq = 0;
 
 /** The link owner's question waiting in this chat (backend N487 item 4):
- *  its answers under the newest message, "Send" for the bar's middle when
+ *  its answers under the newest message, "Not now" under them (N610 item
+ *  4), "Send" for the bar's middle when
  *  it takes several, and the date sheet for "Yes" to the hurry. A tap
  *  answers at once; what follows comes back and joins the thread. */
-function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, onSent: (sent: ChatMessage[]) => void) {
+function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, left: readonly string[], onSent: (sent: ChatMessage[]) => void) {
   const [picked, setPicked] = useState<string[]>([]);
   const [readyBy, setReadyBy] = useState(false);
   const setup = setupWaits(messages);
-  if (!setup) return { answers: null, send: null, sheet: null };
+  // "Not now" under the answers leaves it until the chat is opened again.
+  if (!setup || left.includes(setup.message.id)) return { id: null, answers: null, send: null, sheet: null };
   const { question } = setup;
   const answer = async (answers: string[], date?: string) => {
     const sent = await answerChatSetup(chatId, setup.message.id, answers, date);
@@ -842,6 +872,7 @@ function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, onSent
   const tap = (label: string) => (question.kind === "hurry" && label === yes ? setReadyBy(true) : void answer([label]));
   const toggle = (label: string) => setPicked((now) => (now.includes(label) ? now.filter((p) => p !== label) : [...now, label]));
   return {
+    id: setup.message.id,
     answers: question.multi ? (
       <PickRow labels={question.answers} picked={picked} onToggle={toggle} dataAttr={{ "data-chat-setup-picks": "" }} />
     ) : (
@@ -904,7 +935,6 @@ export default function ChatThread({
   const [joinedAsksFirst, setJoinedAsksFirst] = useState(false);
   const [joinedBy, setJoinedBy] = useState<string | null>(null);
   // The "+" asks them (N483 item 4): "Ask {name}"; orange until first tapped.
-  const [asking, setAsking] = useState(false);
   const [plusNew, setPlusNew] = useState(() => !plusSeen() && !askedBefore());
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [profile, setProfile] = useState(false);
@@ -946,34 +976,57 @@ export default function ChatThread({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Drawn at once; the backend's copy replaces it, a failed send takes it away.
-  const send = async (emoji: ChatEmoji) => {
+  // Drawn at once; the backend's copy replaces it (an answer's, with the
+  // host's next lines after it), a failed send takes it away. `to`: the
+  // question typed words answer.
+  const send = async (kind: "emoji" | "text", body: string, to: string | null = null) => {
     localSeq += 1;
     const local: ChatMessage = {
       id: `local-${localSeq}`,
       mine: true,
       author: "",
-      kind: "emoji",
-      body: emoji,
+      kind,
+      body,
       meta: null,
       created_at: new Date().toISOString(),
     };
     setMessages((list) => [...(list ?? []), local]);
     sendTick();
-    const sent = await sendChatEmoji(chat.id, emoji);
-    setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
+    const one = async () => {
+      const sent = await sendChatEmoji(chat.id, body as ChatEmoji);
+      return sent ? [sent] : null;
+    };
+    const sent = kind === "emoji" ? await one() : await sendChatText(chat.id, body, to);
+    setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : (sent ?? []))));
+    return sent !== null;
+  };
+  // A photo, made smaller first when it is big (N351); a refused one shows
+  // nothing. While the chat asks for one, it answers that question.
+  const sendPhoto = async (photo: File, asked: string | null) => {
+    const { blob, name } = await photoForUpload(photo);
+    const one = async () => {
+      const sent = await sendChatPhoto(chat.id, blob, name);
+      return sent ? [sent] : null;
+    };
+    const sent = asked ? await answerChatPhoto(chat.id, asked, blob, name) : await one();
+    if (!sent) return;
+    sendTick();
+    setMessages((list) => [...(list ?? []), ...sent]);
   };
 
-  // Their question, or their Take, to answer properly: "Record your answer"
-  // in the middle, "Not now" under it (N361, N483 item 3, N493 item 3).
+  // Their question, their Take, or a photo they ask for: the middle answers,
+  // "Not now" under it (N361, N483 item 3, N493 item 3, N610 item 4).
   const answer = useAnswerWait(chat.id, messages, !!onRecordAnswer);
-  const setup = useSetupQuestion(chat.id, messages, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
+  const setup = useSetupQuestion(chat.id, messages, answer.left, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
   // A host's own chat (backend N578, N586 item 1, N590): who they are on
   // top, their assistant's messages labelled as its own. Null: as it was.
   const host = useHost(chat.id);
   const assistantName = host?.assistant ?? chat.assistant ?? null;
-  // A host's chat: the bar follows how the host lets people answer (N600).
-  const bar = host ? hostBar(host.answerWith) : null;
+  // How this chat takes what I send: the host's answer_with (N610).
+  const takes = takesOf(host?.answerWith ?? null);
+  const asks = [answer.question, answer.photo, setup.answers].some(Boolean);
+  // Thanks, one tap, after a person's answer where nothing types (N610 item 5).
+  const thanks = thanksDue(takes, messages, [pending, asks, safety.blocked]);
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -1012,9 +1065,10 @@ export default function ChatThread({
             ])
           )}
           {setup.answers}
-          {answer.question && !pending ? (
-            <TapRow labels={[NOT_NOW]} onTap={answer.leave} dataAttr={{ "data-chat-not-now": "" }} />
+          {asks && !pending ? (
+            <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />
           ) : null}
+          {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
         </div>
       </div>
       {/* The locked bar inside (centred, 4px between, 44px tall inside; N483)
@@ -1023,40 +1077,25 @@ export default function ChatThread({
         {safety.blocked ? (
           <BlockedBar name={chat.title} onUnblock={safety.unblock} />
         ) : (
-          <EmojiBar
-            name={chat.title}
+          <PeopleBar
+            chat={chat}
+            takes={takes}
+            asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo !== null }}
+            status={
+              setup.send ??
+              (pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null)
+            }
+            fresh={plusNew && !pending && !asks}
             onPlus={() => {
               markPlusSeen();
               setPlusNew(false);
-              setAsking(true);
             }}
-            plusNew={plusNew && !pending && !answer.question && !setup.answers}
-            onPick={(emoji) => void send(emoji)}
-            middle={
-              setup.send ?? (pending ? (
-                <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
-              ) : !bar && answer.question && onRecordAnswer ? (
-                <RecordAnswerButton
-                  onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question: answer.question!, customer, slides: answer.slides })}
-                />
-              ) : null)
-            }
+            onRecordAnswer={onRecordAnswer}
+            onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
+            onPhoto={(photo) => void sendPhoto(photo, answer.photo)}
           />
         )}
-        {safety.blocked ? null : hostMicFor(bar, chat, answer, onRecordAnswer)}
       </div>
-      {asking ? (
-        <AskSheet
-          name={chat.title}
-          firstTime={!askedBefore()}
-          onClose={() => setAsking(false)}
-          onRecord={() => {
-            // Always the default presentation (N483 item 4).
-            setAsking(false);
-            onRecordAnswer?.({ chatId: chat.id, name: chat.title, question: "", customer, asks: true });
-          }}
-        />
-      ) : null}
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
       {setup.sheet}
       {toast}

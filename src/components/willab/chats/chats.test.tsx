@@ -20,10 +20,6 @@ OUTCOME
       no demo chats are asked for (N401). Will's row uncovers the Lounge,
       never remounted, with a back to the list (customer-requests.md C1;
       N274, N298, N322).
-  O3  In a chat, one bar: the "+" left, the three emoji in the box, no
-      typing and no mic (N483 item 3; was the mic, N368); a tap on an emoji
-      posts {"kind":"emoji","body":…} and shows the emoji at once, large,
-      with its meaning and time under it (N306, N311, N322).
   O4  The WillpowerLab bar shows on the list only: in a person's chat and
       in Will's, the chat's own top bar takes its place (N321 item 1, N334).
   O5  A chat whose last message is newer than the last time it was opened
@@ -60,7 +56,8 @@ OUTCOME
       slides of its own, named "To {name}"), and the question goes to the
       question route with "Sending to {name}… {n}" and Undo, then "Sent to
       {name}". Until I first tap it the "+" is orange; then it is plain.
-      Photos, Camera, Files and Someone else are off (N483 item 4).
+      Camera, Files and Someone else are off (N483 item 4); "Send a
+      photo" is chatBar.test.tsx's (N610).
   O14 The other person's file shows a tile with its extension and its own
       name, and downloads
       from the chat's file route; a photo opens full size with a close and
@@ -70,8 +67,8 @@ OUTCOME
       and its words closed behind "Read it"; no Take number.
   O16 A question Will marked as about a product or a treatment takes one
       black "Record your answer" in the bar's middle, the "+" on its left and
-      no mic (N321 item 4, N361, N483 items 3 and 5), and "Not now", a grey
-      word under the question, brings the emoji back, telling them nothing,
+      nothing else (N321 item 4, N361, N483 items 3 and 5, N610), and "Not now", a grey
+      word under the question, brings "Ask {name}" back, telling them nothing,
       until the chat is opened again; the answer hands the recording screens the
       chat, the person and the question. Back from them, the bar's middle
       reads "Sending to {name}… {n}" with Undo while the answer, already
@@ -130,7 +127,6 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
          O2 -> "with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back"
-         O3 -> "an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic"
          O4 -> "the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's"
          O5 -> "a chat with a message newer than its last opening shows as new until it is opened"
          O26 -> "the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back"
@@ -462,50 +458,6 @@ describe("the chats in front of the Lounge", () => {
     expect(header()?.textContent).toContain("Sarah");
   });
 
-  it("an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic", async () => {
-    backend(["chats"]);
-    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
-    routes.set("GET /api/v2/chats/c-sarah/messages", () => ({
-      messages: [{ id: "m1", mine: false, author: "Sarah", kind: "text", body: SARAH.last.body, meta: null, created_at: SARAH.last.created_at }],
-    }));
-    let release: () => void = () => {};
-    const posted = new Promise<void>((resolve) => (release = resolve));
-    await render();
-    await tap(row("c-sarah"));
-
-    const screen = container.querySelector("[data-chat-screen]")!;
-    expect(screen.querySelector("[data-chat-header]")?.textContent).toContain("SarahInvita customer");
-    expect(screen.querySelector("[data-chat-thread] [data-bubble]")?.textContent).toContain(SARAH.last.body);
-    // One bar: the "+", the three emoji in the box; no mic, no typing (N483 item 3).
-    const bar = screen.querySelector("[data-chat-bar]")!;
-    expect([...bar.querySelectorAll("button")].map((b) => b.textContent || b.getAttribute("aria-label"))).toEqual([
-      "Ask Sarah",
-      "👍",
-      "👀",
-      "🙏",
-    ]);
-    expect(screen.querySelector("textarea, input:not([type=file])")).toBeNull();
-
-    fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
-      await posted;
-      return new Response(
-        JSON.stringify({ message: { id: "m2", mine: true, author: "Me", kind: "emoji", body: JSON.parse(String(init?.body)).body, meta: null, created_at: "2026-11-02T08:00:00Z" } }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    });
-    await tap([...bar.querySelectorAll("button")].find((b) => b.textContent === "👍"));
-    const sent = () => [...screen.querySelectorAll("[data-chat-emoji]")].map((e) => e.textContent);
-    expect(sent()).toEqual([expect.stringMatching(/^👍It's good · \d\d:\d\d$/)]);
-    const post = fetchMock.mock.calls.at(-1)!;
-    expect(post[0]).toBe("/api/v2/chats/c-sarah/messages");
-    expect(post[1].method).toBe("POST");
-    expect(JSON.parse(String(post[1].body))).toEqual({ kind: "emoji", body: "👍" });
-
-    release();
-    await flush();
-    expect(sent()).toEqual([expect.stringMatching(/^👍It's good · \d\d:\d\d$/)]);
-  });
-
   it("the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's", async () => {
     backend(["chats"]);
     routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
@@ -789,7 +741,7 @@ describe("the chats in front of the Lounge", () => {
     const sheet = () => container.querySelector("[data-ask-sheet]");
 
     // Orange until first tapped; it opens "Ask Ariel", no tiles.
-    expect([plus().getAttribute("aria-label"), plus().hasAttribute("data-plus-new")]).toEqual(["Ask Ariel", true]);
+    expect([plus().getAttribute("aria-label"), plus().hasAttribute("data-plus-new")]).toEqual(["Add", true]);
     await tap(plus());
     expect(plus().hasAttribute("data-plus-new")).toBe(false);
     expect(container.querySelector("[data-chat-tile]")).toBeNull();
@@ -1023,18 +975,17 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("c-sarah"));
     const button = () => container.querySelector("[data-chat-record-answer]");
     expect(button()?.textContent).toBe("Record your answer");
-    // One bar: the "+" left, Record your answer in the middle, no mic (N483).
-    expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
+    // One bar: the "+" left, Record your answer in the middle, nothing else (N610).
+    expect(container.querySelectorAll("[data-chat-bar] button")).toHaveLength(2);
     expect(container.querySelector("[data-chat-bar] [data-chat-plus]")).not.toBeNull();
-    expect(container.querySelector("[data-chat-bar] [data-chat-mic]")).toBeNull();
-    // "Not now", a grey word under the question, gives the emoji back and
+    // "Not now", a grey word under the question, gives "Ask Sarah" back and
     // tells Sarah nothing; opened again, the question takes the bar again.
     const notNow = container.querySelector("[data-chat-not-now] button");
     expect(notNow?.textContent).toBe("Not now");
     const before = fetchMock.mock.calls.length;
     await tap(notNow);
     expect(button()).toBeNull();
-    expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-ask]")?.textContent).toBe("Ask Sarah");
     // The only thing sent is the decline the system keeps (N504 item 2).
     expect(
       fetchMock.mock.calls
@@ -1112,7 +1063,7 @@ describe("the chats in front of the Lounge", () => {
     // Back in the chat: one pill in the bar's place, the messages still there.
     await tap(container.querySelector("[data-profile] button[aria-label=Back]"));
     expect(bar().textContent).toBe("You blocked Ariel.Unblock");
-    expect(bar().querySelector("[data-chat-plus], [data-chat-emoji-box], [data-chat-mic]")).toBeNull();
+    expect(bar().querySelector("[data-chat-plus], [data-chat-ask], [data-chat-box]")).toBeNull();
     expect(container.querySelector("[data-chat-thread] [data-chat-emoji]")?.textContent).toContain("🙏");
 
     // Unblock needs no sheet.
@@ -1311,7 +1262,7 @@ describe("the chats in front of the Lounge", () => {
     });
     await tap(container.querySelector("[data-chat-not-now] button"));
     expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
-    expect(container.querySelector("[data-chat-emoji-box]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-ask]")).not.toBeNull();
     // Nobody is told, and the system keeps it (N504 item 2).
     expect(declined).toEqual(["t1"]);
   });
