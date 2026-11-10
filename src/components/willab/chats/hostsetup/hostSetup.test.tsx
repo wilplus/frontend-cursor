@@ -479,8 +479,11 @@ describe("the blank setup (FIRST-)", () => {
     await keepTo("Right now your chat isn't a specialist in anything.");
     await tap("Not now");
     await tap("I draft, you send");
+    bff.routes["GET /api/v2/chats/setup"] = { recipe, parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0], join_line: "People come to Lena with hair and scalp worries." }, cost: FREE };
     await tap("Not now");
-    expect(text()).toContain("Anyone with your link can use it.");
+    expect(text()).toContain("Anyone with your link can use it. This is what they read before they join:");
+    expect(text()).toContain("Lena's chat");
+    expect(text()).toContain("People come to Lena with hair and scalp worries.");
     bff.routes["GET /api/v2/chats/setup"] = { recipe: { ...recipe, live: true }, parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE };
     await tap("Yes");
     expect(puts("live")).toEqual([true]);
@@ -494,7 +497,7 @@ describe("the blank setup (FIRST-)", () => {
       { part: "line", title: "Why people come", value: SUGGEST.line[0] },
       { part: "hello", title: "Your hello", value: SUGGEST.hello[0] },
     ];
-    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0], link: { token: "k7Q2", path: "/c/k7Q2" } }, cost: FREE });
     bff.routes["POST /api/v2/chats/setup/edit"] = { line: "Here are your chat's parts. Tap one to change it.", parts };
     await mount();
     expect(openSetupFromWill(0)).toBe(false);
@@ -503,6 +506,8 @@ describe("the blank setup (FIRST-)", () => {
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/edit")?.json).toEqual({ said: "I want to edit my chat" });
     expect(text()).toContain("Here are your chat's parts. Tap one to change it.");
     expect(text()).toContain("Why people come");
+    expect(text()).toContain("willpowerlab.com/c/k7Q2");
+    expect(text()).toContain("This link opens your chat.");
     await tap("Your hello");
     expect(text()).toContain("Your chat opens with:");
     await tap("Change");

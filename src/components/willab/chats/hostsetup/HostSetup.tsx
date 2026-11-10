@@ -8,6 +8,7 @@ import {
   startSetup,
   type ChatCost,
   type HostRecipe,
+  type OwnChat,
   type ModelDraft,
   type RecipeModel,
   type SendKind,
@@ -70,6 +71,7 @@ type State = {
   busy: boolean;
   /** The backend refused the host's own words on this screen (N622 item 3). */
   refused: boolean;
+  ownChat: OwnChat | null;
 };
 
 const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
@@ -96,6 +98,7 @@ const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   testing: false,
   busy: false,
   refused: false,
+  ownChat: null,
 });
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -108,16 +111,18 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, onClose }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
   /** Opened from Will's chat with the parts ("I want to edit my chat"). */
   parts?: Parts | null;
   cost?: ChatCost | null;
+  /** The share link and the newcomer's line, as last read. */
+  ownChat?: OwnChat | null;
   onClose: () => void;
 }) {
-  const { S, paint } = useSetup(() => fresh(recipe, parts, cost));
+  const { S, paint } = useSetup(() => ({ ...fresh(recipe, parts, cost), ownChat }));
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -143,6 +148,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.refused = false;
     S.history.push(S.at);
     S.at = to;
+    // What a newcomer reads is the line as kept now (N622 item 2).
+    if (to === "live") {
+      void readSetup().then((read) => {
+        if (read?.own_chat) S.ownChat = read.own_chat;
+        paint();
+      });
+    }
     if (to === "way" && S.shared === null) {
       void sharedModels().then((got) => {
         S.shared = got;
@@ -155,6 +167,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     void readSetup().then((read) => {
       if (read) {
         S.parts = read.parts;
+        S.ownChat = read.own_chat ?? S.ownChat;
         S.cost = read.cost ?? S.cost;
       }
       S.history = [];
@@ -359,6 +372,7 @@ function YesNoStep(c: Ctx): ReactNode {
         <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.onClose), () => c.keep("live", true, c.onClose))}>
           <Say>{W.openToPeople}</Say>
           <Cap>{W.anyoneLink}</Cap>
+          <Card b={W.chatOf(c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${c.name}`)} />
         </Frame>
       );
     default:
@@ -586,6 +600,7 @@ function PartsStep({ c }: { c: Ctx }) {
   return (
     <Frame title={R.spec} onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
+      {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
           <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>

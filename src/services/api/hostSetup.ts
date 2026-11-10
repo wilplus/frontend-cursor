@@ -49,9 +49,12 @@ export type ChatCost = { lines: { q: string; by: string; price: number }[]; per_
 export type SetupRead = {
   recipe: HostRecipe | null;
   parts: SetupPart[];
-  own_chat: { title: string; line: string } | null;
+  own_chat: OwnChat | null;
   cost: ChatCost | null;
 };
+/** The host's own chat: its row, the share link (`/c/<token>`), and the line
+ *  a newcomer reads before joining ("People come to {name} ..."). */
+export type OwnChat = { title: string; line: string; link?: { token: string; path: string } | null; join_line?: string | null };
 export type SharedModel = { model_id: string; q: string; opts: string[]; by: string; price: number; fits: boolean; needs: string };
 export type ReplyLine = { kind: "answer" | "model"; body: string; by: string };
 
