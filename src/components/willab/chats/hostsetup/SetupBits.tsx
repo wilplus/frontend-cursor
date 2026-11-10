@@ -46,7 +46,7 @@ export function Frame({ title = W.will, onBack, circle = <WillDots />, foot, chi
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         {children}
       </div>
-      {foot ? <div className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
+      {foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
     </div>
   );
 }
@@ -167,13 +167,15 @@ export function Dots() {
 
 /** The box: it grows with its text up to seven lines (N618 item 4); Enter
  *  sends, Shift+Enter is a new line. */
-export function Box({ placeholder, onSend, before, after }: {
+export function Box({ placeholder, onSend, before, after, initial = "" }: {
   placeholder: string;
   onSend: (text: string) => void;
   before?: ReactNode;
   after?: ReactNode;
+  /** Already in the box, to send as it is or change. */
+  initial?: string;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initial);
   const ta = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     const el = ta.current;

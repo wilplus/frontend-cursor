@@ -1598,7 +1598,9 @@ export default function Lounge({
   // ring): the same box, the same taps.
   const joinSetup = useJoinSetup(reload, setBotThinking, thread.own);
   const chatSetup = useChatSetup(reload, setBotThinking, thread.own);
-  const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup);
+  // For whoever has the new setup, Will's chat asks none of the earlier
+  // builder's questions (backend N632 item 1).
+  const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup, assistant.retired);
   // Will's key line asks to be said (backend N544): "Record your answer" in
   // the bar's middle records it in the small recording bar, no box for it.
   const keyLine = useKeyLineHear({
@@ -1922,7 +1924,9 @@ export default function Lounge({
   const drawItem = (item: ThreadItem, i: number) => {
     const setup = joinSetupOf(item.message);
     if (setup) return drawSetup(item, i, setup);
-    const own = chatSetupOf(item.message);
+    // The earlier builder's rows, once the new setup took over, are Will's
+    // plain lines: no taps, no way in (N632 item 1).
+    const own = chatSetupOf(item.message, assistant.retired);
     return own ? drawChatSetup(item, i, own) : drawThreadItem(item, i);
   };
 

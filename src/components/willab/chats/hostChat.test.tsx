@@ -341,6 +341,33 @@ describe("a host's own chat", () => {
     expect(button("Set up my chat›")).toBeUndefined(); // live: the builder's way in instead
   });
 
+  it("N632-1: whoever has the new setup meets none of the earlier builder in Will's chat", async () => {
+    // The new setup answers (the ring row chat_builder); the earlier builder
+    // would answer too, with no recipe, and would offer.
+    routes["GET /api/v2/chats/setup"] = () => json({ recipe: null, parts: [], own_chat: null, cost: null });
+    routes["GET /api/v2/chats/recipe"] = () => json({ assistant: "Tomek's assistant", recipe: null, starting_questions: [] });
+    routes["POST /api/v2/chats/recipe/setup/offer"] = () => json({ offered: true });
+    const welcomeQ = {
+      client_id: "q-1", role: "bot", kind: "text", body: "What should people read first when they open your chat?",
+      metadata: { chat_setup: { step: "welcome", chips: [] } }, client_created_at: "2026-11-09T10:00:00Z",
+    } as unknown as LoungeMessage;
+    const reload = vi.fn(async () => undefined);
+    let seen: { retired: boolean; waiting: ReturnType<typeof willSetupWaiting> } | null = null;
+    function Will() {
+      const [, setThinking] = useState(false);
+      const chatSetup = useChatSetup(reload, setThinking);
+      const assistant = useAssistantInWill(true, reload);
+      seen = { retired: assistant.retired, waiting: willSetupWaiting([welcomeQ], { say: async () => undefined }, chatSetup, assistant.retired) };
+      return createElement("div", null, assistant.builder, assistant.sheet);
+    }
+    await render(createElement(Will));
+    expect(seen).toEqual({ retired: true, waiting: null });
+    expect(calls("POST /api/v2/chats/recipe/setup/offer")).toHaveLength(0);
+    expect(calls("GET /api/v2/chats/recipe")).toHaveLength(0);
+    expect(container.querySelector("[data-assistant-builder-open]")).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
   it("HOST-N586-5: Will offers the setup once, only to a tester with no recipe", async () => {
     const reload = vi.fn(async () => undefined);
     function Will() {

@@ -76,7 +76,8 @@ const FREE = { lines: [], per_send: 0, month: 0, nothing: true };
 let recipe: R;
 /** The backend as the contract has it: each PUT keeps one part. */
 function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null }) {
-  recipe = first();
+  // Each PUT keeps a part of the recipe the read serves (a new one before).
+  recipe = (read.recipe as R | null) ?? first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
   for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
@@ -690,6 +691,86 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Keep");
     expect(puts("hello")).toEqual([SUGGEST.hello[1]]);
     expect(text()).toContain("Your hello");
+  });
+
+  it("N632-2 what the first Take said fills What do you do?, to send as it is or change", async () => {
+    backend({ recipe: null, parts: [], own_chat: null, cost: null, spec_guess: "Trichologist" });
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    expect(text()).toContain("What do you do?");
+    await tap("Answer");
+    expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe("Trichologist");
+    await act(async () => (container.querySelector("form") as HTMLFormElement).requestSubmit());
+    await flush();
+    expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "Trichologist" });
+    expect(text()).toContain("Is your work about health, law or money?");
+  });
+
+  it("N632-4 Start again, quiet under the parts, begins again from What do you do? and the chat is not open until the end", async () => {
+    const parts = [{ part: "line", title: "Why people come", value: SUGGEST.line[0] }];
+    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    await mount();
+    act(() => void openSetupFromNote());
+    await flush();
+    expect(text()).toContain("Why people come");
+    // Under the parts, not in the foot beside "Back to my chats".
+    expect(button("Start again").closest("[data-host-foot]")).toBeNull();
+    await tap("Start again");
+    expect(text()).toContain("What do you do?");
+    await tap("‹ Back");
+    expect(text()).toContain("Why people come");
+    await tap("Start again");
+    await tap("Answer");
+    await type("barber");
+    expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "barber" });
+    expect(text()).toContain("Is your work about health, law or money?");
+    await tap("No");
+    // Every step again, not back to the parts after one.
+    await tap("Keep");
+    expect(text()).toContain("What do people send you? Tick all that apply.");
+  });
+
+  it("N632-5 a Not now is never final: Your models, after Not now, adds a model and the parts show it", async () => {
+    await begun();
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Not now");
+    await tap("I draft, you send");
+    await tap("Not now");
+    // The parts as the backend reads them now: "Your models" always, "None yet" while there are none.
+    bff.routes["GET /api/v2/chats/setup"] = () => ({
+      recipe,
+      parts: [
+        { part: "line", title: "Why people come", value: SUGGEST.line[0] },
+        { part: "models", title: "Your models", value: ((recipe.models as R[]) ?? []).map((m) => m.q).join(" · ") || "None yet" },
+      ],
+      own_chat: { title: "Lena", line: SUGGEST.hello[0] },
+      cost: FREE,
+    });
+    await tap("Not yet");
+    expect(container.querySelector("[data-host-setup]")).toBeNull();
+    act(() => void openSetupFromNote());
+    await flush();
+    expect(text()).toContain("Your modelsNone yet");
+    await tap("Your models");
+    expect(text()).toContain("Want to make it trichologist-smart?");
+    await tap("‹ Back");
+    expect(text()).toContain("Your modelsNone yet");
+    await tap("Your models");
+    await tap("Yes");
+    expect(puts("smart")).toEqual([false, true]);
+    expect(text()).toContain("Two ways to make it smart. Pick one.");
+    await tap("Train your own");
+    await tap("Train my own");
+    await tap("Keep");
+    expect(puts("models")).toEqual([[{ ...SUGGEST.models[0], own: true }]]);
+    await tap("No");
+    // Sharing them, then whether to open it, as in the first run; a Not yet stays a Not yet.
+    expect(text()).toContain("These are your models.");
+    await tap("Not now");
+    expect(text()).toContain("Open your chat to people?");
+    await tap("Not yet");
+    expect(text()).toContain(`Your models${SUGGEST.models[0].q}`);
   });
 
   it("FIRST-21 an ordinary message from a host with a set-up chat goes to Will as before", async () => {
