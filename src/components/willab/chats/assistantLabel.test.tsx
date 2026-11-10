@@ -1,28 +1,20 @@
 // @vitest-environment jsdom
 /*
 STORY    As someone who invites people, I want each chat with a person to say
-         whose assistant answers there, and my link's join page to name my
-         assistant and what Will's chat is for, so that whoever joins knows
-         an AI answers for me (backend N578 item 1, N580 items 1 and 3, N586
-         item 2; behind the ring row chat_builder, N579 item 2).
+         whose assistant answers there, so that whoever joins knows an AI
+         answers for me (backend N578 item 1, N580 items 1 and 3; behind the
+         ring row chat_builder, N579 item 2). The join page is three lines
+         (N601; its own story is JoinPage.test.tsx).
 OUTCOME
   O1  HOST-N578-1: with the ring, a chat with a person in my list says
       "Tomek's assistant" under the name, with the assistant's mark on the
       circle; without the ring (no `assistant` from the backend) the row is
       as it was, with no mark.
-  O2  HOST-N586-2: the join page of a tester's link says "Tomek's
-      assistant" and Will's line in the backend's words ("Will's chat is
-      where you can set up a chat of your own."); anyone else's link keeps
-      "Your own chat with Will, your speaking coach" and no assistant.
-  O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
-      from the backend only when it sends them.
-  O4  HOST-N586-1: the join page draws the host's `about` lines (who they
-      are, what you can learn with them) as the chat's top does, only when
-      the backend sends them.
+  O2  HOST-N601-1: the join page's read keeps only the name and the host's
+      `about` words, and the page draws them as one line of what you'll
+      learn, only when the backend sends them.
 PROVES   O1 -> "HOST-N578-1: the list says whose assistant answers, only with the ring"
-         O2 -> "HOST-N586-2: a tester's join page names the assistant and Will's chat"
-         O3 -> "HOST-N586-2: the join page's read keeps the two lines only when sent"
-         O4 -> "HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent"
+         O2 -> "HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent"
 WHY      Every inviter has a chat of their own, answered by "{name}'s
          assistant" (founder, 9 November 2026, N578 to N580, N586).
 */
@@ -84,41 +76,20 @@ describe("{name}'s assistant", () => {
     }
   });
 
-  it("HOST-N586-2: a tester's join page names the assistant and Will's chat", async () => {
-    const page = (props: { assistant?: string | null; willLine?: string | null }) =>
-      act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Tomek", finish: false, ...props })));
-
-    await page({ assistant: "Tomek's assistant", willLine: "Will's chat is where you can set up a chat of your own." });
-    let text = container.textContent ?? "";
-    expect(container.querySelector("[data-join-assistant]")?.textContent).toBe("Tomek's assistant");
-    expect(container.querySelector("[data-join-will-line]")?.textContent).toBe("Will's chat is where you can set up a chat of your own.");
-    expect(text).not.toContain("Your own chat with Will, your speaking coach");
-
-    await page({});
-    text = container.textContent ?? "";
-    expect(container.querySelector("[data-join-assistant]")).toBeNull();
-    expect(text).toContain("Your own chat with Will, your speaking coach");
-  });
-
-  it("HOST-N586-2: the join page's read keeps the two lines only when sent", async () => {
-    expect(joinLinkInfo({ name: "Tomek", assistant: "Tomek's assistant", will_line: "Will's chat is where you can set up a chat of your own." })).toEqual({
-      name: "Tomek",
-      assistant: "Tomek's assistant",
-      willLine: "Will's chat is where you can set up a chat of your own.",
-      about: [],
+  it("HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent", async () => {
+    const info = joinLinkInfo({
+      name: "Lena",
+      assistant: "Lena's assistant",
+      will_line: "Will's chat is where you can set up a chat of your own.",
+      about: ["Ask her what to use on your hair, and why.", " ", 7],
     });
-    expect(joinLinkInfo({ name: "Tomek" })).toEqual({ name: "Tomek", assistant: null, willLine: null, about: [] });
+    expect(info).toEqual({ name: "Lena", about: ["Ask her what to use on your hair, and why."] });
+    expect(joinLinkInfo({ name: "Lena" })).toEqual({ name: "Lena", about: [] });
     expect(joinLinkInfo({ code: "NOT_FOUND" })).toBeNull();
-  });
-
-  it("HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent", async () => {
-    const info = joinLinkInfo({ name: "Tomek", about: ["Tomek coaches gymnastics.", " ", 7, "In Tomek's chat you can practise your first handstand."] });
-    expect(info?.about).toEqual(["Tomek coaches gymnastics.", "In Tomek's chat you can practise your first handstand."]);
-    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Tomek", finish: false, about: info!.about })));
-    expect(container.querySelector("[data-host-about]")?.textContent).toBe(
-      "Tomek coaches gymnastics.In Tomek's chat you can practise your first handstand.",
-    );
-    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Tomek", finish: false })));
-    expect(container.querySelector("[data-host-about]")).toBeNull();
+    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Lena", finish: false, about: info!.about })));
+    expect(container.querySelector("[data-join-learn]")?.textContent).toBe("Ask her what to use on your hair, and why.");
+    expect(container.textContent).not.toContain("Lena's assistant");
+    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Lena", finish: false })));
+    expect(container.querySelector("[data-join-learn]")).toBeNull();
   });
 });

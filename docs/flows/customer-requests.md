@@ -414,11 +414,14 @@ their join link: no workspace, no form, a visitor who only taps.
      chat / Only the two of you are in it"; "Cancel" (N310 item 3, N367).
      Was: a grey box with the title, the line and the link, and Copy my
      link with a tick for two seconds. The link opens the join page, before
-     any sign-in: who invites you ("{Name} asks you to join them on
-     WillpowerLab"), "A chat with {name}", "Your own chat with Will, your
-     speaking coach", "Nobody else can reach you here unless you open their
-     link too.", one button, "Join" (N307), and "Opens in your browser.
-     Nothing to install." (N335 item 2). Signed out, Join goes to sign in or
+     any sign-in, in three lines (N601): "{name} invited you"; one sentence
+     of what you'll learn in their chat, the host's own words when the
+     backend sends them (N586 item 1's about); "Only the two of you are in
+     this chat."; one button, "Join" (N307), and nothing under it. Was
+     (N310 item 3, N335 item 2, N586 item 2): "{Name} asks you to join them
+     on WillpowerLab", "A chat with {name}", the assistant's name, Will's
+     line, "Nobody else can reach you here unless you open their link
+     too." and "Opens in your browser. Nothing to install.". Signed out, Join goes to sign in or
      sign up and comes back to finish; joined, /chat opens on the list of chats,
      Will's row first (N360) and the chat with the person who invited you
      right under it, marked new (N357; was N348 item 1, the chat itself): one chat for the two of them,
@@ -908,6 +911,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N601 · C1: the join page in three lines, "{name} invited you", what you'll learn (the host's `about` words when the backend sends them, one line in place of #1356's card) and "Only the two of you are in this chat.", then Join with nothing under it; the old title, "A chat with {name}", the assistant's name, Will's line, "Nobody else…" and "Opens in your browser…" go. Not yet: Artur's signed sentence ("Record a short talk. He'll tell you what landed and what to try next.") needs the backend to send it for his link · FE (this PR)
 - 2026-11-10 · N600 items 1 to 4 · C1: in a host's chat (GET /v2/chats/<id>/host) the bar follows the host's answer_with: "+" on the left; a small mic on the right when Record is chosen, which records the answer to what waits ("Record your answer" no longer takes the middle) or, at rest, a question as the "+" does; Tap alone has no mic; no "Something else"; the same bar at rest and while a question waits. Artur's chat keeps "Record Take N" (item 4). Not yet: the typing box (POST /v2/chats/<id>/messages takes the three emoji only, so the emoji keep the middle), and the setup's "Like this:" frames (item 5, no backend data) · FE (this PR)
 - 2026-11-09 · N587 items 3 to 5, N588 item 4 · C1: behind the ring row `chat_builder`, one Take's answers in one place, for the sender only: under my own Take in a chat, one bubble with the faces of everyone who answered and the names the backend shows (my coach's and the best other, "{names} answered"); a tap opens all of them under "On your speaking" and "On the matter", each with "Open your chat with {name}", which opens that chat. 404 (no ring, a Take sent nowhere) draws nothing. Not yet: "Read it" on each answer and "Share with {name}" (not in the route), and the strip at the top while an answer is new · BE #1859, FE (this PR)
 - 2026-11-09 · N584, N580 item 3 · C1: behind the ring row `chat_builder`, one recording answers everyone who asked the same thing. In Will's chat, each bundle still waiting is a card: its line in the backend's words ("{n} people asked: {question}"), each person's question with its colour for how sure the match is (green, yellow, red; never a number) and "Record one answer", which opens the recording screens on the first question; the Take then goes to the bundle's route at once, with no Undo (the route holds nothing), and the queue is read again. In the asker's chat, the answer comes under their own question quoted, with the colour. Not yet: split and merge (routes built, no screen), the assistant's draft in the card (not in the route) · BE #1857, FE (this PR)
