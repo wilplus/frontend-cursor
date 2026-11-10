@@ -203,7 +203,7 @@ describe("the blank setup (FIRST-)", () => {
     await type("People come to you for a score out of ten.");
     await tap("Keep");
     expect(text()).toContain("People come to you for this:");
-    expect(text()).toContain("Try other words. Your chat can't show scores or verdicts.");
+    expect(text()).toContain("Try other words. Your chat can't show a score or a number about someone.");
     await tap("Change");
     expect(text()).not.toContain("Try other words.");
   });
@@ -244,6 +244,23 @@ describe("the blank setup (FIRST-)", () => {
     expect(ticks()[0]).toContain("A photo");
     expect(ticks()[0]).toContain("true");
     await tap("A message");
+    await tap("Done");
+    expect(puts("send")).toEqual([["photo", "text"]]);
+  });
+
+  it("FIRST-04 what people send shows what the recipe holds: A message ticked with the first suggestion (N625)", async () => {
+    backend();
+    recipe = first({ send: ["photo", "text"] });
+    bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    await tap("Answer");
+    await type("trichologist");
+    await tap("No");
+    await tap("Keep");
+    const ticked = [...container.querySelectorAll('[role="checkbox"][aria-checked="true"]')].map((b) => b.querySelector("b")?.textContent);
+    expect(ticked).toEqual(["A photo", "A message"]);
     await tap("Done");
     expect(puts("send")).toEqual([["photo", "text"]]);
   });

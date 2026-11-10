@@ -57,7 +57,7 @@ export const W = {
   careSay: "Is your work about health, law or money?",
   careCap: "If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.",
   careWho: "Your work is about health, law or money, so nothing goes out until you send it.",
-  refusedWords: "Try other words. Your chat can't show scores or verdicts.",
+  refusedWords: "Try other words. Your chat can't show a score or a number about someone.",
   lineCap: "New people read this before they join your chat.",
   lineSay: "People come to you for this:",
   lineAsk: "Why do people come to you?",
