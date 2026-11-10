@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { openCoachQueue } from "@/lib/willab/coachDoor";
+import type { PriceChange } from "@/services/api/hostSetup";
+import { TapRow } from "../../WillQuestion";
 import { useUserProfile } from "../../useUserProfile";
 import { W } from "./hostSetupCopy";
 import { openOverList, type OpenDetail } from "./hostSetupDoor";
-import { useHostWork, type WorkKind } from "./hostWork";
+import { answerPriceChange, useHostWork, type WorkKind } from "./hostWork";
 
 /* -------------------------------------------------------------------------- */
 /*  What needs you, in Will's chat (backend N629 item 1): "This needs you:"  */
@@ -35,6 +38,23 @@ function Said({ children }: { children: string }) {
   return <p className="m-0 text-[15.5px] font-medium text-foreground">{children}</p>;
 }
 
+/** "{name} changed the price of their model. Keep it at the new price, or
+ *  drop it?" with Keep and Drop (N633 item 4); a tap at a time. */
+function PriceLine({ change, coach }: { change: PriceChange; coach: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const answer = (label: string) => {
+    if (busy) return;
+    setBusy(true);
+    void answerPriceChange(change, label === W.keep, coach).finally(() => setBusy(false));
+  };
+  return (
+    <div data-price-changed={change.model_id} className="flex flex-col gap-2">
+      <p className="m-0 rounded-2xl bg-muted px-3.5 py-2.5 text-[15px] leading-snug text-foreground">{W.priceChanged(change.by)}</p>
+      <TapRow even labels={[W.keep, W.drop]} disabled={busy} onTap={answer} dataAttr={{ "data-price-taps": "" }} />
+    </div>
+  );
+}
+
 export default function WillNeedsYou() {
   const { isCoach } = useUserProfile();
   const work = useHostWork(isCoach);
@@ -48,13 +68,16 @@ export default function WillNeedsYou() {
   };
   return (
     <div data-will-needs-you="" className="mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5">
-      {work.lines.length || work.skipped.length ? (
+      {work.lines.length || work.skipped.length || work.priceChanges.length ? (
         <>
           <Said>{W.needsYou}</Said>
           {work.skipped.map((by, k) => (
             <p key={`${by}-${k}`} data-left-out="" className="m-0 rounded-2xl bg-muted px-3.5 py-2.5 text-[15px] leading-snug text-foreground">
               {W.leftOut(by)}
             </p>
+          ))}
+          {work.priceChanges.map((change) => (
+            <PriceLine key={change.model_id} change={change} coach={isCoach} />
           ))}
           {work.lines.map(({ kind, n }) => (
             <Row key={kind} kind={kind} title={kinds[kind].title(n)} line={kinds[kind].line} onOpen={kinds[kind].open} />

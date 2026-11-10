@@ -12,7 +12,9 @@ export type SendKind = "rec" | "text" | "photo" | "file";
 export type OutKind = "answer" | "words" | "todo" | "mark";
 export type WhoKind = "shadow" | "you" | "assistant";
 export type ModelDraft = { q: string; opts: string[]; says: string };
-export type RecipeModel = ModelDraft & { own: boolean; model_id?: string; by?: string; price?: number };
+/** `learning`: someone's model still learning (N633 item 1): free, it gives
+ *  no line, and the host's answers teach it. */
+export type RecipeModel = ModelDraft & { own: boolean; model_id?: string; by?: string; price?: number; learning?: boolean };
 export type Suggest = {
   line: string[];
   send: SendKind[];
@@ -56,12 +58,16 @@ export type SetupRead = {
   /** What the first Take said the person does, to keep or change on "What
    *  do you do?" (N632 item 2); null when it said nothing. */
   spec_guess: string | null;
+  price_changes: PriceChange[];
 };
 export type SkippedModel = { model_id: string; q: string; by: string; on: string };
 /** The host's own chat: its row, the share link (`/c/<token>`), and the line
  *  a newcomer reads before joining ("People come to {name} ..."). */
 export type OwnChat = { title: string; line: string; link?: { token: string; path: string } | null; join_line?: string | null };
-export type SharedModel = { model_id: string; q: string; opts: string[]; by: string; price: number; fits: boolean; needs: string };
+export type SharedModel = { model_id: string; q: string; opts: string[]; by: string; price: number; fits: boolean; needs: string; learning?: boolean };
+/** Someone's model in the host's chat whose price is no longer the one the
+ *  host agreed to (N630 item 3, N633 item 4); `was` 0: it was still learning. */
+export type PriceChange = { model_id: string; q: string; by: string; was: number; now: number };
 export type ReplyLine = { kind: "answer" | "model"; body: string; by: string };
 
 type Body = Record<string, unknown>;
@@ -91,6 +97,7 @@ export async function readSetup(): Promise<SetupRead | null> {
     own_chat: own && typeof own.title === "string" ? own : null,
     cost: costOf(body.cost),
     skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
+    price_changes: list<PriceChange>(body.price_changes).filter((c) => c && typeof c.model_id === "string" && typeof c.by === "string" && typeof c.now === "number"),
     spec_guess: typeof body.spec_guess === "string" && body.spec_guess.trim() ? body.spec_guess.trim() : null,
   };
 }

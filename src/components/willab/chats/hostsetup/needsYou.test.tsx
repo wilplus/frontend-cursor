@@ -12,10 +12,13 @@ OUTCOME
       words, singular and plural, each opening its work.
   O4  A model left out today for want of tokens is a line to read in Will,
       one of the things that need me (backend N630 item 1).
+  O5  A model whose price changed is a line in Will with Keep and Drop; one
+      tap saves the chat's models and the line goes (backend N633 item 4).
   O3  With the ring the list has no "Your queue" and no "AI models" rows and
       Will's line says how many things need me; without it, as it was.
 PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice"
          O4 -> "N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list"
+         O5 -> "N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes"
          O2 -> "N629-1 Will says what needs you, each line opening its work; nothing waiting says so"
          O3 -> "N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was"
 */
@@ -249,5 +252,42 @@ describe("what needs you is in Will (backend N629)", () => {
     );
     await flush();
     expect(text()).toContain("1 thing needs you");
+  });
+
+  it("N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes", async () => {
+    const kasia = { q: "Is the skin red?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "k1", by: "Kasia", price: 3 };
+    const tomek = { q: "Is it thinning?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "t1", by: "Tomek", price: 0, learning: true };
+    let models: Record<string, unknown>[] = [...RECIPE.models, kasia, tomek];
+    let changes = [
+      { model_id: "k1", q: kasia.q, by: "Kasia", was: 3, now: 5 },
+      // A model added while still learning that has passed: the same line.
+      { model_id: "t1", q: tomek.q, by: "Tomek", was: 0, now: 2 },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = () => ({ ...SETUP, recipe: { ...RECIPE, models }, price_changes: changes });
+    bff.routes["PUT /api/v2/chats/setup/models"] = (c: Call) => {
+      models = (c.json as { value: Record<string, unknown>[] }).value;
+      changes = changes.filter((ch) => !models.some((m) => m.model_id === ch.model_id && m.price === ch.now) && models.some((m) => m.model_id === ch.model_id));
+      return { recipe: { ...RECIPE, models }, cost: null };
+    };
+    act(() => root.render(createElement(WillNeedsYou)));
+    await flush();
+    expect(text().startsWith("This needs you:")).toBe(true);
+    const lines = () => [...container.querySelectorAll("[data-price-changed] p")].map((p) => p.textContent);
+    expect(lines()).toEqual([
+      "Kasia changed the price of their model. Keep it at the new price, or drop it?",
+      "Tomek changed the price of their model. Keep it at the new price, or drop it?",
+    ]);
+    const tapIn = async (id: string, label: string) => {
+      const b = [...container.querySelectorAll(`[data-price-changed="${id}"] button`)].find((x) => x.textContent === label) as HTMLButtonElement;
+      await act(async () => b.click());
+      await flush();
+    };
+    await tapIn("k1", "Keep");
+    const saved = (k: number) => (bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/models")[k].json as { value: unknown }).value;
+    expect(saved(0)).toEqual([RECIPE.models[0], { ...kasia, price: 5 }, tomek]);
+    expect(lines()).toEqual(["Tomek changed the price of their model. Keep it at the new price, or drop it?"]);
+    await tapIn("t1", "Drop");
+    expect(saved(1)).toEqual([RECIPE.models[0], { ...kasia, price: 5 }]);
+    expect(container.querySelector("[data-price-changed]")).toBeNull();
   });
 });

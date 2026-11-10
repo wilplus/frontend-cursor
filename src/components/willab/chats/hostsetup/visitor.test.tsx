@@ -120,6 +120,36 @@ describe("what a visitor meets (VIS-)", () => {
     expect(thread()).not.toContain("Tell me what you'd like to do");
   });
 
+  it("N633-2 in a chat the two already share, the other's hello row and taps show once, never doubled; never one's own", async () => {
+    const welcome = (id: string, mine: boolean) => ({ ...row(id, HELLO, { welcome: { i: 0 } }, mine) });
+    // Lena's chat opened after the two had talked: her hello is written here once.
+    await open([row("m-0", "See you Thursday", null, true), row("m-1", "Great, see you", null), welcome("w-1", false)], ["text"]);
+    expect(thread().split(HELLO)).toHaveLength(2);
+    expect([...container.querySelectorAll("[data-visitor-taps] button")].map((b) => b.textContent)).toEqual(TAPS);
+    expect(box()).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    // The reverse: she joined through my link (my hello row first, mine), we
+    // talked, then her chat opened: her hello and taps show to me.
+    await open([welcome("w-a", true), row("m-a", "Hello!", null), row("m-b", "Hi Lena", null, true), welcome("w-b", false)], ["text"]);
+    expect([...container.querySelectorAll("[data-visitor-taps] button")].map((b) => b.textContent)).toEqual(TAPS);
+    act(() => root.unmount());
+    root = createRoot(container);
+    // Once I have sent something after her hello, its taps are gone (once).
+    await open([welcome("w-0", false), row("m-2", "Look at my scalp", null, true)], ["text"]);
+    expect(container.querySelector("[data-visitor-taps]")).toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    // My own hello row in a chat with someone whose chat is not open: no host,
+    // so none of my own taps are shown to me.
+    routes["GET /api/v2/chats/c-9/messages"] = () => json({ messages: [welcome("w-2", true), row("m-3", "Hi", null)] });
+    routes["GET /api/v2/chats/c-9/host"] = () => new Response(JSON.stringify({ host: null }), { status: 200 });
+    await act(async () => root.render(createElement(ChatThread, { chat, onBack: () => undefined })));
+    await flush();
+    expect(container.querySelector("[data-visitor-taps]")).toBeNull();
+    expect(container.querySelector("[data-host-hello]")).toBeNull();
+  });
+
   it("VIS-02 the bar follows what the host takes: a message, the box; a recording alone, no box", async () => {
     await open([], ["text"]);
     expect(box()).not.toBeNull();

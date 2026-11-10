@@ -48,7 +48,7 @@ export function HostHello({ hello, taps, messages, onTap }: {
 }) {
   // "Something else" alone is no choice: a recipe with no taps draws none.
   const choices = taps.some((t) => t !== W.somethingElse) ? taps : [];
-  if (!messages || messages.some((m) => m.mine) || (!hello && !choices.length)) return null;
+  if (!messages || sentSinceHello(messages) || (!hello && !choices.length)) return null;
   return (
     <div data-host-hello="" className="flex flex-col gap-2 pt-1">
       {hello && !messages.length ? <Line>{hello}</Line> : null}
@@ -60,6 +60,20 @@ export function HostHello({ hello, taps, messages, onTap }: {
       ) : null}
     </div>
   );
+}
+
+/** Has the person sent anything since the chat's hello reached them? The
+ *  hello is the other person's newest welcome row (meta.welcome): written on
+ *  joining through their link, or in a chat the two already share when the
+ *  person first opens it after that chat opened (backend N633 item 2), so
+ *  what was said there before does not hide the taps. Without such a row,
+ *  anything sent. One's own welcome rows are not the hello. */
+function sentSinceHello(messages: readonly ChatMessage[]): boolean {
+  let start = 0;
+  messages.forEach((m, k) => {
+    if (!m.mine && m.meta && typeof m.meta === "object" && "welcome" in m.meta) start = k + 1;
+  });
+  return messages.slice(start).some((m) => m.mine);
 }
 
 function Line({ children }: { children: ReactNode }) {

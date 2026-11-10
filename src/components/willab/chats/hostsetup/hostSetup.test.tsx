@@ -413,6 +413,55 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Add another model?");
   });
 
+  it("N633-1 a model still learning: marked Still learning, no price and no promise of a line; added free, and so in the parts and the cost", async () => {
+    await begun();
+    bff.routes["GET /api/v2/chats/setup/models"] = {
+      models: [{ model_id: "m3", q: "Is the scalp flaky?", opts: ["Yes", "Somewhat", "No"], by: "Kasia", price: 0, fits: true, needs: "", learning: true }],
+    };
+    const LEARNING = { lines: [{ q: "Is the scalp flaky?", by: "Kasia", price: 0 }], per_send: 0, month: 0, nothing: true };
+    bff.routes["PUT /api/v2/chats/setup/models"] = (c: Call) => {
+      // The backend keeps a model still learning with learning true.
+      recipe = { ...recipe, models: ((c.json as R).value as R[]).map((m) => ({ ...m, learning: true })) };
+      return { recipe, cost: LEARNING };
+    };
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Use a model that exists");
+    const row = button("Is the scalp flaky?");
+    expect(row.textContent).toContain("Still learning");
+    expect(row.textContent).toContain("Kasia made it.");
+    expect(row.textContent).not.toContain("tokens");
+    await tap("Is the scalp flaky?");
+    expect(text()).toContain("Still learning");
+    expect(text()).not.toContain("Your chat gets smarter today");
+    expect(text()).not.toContain("It costs you");
+    await tap("Add it");
+    expect(puts("models")).toEqual([[{ q: "Is the scalp flaky?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "m3", by: "Kasia", price: 0 }]]);
+    await tap("No");
+    bff.routes["PUT /api/v2/chats/setup/who"] = (c: Call) => {
+      recipe = { ...recipe, who: (c.json as R).value };
+      return { recipe, cost: LEARNING };
+    };
+    await tap("I draft, you send");
+    // What it costs: the model listed, still learning, counting nothing.
+    const line = container.querySelector("[data-cost-line]")!;
+    expect(line.textContent).toContain("Still learning");
+    expect(line.textContent).not.toContain("Kasia's model");
+    expect(text()).toContain("Your chat costs you nothing.");
+    await tap("Next");
+    await tap("Not now");
+    bff.routes["GET /api/v2/chats/setup"] = () => ({
+      recipe,
+      parts: [{ part: "models", title: "Your models", value: "Is the scalp flaky?" }],
+      own_chat: { title: "Lena", line: SUGGEST.hello[0] },
+      cost: LEARNING,
+    });
+    await tap("Not yet");
+    act(() => void openSetupFromNote());
+    await flush();
+    expect(container.querySelector('[data-part="models"]')?.textContent).toBe("Your modelsIs the scalp flaky?Still learning");
+  });
+
   it("FIRST-19 your own model: what it is, worth it, not worth it; Train my own goes on", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");
