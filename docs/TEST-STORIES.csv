@@ -119,6 +119,7 @@ and the speaker must be signed in.","O1 -> ""forwards the acknowledgement verbat
 src/app/api/v2/me/meChoices.route.test.ts,Story,"As a newcomer, I want my ""Join"" / ""Not now"" answer to the community offer and my speaking-match switch saved, so that the choice I make is the one the backend keeps.","O1  The community-offer answer is sent (POST) to the backend with its body.
 O2  The speaking-match switch is sent (POST) to the backend with its body.","O1 -> ""relays the community-offer answer with its body""
 O2 -> ""relays the speaking-match switch with its body""",
+src/app/api/v2/models/[modelId]/setup/data/route.test.ts,Story,"As someone starting a model, ""I don't have any"" on the data step goes on, as ""Use this data"" does: the step's answer reaches the backend as JSON, and only a file is relayed as an upload (the founder's trial).",,"one test, named TRIAL-DATA-BFF",
 src/app/api/v2/plan/answers/[answerId]/audio/route.test.ts,Story,"As a speaker on Safari, I want my own voice answers to play when I tap them, so that I can hear what I told Will.","O1  The player's byte-range request reaches the backend, and the part it
 answers comes back as a part: 206 with its Content-Range, which
 Safari needs before it plays anything.","O1 -> ""relays a byte range as a byte range""",The founder's voice bubbles didn't play in Safari on a Mac (backend N262 item 4); docs/flows/the-plan.md §6.

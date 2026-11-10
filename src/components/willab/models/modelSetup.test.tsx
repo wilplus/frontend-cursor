@@ -281,6 +281,29 @@ describe("starting a model: Shape (MOD-27 to MOD-33, MOD-38, MOD-55)", () => {
     expect(posted("/setup/rules")[0]).toMatchObject({ use: true, on: [true], strictness: "clear" });
   });
 
+  it("TRIAL-DATA: I don't have any goes on with the step's answer, never an upload; the relay's own error never reaches the screen", async () => {
+    await openStep("data", {
+      "POST /api/v2/models/pitch/setup/data": (c: Call) =>
+        c.body instanceof FormData ? { status: 400, body: { code: "INVALID_MULTIPART", error: "Invalid multipart payload." } } : S.exam,
+    });
+    await tap("I don’t have any");
+    const sent = bff.calls.filter((c) => c.method === "POST" && c.path.endsWith("/setup/data"));
+    expect(sent.map((c) => c.json)).toEqual([{}]);
+    expect(sent.some((c) => c.body instanceof FormData)).toBe(false);
+    expect(text()).not.toContain("Invalid multipart payload.");
+    expect(container.querySelector("[data-setup-step]")?.getAttribute("data-setup-step")).toBe("exam");
+    // An upload the relay could not read: nothing raw on the screen, the step stays.
+    act(() => root.unmount());
+    root = createRoot(container);
+    await openStep("data", {
+      "POST /api/v2/models/pitch/setup/data": { status: 400, body: { code: "INVALID_MULTIPART", error: "Invalid multipart payload." } },
+    });
+    await choose(container.querySelector("[data-setup-file-input]")!, new File(["a,b"], "pitch-ratings.csv", { type: "text/csv" }));
+    expect(text()).not.toContain("Invalid multipart payload.");
+    expect(container.querySelector("[data-setup-refused]")).toBeNull();
+    expect(container.querySelector("[data-setup-step]")?.getAttribute("data-setup-step")).toBe("data");
+  });
+
   it("MOD-31: the upload: map its columns, a name column left out, then the check, and \"Upload it\" only with the tick", async () => {
     await openStep("data", {
       "POST /api/v2/models/pitch/setup/data": S.columns,

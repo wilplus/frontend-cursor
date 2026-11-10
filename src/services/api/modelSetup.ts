@@ -67,6 +67,9 @@ export type SetupRefusal = { refused: string };
 
 const id = (value: string) => encodeURIComponent(value);
 
+/** Refusals of this app's own relay, not the backend's words. */
+const PLUMBING = new Set(["INVALID_MULTIPART", "BAD_REQUEST", "BACKEND_UNAVAILABLE", "UPSTREAM_TIMEOUT", "UNAUTHENTICATED"]);
+
 function stateOf(body: unknown): SetupState | null {
   const raw = body as Partial<SetupState> | null;
   return raw && typeof raw.model_id === "string" && raw.screen && typeof raw.screen.step === "string"
@@ -79,8 +82,11 @@ async function call(path: string, init: Parameters<typeof bffFetch>[1]): Promise
     const result = await bffFetch(path, { cache: "no-store", ...init });
     if (result.kind !== "response") return null;
     if (result.ok) return stateOf(result.body);
-    const error = (result.body as { error?: unknown } | null)?.error;
-    return result.status === 400 && typeof error === "string" ? { refused: error } : null;
+    const body = result.body as { error?: unknown; code?: unknown } | null;
+    // The backend's own reason in words; never this app's plumbing (a request
+    // the relay could not read), which says nothing to the owner.
+    if (typeof body?.code === "string" && PLUMBING.has(body.code)) return null;
+    return result.status === 400 && typeof body?.error === "string" ? { refused: body.error } : null;
   } catch {
     return null;
   }
