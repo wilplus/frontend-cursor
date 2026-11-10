@@ -16,9 +16,13 @@ OUTCOME
       "Your own chat with Will, your speaking coach" and no assistant.
   O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
       from the backend only when it sends them.
+  O4  HOST-N586-1: the join page draws the host's `about` lines (who they
+      are, what you can learn with them) as the chat's top does, only when
+      the backend sends them.
 PROVES   O1 -> "HOST-N578-1: the list says whose assistant answers, only with the ring"
          O2 -> "HOST-N586-2: a tester's join page names the assistant and Will's chat"
          O3 -> "HOST-N586-2: the join page's read keeps the two lines only when sent"
+         O4 -> "HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent"
 WHY      Every inviter has a chat of their own, answered by "{name}'s
          assistant" (founder, 9 November 2026, N578 to N580, N586).
 */
@@ -101,8 +105,20 @@ describe("{name}'s assistant", () => {
       name: "Tomek",
       assistant: "Tomek's assistant",
       willLine: "Will's chat is where you can set up a chat of your own.",
+      about: [],
     });
-    expect(joinLinkInfo({ name: "Tomek" })).toEqual({ name: "Tomek", assistant: null, willLine: null });
+    expect(joinLinkInfo({ name: "Tomek" })).toEqual({ name: "Tomek", assistant: null, willLine: null, about: [] });
     expect(joinLinkInfo({ code: "NOT_FOUND" })).toBeNull();
+  });
+
+  it("HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent", async () => {
+    const info = joinLinkInfo({ name: "Tomek", about: ["Tomek coaches gymnastics.", " ", 7, "In Tomek's chat you can practise your first handstand."] });
+    expect(info?.about).toEqual(["Tomek coaches gymnastics.", "In Tomek's chat you can practise your first handstand."]);
+    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Tomek", finish: false, about: info!.about })));
+    expect(container.querySelector("[data-host-about]")?.textContent).toBe(
+      "Tomek coaches gymnastics.In Tomek's chat you can practise your first handstand.",
+    );
+    await act(async () => root.render(createElement(JoinPage, { token: "AbCd", name: "Tomek", finish: false })));
+    expect(container.querySelector("[data-host-about]")).toBeNull();
   });
 });

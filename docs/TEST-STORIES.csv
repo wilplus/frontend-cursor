@@ -626,9 +626,13 @@ assistant"" and Will's line in the backend's words (""Will's chat is
 where you can set up a chat of your own.""); anyone else's link keeps
 ""Your own chat with Will, your speaking coach"" and no assistant.
 O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
-from the backend only when it sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
+from the backend only when it sends them.
+O4  HOST-N586-1: the join page draws the host's `about` lines (who they
+are, what you can learn with them) as the chat's top does, only when
+the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
 O2 -> ""HOST-N586-2: a tester's join page names the assistant and Will's chat""
-O3 -> ""HOST-N586-2: the join page's read keeps the two lines only when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
+O3 -> ""HOST-N586-2: the join page's read keeps the two lines only when sent""
+O4 -> ""HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
 src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584; behind the ring row chat_builder, N579 item 2).","O1  HOST-N584-1: in Will's chat, each bundle still waiting is one card:
 ""2 people asked: How do I start a handstand?"", each person's question
 with its colour (green or yellow, never a number) and ""Record one
