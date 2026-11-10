@@ -166,7 +166,7 @@ import { WillBarMiddle } from "./plan/PlanDock";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
 import BundleQueue from "./chats/BundleQueue";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
-import { ChatSetupBubble, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
+import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1656,7 +1656,8 @@ export default function Lounge({
       return;
     }
     if (setupWaits) {
-      await setupWaits.say(q);
+      // Refused or not sent: the words go back into the box, never lost.
+      if ((await setupWaits.say(q)) === false) setDraftText(q);
       followAnswer();
       return;
     }
@@ -1885,6 +1886,7 @@ export default function Lounge({
       open={i === shownItems.length - 1}
       onTap={(picked) => chatSetup.tap(item.message.client_id, picked).then(followAnswer)}
       builder={assistant.builder}
+      onBegin={chatSetupCanBegin(shownMessages) ? () => void chatSetup.begin().then(followAnswer) : undefined}
     />
   );
   const drawItem = (item: ThreadItem, i: number) => {
