@@ -266,9 +266,16 @@ function Foot({ signUpLater, onSignUp }: { signUpLater: boolean; onSignUp: () =>
 const seenCount = (chat: Pick<WidgetChatRead, "messages" | "answered">) =>
   String(chat.messages.filter((m) => !m.mine).length + (chat.answered ? 1 : 0));
 
-const NOTHING_YET: Pick<WidgetChatRead, "signedUp" | "signUp" | "answered" | "notice"> = { signedUp: false, signUp: false, answered: false, notice: null };
+const NOTHING_YET: Pick<WidgetChatRead, "signedUp" | "signUp" | "answered" | "noticeTo"> = { signedUp: false, signUp: false, answered: false, noticeTo: null };
 
-export default function WidgetChat({ token, name, writes: firstWrites, site }: { token: string; name: string; writes: WidgetWrites; site: string | null }) {
+export default function WidgetChat({ token, name, welcome = [], writes: firstWrites, site }: {
+  token: string;
+  name: string;
+  /** The host's welcome, shown before the visitor writes (N595 item 1). */
+  welcome?: string[];
+  writes: WidgetWrites;
+  site: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [guest, setGuest] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -283,7 +290,7 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
   const took = useCallback((chat: WidgetChatRead) => {
     setMessages(chat.messages);
     setWrites(chat.writes);
-    setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered, notice: chat.notice });
+    setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered, noticeTo: chat.noticeTo });
   }, []);
 
   const read = useCallback(
@@ -353,19 +360,6 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
     }
   };
 
-  // No consent card (N595 item 1): the visitor writes at once. Their first
-  // message makes their chat with the host (the backend's "start"), with the
-  // host's welcome and questions, then goes into it.
-  const ensureChat = async (): Promise<string | null> => {
-    if (guest) return guest;
-    const started = await startWidgetChat(token, site);
-    if (!started) return null;
-    keep(KEY(token), started.guest);
-    setGuest(started.guest);
-    took(started.chat);
-    return started.guest;
-  };
-
   const tapSetup = (message: ChatMessage, picked: string[], date?: string) =>
     run(async () => {
       if (!guest) return;
@@ -373,13 +367,24 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
       if (after) setMessages((was) => [...was, ...after]);
     });
 
+  // No consent card (N595 item 1): the visitor writes at once. Their first
+  // message makes their chat (the backend's "start"), the host's welcome and
+  // questions first, then the message; after that each goes into it.
   const send = async (kind: "emoji" | "text", body: string): Promise<boolean> => {
     if (busy) return false;
     let went = false;
     await run(async () => {
-      const who = await ensureChat();
-      if (!who) return;
-      const sent = await sendWidgetMessage(token, who, kind, body);
+      if (!guest) {
+        const started = await startWidgetChat(token, site, { kind, body });
+        if (!started) return;
+        went = true;
+        keep(KEY(token), started.guest);
+        setGuest(started.guest);
+        took(started.chat);
+        setLater(false);
+        return;
+      }
+      const sent = await sendWidgetMessage(token, guest, kind, body);
       if (!sent) return;
       went = true;
       setMessages((was) => [...was, sent.message]);
@@ -440,12 +445,19 @@ export default function WidgetChat({ token, name, writes: firstWrites, site }: {
       </header>
       <div ref={thread} data-widget-thread="" className="flex flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2 pt-3">
         <div className="flex-1" />
+        {!guest
+          ? welcome.map((line, i) => (
+              <div key={`welcome-${i}`} data-widget-welcome="" className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-[16px] rounded-bl-md bg-muted px-3 py-2 text-[15px] text-foreground">
+                {line}
+              </div>
+            ))
+          : null}
         {messages.map((m) => (
           <Bubble key={m.id} token={token} guest={guest ?? ""} message={m} />
         ))}
-        {state.signedUp && state.notice ? (
+        {state.signedUp && state.noticeTo ? (
           <p data-widget-signed-up="" className="mx-auto mt-1 max-w-[86%] rounded-[10px] bg-muted px-2.5 py-1.5 text-center text-[12.5px] text-muted-foreground">
-            {widgetSignedUp(state.notice)}
+            {widgetSignedUp(state.noticeTo)}
           </p>
         ) : null}
       </div>

@@ -28,9 +28,10 @@ export interface WidgetChat {
   signUp: boolean;
   /** An answer from the host waits behind the sign-up. */
   answered: boolean;
-  /** Signed up: where the first notice of the answer goes, when the backend
-   *  says (N595 item 2); null when it doesn't. */
-  notice: "phone" | "email" | null;
+  /** Signed up: where the first notice of the answer goes (`notice_to`, N595
+   *  item 2: "email" when the account has one, else "phone"); null when the
+   *  backend doesn't say. */
+  noticeTo: "phone" | "email" | null;
 }
 
 export const NO_WRITES: WidgetWrites = { tap: true, type: false, record: false };
@@ -63,7 +64,7 @@ async function call(url: string, guest: string | null, init: { method?: string; 
 }
 
 function chatOf(body: unknown): WidgetChat | null {
-  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice?: unknown } | null;
+  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice_to?: unknown } | null;
   if (!b || typeof b.name !== "string" || !Array.isArray(b.messages)) return null;
   return {
     name: b.name,
@@ -72,13 +73,20 @@ function chatOf(body: unknown): WidgetChat | null {
     signedUp: b.signed_up === true,
     signUp: b.sign_up === true,
     answered: b.answered === true,
-    notice: b.notice === "phone" || b.notice === "email" ? b.notice : null,
+    noticeTo: b.notice_to === "phone" || b.notice_to === "email" ? b.notice_to : null,
   };
 }
 
-/** "Agree and start": the visitor's chat and their secret. */
-export async function startWidgetChat(token: string, site: string | null): Promise<{ guest: string; chat: WidgetChat } | null> {
-  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site } })) as { guest?: unknown } | null;
+/** The visitor's chat, made with their first message (N595 item 1: no card
+ *  before it): the host's welcome and questions first, then that message.
+ *  The chat and the visitor's secret; null when it did not go (a message the
+ *  host's chat does not take is refused before anything is made). */
+export async function startWidgetChat(
+  token: string,
+  site: string | null,
+  first: { kind: "emoji" | "text"; body: string },
+): Promise<{ guest: string; chat: WidgetChat } | null> {
+  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site, ...first } })) as { guest?: unknown } | null;
   const chat = chatOf(body);
   return chat && typeof body?.guest === "string" ? { guest: body.guest, chat } : null;
 }

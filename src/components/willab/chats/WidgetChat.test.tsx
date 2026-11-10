@@ -5,10 +5,10 @@ STORY    As someone on a host's website, I want to write to them there at
          answer, so that the website chat is their own chat on the public
          side (backend N591, N595, N600; amending N567 and N569).
 OUTCOME
-  O1  The pill reads "Ask {name}"; opened, there is no consent card and no
-      "Agree and start": nothing is sent until I write, and my first
-      message makes my chat, kept in this browser (WID-13 as N595 item 1
-      has it).
+  O1  The pill reads "Ask {name}"; opened, the host's welcome shows, with
+      no consent card and no "Agree and start": nothing is sent until I
+      write, and my first message makes my chat in one call, with the
+      message in it, kept in this browser (WID-13 as N595 item 1 has it).
   O2  No fixed greeting and no fixed questions: the host's own welcome and
       their own questions come, tapped one at a time above the bar ("Yes"
       to "Are you in a hurry?" opens a date with Send); nothing says the
@@ -75,7 +75,7 @@ const mine = (id: string, kind: string, body: string, meta: Record<string, unkno
   id, mine: true, author: "Widget / Visitor 1", kind, body, meta, created_at: "2026-11-09T10:01:00Z",
 });
 
-type Read = { writes?: unknown; messages?: unknown[]; signed_up?: boolean; sign_up?: boolean; answered?: boolean; notice?: string };
+type Read = { writes?: unknown; messages?: unknown[]; signed_up?: boolean; sign_up?: boolean; answered?: boolean; notice_to?: string };
 let startRead: Read;
 let read: Read | null;
 let container: HTMLDivElement;
@@ -95,7 +95,10 @@ beforeEach(() => {
     const body = init.body ? JSON.parse(String(init.body)) : null;
     calls.push({ method, url, body, guest: headers["X-Willab-Widget-Guest"] ?? null });
     const reply = (json: unknown, status = 200) => new Response(JSON.stringify(json), { status });
-    if (url.endsWith("/start")) return reply({ guest: "g1.secret", ...chat(startRead) });
+    if (url.endsWith("/start")) {
+      const first = body?.body ? [mine("f1", body.kind, body.body)] : [];
+      return reply({ guest: "g1.secret", ...chat({ sign_up: first.length > 0, ...startRead, messages: [...(startRead.messages ?? []), ...first] }) });
+    }
     if (url.includes("/setup/")) return reply({ messages: [mine("a1", "text", "English", { setup_answer: { to: "q1" } })] });
     if (url.endsWith("/audio")) return new Response(new Blob(["x"]), { status: 200 });
     if (method === "POST" && url.endsWith("/messages")) {
@@ -154,16 +157,20 @@ async function typeAndSend(words: string) {
 
 describe("the website chat on someone's site", () => {
   it("WID-13: no consent card, and my first message makes my chat", async () => {
-    await act(async () => root.render(createElement(WidgetChat, { token: TOKEN, name: "Tomek", writes: TAP_AND_TYPE, site: "invitaheadspa.com" })));
+    await act(async () => root.render(createElement(WidgetChat, { token: TOKEN, name: "Tomek", welcome: [WELCOME.body], writes: TAP_AND_TYPE, site: "invitaheadspa.com" })));
     expect(container.querySelector("[data-widget-pill]")?.textContent).toContain("Ask Tomek");
     await tap(container.querySelector("[data-widget-pill]"));
+    // The host's welcome first, from the widget's read, before I write.
+    expect(container.querySelector("[data-widget-welcome]")?.textContent).toBe("Welcome to my scalp clinic. Ask me anything about your scalp.");
     expect(container.querySelector("[data-widget-consent]")).toBeNull();
     expect(container.textContent).not.toContain("Agree and start");
     expect(container.textContent).not.toContain("through WillpowerLab");
     expect(calls).toEqual([]);
     await typeAndSend("Do you work on Saturdays?");
-    expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { site: "invitaheadspa.com" }, guest: null });
-    expect(calls[1]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/messages`, body: { kind: "text", body: "Do you work on Saturdays?" }, guest: "g1.secret" });
+    // One call: the chat is made with the first message in it.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { site: "invitaheadspa.com", kind: "text", body: "Do you work on Saturdays?" }, guest: null });
+    expect(container.querySelector("[data-widget-welcome]")).toBeNull();
     expect(window.localStorage.getItem(`wpl-widget:${TOKEN}`)).toBe("g1.secret");
     expect(container.querySelector("[data-widget-thread]")?.textContent).toContain("Do you work on Saturdays?");
   });
@@ -209,7 +216,7 @@ describe("the website chat on someone's site", () => {
     await writeAndAnswer();
     expect(container.querySelector("[data-widget-type]")).toBeNull();
     expect(container.querySelector("[data-widget-emoji]")?.textContent).toBe("👍👀🙏");
-    expect(calls[1]).toMatchObject({ method: "POST", body: { kind: "emoji", body: "👍" } });
+    expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { kind: "emoji", body: "👍" } });
   });
 
   it("N600: signed up with recording open, a small mic on the right", async () => {
@@ -251,7 +258,7 @@ describe("the website chat on someone's site", () => {
 
   it("WID-28: signed up, the line says where the notice goes, and the host's voice answer opens its words behind Read it", async () => {
     window.localStorage.setItem(`wpl-widget:${TOKEN}`, "g1.secret");
-    read = { messages: [VOICE, SILENT], signed_up: true, notice: "phone" };
+    read = { messages: [VOICE, SILENT], signed_up: true, notice_to: "phone" };
     await openWidget();
     expect(container.querySelector("[data-widget-sign-up]")).toBeNull();
     expect(container.querySelector("[data-widget-signed-up]")?.textContent).toBe("Signed up. The first notice of the answer comes to your phone.");
@@ -265,7 +272,7 @@ describe("the website chat on someone's site", () => {
     expect(spoken.querySelector("[data-chat-words]")).toBeNull();
     expect(spoken.querySelector("[data-chat-read]")?.textContent).toBe("Read it");
     expect(silent.querySelector("[data-chat-read]")).toBeNull();
-    read = { messages: [VOICE], signed_up: true, notice: "email" };
+    read = { messages: [VOICE], signed_up: true, notice_to: "email" };
     await tap(container.querySelector("[data-widget-close]"));
     await tap(container.querySelector("[data-widget-pill]"));
     expect(container.querySelector("[data-widget-signed-up]")?.textContent).toBe("Signed up. The first notice of the answer comes to your email.");

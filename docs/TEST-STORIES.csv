@@ -611,10 +611,10 @@ O2  On mine, the pencil opens my About to type in; Save keeps it and says
 O3  On mine, Edit turns my name and who I am into fields; Done keeps them.","O1 -> ""their profile shows who they are and what we shared, and cannot be edited""
 O2 -> ""the pencil edits my About and Save keeps it""
 O3 -> ""Edit changes my name and role, Done keeps them""",
-src/components/willab/chats/WidgetChat.test.tsx,Story,"As someone on a host's website, I want to write to them there at once, as their chat lets me, and sign up after asking to get their answer, so that the website chat is their own chat on the public side (backend N591, N595, N600; amending N567 and N569).","O1  The pill reads ""Ask {name}""; opened, there is no consent card and no
-""Agree and start"": nothing is sent until I write, and my first
-message makes my chat, kept in this browser (WID-13 as N595 item 1
-has it).
+src/components/willab/chats/WidgetChat.test.tsx,Story,"As someone on a host's website, I want to write to them there at once, as their chat lets me, and sign up after asking to get their answer, so that the website chat is their own chat on the public side (backend N591, N595, N600; amending N567 and N569).","O1  The pill reads ""Ask {name}""; opened, the host's welcome shows, with
+no consent card and no ""Agree and start"": nothing is sent until I
+write, and my first message makes my chat in one call, with the
+message in it, kept in this browser (WID-13 as N595 item 1 has it).
 O2  No fixed greeting and no fixed questions: the host's own welcome and
 their own questions come, tapped one at a time above the bar (""Yes""
 to ""Are you in a hurry?"" opens a date with Send); nothing says the

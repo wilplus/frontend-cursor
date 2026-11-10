@@ -16,15 +16,18 @@ export async function loadJoinLink(token: string): Promise<JoinLinkInfo | null> 
   }
 }
 
-/** The widget's read (backend N567, N591): whose chat it is and how a
- *  visitor may write, from the host's recipe, or null for a wrong, replaced or switched-off link. */
-export async function loadWidget(token: string): Promise<{ name: string; writes: WidgetWrites } | null> {
+/** The widget's read (backend N567, N591, N595): whose chat it is, the
+ *  host's welcome (shown before the visitor writes, with no card) and how a
+ *  visitor may write, from the host's recipe; or null for a wrong, replaced
+ *  or switched-off link. */
+export async function loadWidget(token: string): Promise<{ name: string; welcome: string[]; writes: WidgetWrites } | null> {
   try {
     const res = await backendFetch(`/v2/chats/widget/${encodeURIComponent(token)}`, { token: null, cache: "no-store" });
     if (!res.ok) return null;
-    const body = (await res.json()) as { name?: unknown; writes?: unknown };
+    const body = (await res.json()) as { name?: unknown; welcome?: unknown; writes?: unknown };
     if (typeof body.name !== "string" || !body.name) return null;
-    return { name: body.name, writes: writesOf(body.writes) };
+    const welcome = Array.isArray(body.welcome) ? body.welcome.filter((w): w is string => typeof w === "string" && w.trim() !== "") : [];
+    return { name: body.name, welcome, writes: writesOf(body.writes) };
   } catch {
     return null;
   }

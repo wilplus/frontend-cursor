@@ -25,7 +25,7 @@ export default async function Page({ params, searchParams }: {
     <>
       {/* Inside the frame: no footer, and nothing painted around the pill. */}
       <style>{`html,body{background:transparent!important;color-scheme:normal!important}footer:not([data-widget-foot]){display:none!important}`}</style>
-      <WidgetChat token={params.token} name={widget.name} writes={widget.writes} site={site} />
+      <WidgetChat token={params.token} name={widget.name} welcome={widget.welcome} writes={widget.writes} site={site} />
     </>
   );
 }
