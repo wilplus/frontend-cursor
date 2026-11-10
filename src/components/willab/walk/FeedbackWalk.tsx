@@ -1789,11 +1789,10 @@ function useFixClip<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   return { state, seed, lines, latePlayer, noClip };
 }
 
-/** The AI clip after their best, as the One thing walk's fix (N309 item
- *  1): the speaker's clip, "Say this one like your confident moment:",
- *  their best played again, then the AI bubble: the tip ending ", like
- *  this:", the clip, "Your turn.". With no AI clip coming, the rest stands
- *  and the try is still theirs. */
+/** The One thing walk's fix (N309 item 1, N624): the speaker's clip, "Say
+ *  this one like your confident moment:", then the AI bubble: the tip
+ *  ending ", like this:" and the clip. With no example of its own, their
+ *  best is played after the line instead, and the try is still theirs. */
 function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const best = fixBest(ctx.walk.moments, moment.index);
   const { state, seed, lines, latePlayer, noClip } = useFixClip(ctx, step, moment);
@@ -1813,14 +1812,13 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
           <span data-walk-like>{ONE_THING_COPY.likeConfident}</span>
         </WalkMessage>
       ) : null}
-      {/* One example to copy (N379 item 1): with the fix's own (the AI
-          clip, the exercise's video), their best is a small chip. */}
-      {best ? (
-        lines || latePlayer || noClip?.video ? (
-          <Clip key="best" moment={best} replay={WALK_COPY.confidentReplay} chip />
-        ) : (
-          <Clip key="best" moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
-        )
+      {/* One example to copy: with the fix's own (the AI clip, the
+          exercise's video), their best is not played again, as they heard
+          it earlier in the walk, and the line stands right above that
+          example (founder 2026-11-10, N624; was the "Your confident moment"
+          chip, N379 item 1); with none, their best is the example. */}
+      {best && !(lines || latePlayer || noClip?.video) ? (
+        <Clip key="best" moment={best} replay={best.slideLabel ?? COPY.pagerMoment} />
       ) : null}
       {/* Read aloud as they land (N379 item 2). */}
       <div key="ai" aria-live="polite" className="contents">

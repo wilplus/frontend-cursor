@@ -15,7 +15,7 @@ OUTCOME
   O11 I never wait long on the AI clip: after ten seconds the tip is in words, and a clip that comes later joins them as its player; once I have started my try, a clip that arrives late does not appear above it (N373).
   O12 The fix's words land like every message, and "Say this one like your confident moment:" only comes with my best's clip after it (N377).
   O14 In the One thing walk's fix, the phrase to lean on is bold in my own words above the clip and in the tip, and the chat gets the same phrase (founder 2026-11-03).
-  O13 With an example of its own, the fix shows my best as a small "Your confident moment" chip; the bubbles are read aloud as they land, never the AI clip's label before it is ready; and no "Your turn." above "Try it" (N379).
+  O13 With an example of its own, the fix does not play my best again: "Say this one like your confident moment:" stands right above that example (N624; was the "Your confident moment" chip, N379); the bubbles are read aloud as they land, never the AI clip's label before it is ready; and no "Your turn." above "Try it" (N379).
 PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts route, returns to the walk at once ... and posts /check,
                the trash throws the try away: nothing is sent, no try counted, back on the step that opened it (N314)
          O2 -> praise on try 1: the line for the reading that moved, then Next opens its helper words (N220)
@@ -29,9 +29,9 @@ PROVES   O1 -> Stop shows once the mic is live, uploads through the attempts rou
          O10 -> says the tip in words, the exercise's instruction and “Your turn.”, in the walk and the chat alike
          O11 -> a clip still being made after the wait gives way to the tip in words ..., a clip that comes once the try has begun never lands above it (N373 item 2)
          O12 -> says the tip in words ... (lands with the bubble motion), with no clip of their best, no line ending on a colon, in the walk or the chat (N377 item 2)
-         O13 -> says the tip in words and the exercise's instruction, with no “Your turn.” above Try it ... (live region, no chip), a clip still being made after the wait ... (the chip, the label read once ready)
+         O13 -> says the tip in words and the exercise's instruction, with no “Your turn.” above Try it ... (live region, no chip), a clip still being made after the wait ... (no replay of their best, the label read once ready)
          O14 -> bolds the phrase to lean on in my words and in the tip, and tells the chat the phrase
-WHY      Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
+WHY      N624 (founder 2026-11-10, "the one I crossed on the image is the repetition of the first most confident moment"; "please fix that"). Never-rule 1 (no scores to speakers); founder 2026-10-31 (N314, "Can you make it locked everywhere?"); 2026-11-02 (N350 item 5, "Stop once the mic is live, in both"); founder 2026-10-21 (N108, "Skip that moment"); 2026-10-23 (N120, "make it shorter focused on one only thing"; N122, "do we practice the confident moments? I think yes we should!"); 2026-10-30 (N284, "Treat as good").
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -732,8 +732,11 @@ describe("the One thing walk's fix with no AI clip (founder 2026-11-03, N370)", 
     expect(live()!.querySelector("[data-walk-ai-voice]:not([aria-hidden])")).toBeNull();
     aiLateReady = true;
     await settle(150);
-    // Now an example to copy: their best shrinks to the chip (N379 item 1).
-    expect(live()!.querySelector("[data-walk-chip]")!.textContent).toContain(WALK_COPY.confidentReplay);
+    // Now an example to copy: their best is not played again, and the line
+    // stands right above the example (N624; was the chip, N379 item 1).
+    expect(live()!.querySelector("[data-walk-chip]")).toBeNull();
+    expect(live()!.textContent).not.toContain(WALK_COPY.confidentReplay);
+    expect(live()!.querySelector("[data-walk-like]")).not.toBeNull();
     expect(live()!.querySelector("[data-walk-ai-voice]:not([aria-hidden])")).not.toBeNull();
     expect([...live()!.querySelectorAll("[data-walk-no-clip]")].map((n) => n.textContent)).toEqual(words);
     expect(live()!.querySelector("[data-walk-ai-voice]")).not.toBeNull();
