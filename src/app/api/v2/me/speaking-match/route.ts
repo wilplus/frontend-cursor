@@ -7,4 +7,4 @@ export const runtime = "nodejs";
  *  N465, N559 item 6, #1861): GET {on, available}; POST {on}, and off
  *  deletes what Will learned from how they speak. */
 export const GET = proxyRoute("GET", "/v2/me/speaking-match", { noStore: true });
-export const POST = proxyRoute("POST", "/v2/me/speaking-match");
+export const POST = proxyRoute("POST", "/v2/me/speaking-match", { body: "json" });
