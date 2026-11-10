@@ -55,6 +55,10 @@ export type SetupScreen = {
   teaching?: TeachScreen;
   checklist?: { title: string; items: { title: string; step: SetupStep; done: boolean }[] } | null;
   locked?: { title: string; lines: string[] };
+  /** The invite step: the owner's own chat link, "/c/<token>", which
+   *  "Copy an invite link" copies (backend N598); null when they have none
+   *  yet, and GET /v2/chats/link makes it. */
+  chat_link?: string | null;
 };
 
 export type SetupState = { model_id: string; status: "draft" | "learning" | "ready" | "archived"; screen: SetupScreen };
@@ -139,15 +143,4 @@ export async function answerFirstTen(
   answer: string | null,
 ): Promise<SetupState | null> {
   return read(`/api/v2/models/${id(modelId)}/setup/first-ten/${id(exampleId)}`, { method: "POST", json: { step, answer } });
-}
-
-/** "Copy an invite link"; null below the ring or for someone else's model. */
-export async function getInviteLink(modelId: string): Promise<string | null> {
-  try {
-    const result = await bffFetch(`/api/v2/models/${id(modelId)}/setup/invite-link`, { cache: "no-store", method: "GET" });
-    const link = result.kind === "response" && result.ok ? (result.body as { link?: unknown } | null)?.link : null;
-    return typeof link === "string" ? link : null;
-  } catch {
-    return null;
-  }
 }

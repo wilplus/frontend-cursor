@@ -117,7 +117,9 @@ export type Answered = {
 export type ProfileModelRow = { id?: string; name: string; badge: string; line: string; actions: string[] };
 /** `user_id`: whose section it is (backend #1869). */
 export type ProfileModels = { title: string; user_id?: string; models: ProfileModelRow[] };
-export type ModelInvite = { lines: string[]; action: string };
+/** `chat_link`: the inviter's own chat, "/c/<token>", where the teacher
+ *  teaches (backend N598); null when the inviter has none. */
+export type ModelInvite = { lines: string[]; action: string; chat_link?: string | null };
 
 async function call(path: string, init: Parameters<typeof bffFetch>[1] = { method: "GET" }): Promise<Record<string, unknown> | null> {
   try {
@@ -223,10 +225,17 @@ export async function getModelInvites(): Promise<ListedInvite[] | null> {
 }
 
 /** "Not now" (the invite stays) or accept (the caller teaches the model);
- *  the model's id once the backend kept the answer, else null. */
-export async function answerModelInvite(inviteId: string, accept: boolean): Promise<string | null> {
+ *  the model's id once the backend kept the answer, else null. An accept
+ *  also carries the inviter's chat link, where the teacher teaches (backend
+ *  N598); null when there is none. */
+export async function answerModelInvite(
+  inviteId: string,
+  accept: boolean,
+): Promise<{ model_id: string; chat_link: string | null } | null> {
   const body = await call(`/api/v2/models/invites/${id(inviteId)}/${accept ? "accept" : "not-now"}`, { method: "POST", json: {} });
-  return typeof body?.model_id === "string" ? body.model_id : null;
+  if (typeof body?.model_id !== "string") return null;
+  const link = body.chat_link;
+  return { model_id: body.model_id, chat_link: typeof link === "string" && link.startsWith("/c/") ? link : null };
 }
 
 /** "Add an example you know well" (MOD-21): the case in words, typed, read
