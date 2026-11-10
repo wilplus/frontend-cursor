@@ -1272,10 +1272,11 @@ processing again"" sends the new Take again, with the new Take's
 upload key, and never restarts the old one, whose ""Processing"" line
 keeps tracking it.
 O3  The ✕ on the processing screen while the Take is still going up
-closes the screens, and once the server has the Take the chat still
-gets it: its ""Your Recording"" line and the marker the chat follows.","O1 -> ""Back while recording asks first, and the Take keeps recording""
+closes the screens, and the chat says at once that the Take is on its
+way; once the server has it the chat still gets it: its ""Your
+Recording"" line and the marker the chat follows.","O1 -> ""Back while recording asks first, and the Take keeps recording""
 O2 -> ""after Record again, Try processing again sends the new Take, never the old one""
-O3 -> ""the ✕ while the Take goes up still brings it to the chat""","Founder 2026-11-09, backend N560 items 1 and 2 (""Ask, like the ✕""; ""Yes, fix it""): Back threw the Take away without asking, and the retry could restart the old Take (Never 3, Never 5). O3: founder 2026-11-10, ""the takes are not being displayed on the chat and when I click to close the processing screen it doesn't show me the loading progress bubble"" (Never 3)."
+O3 -> ""the ✕ while the Take goes up still brings it to the chat""","Founder 2026-11-09, backend N560 items 1 and 2 (""Ask, like the ✕""; ""Yes, fix it""): Back threw the Take away without asking, and the retry could restart the old Take (Never 3, Never 5). O3: founder 2026-11-10, ""the takes are not being displayed on the chat and when I click to close the processing screen it doesn't show me the loading progress bubble""; ""if I close the processing earlier there is no indication that it is processing"" (Never 3)."
 src/components/willab/labEntryOpensAtOnce.test.tsx,Story,"As a speaker, I want ""How do you feel?"" on screen the moment I tap ""Record Take N"", so that the next Take never makes me wait on a screen I already passed (founder 2026-11-09, backend N549).","O1  Once this tab has read ""authorized"", the Lab's first screen draws on
 the first render, while the Lab's own read is still out.
 O2  The door still holds: until that read answers the entry is not
