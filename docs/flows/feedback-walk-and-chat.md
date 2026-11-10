@@ -371,8 +371,8 @@ step; the loop never waits for a coach.
   asks something with answers to tap (the plan's own yes, the ratings, a
   new project's question, an ask after a Take), nothing he says comes
   between the question and its buttons. After a Take on a plan the order
-  is "That's your 15 minutes for today.", the goodbye, the plan's bar,
-  then the question with its answers under it (D4). Was: the plan's yes
+  is the goodbye, the plan's bar when it shows (D4, N623), then the
+  question with its answers under it (D4). Was: the plan's yes
   over the goodbye and the bar, its buttons far below it.
 - **B17** **A Take's bubble opens its words** (backend N576, for N331): under
   the player of "Your Recording" in Will's chat, "Read it" opens what was
@@ -912,17 +912,16 @@ praised moment:
      buttons);
   3. only then the goodbye, "Good job. See you next time." (backend
      `services/after_take.py`), held back while the chain runs. No push to
-     the next Take (founder 2026-10-31, N294 item 6). On a plan: "That's
-     your 15 minutes for today." on a practice day, then one bubble that
-     names the plan's next practice day as a person would (N347 item 2):
-     "Good job. See you tomorrow." when it is tomorrow in the speaker's own
-     time zone (the plan's), else "Good job. See you {weekday}." (no
-     "next"; `plan.next_day_text`); then Will's grey bubble with the plan's
-     bar and "{n} of {total} practices done." (N319 item 7; it replaced the
-     bar on the walk's end sheet). Was: "Good job. See you next {day}.",
-     tomorrow named by its weekday. A question the plan asks there (its
-     own yes, the ratings, a new project's) comes last, under the bar,
-     right above its answers (B16, N537). While Will's question or its
+     the next Take (founder 2026-10-31, N294 item 6). On a plan the goodbye
+     is the same, naming no day (N564 item 7), then Will's grey bubble with
+     the plan's bar, the level's name and its four marks (the-plan.md E3,
+     G13), only on a day the hello did not already show it (N623). Was:
+     the bar after every walk (N564); before that "That's your 15 minutes
+     for today.", "Good job. See you tomorrow." or "See you {weekday}."
+     (N347 item 2) and the bar with "{n} of {total} practices done." (N319
+     item 7). A question the plan asks there (its own yes, the ratings, a
+     new project's) comes last, under the goodbye and the bar when it
+     shows, right above its answers (B16, N537). While Will's question or its
      follow-up waits, nothing of this comes under it, whoever asks: the
      goodbye, the plan's lines and the bar wait until it is answered or
      skipped (N545; was guarded on the Lounge's call only, and the goodbye
@@ -2362,6 +2361,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N623 · D4, B16: after the walk, on a plan, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`); D4 now says the goodbye and the bar as N564 left them (no "15 minutes", no "{n} of {total} practices done."). No new words. Was: the bar under the hello and again after every walk the same day · BE #1897, BE #1900, FE (this PR)
+- 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, the bubble, then the walk), and the bubble shows at once, before the server has answered (recording-screens.md §6). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
 - 2026-11-09 · — · §3, D4 (WILL-07): the summary row comes at once with the signed line and GPT-4o's words replace it in place; while its metadata says `writing`, Will reads it as "not in yet", never as the failed summary (`loungeScreen.ts`). No new words on screen. What stops: Will treating a summary still being written as one that failed · BE wilplus/backend-cursor#1865, FE (this PR)
 - 2026-11-09 · N559 · G1: your own chats, best fit first: opened for a Take, the screen of who hears it puts first the people in your chats the matcher finds best able to answer it (`useChatOrder`, `bestFitFirst` in `NextTakeShareScreen.tsx`; `getChatOrder` in `takeMatches.ts`; BFF `/api/v2/takes/<take>/match/chats`), then the list's order; "Last sent" and the ticks unchanged, no score, no new words; a failed, slow (1.5 s) or switched-off read keeps the list's order. Before a Take nothing changes. What stops: the person sent to last always on top when the screen opens for a Take · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N576 · B17: a Take's bubble in Will's chat opens its words behind "Read it", one paragraph per slide, "Hide" closes them; closed by default, nothing before there are words (`ReportCard.tsx` `TakeWords`, `takeWordsOf`, with `VoiceWords` from `chats/ChatThread.tsx`). Was: only the chats with people, the inquiry and the website chat had it · BE (the Take's words on the Lounge read), FE (this PR)
