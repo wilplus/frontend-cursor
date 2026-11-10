@@ -171,7 +171,9 @@ export function BarButton({
 
 /** The box in the middle: its words are the one thing to do ("Ask {name}",
  *  "Type your answer"); the keyboard's own key sends. Nothing beside it:
- *  the bar has two places. */
+ *  the bar has two places. Typed words are never lost: a send the backend
+ *  refuses, or one that fails, puts them back in the box as typed, the
+ *  caret in it. */
 export function BarBox({
   hint,
   open = false,
@@ -181,12 +183,25 @@ export function BarBox({
   hint: string;
   /** Opened from the "+": the caret is in it at once. */
   open?: boolean;
-  onSend: (words: string) => void;
+  /** True once the backend kept the words. */
+  onSend: (words: string) => Promise<boolean>;
   /** Left empty: the middle goes back to what it was. */
   onLeave?: () => void;
 }) {
   const [words, setWords] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  // Words on their way: the box is empty, but not left.
+  const going = useRef(false);
+  const send = async (typed: string) => {
+    going.current = true;
+    setWords("");
+    const kept = await onSend(typed);
+    going.current = false;
+    if (kept) return;
+    // Back as typed, unless new words are already there.
+    setWords((now) => now || typed);
+    ref.current?.focus();
+  };
   useEffect(() => {
     if (open) ref.current?.focus();
   }, [open]);
@@ -196,10 +211,7 @@ export function BarBox({
       className="flex min-w-0 flex-1"
       onSubmit={(e) => {
         e.preventDefault();
-        const said = words.trim();
-        if (!said) return;
-        setWords("");
-        onSend(said);
+        if (words.trim() && !going.current) void send(words);
       }}
     >
       <input
@@ -208,7 +220,7 @@ export function BarBox({
         value={words}
         onChange={(e) => setWords(e.target.value)}
         onBlur={() => {
-          if (!words.trim()) onLeave?.();
+          if (!words.trim() && !going.current) onLeave?.();
         }}
         placeholder={hint}
         aria-label={hint}
@@ -261,7 +273,7 @@ export function BarMiddle({
   onAsk: () => void;
   onRecordAnswer: () => void;
   onPhoto: () => void;
-  onType: (words: string) => void;
+  onType: (words: string) => Promise<boolean>;
   onTypingDone: () => void;
 }) {
   if (typing) {
@@ -269,9 +281,11 @@ export function BarMiddle({
       <BarBox
         hint={TYPE_YOUR_ANSWER}
         open
-        onSend={(words) => {
-          onTypingDone();
-          onType(words);
+        onSend={async (words) => {
+          // Sent: the button comes back. Refused: the box stays, with the words.
+          const kept = await onType(words);
+          if (kept) onTypingDone();
+          return kept;
         }}
         onLeave={onTypingDone}
       />

@@ -667,8 +667,9 @@ which posts the photo picked to the chat's photo route and shows it.
 While the chat asks: ""Answer {name}"" with ""Send a photo"" and no
 ""Record your question"".
 O5  BAR-N610-FE-5: typing is on where the host's read says the host
-chose Type (`host.answer_with.type`); a chat with no host, or a
-backend without the host's route (404), has no box. Nothing asked:
+chose Type (`host.answer_with.type`); a chat with no host, a host
+read with no `type`, or a backend without the host's route (404),
+has no box. Nothing asked:
 the box ""Ask {name}"" (recording on too: still the box), and the
 words go as {""kind"":""text"",""body"":…}, shown at once. Asked where
 recording is on too, ""Record your answer"" keeps the middle and ""Type
@@ -680,12 +681,19 @@ type your thanks.
 O6  BAR-N610-FE-6: a question that asks for a photo
 (`meta.setup.kind === ""photo""`) puts ""Add a photo"" in the middle; the
 photo picked goes to that question's own photo route, and the photo
-comes back with the host's next lines.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
+comes back with the host's next lines.
+O7  BAR-N610-FE-7: typed words are never lost. A send the backend
+refuses (the chat takes no typing, the question takes a pick, it was
+answered already, no such route) or that never reaches it puts the
+words back in the box exactly as typed, the box still there and the
+caret in it (""Type your answer"" opened from the ""+"" stays open), and
+no new words show on screen.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
 O2 -> ""BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them""
 O3 -> ""BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice""
 O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
 O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
-O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
+O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
+O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of

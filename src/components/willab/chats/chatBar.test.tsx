@@ -28,8 +28,9 @@ OUTCOME
       While the chat asks: "Answer {name}" with "Send a photo" and no
       "Record your question".
   O5  BAR-N610-FE-5: typing is on where the host's read says the host
-      chose Type (`host.answer_with.type`); a chat with no host, or a
-      backend without the host's route (404), has no box. Nothing asked:
+      chose Type (`host.answer_with.type`); a chat with no host, a host
+      read with no `type`, or a backend without the host's route (404),
+      has no box. Nothing asked:
       the box "Ask {name}" (recording on too: still the box), and the
       words go as {"kind":"text","body":…}, shown at once. Asked where
       recording is on too, "Record your answer" keeps the middle and "Type
@@ -42,12 +43,19 @@ OUTCOME
       (`meta.setup.kind === "photo"`) puts "Add a photo" in the middle; the
       photo picked goes to that question's own photo route, and the photo
       comes back with the host's next lines.
+  O7  BAR-N610-FE-7: typed words are never lost. A send the backend
+      refuses (the chat takes no typing, the question takes a pick, it was
+      answered already, no such route) or that never reaches it puts the
+      words back in the box exactly as typed, the box still there and the
+      caret in it ("Type your answer" opened from the "+" stays open), and
+      no new words show on screen.
 PROVES   O1 -> "BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked"
          O2 -> "BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them"
          O3 -> "BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice"
          O4 -> "BAR-N610-FE-4: the + sheet asks, answers and sends a photo"
          O5 -> "BAR-N610-FE-5: the box types where the host chose Type"
          O6 -> "BAR-N610-FE-6: a photo asked for takes Add a photo in the middle"
+         O7 -> "BAR-N610-FE-7: typed words a send refuses come back to the box as typed"
 WHY      The founder locked the two-place bar on 10 November 2026 ("ok lock
          that", backend N610) after a morning of drafts; N600's bar, built
          that morning, put a mic on the right and kept the emoji.
@@ -100,7 +108,7 @@ const flush = () =>
   });
 
 const CHAT: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
-type With = { tap: boolean; type: boolean; record: boolean };
+type With = { tap: boolean; type?: boolean; record: boolean };
 const RECORDS: With = { tap: true, type: false, record: true };
 const TAPS: With = { tap: true, type: false, record: false };
 const TYPES: With = { tap: true, type: true, record: false };
@@ -258,7 +266,8 @@ describe("the bar in a host's chat and between people (N610)", () => {
 
   it("BAR-N610-FE-5: the box types where the host chose Type", async () => {
     // No host, or a backend without the host's route: no box, asked or not.
-    for (const host of [null, "404"] as const) {
+    // Nor does a host read that does not say `type`.
+    for (const host of [null, "404", { tap: true, record: true }] as const) {
       for (const messages of [[], [ASKED]]) {
         await open(messages, host);
         expect(box()).toBeNull();
@@ -326,5 +335,43 @@ describe("the bar in a host's chat and between people (N610)", () => {
     expect(calls(PHOTO)).toHaveLength(0);
     expect(container.querySelector("[data-chat-thread]")?.textContent).toContain("Lovely. Thank you.");
     expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+  });
+
+  it("BAR-N610-FE-7: typed words a send refuses come back to the box as typed", async () => {
+    const TEXT = "POST /api/v2/chats/c-1/messages";
+    const refusals: Route[] = [
+      () => json({ code: "NOT_ALLOWED" }, 400),
+      () => json({ code: "PICK_ONE" }, 400),
+      () => json({ code: "ANSWERED" }, 409),
+      () => json({ code: "NOT_FOUND" }, 404),
+      () => {
+        throw new TypeError("Failed to fetch");
+      },
+    ];
+    const typed = "  What should my first offer cost? ";
+    await open([], TYPES);
+    const before = container.textContent;
+    for (const refuse of refusals) {
+      routes[TEXT] = refuse;
+      await say(typed);
+      expect(box()?.value).toBe(typed);
+      expect(document.activeElement).toBe(box());
+      expect(container.querySelector('[data-row="me"]')).toBeNull();
+      expect(container.textContent).toBe(before);
+      // Emptied, so the next refusal starts from the same words.
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box()!, "");
+        box()!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+
+    // "Type your answer" opened from the "+": refused, the box stays open with the words.
+    routes[TEXT] = refusals[1];
+    await open([ASKED], BOTH);
+    await tap(bar().querySelector("[data-chat-plus]"));
+    await tap(within("[data-ask-sheet]", "Type your answer"));
+    await say("The gentle one");
+    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    expect(box()?.value).toBe("The gentle one");
   });
 });

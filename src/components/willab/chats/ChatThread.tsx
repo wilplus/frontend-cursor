@@ -782,7 +782,7 @@ function PeopleBar({
   onPlus: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
   /** Typed words; `answers`: they answer what the chat asks. */
-  onSay: (words: string, answers: boolean) => void;
+  onSay: (words: string, answers: boolean) => Promise<boolean>;
   onPhoto: (photo: File) => void;
 }) {
   const [sheet, setSheet] = useState(false);
@@ -998,6 +998,7 @@ export default function ChatThread({
     };
     const sent = kind === "emoji" ? await one() : await sendChatText(chat.id, body, to);
     setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : (sent ?? []))));
+    return sent !== null;
   };
   // A photo, made smaller first when it is big (N351); a refused one shows
   // nothing. While the chat asks for one, it answers that question.
@@ -1090,7 +1091,7 @@ export default function ChatThread({
               setPlusNew(false);
             }}
             onRecordAnswer={onRecordAnswer}
-            onSay={(words, answers) => void send("text", words, answers ? (setup.id ?? answer.id) : null)}
+            onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
             onPhoto={(photo) => void sendPhoto(photo, answer.photo)}
           />
         )}
