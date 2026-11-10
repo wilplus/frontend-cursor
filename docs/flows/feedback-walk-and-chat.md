@@ -667,12 +667,14 @@ praised moment:
   place; and "Say this one like your confident moment:" is said only with
   their best's clip after it, in the walk and the chat (N377). Was: the AI
   bubble changed into the words with no motion, and the line could end on
-  a colon with nothing after it. One example to copy (N379): when the fix
-  has its own (the AI clip, the exercise's video), their best's clip is a
-  small chip, "Your confident moment" (N289 item 7); with none, it stays
-  full, as it is the example. The chip draws the prototype's 24 bars, so
-  its waveform never runs under the time on any phone (N440; was 44 bars,
-  under the time below a 400 px screen). The bubbles after their best are a polite
+  a colon with nothing after it. One example to copy (N379, N624): when the
+  fix has its own (the AI clip, the exercise's video), their best is not
+  played again, as they heard it earlier in the walk, and "Say this one
+  like your confident moment:" stands right above that example; with
+  none, their best's clip follows the line, full, as it is the example.
+  Was (N379, N440): their best as a small "Your confident moment" chip
+  between the line and the AI clip (N289 item 7), drawn with the
+  prototype's 24 bars. The bubbles after their best are a polite
   live region, read aloud as they land; the AI bubble's typing dots and its
   label are not read while no clip is ready. Was: their best full beside
   the AI clip, two examples to copy; the dots read as "AI version of your
@@ -2361,6 +2363,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N624 · C4: the One thing walk's fix no longer plays their confident moment again when it has its own example (the AI clip, the exercise's video): "Say this one like your confident moment:" stands right above it, in the walk and the chat (`OneExerciseBody` in `FeedbackWalk.tsx`). With no example of its own, their best stays full after the line. No new words. Was: the "Your confident moment" chip between the line and the AI clip (N379 item 1) · BE #1902, FE (this PR)
 - 2026-11-10 · N623 · D4, B16: after the walk, on a plan, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`); D4 now says the goodbye and the bar as N564 left them (no "15 minutes", no "{n} of {total} practices done."). No new words. Was: the bar under the hello and again after every walk the same day · BE #1897, BE #1900, FE (this PR)
 - 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, the bubble, then the walk), and the bubble shows at once, before the server has answered (recording-screens.md §6). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
 - 2026-11-09 · — · §3, D4 (WILL-07): the summary row comes at once with the signed line and GPT-4o's words replace it in place; while its metadata says `writing`, Will reads it as "not in yet", never as the failed summary (`loungeScreen.ts`). No new words on screen. What stops: Will treating a summary still being written as one that failed · BE wilplus/backend-cursor#1865, FE (this PR)
