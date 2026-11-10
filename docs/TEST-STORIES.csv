@@ -116,6 +116,9 @@ src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker,
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
 and the speaker must be signed in.","O1 -> ""forwards the acknowledgement verbatim to the backend ack route""",Audit 2026-09-22 (G-1): before this route every receipt was lost.
+src/app/api/v2/me/meChoices.route.test.ts,Story,"As a newcomer, I want my ""Join"" / ""Not now"" answer to the community offer and my speaking-match switch saved, so that the choice I make is the one the backend keeps.","O1  The community-offer answer is sent (POST) to the backend with its body.
+O2  The speaking-match switch is sent (POST) to the backend with its body.","O1 -> ""relays the community-offer answer with its body""
+O2 -> ""relays the speaking-match switch with its body""",
 src/app/api/v2/plan/answers/[answerId]/audio/route.test.ts,Story,"As a speaker on Safari, I want my own voice answers to play when I tap them, so that I can hear what I told Will.","O1  The player's byte-range request reaches the backend, and the part it
 answers comes back as a part: 206 with its Content-Range, which
 Safari needs before it plays anything.","O1 -> ""relays a byte range as a byte range""",The founder's voice bubbles didn't play in Safari on a Mac (backend N262 item 4); docs/flows/the-plan.md §6.
@@ -638,6 +641,35 @@ O4 -> ""WID-17, WID-18, WID-29: after asking, the sign-up step, and Not now leav
 O5 -> ""WID-29: an answer waiting behind the sign-up, and Sign up opens the join page with my chat""
 O6 -> ""WID-28: signed up, the host's voice answer opens its words behind Read it, and Hide closes them""
 O7 -> ""WID-25: every call carries my secret, and a chat the backend forgot is forgotten here""","The founder, 9 November 2026 (N591): ""There's really no difference between the widget and the normal chat. It's just that the chat is placed on the public side."""
+src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, and my link's join page to name my assistant and what Will's chat is for, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3, N586 item 2; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-1: with the ring, a chat with a person in my list says
+""Tomek's assistant"" under the name, with the assistant's mark on the
+circle; without the ring (no `assistant` from the backend) the row is
+as it was, with no mark.
+O2  HOST-N586-2: the join page of a tester's link says ""Tomek's
+assistant"" and Will's line in the backend's words (""Will's chat is
+where you can set up a chat of your own.""); anyone else's link keeps
+""Your own chat with Will, your speaking coach"" and no assistant.
+O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
+from the backend only when it sends them.
+O4  HOST-N586-1: the join page draws the host's `about` lines (who they
+are, what you can learn with them) as the chat's top does, only when
+the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
+O2 -> ""HOST-N586-2: a tester's join page names the assistant and Will's chat""
+O3 -> ""HOST-N586-2: the join page's read keeps the two lines only when sent""
+O4 -> ""HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
+src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584; behind the ring row chat_builder, N579 item 2).","O1  HOST-N584-1: in Will's chat, each bundle still waiting is one card:
+""2 people asked: How do I start a handstand?"", each person's question
+with its colour (green or yellow, never a number) and ""Record one
+answer""; an answered bundle is not shown; without the ring (404) the
+queue draws nothing.
+O2  HOST-N584-2: ""Record one answer"" hands the recording screens the first
+question and the bundle; once the Take is up it goes to the bundle's
+route {take, duration_ms}, at once and with no Undo, and the queue is
+read again.
+O3  HOST-N584-3: the person who asked meets the answer in their own chat
+with me, under their own question quoted, with the match's colour.","O1 -> ""HOST-N584-1: the queue shows each waiting bundle in the backend's words, and nothing without the ring""
+O2 -> ""HOST-N584-2: one recording goes to the bundle's route, at once""
+O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -786,6 +818,40 @@ O24 -> ""the first time I add someone, Will's chat opens on his setup, answered 
 O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
 O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
 O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""",
+src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
+with Artur's five to start from, and Save sends only what is mine to
+set (the welcome, the questions, how people answer, and the about,
+fit and model kept as they were); a refusal shows the backend's own
+sentence; without the ring (404) the builder draws nothing.
+O2  HOST-N590-8: someone who joined my chat reads, on top, who I am and
+what they can learn with me, in my words, and my welcome as my
+assistant's message, labelled ""Tomek's assistant"" with its mark; a
+chat whose host is null (no ring, no recipe, or no route) is as it
+was.
+O3  HOST-N582-10: in Will's chat, the setup is drawn in the backend's
+words: Will's question with its answers to tap while it is the newest
+bubble (""Set up my chat"", ""Record"", ""Type"", ""Tap answers"", ""Any of
+these""), a tap posts {to, picked}; typed words answer the question
+that waits for words ({to, said}); after ""Your assistant is live.""
+""Set up my chat ›"" opens the builder.
+O5  HOST-N582-11: typed words under a setup question that takes taps
+only are an ordinary message to Will; words the setup refuses come
+back to the box; Will's offer, once newer bubbles came under it,
+carries ""Set up my chat ›"", which begins the setup again, until the
+assistant is live.
+O4  HOST-N586-5: Will's offer is asked of the backend once, only for a
+tester with no recipe; with a recipe, or without the ring, it is not.","O1 -> ""HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring""
+O2 -> ""HOST-N590-8: the joiner meets the host's welcome first, as the assistant's""
+O3 -> ""HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words""
+O5 -> ""HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again""
+O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
+src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
+who answered and the names the backend shows (my coach's and the best
+other); a tap opens all of them under ""On your speaking"" and ""On the
+matter"", each with the way into that person's chat, which opens it.
+O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
+under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
+O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -1220,7 +1286,8 @@ src/components/willab/loungeReports.test.ts,Story,"As a speaker whose Ideal Text
 and offers exactly Retry and view feedback.","O1 -> ""is the exact Take 1 terminal card under the session identity""",
 src/components/willab/loungeScreen.test.ts,Story,"As a speaker, I want Will to answer what sits right above my message in the chat, and my chat to keep the order it shows, so that a reply never misreads my number, my tap or my Take's feedback.","O1  Will reads every bubble in the order the chat draws it: the Take's
 card in words (with the coach's feedback when its dot is on), the
-summary (marked as the fixed message when the written one failed),
+summary (marked as the fixed message when the written one failed,
+or as not in yet while it is being written, WILL-07),
 the ask, and my own words.
 O2  What the chat adds sorts under the newest bubble on screen, even when
 this device's clock is behind the server's.
@@ -1235,6 +1302,27 @@ O3 -> the strength again links to the Life Panel",
 src/components/willab/loungeYourWhy.test.tsx,Story,"As a speaker, I want to write my why, my vision and how I want to treat people once in my own words, and see one of them each day, so that I remember why I do this.","O1  Start opens the lens; three questions come one at a time, each with Skip; Will drafts each line only from my words and quotes them; Accept or my own words keep it, and ""Noted. Your why is set."" (backend N255 Q1, Q2).
 O2  The day's why's › opens that line as it is now; my change is kept, dated (Q6).","O1 -> sets my why from my answers, one question at a time
 O2 -> the day's why opens its line to change it",
+src/components/willab/models/modelApi.test.tsx,Story,"As a business, I want to read a ready model's card, try it, take a free test key that I see only once, put it in my product with the code, and follow my month's usage; as a model's founder, I want to set its price with − and + and see where the money goes; as a teacher, I want to see my earnings; and as its owner, to download its data; all in the locked prototype's words, in tokens, never in euros (backend N528, N531, N566, N577, N583; App Model MOD-39 to MOD-48, MOD-51). Before the backend has the routes, or below the ring, no way in shows.","O1  Every way in (the list's ""Use it"", the page's ""Try it"", ""Use it in
+your business"", ""Set your price"", ""Your usage"", ""Download its data"",
+""Your earnings"") hides while its route answers 404.
+O2  Each story's Then holds with the backend's exact words (the BFF answers
+with what services/model_api.py builds, modelApiFixtures.json), and
+prices read in tokens.
+O3  The key is shown once: after ""I copied it"" it is on no screen, and
+only a test key is ever asked for (no live charge).","O1 -> ""before the backend has the routes …""
+O2 -> one test per story, named by its id
+O3 -> ""MOD-42 …""",The App Model's stories are the contract the founder compares the code with (backend N574); hiding on 404 keeps the screens safe to merge before backend #1866 and its migration.
+src/components/willab/models/modelSetup.test.tsx,Story,"As a person in ring 6, I want to start a model of my own one step at a time, in three chapters with a thin bar, keep my draft when I stop, be told when a model like mine exists, shape what it does, its scale, its question, its AI, its rules, my data, its exam, its teachers' journey, answer its first 10 myself and share it; then see on its page what needs me; and answer an invite, add an example and act on my models from my profile, all in the backend's words, so what I know becomes a model without any screen adding words of its own (backend N528, N563, N566, N570, N571, N582, N585; App Model MOD-20, MOD-21, MOD-24 to MOD-38, MOD-49 to MOD-51, MOD-54, MOD-55).","O1  Each story's Then holds with the backend's exact words: the BFF answers
+with what services/model_setup.py and services/model_launchpad.py
+build (setupFixtures.json, made by running them).
+O2  Each answer reaches the backend in the shape its handler reads
+(services/model_setup_store.py, model_launchpad_store.py).
+O3  Every way in hides while its route answers 404: ""Start your own"", an
+invite, a profile's actions.
+O4  The owner's first 10 are answered on the teachers' screen with no
+guess of the model's (Never 2).","O1, O2 -> one test per story, named by its id
+O3 -> ""… 404 …""
+O4 -> ""MOD-55 …""",The setup's routes (backend #1867) and the launchpad's actions (#1869) may reach production after this; nothing shows before they answer.
 src/components/willab/models/models.test.tsx,Story,"As a person in ring 6, I want to find AI models under my chats, open one, come through its door and teach it from one queue, and see the models I started and teach on my profile, in the locked prototype's words, so that what I know teaches a model without the machine's guess ever leading me (backend N528, N563, N566; App Model MOD-02 to MOD-23, MOD-49, MOD-50). Below the ring nothing of it shows.","O1  Below ring 6 (every /v2/models route answers 404) no row, no section
 and no invite card is drawn.
 O2  Each story's Then holds with the backend's exact words (the BFF answers
@@ -1434,7 +1522,16 @@ community on WillpowerLab. Join it, so people there can answer your
 Takes?"" with ""Join"" and ""Not now""; either answer is sent once and
 the choice comes back; with no offer, or a 404, no bubble. Its words
 are drafted, so it stays off until the founder signs them (MATCH-06;
-N559 item 1, Never 4).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2. W8: N559 item 1 (founder, 9 November 2026), backend PR #1862."
+N559 item 1, Never 4).
+W9  After the walk, a sharer's bubble (""Next, set up your assistant,
+..."") carries ""Set up my chat ›"", the setup's own words, which
+begins the setup of their own chat in Will's chat; without the chat
+builder's ring, no link (WAYIN-N578-4; backend
+`way_in._after_walk_row` opens ""setup_chat"", N578 item 4).
+W10 While the way in waits and nothing new comes (a Take with no
+words), the app asks less and less often, never more than once a
+minute, and stops after a long quiet instead of asking forever
+(WAYIN-POLL-1).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2. W8: N559 item 1 (founder, 9 November 2026), backend PR #1862."
 src/components/willab/practiceStep.test.tsx,Story,"As a speaker, I want my answer on a bookmark with no exercise to lead to the right lane, so that a No always leads somewhere and Audio unclear leads nowhere.","O1  No (a recognised problem, no exercise): the sheet says the coach is
 working on it, with my recording, and Next closes the sheet.
 O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.
@@ -2367,6 +2464,11 @@ O6 -> ""asks for the take again instead of sending an empty recording""",Never-r
 src/services/api/learningExposures.test.ts,Story,"As the founder, I want a record that a speaker saw feedback counted as saved only when every part of it was accepted, so that the learning record never claims a speaker saw something they didn't.","O1  If any one receipt is refused, the whole save reports ""not saved"".","O1 -> ""returns false when any surface receipt is not accepted""",
 src/services/api/mlc2Consent.test.ts,Story,"As a speaker, I want agreeing to training use refused clearly while pooled training is switched off, so that I never think I agreed to something that isn't running.","O1  While pooled training is off, the agreement is refused with the
 server's own explanation.","O1 -> ""keeps consent writes fail-closed when Phase 2 is disabled""",
+src/services/api/modelSetup.test.ts,Story,"As someone starting a model, I want ""Start your own"" to stay hidden until the backend has the setup and gives me the ring, and each step's answer to come back as the next step or as its reason in words, so I never meet a setup that cannot work (backend N528 item 4, N566 item 2).","O1  Below the ring (404) or on any failure the setup reads as null, so its
+way in stays hidden.
+O2  A step answered gives the next step's screen; a step refused gives the
+backend's reason, to show under it.","O1 -> ""reads a 404 and a failure as null""
+O2 -> ""returns the next step, or the reason a step was refused""","The client for routes/v2/model_setup.py (backend), behind ring 6."
 src/services/api/momentEvents.test.ts,Story,"As the founder, I want ""a moment was opened or skipped"" recorded without ever breaking the screen, so that we learn what speakers see while they are never blocked.","O1  An event the server already had is told apart from a failure.
 O2  A switched-off route or no connection is a quiet failure, never a
 crash.","O1, O2 -> ""tells an already recorded event from a failure, and never throws""",

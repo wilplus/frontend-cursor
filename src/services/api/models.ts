@@ -60,6 +60,20 @@ export type ModelPage = {
   jars?: Record<string, number>;
   targets?: Record<string, number>;
   own_part?: Record<string, number>;
+  /** Its owner's page only (backend model_setup.owner_panel, MOD-37):
+   *  "Needs you now", how far with an honest range, the folds. Totals,
+   *  never a person (N526 item 3). */
+  owner?: OwnerPanel | null;
+};
+
+export type SetupChecklist = { title: string; items: { title: string; step: string; done: boolean }[] };
+export type OwnerPanel = {
+  needs_you: { title: string; line: string; actions: string[]; step: string } | null;
+  head: string;
+  rows: [string, string][];
+  notes: string[];
+  folds: { title: string; rows?: [string, string | number][]; lines?: string[]; then?: { title: string; lines: string[] } }[];
+  checklist: SetupChecklist | null;
 };
 
 /** An example as a teacher's screen receives it: the case and where it is
@@ -100,8 +114,9 @@ export type Answered = {
   trust: Trust | null;
 };
 
-export type ProfileModelRow = { name: string; badge: string; line: string; actions: string[] };
-export type ProfileModels = { title: string; models: ProfileModelRow[] };
+export type ProfileModelRow = { id?: string; name: string; badge: string; line: string; actions: string[] };
+/** `user_id`: whose section it is (backend #1869). */
+export type ProfileModels = { title: string; user_id?: string; models: ProfileModelRow[] };
 export type ModelInvite = { lines: string[]; action: string };
 
 async function call(path: string, init: Parameters<typeof bffFetch>[1] = { method: "GET" }): Promise<Record<string, unknown> | null> {
@@ -143,7 +158,10 @@ export async function getDoor(): Promise<Door | null> {
 
 export async function getModelPage(modelId: string): Promise<ModelPage | null> {
   const body = await call(`/api/v2/models/${id(modelId)}`);
-  return body && typeof body.summary === "string" ? (body as unknown as ModelPage) : null;
+  if (!body || typeof body.summary !== "string") return null;
+  const owner = body.owner as Partial<OwnerPanel> | null | undefined;
+  const whole = owner && typeof owner.head === "string" && Array.isArray(owner.rows) && Array.isArray(owner.folds) && Array.isArray(owner.notes);
+  return { ...(body as unknown as ModelPage), owner: whole ? (owner as OwnerPanel) : null };
 }
 
 /** "This is my field": true once the caller teaches the model. */
@@ -173,6 +191,10 @@ export async function answerExample(
     method: "POST",
     json: { step, answer },
   });
+  return answeredOf(body);
+}
+
+function answeredOf(body: Record<string, unknown> | null): Answered | null {
   if (body?.saved !== true) return null;
   return {
     saved: true,
@@ -189,7 +211,226 @@ export async function getProfileModels(userId: string): Promise<ProfileModels | 
   return section && Array.isArray(section.models) && section.models.length ? section : null;
 }
 
+/** An invite with its id and model, as GET /v2/models/invites lists it. */
+export type ListedInvite = ModelInvite & { id: string; model_id: string };
+
+/** The caller's invites, open or put off ("Not now" keeps them; MOD-49);
+ *  null below the ring or on failure. */
+export async function getModelInvites(): Promise<ListedInvite[] | null> {
+  const body = await call("/api/v2/models/invites");
+  if (!body || !Array.isArray(body.invites)) return null;
+  return (body.invites as ListedInvite[]).filter((i) => typeof i?.id === "string" && Array.isArray(i.lines) && typeof i.action === "string");
+}
+
+/** "Not now" (the invite stays) or accept (the caller teaches the model);
+ *  the model's id once the backend kept the answer, else null. */
+export async function answerModelInvite(inviteId: string, accept: boolean): Promise<string | null> {
+  const body = await call(`/api/v2/models/invites/${id(inviteId)}/${accept ? "accept" : "not-now"}`, { method: "POST", json: {} });
+  return typeof body?.model_id === "string" ? body.model_id : null;
+}
+
+/** "Add an example you know well" (MOD-21): the case in words, typed, read
+ *  from a written file, or a recording's transcript. The new example's id
+ *  and the backend's note, or null. */
+export async function addModelExample(
+  modelId: string,
+  added: { text: string } | { transcript: string },
+): Promise<{ exampleId: string; note: string | null } | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/examples`, { method: "POST", json: added });
+  return typeof body?.example_id === "string"
+    ? { exampleId: body.example_id, note: typeof body.note === "string" ? body.note : null }
+    : null;
+}
+
+/** A spoken answer, as its words (MOD-20): the transcript of the recording
+ *  made through the recording path, sent to /answer as the "words" step. */
+export async function answerSpoken(modelId: string, exampleId: string, transcript: string): Promise<Answered | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/examples/${id(exampleId)}/answer`, {
+    method: "POST",
+    json: { step: "words", transcript },
+  });
+  return answeredOf(body);
+}
+
+/** The owner's Archive (MOD-50): hides it from every list, deletes nothing. */
+export async function archiveModel(modelId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/${id(modelId)}/archive`, { method: "POST", json: {} });
+  return body?.status === "archived";
+}
+
+/** "Make public", only after its disclaimer: {confirm: true} (MOD-50). */
+export async function makeModelPublic(modelId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/${id(modelId)}/make-public`, { method: "POST", json: { confirm: true } });
+  return body?.visibility === "public";
+}
+
 export async function getModelInvite(inviteId: string): Promise<ModelInvite | null> {
   const body = await call(`/api/v2/models/invites/${id(inviteId)}`);
   return body && Array.isArray(body.lines) && typeof body.action === "string" ? (body as unknown as ModelInvite) : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  A model's API and its money (backend N528 items 6, 7 and 12, N531, N566   */
+/*  items 8 to 10, N577, N583; the rules and their words in                   */
+/*  services/model_api.py, the routes in routes/v2/model_api.py). Prices are  */
+/*  tokens, drawn by the backend ("300 tokens"); the screens never count.     */
+/*  Each read answers null on a 404 (below the ring, or before the backend    */
+/*  has the routes), and a null hides the way in.                             */
+/* -------------------------------------------------------------------------- */
+
+export type LabelRow = { label: string; value: string };
+export type ModelCard = {
+  title: string;
+  line: string;
+  description: string;
+  rows: LabelRow[];
+  foot: string;
+  /** ["Use it in your business", "Try it"]. */
+  actions: string[];
+  for_sale: boolean;
+};
+export type TryReply = { sub: string; text: string; sure: boolean; mark?: string };
+export type LimitOption = { units: number; label: string; line: string };
+export type ModelTerms = {
+  title: string;
+  /** A person who may not create a key reads why, and nothing else. */
+  refused?: string;
+  lines?: string[];
+  price_units?: number;
+  price?: string;
+  price_line?: string;
+  test_key?: { label: string; line: string; free_answers: number };
+  limit?: { label: string; default_units: number; options: LimitOption[] };
+  training?: string;
+  /** The model's own owner: "Use Pitch Coach in your own product." (MOD-48). */
+  own_product?: string;
+  actions: string[];
+};
+export type ShownKey = { id: string | null; title: string; line: string; key: string; note: string; actions: string[] };
+export type ModelCode = {
+  title: string;
+  line: string;
+  tabs: { lang: string; label: string; code: string }[];
+  sure: string;
+  actions: string[];
+};
+export type UsageKey = { id: string; kind: "test" | "live"; label: string; version: number };
+export type ModelUsage = {
+  title: string;
+  line: string;
+  alerts: { title: string; line: string; action: string }[];
+  rows: LabelRow[];
+  pays_teachers: string;
+  send_unsure: { label: string; line: string; on: boolean };
+  keys: UsageKey[];
+  version: { title?: string; line: string; action?: string };
+  /** ["Back to the list", "Delete this key"]. */
+  actions: string[];
+};
+export type SplitRow = { part: "infra" | "founder" | "teachers"; label: string; line?: string; units: number; amount: string };
+export type ModelPrice = {
+  title: string;
+  intro: string;
+  price_units: number;
+  price: string;
+  unit: string;
+  floor_units: number;
+  step_units: number;
+  minus_enabled: boolean;
+  suggestions: { units: number; label: string }[];
+  similar: string;
+  uses: number;
+  uses_line: string;
+  month: string;
+  split: SplitRow[];
+  action: string;
+  /** The price buyers pay now; the screen's price may be a preview. */
+  saved_units?: number | null;
+};
+export type ModelEarnings = { title: string; line: string; rows: LabelRow[]; fixed?: string; minimum?: string; actions: string[] };
+export type ModelDownload = { title: string; refused?: string; lines?: string[]; actions: string[] };
+
+/** The uses a month the price screen asks about, as the backend clamps them. */
+export const PRICE_USES = { min: 1_000, max: 100_000, step: 1_000, start: 10_000 } as const;
+
+const has = (body: Record<string, unknown> | null, key: string) => Boolean(body && key in body);
+
+export async function getModelCard(modelId: string): Promise<ModelCard | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/card`);
+  return body && Array.isArray(body.rows) ? (body as unknown as ModelCard) : null;
+}
+
+/** "Try it": the model's answer, or its unsure line with its mark. */
+export async function tryModel(modelId: string, message: string): Promise<TryReply | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/try`, { method: "POST", json: { message } });
+  return body && typeof body.text === "string" ? (body as unknown as TryReply) : null;
+}
+
+export async function getModelTerms(modelId: string): Promise<ModelTerms | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/use`);
+  return body && typeof body.title === "string" && Array.isArray(body.actions) ? (body as unknown as ModelTerms) : null;
+}
+
+/** A test key, shown once (no live key is offered: nothing is charged yet). */
+export async function createTestKey(modelId: string, monthlyLimitUnits: number | null): Promise<ShownKey | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/keys`, {
+    method: "POST",
+    json: { kind: "test", monthly_limit_units: monthlyLimitUnits, allow_training: false },
+  });
+  return body && typeof body.key === "string" ? (body as unknown as ShownKey) : null;
+}
+
+export async function getModelCode(modelId: string): Promise<ModelCode | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/code`);
+  return body && Array.isArray(body.tabs) ? (body as unknown as ModelCode) : null;
+}
+
+export async function getModelUsage(modelId: string): Promise<ModelUsage | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/usage`);
+  return body && Array.isArray(body.keys) && Array.isArray(body.rows) ? (body as unknown as ModelUsage) : null;
+}
+
+export async function deleteModelKey(keyId: string): Promise<boolean> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}`, { method: "DELETE" });
+  return body?.deleted === true;
+}
+
+export async function switchModelKey(keyId: string): Promise<number | null> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}/switch`, { method: "POST", json: {} });
+  return typeof body?.version === "number" ? body.version : null;
+}
+
+/** "Send the questions it wasn't sure about to its teachers", on or off. */
+export async function sendUnsure(keyId: string, on: boolean): Promise<boolean | null> {
+  const body = await call(`/api/v2/models/keys/${id(keyId)}/unsure`, { method: "POST", json: { on } });
+  return typeof body?.on === "boolean" ? body.on : null;
+}
+
+/** The price screen; with `units` it previews that price and its split,
+ *  saving nothing (only setModelPrice saves). */
+export async function getModelPrice(modelId: string, uses: number = PRICE_USES.start, units?: number): Promise<ModelPrice | null> {
+  const proposed = units === undefined ? "" : `&units=${Math.round(units)}`;
+  const body = await call(`/api/v2/models/${id(modelId)}/price?uses=${uses}${proposed}`);
+  return body && Array.isArray(body.split) ? (body as unknown as ModelPrice) : null;
+}
+
+export async function setModelPrice(modelId: string, units: number): Promise<ModelPrice | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/price`, { method: "POST", json: { units } });
+  return body && Array.isArray(body.split) ? (body as unknown as ModelPrice) : null;
+}
+
+export async function getModelEarnings(): Promise<ModelEarnings | null> {
+  const body = await call("/api/v2/models/earnings");
+  return body && Array.isArray(body.rows) ? (body as unknown as ModelEarnings) : null;
+}
+
+export async function getModelDownload(modelId: string): Promise<ModelDownload | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/download`);
+  return body && typeof body.title === "string" && (has(body, "lines") || has(body, "refused")) ? (body as unknown as ModelDownload) : null;
+}
+
+/** The data itself: the teachers' own ratings and answers. */
+export async function getModelDownloadRows(modelId: string): Promise<{ model: string; rows: Record<string, unknown>[] } | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/download?rows=1`);
+  return body && Array.isArray(body.rows) ? (body as unknown as { model: string; rows: Record<string, unknown>[] }) : null;
 }

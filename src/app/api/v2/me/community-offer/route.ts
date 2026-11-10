@@ -8,4 +8,4 @@ export const runtime = "nodejs";
  *  GET {offer: {id, name, inviter} | null}; POST {id, answer: "join" |
  *  "not_now"} → {offer: null, joined}. */
 export const GET = proxyRoute("GET", "/v2/me/community-offer", { noStore: true });
-export const POST = proxyRoute("POST", "/v2/me/community-offer");
+export const POST = proxyRoute("POST", "/v2/me/community-offer", { body: "json" });

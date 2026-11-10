@@ -39,6 +39,8 @@ import {
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
 import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
+import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
+import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
 // the coach's queue still imports TopBar from here.
@@ -849,6 +851,7 @@ export default function ChatThread({
   open = true,
   onBack,
   onRecordAnswer,
+  onOpenChat,
 }: {
   chat: Chat;
   /** False while the chat is pulled in from the list's right edge, or slides
@@ -856,6 +859,8 @@ export default function ChatThread({
   open?: boolean;
   onBack: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
+  /** Opens another chat in the list (the answers gathered under a Take). */
+  onOpenChat?: (chatId: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const pending = usePendingAnswer(chat.id);
@@ -939,6 +944,10 @@ export default function ChatThread({
   // in the middle, "Not now" under it (N361, N483 item 3, N493 item 3).
   const answer = useAnswerWait(chat.id, messages, !!onRecordAnswer);
   const setup = useSetupQuestion(chat.id, messages, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
+  // A host's own chat (backend N578, N586 item 1, N590): who they are on
+  // top, their assistant's messages labelled as its own. Null: as it was.
+  const host = useHost(chat.id);
+  const assistantName = host?.assistant ?? chat.assistant ?? null;
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -958,19 +967,19 @@ export default function ChatThread({
           ) : joinedBy ? (
             <JoinedLine text={joinedYourLink(joinedBy)} />
           ) : null}
+          <AssistantAbout host={host} />
           {messages === null ? (
             <TypingDots label="Loading" />
           ) : (
             withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              <ChatRow
-                key={message.id}
-                chatId={chat.id}
-                message={message}
-                onPhoto={setFullPhoto}
-                sentLine={SENT}
-                name={chat.title}
-              />,
+              <AssistantSays key={message.id} name={assistantName} message={message}>
+                <AnswerQuote message={message}>
+                  <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
+                    <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
+                  </TakeAnswersUnder>
+                </AnswerQuote>
+              </AssistantSays>,
               ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"
                 ? [<DeadlineLine key={`deadline-${message.id}`} iso={(message.meta!.setup_answer as { deadline: string }).deadline} />]
                 : []),

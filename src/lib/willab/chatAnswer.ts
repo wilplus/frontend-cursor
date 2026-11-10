@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { createProject } from "@/services/api/projects";
 import { sendChatAnswer, undoChatAnswer, type ChatMessage } from "@/services/api/chats";
 import { answerInquiry, undoInquiry } from "@/services/api/takeMatches";
+import { answerBundle } from "@/services/api/assistants";
 import {
   clearExploreArc,
   readExploreArc,
@@ -41,6 +42,12 @@ import {
 /*  the recording screens open on the default presentation (Opening, Main     */
 /*  points, Summary), and it is sent to the question route, which marks it    */
 /*  for the other person to answer.                                           */
+/*                                                                            */
+/*  "Record one answer" in Will's queue (`bundle`, backend N584 item 3) goes */
+/*  the same way to the bundle's route, which sends it to everyone who asked */
+/*  that thing, each in their own chat with the host. That route holds       */
+/*  nothing, so it goes once its Take is up and has no Undo; its `chatId` is */
+/*  `bundle:<id>`, which no chat has, so only the queue hears it was sent.   */
 /*                                                                            */
 /*  One at a time. The recording screens read `answering()` as they open;    */
 /*  the chat reads `usePendingAnswer`.                                        */
@@ -96,6 +103,9 @@ export interface AnswerFor {
    *  follows the Take slide by slide (backend N493 item 1). Absent for a
    *  question, which keeps its one slide. */
   slides?: string[];
+  /** "Record one answer" for a bundle of questions (backend N584): the
+   *  bundle's id. */
+  bundle?: string;
 }
 
 /** An answer recorded and on its way: "Sending to {name}…" with Undo. */
@@ -116,6 +126,7 @@ type Sending = PendingAnswer & {
   project: string;
   asks: boolean;
   inquiry: string | null;
+  bundle: string | null;
   take: string | null;
   posting: boolean;
   message: ChatMessage | null;
@@ -196,6 +207,7 @@ export function answerRecorded(durationMs: number): void {
     project: current.project,
     asks: current.asks === true,
     inquiry: current.inquiry ?? null,
+    bundle: current.bundle ?? null,
     durationMs: Math.max(1, Math.round(durationMs)),
     startedAt: Date.now(),
     take: null,
@@ -206,13 +218,17 @@ export function answerRecorded(durationMs: number): void {
     undone: false,
     timer: null,
   };
-  next.timer = setTimeout(() => {
-    if (sending !== next) return;
-    next.waited = true;
-    next.timer = null;
-    if (next.message) sent(next);
-    else changed();
-  }, UNDO_MS);
+  // A bundle's answer has no Undo: its route holds nothing (N584).
+  next.waited = next.bundle !== null;
+  if (!next.waited) {
+    next.timer = setTimeout(() => {
+      if (sending !== next) return;
+      next.waited = true;
+      next.timer = null;
+      if (next.message) sent(next);
+      else changed();
+    }, UNDO_MS);
+  }
   sending = next;
   changed();
 }
@@ -290,7 +306,9 @@ function sent(answer: Sending) {
 async function post(answer: Sending, holdMs = Math.max(0, answer.startedAt + UNDO_MS - Date.now())) {
   if (answer.posting || answer.message || !answer.take) return;
   answer.posting = true;
-  const message = answer.inquiry
+  const message = answer.bundle
+    ? await postToBundle(answer.bundle, answer.take, answer.durationMs)
+    : answer.inquiry
     ? await postToInquiry(answer.inquiry, answer.take, answer.durationMs, holdMs)
     : await sendChatAnswer(answer.chatId, answer.take, answer.durationMs, holdMs, answer.asks);
   answer.posting = false;
@@ -316,6 +334,14 @@ async function postToInquiry(inquiry: string, take: string, durationMs: number, 
   const kept = await answerInquiry(inquiry, take, durationMs, holdMs);
   if (!kept) return null;
   return { id: `inquiry-${inquiry}`, mine: true, author: "", kind: "voice", body: "", meta: { answer: true }, created_at: new Date().toISOString() };
+}
+
+/** "Record one answer" (N584 item 3): sent to everyone in the bundle at
+ *  once; a kept answer stands for one here, as for a matched Take. */
+async function postToBundle(bundle: string, take: string, durationMs: number): Promise<ChatMessage | null> {
+  const sent = await answerBundle(bundle, take, durationMs);
+  if (sent === null) return null;
+  return { id: `bundle-${bundle}`, mine: true, author: "", kind: "voice", body: "", meta: { answer: true, bundle }, created_at: new Date().toISOString() };
 }
 
 /** Tell the backend about an Undo; one that came too late shows as sent. */

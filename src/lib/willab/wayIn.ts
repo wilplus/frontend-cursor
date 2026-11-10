@@ -19,12 +19,28 @@ export const WAY_IN_WORDS = {
   openFeedback: "Open your feedback ›",
   copyLink: "Copy my link ›",
   joinQuestions: "Your questions for people who join ›",
+  /** The chat setup's own first tap (backend `chat_setup.SET_UP_MY_CHAT`). */
+  setUpMyChat: "Set up my chat ›",
 } as const;
 
 /** How often the app asks the way in for the beats that are due while it
  *  waits on the Take's reading (the backend PR's hand-off: every few
  *  seconds; each call is idempotent). */
 export const WAY_IN_POLL_MS = 5_000;
+
+/** Each call that brings nothing new waits longer, up to a minute; one that
+ *  writes rows starts again from a few seconds. */
+export const WAY_IN_POLL_MAX_MS = 60_000;
+
+/** After this long with nothing new, the app stops asking (a Take with no
+ *  words, or a way that ends before the walk, never gives the poll an end
+ *  of its own); the way in's next step starts it again (`wayInPollKey`). */
+export const WAY_IN_POLL_GIVE_UP_MS = 20 * 60_000;
+
+/** The wait after a quiet one: half as long again, never over the cap. */
+export function nextWayInPoll(delayMs: number): number {
+  return Math.min(WAY_IN_POLL_MAX_MS, Math.round(delayMs * 1.5));
+}
 
 type Meta = Record<string, unknown>;
 
@@ -96,6 +112,14 @@ export function wayInPolls(plan: Plan | null, firstTakeInFlight: boolean): boole
   return !view.walk_done && !view.asking && !view.done.includes("next");
 }
 
+/** What the way in has come to: the asking starts over (from a few seconds)
+ *  whenever this changes, so a give-up never outlasts a change. */
+export function wayInPollKey(plan: Plan | null): string {
+  const view = wayInOf(plan);
+  if (!view) return `first:${plan?.first_take === true}`;
+  return [view.asking ?? "", view.done.join(","), view.walk_ready, view.walk_done].join("|");
+}
+
 /** "Record Take 2" stays faded until the walk is done (N592 item 3). */
 export function recordWaits(plan: Plan | null): boolean {
   const view = wayInOf(plan);
@@ -137,6 +161,9 @@ export function rowLinks(message: Pick<LoungeMessage, "metadata">): string[] {
   const meta = (message.metadata ?? {}) as Meta;
   const links = strings(meta.links);
   if (meta.opens === "feedback") return [...links, ...strings(meta.chips)];
+  // After the walk, for sharers: the setup of their own chat in Will's chat
+  // (backend `way_in._after_walk_row`, N578 item 4), in the setup's own words.
+  if (meta.opens === "setup_chat") return [...links, WAY_IN_WORDS.setUpMyChat];
   return links;
 }
 

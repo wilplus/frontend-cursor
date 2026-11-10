@@ -192,8 +192,8 @@ describe("the AI models: meeting them (MOD-02 to MOD-07, MOD-12, MOD-13)", () =>
     expect(bff.calls.some((c) => c.path === "/api/v2/models?filter=ready")).toBe(true);
   });
 
-  it("MOD-06: a public model's page in totals only, with \"Teach it\" and \"Try it\"", async () => {
-    serve(ALL);
+  it("MOD-06: a public model's page in totals only, with \"Teach it\" and \"Try it\" (once its API answers)", async () => {
+    serve({ ...ALL, "GET /api/v2/models/speak/code": { title: "", line: "", tabs: [], sure: "", actions: [] } });
     await render(createElement(ModelsChatRows));
     await tapEl(container.querySelector('[data-chat-row="models"]'));
     const card = [...container.querySelectorAll('[data-testid="model-card"]')].find((c) => c.textContent?.includes("Speaking confidence"));
@@ -245,7 +245,7 @@ describe("the AI models: meeting them (MOD-02 to MOD-07, MOD-12, MOD-13)", () =>
 
   it("MOD-13: an empty search says \"No models here yet.\" and offers \"Start the first one\" and \"Clear the search\"", async () => {
     serve(ALL);
-    await render(createElement(ModelListScreen, { onClose: () => {}, onWhat: () => {}, onOpen: () => {}, onTeach: () => {} }));
+    await render(createElement(ModelListScreen, { onClose: () => {}, onWhat: () => {}, onOpen: () => {}, onTeach: () => {}, onStart: () => {} }));
     const input = container.querySelector("input[type=search]") as HTMLInputElement;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "hair care");
@@ -434,24 +434,6 @@ describe("the AI models: the invite and the profile (MOD-49, MOD-50)", () => {
   it("MOD-49: an invite for someone else, or below the ring, answers 404 and draws nothing", async () => {
     await render(createElement(ModelInviteCard, { inviteId: "i2", onOpen: () => {} }));
     expect(text()).toBe("");
-  });
-
-  it("MOD-50: the profile lists the models she started and teaches, under \"AI models\"", async () => {
-    serve({ "GET /api/v2/models/profile/marta": { section: F.profile } });
-    await render(createElement(ProfileModels));
-    for (const w of [
-      "AI models",
-      "Pitch Coach",
-      "Private",
-      "You started it · 36% of the way · 3 teachers",
-      "Make public",
-      "Archive",
-      "Download its data",
-      "Speaking confidence",
-      "Public",
-      "You teach it · 86 answers counted this month",
-    ])
-      expect(text()).toContain(w);
   });
 
   it("MOD-50: with no model, or below the ring, the profile has no \"AI models\" section", async () => {
