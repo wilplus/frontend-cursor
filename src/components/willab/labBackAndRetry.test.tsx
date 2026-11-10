@@ -13,8 +13,9 @@ OUTCOME
       upload key, and never restarts the old one, whose "Processing" line
       keeps tracking it.
   O3  The ✕ on the processing screen while the Take is still going up
-      closes the screens, and once the server has the Take the chat still
-      gets it: its "Your Recording" line and the marker the chat follows.
+      closes the screens, and the chat says at once that the Take is on its
+      way; once the server has it the chat still gets it: its "Your
+      Recording" line and the marker the chat follows.
 PROVES   O1 -> "Back while recording asks first, and the Take keeps recording"
          O2 -> "after Record again, Try processing again sends the new Take, never the old one"
          O3 -> "the ✕ while the Take goes up still brings it to the chat"
@@ -23,7 +24,8 @@ WHY      Founder 2026-11-09, backend N560 items 1 and 2 ("Ask, like the ✕";
          retry could restart the old Take (Never 3, Never 5). O3: founder
          2026-11-10, "the takes are not being displayed on the chat and when
          I click to close the processing screen it doesn't show me the
-         loading progress bubble" (Never 3).
+         loading progress bubble"; "if I close the processing earlier there
+         is no indication that it is processing" (Never 3).
 */
 import { act, createElement, useCallback, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -108,6 +110,14 @@ import LabOverlay from "./LabOverlay";
 import { transition, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import { readProcessingTake } from "@/lib/willab/processingTake";
+import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
+
+/** What the chat reads: a Take still going up after its screens closed. */
+let uploadingNow = false;
+function UploadingProbe() {
+  uploadingNow = useTakeUploadingUnwatched();
+  return null;
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -147,7 +157,7 @@ async function openLaterTake() {
     slides: [],
     targetLengthSeconds: null,
   });
-  act(() => root.render(createElement(Lab)));
+  act(() => root.render(createElement("div", null, createElement(Lab), createElement(UploadingProbe))));
   await settle();
   expect(recording()).toBe(true);
 }
@@ -263,11 +273,13 @@ describe("the recording screens never lose a Take by mistake (backend N560)", ()
     await act(async () => document.body.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
     await settle();
     expect(closed).toHaveBeenCalledTimes(1);
+    expect(uploadingNow).toBe(true);
 
     // The server answers after the screens are gone.
     await act(async () => answer({ kind: "processing", sessionId: "take-2", arcId: "arc-1", takeIndex: 2, takeCount: 2 }));
     await settle();
 
+    expect(uploadingNow).toBe(false);
     expect(readProcessingTake(null)).toMatchObject({ sessionId: "take-2", arcId: "arc-1", takeIndex: 2, status: "processing" });
     const lines = thread.append.mock.calls.map(([draft]) => draft as { kind: string; metadata?: Record<string, unknown> });
     expect(lines.some((d) => d.kind === "recording_summary")).toBe(true);

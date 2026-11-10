@@ -84,6 +84,7 @@ import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
 import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
+import { takeUploadingUnwatched } from "@/lib/willab/takeUploading";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -333,11 +334,15 @@ export default function LabOverlay({
     result: Awaited<ReturnType<typeof uploadForProcessing>>,
     run: {
       discarded: boolean;
+      /** The chat's "Processing your recording" while it went up (null when
+       *  the screens were still open as it was sent). */
+      uploading: (() => void) | null;
       projectId: string | null;
       waitStartedAt: number;
       carried: (arc: string | null, take: number | null) => { returnedArcId: string; nextIdx: number; deck: ExploreArcDeck | undefined } | undefined;
     },
   ): void {
+    run.uploading?.();
     if (run.discarded || answer) return;
     if (result.kind !== "ok" && result.kind !== "processing" && result.kind !== "ideal_text_unconfirmed") return;
     const sessionId = result.sessionId;
@@ -766,6 +771,9 @@ export default function LabOverlay({
     // Only a discard throws the answer away; a run that merely lost interest
     // (the ✕, an unmount) still lands it (`landUnwatched`).
     let discarded = false;
+    // The upload has answered; until then, a ✕ leaves the chat a bubble.
+    let answered = false;
+    let uploading: (() => void) | null = null;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
     // a result it has nothing to do with. Cleared alongside `active` below so
@@ -903,6 +911,7 @@ export default function LabOverlay({
         ),
         feeling: recordedFeelingRef.current ?? undefined,
       }, abort.signal);
+      answered = true;
       // THE WINDOW IS SHUT, whatever the answer was. Clearing this before the
       // guard below means a Discard tap that races the response cannot abort a
       // request the server has already answered.
@@ -919,7 +928,7 @@ export default function LabOverlay({
       // deliberate: it is deterministic (not "the dispatch probably re-ran the
       // effect first"), and it keeps this already-grandfathered function from
       // growing — the ratchet's own instruction.
-      if (!active) return landUnwatched(result, { discarded, projectId, waitStartedAt, carried: carryArc });
+      if (!active) return landUnwatched(result, { discarded, uploading, projectId, waitStartedAt, carried: carryArc });
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take
@@ -1031,6 +1040,8 @@ export default function LabOverlay({
     })();
     return () => {
       active = false;
+      // Closed while the Take goes up: the chat shows it is on its way.
+      if (!answered && !discarded && !answer && uploadAbortRef.current) uploading = takeUploadingUnwatched();
       // NOT an abort. An unmount or a dependency change must never throw a
       // take away — the upload keeps going and the server keeps it; only this
       // run's interest in the answer ends. Dropping the canceller with it
