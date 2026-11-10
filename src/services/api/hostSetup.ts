@@ -53,6 +53,9 @@ export type SetupRead = {
   cost: ChatCost | null;
   /** Models left out because the host was out of tokens, by day (N630 item 1). */
   skipped_models: SkippedModel[];
+  /** What the first Take said the person does, to keep or change on "What
+   *  do you do?" (N632 item 2); null when it said nothing. */
+  spec_guess: string | null;
 };
 export type SkippedModel = { model_id: string; q: string; by: string; on: string };
 /** The host's own chat: its row, the share link (`/c/<token>`), and the line
@@ -88,6 +91,7 @@ export async function readSetup(): Promise<SetupRead | null> {
     own_chat: own && typeof own.title === "string" ? own : null,
     cost: costOf(body.cost),
     skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
+    spec_guess: typeof body.spec_guess === "string" && body.spec_guess.trim() ? body.spec_guess.trim() : null,
   };
 }
 

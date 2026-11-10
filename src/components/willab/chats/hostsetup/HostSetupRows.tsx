@@ -125,6 +125,7 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       parts={detail.parts ? detail.parts : recipe ? { line: null, parts: read?.parts ?? [] } : null}
       cost={read?.cost ?? null}
       ownChat={read?.own_chat ?? null}
+      guess={read?.spec_guess ?? null}
       onClose={onClose}
     />
   );

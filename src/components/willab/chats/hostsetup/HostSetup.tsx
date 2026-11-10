@@ -39,8 +39,10 @@ type Step =
   | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
   | "model" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
 const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
-/** The steps an edit goes through before the parts again (the prototype's `next`). */
-const THROUGH: Step[] = ["q", "qmore", "model", "try", "live"];
+/** The steps an edit goes through before the parts again (the prototype's
+ *  `next`); "Your models" goes the whole way of a model, from "smart" to its
+ *  check, as in the first run (N632 item 5). */
+const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "model", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
 const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who" };
 
@@ -54,7 +56,7 @@ type State = {
   cost: ChatCost | null;
   /** Will's chat while words are asked for: his question, then one's own. */
   thread: { w: boolean; t: string }[];
-  typing: { ask: string; ph: string; done: (v: string) => void } | null;
+  typing: { ask: string; ph: string; done: (v: string) => void; initial?: string } | null;
   thinking: string | null;
   i: Record<string, number>;
   own: Record<string, string | null>;
@@ -134,7 +136,7 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, onClose }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
@@ -143,6 +145,8 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   cost?: ChatCost | null;
   /** The share link and the newcomer's line, as last read. */
   ownChat?: OwnChat | null;
+  /** What the first Take said the person does (N632 item 2). */
+  guess?: string | null;
   onClose: () => void;
 }) {
   const { S, paint } = useSetup(() => ({ ...fresh(recipe, parts, cost), ownChat }));
@@ -199,8 +203,17 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       paint();
     });
   };
+  /** An edit is over: the parts again; for a chat not open yet, "Open it
+   *  to people?" first, so a "Not yet" is never final (N632 item 5). */
+  const editDone = () => (S.recipe && !S.recipe.live && S.at !== "live" ? go("live") : toParts());
   const next = () => {
-    if (S.edit && !THROUGH.includes(S.at)) return toParts();
+    if (S.edit) {
+      // After the models, sharing them and its price, as in the first run.
+      const own = (S.recipe?.models ?? []).some((m) => m.own);
+      if (S.at === "more" && own) return go("share");
+      if (S.at === "share" && S.recipe?.share) return go("price");
+      if (!THROUGH.includes(S.at)) return editDone();
+    }
     let k = ORDER.indexOf(S.at) + 1;
     while (k < ORDER.length - 1 && skip(ORDER[k])) k += 1;
     if (ORDER[k] === "done" && !S.edit) return onClose();
@@ -235,11 +248,12 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       then();
     });
   };
-  const typeIn = (ask: string, done: (v: string) => void, ph: string = W.typeHere) => {
+  const typeIn = (ask: string, done: (v: string) => void, ph: string = W.typeHere, initial?: string) => {
     S.thread.push({ w: true, t: ask });
     S.typing = {
       ask,
       ph,
+      initial,
       done: (v) => {
         S.thread.push({ w: false, t: v });
         S.typing = null;
@@ -257,8 +271,9 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     void startSetup(v).then((got) => {
       S.thinking = null;
       if (suggested(got)) {
-        S.recipe = got;
-        S.qs = [];
+        // A new start, also "Start again": every step from the first, and
+        // the chat is not open until the last (N632 item 4).
+        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, picked: null });
         go("care");
       } else paint();
     });
@@ -292,19 +307,21 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
         <Frame onBack={back}>
           {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
         </Frame>
-        <Box placeholder={t.ph} onSend={t.done} />
+        <Box placeholder={t.ph} onSend={t.done} initial={t.initial} />
       </div>
     );
   }
   if (!R || S.at === "what") {
     return (
-      <Frame onBack={back} foot={<Btn label={W.answer} onClick={() => typeIn(W.whatDoYouDo, begin, W.whatPlaceholder)} />}>
+      <Frame onBack={back} foot={<Btn label={W.answer} onClick={() => typeIn(W.whatDoYouDo, begin, W.whatPlaceholder, guess ?? undefined)} />}>
         <Say>{W.hi(name)}</Say>
         <Say>{W.whatDoYouDo}</Say>
       </Frame>
     );
   }
-  return <StepScreen S={S} R={R} paint={paint} go={go} next={next} back={back} keep={keep} typeIn={typeIn} name={name} onClose={onClose} />;
+  // In an edit, a step that ended the first run ends at the parts instead.
+  const done = () => (S.edit ? toParts() : onClose());
+  return <StepScreen S={S} R={R} paint={paint} go={go} next={next} back={back} keep={keep} typeIn={typeIn} name={name} onClose={onClose} done={done} />;
 }
 
 type Ctx = {
@@ -318,6 +335,8 @@ type Ctx = {
   keep: (part: string, value: unknown, then?: () => void) => void;
   typeIn: (ask: string, done: (v: string) => void, ph?: string) => void;
   onClose: () => void;
+  /** Where a "Not now" that ends the models, or the last step, goes. */
+  done: () => void;
 };
 
 /** Keep or Change: Will's line, the thing, Change cycles his suggestions,
@@ -368,7 +387,7 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "smart":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.yes, () => c.keep("smart", false, () => c.go("who")), () => c.keep("smart", true))}>
+        <Frame onBack={c.back} foot={yesNo(W.notNow, W.yes, () => c.keep("smart", false, S.edit ? c.done : () => c.go("who")), () => c.keep("smart", true))}>
           <Say>{W.notSpecialist}</Say>
           <Say>{W.makeSmart(R.spec)}</Say>
           <Cap>{W.smartCap}</Cap>
@@ -394,7 +413,7 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "live":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.onClose), () => c.keep("live", true, c.onClose))}>
+        <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.done), () => c.keep("live", true, c.done))}>
           <Say>{W.openToPeople}</Say>
           <Cap>{W.anyoneLink}</Cap>
           <Card b={W.chatOf(S.ownChat?.title || c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${S.ownChat?.title || c.name}`)} />
@@ -492,7 +511,7 @@ function StepScreen(c: Ctx) {
       return (
         <Frame
           onBack={c.back}
-          foot={yesNo(W.notNow, W.trainMyOwn, () => (models.length ? c.go("more") : c.keep("smart", false, () => c.go("who"))), () => { S.ownSeen = true; c.next(); })}
+          foot={yesNo(W.notNow, W.trainMyOwn, () => (models.length ? c.go("more") : c.keep("smart", false, S.edit ? c.done : () => c.go("who"))), () => { S.ownSeen = true; c.next(); })}
         >
           <Say>{W.ownSay}</Say>
           {[W.ownWhat, W.ownWorth, W.ownNot].map(([b, s]) => <Card key={b} b={b} s={s} />)}
@@ -666,9 +685,11 @@ function PartsStep({ c }: { c: Ctx }) {
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
           <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>
-          <span className="text-[16px] font-semibold text-foreground">{p.value}</span>
+          {p.value ? <span className="text-[16px] font-semibold text-foreground">{p.value}</span> : null}
         </button>
       ))}
+      {/* Quiet, under the parts, never beside "Back to my chats" (N632 item 4). */}
+      <Link label={W.startAgain} onClick={() => c.go("what")} />
     </Frame>
   );
 }

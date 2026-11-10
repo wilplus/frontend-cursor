@@ -212,6 +212,7 @@ function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear, o
 type Optional = "onUse" | "onEarnings" | "onStart" | "onContinue" | "onInvite";
 
 export function ModelListScreen({
+  onBack,
   onClose,
   onUse = () => undefined,
   onEarnings = () => undefined,
@@ -235,7 +236,7 @@ export function ModelListScreen({
   };
   const footer = list && !list.empty && onStart ? <WalkFooter pill={{ label: list.start, onClick: onStart }} /> : null;
   return (
-    <WalkOverlay caption={W.row_models} title={W.row_models} onClose={onClose} footer={footer} testId="models-list">
+    <WalkOverlay caption={W.row_models} onBack={onBack} backLabel={W.row_models} title={W.row_models} onClose={onClose} footer={footer} testId="models-list">
       {list ? (
         <>
           <p className="m-0 text-[15px] text-muted-foreground">{list.intro}</p>

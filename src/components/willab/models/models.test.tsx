@@ -48,6 +48,7 @@ import ModelInviteCard from "./ModelInviteCard";
 import ProfileModels from "./ProfileModels";
 import { ModelListScreen } from "./ModelScreens";
 import ChatList from "../chats/ChatList";
+import { useSiteBarCovered } from "../chats/siteBarCover";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -432,6 +433,30 @@ describe("the AI models: the overlay fills Will's column (backend N618 item 10)"
     expect(overlay?.textContent).toContain("Nothing waits for you.");
     await tap("Back to your chats");
     expect(container.querySelector("[data-models-overlay]")).toBeNull();
+  });
+});
+
+describe("the AI models open like a chat (backend N632 item 6)", () => {
+  it("N632-6: a back arrow on the left, no site bar above and no close on the right; Back closes to where it opened from", async () => {
+    serve(ALL);
+    let covered = false;
+    function SiteBar() {
+      covered = useSiteBarCovered();
+      return null;
+    }
+    await render(createElement("div", { "data-chats-front": "" }, createElement(SiteBar), createElement(ModelsChatRows)));
+    expect(covered).toBe(false);
+    await tapEl(container.querySelector('[data-chat-row="models"]'));
+    const overlay = container.querySelector("[data-models-overlay]")!;
+    expect(overlay.textContent).toContain("AI models");
+    expect(covered).toBe(true);
+    const top = overlay.querySelector(".walk-ovtop")!;
+    // Back is the top bar's first control; the ✕ after it is not drawn.
+    expect(top.querySelector("button")?.getAttribute("aria-label")).toBe("Back");
+    expect(overlay.className).toContain("[&_.walk-ovtop>button[aria-label=Close]]:hidden");
+    await tapEl(top.querySelector('button[aria-label="Back"]'));
+    expect(container.querySelector("[data-models-overlay]")).toBeNull();
+    expect(covered).toBe(false);
   });
 });
 
