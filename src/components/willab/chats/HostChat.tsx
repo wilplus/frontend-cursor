@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Mic } from "lucide-react";
-import { getHost, markOf, type AnswerWith, type Host, type Mark } from "@/services/api/assistants";
+import { getHost, markOf, type Host, type Mark } from "@/services/api/assistants";
 import type { ChatMessage } from "@/services/api/chats";
 import { AssistantMark } from "./ChatList";
 
@@ -92,39 +91,5 @@ export function AnswerQuote({ message, children }: { message: ChatMessage; child
       </span>
       {children}
     </div>
-  );
-}
-
-/* ── The bar in a host's chat (backend N600, amending N597 items 1, 2) ─── */
-
-/** Whether the backend keeps typed words between people. It does not yet:
- *  POST /v2/chats/<id>/messages takes the three emoji only (anything else is
- *  400), so the typing box waits and the emoji keep the middle. */
-export const TYPED_WORDS_SENT = false;
-
-/** What the bar holds in a host's chat, from the host's answer_with
- *  (N600 items 1 to 3): the "+" always on the left; the typing box in the
- *  middle when Type is chosen, else the three emoji; a small mic on the
- *  right when Record is chosen. Tap answers sit above the bar, with no
- *  "Something else". The same at rest and while a question waits: the
- *  question adds its taps and "Not now" above, nothing else. */
-export function hostBar(answerWith: AnswerWith, typing: boolean = TYPED_WORDS_SENT): { middle: "box" | "emoji"; mic: boolean } {
-  return { middle: answerWith.type && typing ? "box" : "emoji", mic: answerWith.record };
-}
-
-/** The small mic on the right of a host's bar (N600 item 1): it records
- *  the answer to what waits, else a question over the default presentation,
- *  on the recording screens, as "Record your answer" and the "+" did. */
-export function HostMic({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      data-chat-mic=""
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-    >
-      <Mic className="h-5 w-5" aria-hidden />
-    </button>
   );
 }

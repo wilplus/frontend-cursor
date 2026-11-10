@@ -29,19 +29,11 @@ OUTCOME
       assistant is live.
   O4  HOST-N586-5: Will's offer is asked of the backend once, only for a
       tester with no recipe; with a recipe, or without the ring, it is not.
-  O6  HOST-N600-3: in a host's chat the bar follows how the host lets
-      people answer: Record gives a small mic on the right ("Record your
-      answer" leaves the middle; the mic records the answer to what waits,
-      else "Ask Tomek"), Tap alone gives no mic, and the three emoji keep
-      the middle while the backend takes no typed words between people; the
-      same bar at rest and while a question waits, with no "Something
-      else"; a chat with no host keeps "Record your answer" in the middle.
 PROVES   O1 -> "HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring"
          O2 -> "HOST-N590-8: the joiner meets the host's welcome first, as the assistant's"
          O3 -> "HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words"
          O5 -> "HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again"
          O4 -> "HOST-N586-5: Will offers the setup once, only to a tester with no recipe"
-         O6 -> "HOST-N600-3: the bar follows the host's answer_with, the same whether or not something is asked"
 WHY      Every inviter has a chat of their own, set up in Will's chat
          (founder, 9 November 2026, N578 to N582, N586, N590).
 */
@@ -365,66 +357,5 @@ describe("a host's own chat", () => {
     root = createRoot(container);
     await render(createElement(Will));
     expect(calls("POST /api/v2/chats/recipe/setup/offer")).toHaveLength(1);
-  });
-
-  it("HOST-N600-3: the bar follows the host's answer_with, the same whether or not something is asked", async () => {
-    const chat: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
-    const asked = {
-      id: "m-2",
-      mine: false,
-      author: "Tomek",
-      kind: "text",
-      body: "Which shampoo suits me?",
-      meta: { record_answer: true },
-      created_at: "2026-11-10T10:00:00Z",
-    };
-    const host = (answer_with: Record<string, boolean>) => () =>
-      json({ host: { assistant: "Tomek's assistant", about: [], questions: [], answer_with } });
-    const onRecordAnswer = vi.fn();
-    const open = async (messages: unknown[], answer_with: Record<string, boolean> | null) => {
-      routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages });
-      if (answer_with) routes["GET /api/v2/chats/c-1/host"] = host(answer_with);
-      else routes["GET /api/v2/chats/c-1/host"] = () => json({ host: null });
-      act(() => root.unmount());
-      root = createRoot(container);
-      await render(createElement(ChatThread, { chat, onBack: () => undefined, onRecordAnswer }));
-    };
-    const mic = () => container.querySelector<HTMLButtonElement>("[data-chat-mic]");
-    const emoji = () => container.querySelector("[data-chat-emoji-box]");
-
-    // Record, Type and Tap, at rest: "+", the emoji (no typed words yet), the mic.
-    await open([], { tap: true, type: true, record: true });
-    expect(container.querySelector("[data-chat-plus]")).toBeTruthy();
-    expect(emoji()).toBeTruthy();
-    expect(mic()?.getAttribute("aria-label")).toBe("Ask Tomek");
-    await act(async () => mic()!.click());
-    expect(onRecordAnswer).toHaveBeenLastCalledWith({ chatId: "c-1", name: "Tomek", question: "", customer: false, asks: true });
-
-    // While a question waits: the same bar; "Not now" above it; the mic records the answer.
-    await open([asked], { tap: true, type: true, record: true });
-    expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
-    expect(emoji()).toBeTruthy();
-    expect(button("Not now")).toBeTruthy();
-    expect(container.textContent).not.toContain("Something else");
-    expect(mic()?.getAttribute("aria-label")).toBe("Record your answer");
-    await act(async () => mic()!.click());
-    expect(onRecordAnswer).toHaveBeenLastCalledWith({
-      chatId: "c-1",
-      name: "Tomek",
-      question: "Which shampoo suits me?",
-      customer: false,
-      slides: undefined,
-    });
-
-    // Tap alone: the emoji, no mic, nothing in the middle but them.
-    await open([asked], { tap: true, type: false, record: false });
-    expect(mic()).toBeNull();
-    expect(emoji()).toBeTruthy();
-    expect(container.querySelector("[data-chat-record-answer]")).toBeNull();
-
-    // No host: the chat as it was, "Record your answer" in the middle, no mic.
-    await open([asked], null);
-    expect(mic()).toBeNull();
-    expect(container.querySelector("[data-chat-record-answer]")?.textContent).toBe("Record your answer");
   });
 });

@@ -645,6 +645,43 @@ with me, under their own question quoted, with the match's colour.","O1 -> ""HOS
 O2 -> ""HOST-N584-2: one recording goes to the bundle's route, at once""
 O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""
 O4 -> ""HOST-N602-2: See who asked opens the sheet, and Split them up moves the picked questions out""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
+src/components/willab/chats/chatBar.test.tsx,Story,"As someone in a host's chat or a chat with another person, I want the bar to be two places, the ""+"" and the one thing to do now, so that I always know what to do next: ask, answer, or say thanks (backend N610, the locked page ""The Bar, To Lock""; replaces N600's bar and, for these chats, N483's three emoji in the middle).","O1  BAR-N610-FE-1: the bar holds two things and nothing else: the ""+""
+(named ""Add"") and one black ""Ask {name}"" while nothing is asked, in a
+chat with no host, a host's chat that takes recordings and one that
+takes only taps; it is never disabled, opens ""Ask {name}"", and there
+are no emoji and no mic in the bar.
+O2  BAR-N610-FE-2: when the chat asks, the middle answers: ""Record your
+answer"" where the chat takes recordings, handing the recording
+screens the question; where it takes only taps the middle stays
+""Ask {name}"". Answers to tap sit above the bar with ""Not now"" under
+them; ""Not now"" takes them away until the chat is opened again and
+the system keeps the decline.
+O3  BAR-N610-FE-3: after a person's recorded answer, three thanks to tap
+above the bar, 👀, 👍 and 🙏, the last filled; one tap posts
+{""kind"":""emoji"",""body"":…}, shows it at once, large, with its meaning,
+and the taps go; none after the assistant's message, none while
+something is asked, and none again once my thanks is the newest.
+O4  BAR-N610-FE-4: the ""+"" sheet. Nothing asked: ""Ask {name}"" with
+""Record your question"" (the default presentation) and ""Send a photo"",
+which posts the photo picked to the chat's photo route and shows it.
+While the chat asks: ""Answer {name}"" with ""Send a photo"" and no
+""Record your question"".
+O5  BAR-N610-FE-5: typing waits for the backend. A host who chose Type
+gets no box while the chat's read does not say `typed`. Once it does:
+nothing asked, the box ""Ask {name}"" (recording on too: still the
+box), and the words go as {""kind"":""text"",""body"":…}, shown at once;
+asked where recording is on too, ""Record your answer"" keeps the
+middle and ""Type your answer"" behind the ""+"" opens the box; asked
+where only typing is on, the box ""Type your answer""; and no thanks
+taps, you type your thanks.
+O6  BAR-N610-FE-6: a photo the chat asks for (`meta.photo_asked`, not
+sent by the backend yet) puts ""Add a photo"" in the middle, and the
+photo picked goes to the chat's photo route.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
+O2 -> ""BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them""
+O3 -> ""BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice""
+O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
+O5 -> ""BAR-N610-FE-5: the box types only once the backend keeps typed words""
+O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -659,10 +696,6 @@ and ""Add someone to chat with"", on the web as in the iPhone app, and
 no demo chats are asked for (N401). Will's row uncovers the Lounge,
 never remounted, with a back to the list (customer-requests.md C1;
 N274, N298, N322).
-O3  In a chat, one bar: the ""+"" left, the three emoji in the box, no
-typing and no mic (N483 item 3; was the mic, N368); a tap on an emoji
-posts {""kind"":""emoji"",""body"":…} and shows the emoji at once, large,
-with its meaning and time under it (N306, N311, N322).
 O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
@@ -699,7 +732,8 @@ recording screens on the default presentation (a project with no
 slides of its own, named ""To {name}""), and the question goes to the
 question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
 {name}"". Until I first tap it the ""+"" is orange; then it is plain.
-Photos, Camera, Files and Someone else are off (N483 item 4).
+Camera, Files and Someone else are off (N483 item 4); ""Send a
+photo"" is chatBar.test.tsx's (N610).
 O14 The other person's file shows a tile with its extension and its own
 name, and downloads
 from the chat's file route; a photo opens full size with a close and
@@ -709,8 +743,8 @@ was said over in a strip that marks the one being heard as it plays,
 and its words closed behind ""Read it""; no Take number.
 O16 A question Will marked as about a product or a treatment takes one
 black ""Record your answer"" in the bar's middle, the ""+"" on its left and
-no mic (N321 item 4, N361, N483 items 3 and 5), and ""Not now"", a grey
-word under the question, brings the emoji back, telling them nothing,
+nothing else (N321 item 4, N361, N483 items 3 and 5, N610), and ""Not now"", a grey
+word under the question, brings ""Ask {name}"" back, telling them nothing,
 until the chat is opened again; the answer hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
@@ -768,7 +802,6 @@ answers"", on their row and on the card, never ""Widget's answers""
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
-O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O26 -> ""the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back""
@@ -812,19 +845,11 @@ back to the box; Will's offer, once newer bubbles came under it,
 carries ""Set up my chat ›"", which begins the setup again, until the
 assistant is live.
 O4  HOST-N586-5: Will's offer is asked of the backend once, only for a
-tester with no recipe; with a recipe, or without the ring, it is not.
-O6  HOST-N600-3: in a host's chat the bar follows how the host lets
-people answer: Record gives a small mic on the right (""Record your
-answer"" leaves the middle; the mic records the answer to what waits,
-else ""Ask Tomek""), Tap alone gives no mic, and the three emoji keep
-the middle while the backend takes no typed words between people; the
-same bar at rest and while a question waits, with no ""Something
-else""; a chat with no host keeps ""Record your answer"" in the middle.","O1 -> ""HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring""
+tester with no recipe; with a recipe, or without the ring, it is not.","O1 -> ""HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring""
 O2 -> ""HOST-N590-8: the joiner meets the host's welcome first, as the assistant's""
 O3 -> ""HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words""
 O5 -> ""HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again""
-O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""
-O6 -> ""HOST-N600-3: the bar follows the host's answer_with, the same whether or not something is asked""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
+O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
 src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
 who answered and the names the backend shows (my coach's and the best
 other); a tap opens all of them under ""On your speaking"" and ""On the
