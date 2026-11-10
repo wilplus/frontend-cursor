@@ -1,19 +1,47 @@
 import type { ChatMessage } from "@/services/api/chats";
 
 /* -------------------------------------------------------------------------- */
-/*  Your chat on any website (backend N567): the widget's calls, made from     */
-/*  `/w/<token>` inside the iframe w.js opens. The visitor has no account:     */
-/*  no sign-in is sent; their secret, kept in this browser for this site,     */
-/*  travels in one header. Every call answers null when it does not go.       */
+/*  The website chat (backend N591, amending N567 and N569): the host's own   */
+/*  chat on the public side, made from `/w/<token>` inside the iframe w.js    */
+/*  opens. The visitor has no account until they sign up, after asking: no    */
+/*  sign-in is sent; their secret, kept in this browser for this site,        */
+/*  travels in one header. Every call answers null when it does not go.      */
 /* -------------------------------------------------------------------------- */
 
 export const WIDGET_GUEST_HEADER = "X-Willab-Widget-Guest";
 
+/** How a visitor may write, from the host's recipe (N591 item 2): tap (the
+ *  host's questions, and the three emoji as thanks, N610 item 5), type,
+ *  record (only once signed up, and then in the app). */
+export interface WidgetWrites {
+  tap: boolean;
+  type: boolean;
+  record: boolean;
+}
+
 export interface WidgetChat {
   name: string;
-  asks: string[];
+  writes: WidgetWrites;
   messages: ChatMessage[];
-  kept: boolean;
+  /** The visitor has signed up: the host's answers are in `messages`. */
+  signedUp: boolean;
+  /** The visitor has asked and not signed up: the sign-up step is due. */
+  signUp: boolean;
+  /** An answer from the host waits behind the sign-up. */
+  answered: boolean;
+  /** Signed up: where the first notice of the answer goes (`notice_to`, N595
+   *  item 2: "email" when the account has one, else "phone"); null when the
+   *  backend doesn't say. */
+  noticeTo: "phone" | "email" | null;
+}
+
+export const NO_WRITES: WidgetWrites = { tap: true, type: false, record: false };
+
+/** The backend's `writes`, read safely: a missing one is taps only. */
+export function writesOf(value: unknown): WidgetWrites {
+  const w = value as Partial<Record<keyof WidgetWrites, unknown>> | null | undefined;
+  if (!w || typeof w !== "object") return NO_WRITES;
+  return { tap: w.tap !== false, type: w.type === true, record: w.record === true };
 }
 
 const base = (token: string) => `/api/v2/chats/widget/${encodeURIComponent(token)}`;
@@ -37,14 +65,30 @@ async function call(url: string, guest: string | null, init: { method?: string; 
 }
 
 function chatOf(body: unknown): WidgetChat | null {
-  const b = body as Partial<WidgetChat> | null;
+  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice_to?: unknown } | null;
   if (!b || typeof b.name !== "string" || !Array.isArray(b.messages)) return null;
-  return { name: b.name, asks: Array.isArray(b.asks) ? b.asks : [], messages: b.messages, kept: b.kept === true };
+  return {
+    name: b.name,
+    writes: writesOf(b.writes),
+    messages: b.messages as ChatMessage[],
+    signedUp: b.signed_up === true,
+    signUp: b.sign_up === true,
+    answered: b.answered === true,
+    noticeTo: b.notice_to === "phone" || b.notice_to === "email" ? b.notice_to : null,
+  };
 }
 
-/** "Agree and start": the visitor's chat and their secret. */
-export async function startWidgetChat(token: string, site: string | null): Promise<{ guest: string; chat: WidgetChat } | null> {
-  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site } })) as { guest?: unknown } | null;
+/** The visitor's chat, made with their first message, or at their first tap
+ *  with none (N595 item 1: no card before it): the host's welcome and
+ *  questions first, then that message. The chat and the visitor's secret;
+ *  null when it did not go (a message the host's chat does not take is
+ *  refused before anything is made). */
+export async function startWidgetChat(
+  token: string,
+  site: string | null,
+  first: { kind: "emoji" | "text"; body: string } | null,
+): Promise<{ guest: string; chat: WidgetChat } | null> {
+  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site, ...(first ?? {}) } })) as { guest?: unknown } | null;
   const chat = chatOf(body);
   return chat && typeof body?.guest === "string" ? { guest: body.guest, chat } : null;
 }
@@ -62,17 +106,23 @@ export async function answerWidgetSetup(token: string, guest: string, messageId:
   return Array.isArray(body?.messages) ? body.messages : null;
 }
 
-export async function askWidget(token: string, guest: string, i: number): Promise<ChatMessage | null> {
-  const body = (await call(`${base(token)}/ask`, guest, { method: "POST", json: { i } })) as { message?: ChatMessage } | null;
-  return body?.message ?? null;
+/** The visitor's own message (N591 item 2): typed words where the host's
+ *  setup allows typing, or one of the three emoji as thanks (N610 item 5). The message, and
+ *  whether the sign-up step is now due; null when it did not go. */
+export async function sendWidgetMessage(
+  token: string,
+  guest: string,
+  kind: "emoji" | "text",
+  body: string,
+): Promise<{ message: ChatMessage; signUp: boolean } | null> {
+  const sent = (await call(`${base(token)}/messages`, guest, { method: "POST", json: { kind, body } })) as {
+    message?: ChatMessage;
+    sign_up?: unknown;
+  } | null;
+  return sent?.message ? { message: sent.message, signUp: sent.sign_up === true } : null;
 }
 
-export async function sendWidgetEmoji(token: string, guest: string, emoji: string): Promise<ChatMessage | null> {
-  const body = (await call(`${base(token)}/messages`, guest, { method: "POST", json: { body: emoji } })) as { message?: ChatMessage } | null;
-  return body?.message ?? null;
-}
-
-/** An answer's voice, as a URL the player can play: the bytes are read with
+/** An answer's voice, once the visitor has signed up, as a URL the player can play: the bytes are read with
  *  the visitor's header (an audio element sends none) and kept in memory. */
 export async function widgetVoiceUrl(token: string, guest: string, messageId: string): Promise<string | null> {
   try {
@@ -86,10 +136,12 @@ export async function widgetVoiceUrl(token: string, guest: string, messageId: st
   }
 }
 
-/** "Keep this chat", signed in on the join page: {chatId}, the waitlist, or null. */
-export async function keepWidgetChat(token: string, guest: string, auth: string | null): Promise<{ chatId: string } | "waitlist" | "signin" | null> {
+/** The sign-up after asking (N591 item 4), signed in on the join page: the
+ *  visitor takes their seat and the chat is theirs. {chatId}, the waitlist,
+ *  "signin" when no one is signed in yet, or null. */
+export async function signUpWidgetChat(token: string, guest: string, auth: string | null): Promise<{ chatId: string } | "waitlist" | "signin" | null> {
   try {
-    const res = await fetch(`${base(token)}/keep`, {
+    const res = await fetch(`${base(token)}/sign-up`, {
       method: "POST",
       cache: "no-store",
       headers: {

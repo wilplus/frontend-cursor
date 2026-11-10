@@ -123,6 +123,10 @@ OUTCOME
   O26 A website visitor's answers carry the visitor's name, "Visitor 7's
       answers", on their row and on the card, never "Widget's answers"
       (N569 item 6).
+  O27 A website visitor is a chat like any other, "Widget / Visitor 7",
+      "From {site}"; the bar is the chat's two places (N610): "+", and
+      "Record your answer" for their typed question, which the backend
+      marks as any question (WID-19, WID-22).
 PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read"
          O19 -> "as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar"
          O20 -> "as a developer, a chats row in the rings, on or off, changes nothing"
@@ -148,6 +152,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O24 -> "the first time I add someone, Will's chat opens on his setup, answered by tapping"
          O25 -> "the slides on Will's cards wait while the list covers his chat, and draw once it is open"
          O26 -> "a website visitor's answers carry the visitor's name, not the word Widget"
+         O27 -> "WID-19, WID-22: a website visitor is a chat like any other"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -689,6 +694,27 @@ describe("the chats in front of the Lounge", () => {
     expect(lastLineOf("c-visitor")).toBe("Visitor 7's answers");
     await tap(row("c-visitor"));
     expect(container.querySelector("[data-chat-setup-card]")?.textContent).toBe("Visitor 7's answersWhat brings you here Itchy scalp");
+  });
+
+  it("WID-19, WID-22: a website visitor is a chat like any other", async () => {
+    backend(["chats"]);
+    const at = "2026-11-09T10:05:00Z";
+    const asked = { id: "k1", mine: false, author: "Widget / Visitor 7", kind: "text", body: "Do you work on Saturdays?",
+      meta: { question: true, record_answer: true }, created_at: at };
+    const visitor = { ...ARIEL, id: "c-visitor", title: "Widget / Visitor 7", subtitle: "From invitaheadspa.com",
+      last: { kind: "text", body: asked.body, created_at: at, meta: {} } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [visitor] }));
+    routes.set("GET /api/v2/chats/c-visitor/messages", () => ({ messages: [asked], joined_through: null, joined_by: null }));
+    await render();
+    expect(row("c-visitor")?.textContent).toContain("Widget / Visitor 7");
+    expect(row("c-visitor")?.textContent).toContain("From invitaheadspa.com");
+    expect(lastLineOf("c-visitor")).toBe("Do you work on Saturdays?");
+    await tap(row("c-visitor"));
+    expect(container.querySelector("[data-chat-thread]")?.textContent).toContain("Do you work on Saturdays?");
+    // The chat's own bar, two places (N610): "+", and the answer to what they asked.
+    expect(container.querySelector("[data-chat-bar] [data-chat-plus]")).not.toBeNull();
+    expect(container.querySelector("[data-chat-bar] [data-chat-record-answer]")?.textContent).toBe("Record your answer");
+    expect(container.querySelector("[data-chat-emoji-box]")).toBeNull();
   });
 
   it("after joining, the list opens with Will first and the one who invited me under him, marked new", async () => {
