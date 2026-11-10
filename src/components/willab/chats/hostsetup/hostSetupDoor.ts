@@ -37,10 +37,19 @@ export function openSetupFromNote(): boolean {
   return true;
 }
 
+/** Words that ask to change one's chat: "chat" and "edit" or "change" in
+ *  them (the coordinator's rule until the founder decides otherwise). The
+ *  edit route opens the parts for any words, so nothing else reaches it. */
+export function asksToEditChat(said: string): boolean {
+  const s = said.toLowerCase();
+  return s.includes("chat") && (s.includes("edit") || s.includes("change"));
+}
+
 /** Words typed to Will by a host whose chat is set up: the parts open again
- *  when the backend reads them as a wish to edit it (FIRST-21). */
+ *  when they ask to edit it (FIRST-21); every other message is sent to Will
+ *  as before, with no call here. */
 export async function sayToWill(said: string): Promise<boolean> {
-  if (!known?.recipe) return false;
+  if (!known?.recipe || !asksToEditChat(said)) return false;
   const parts = await editSaid(said);
   if (!parts) return false;
   open({ parts });

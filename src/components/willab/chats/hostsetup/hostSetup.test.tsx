@@ -511,6 +511,18 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Your hello");
   });
 
+  it("FIRST-21 an ordinary message from a host with a set-up chat goes to Will as before", async () => {
+    backend({ recipe: first({ live: true }), parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    bff.routes["POST /api/v2/chats/setup/edit"] = { line: "Here are your chat's parts. Tap one to change it.", parts: [{ part: "line", title: "Why people come", value: "x" }] };
+    await mount();
+    for (const said of ["How do I record my next talk?", "My chat with Kasia was lovely", "Can I change my slides?"]) {
+      await act(async () => { expect(await sayToWill(said)).toBe(false); });
+    }
+    expect(bff.calls.some((c) => c.path === "/api/v2/chats/setup/edit")).toBe(false);
+    expect(container.querySelector("[data-host-setup]")).toBeNull();
+    await act(async () => { expect(await sayToWill("Can I change my chat's hello?")).toBe(true); });
+  });
+
   it("FIRST-02 404: below the ring no way in opens anything and nothing is drawn", async () => {
     await mount();
     expect(openSetupFromWill(0)).toBe(false);
