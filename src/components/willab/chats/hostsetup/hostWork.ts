@@ -30,9 +30,24 @@ export type HostWork = {
   checkModel: string | null;
   /** The host has a set-up chat ("Your chat"). */
   ownChat: boolean;
+  /** Whose models were left out today, the host being out of tokens (N630
+   *  item 1): a line each to read, each one of the things that need them. */
+  skipped: string[];
 };
 
-const NONE: HostWork = { ring: false, lines: [], checkModel: null, ownChat: false };
+const NONE: HostWork = { ring: false, lines: [], checkModel: null, ownChat: false, skipped: [] };
+
+/** Today, as the backend's "on" writes a day (YYYY-MM-DD), on this device. */
+function today(): string {
+  const d = new Date();
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
+/** How many things need the person: each line, and each model left out. */
+export function thingsNeedingYou(work: HostWork): number {
+  return work.lines.length + work.skipped.length;
+}
 let work: HostWork = NONE;
 let loading: Promise<void> | null = null;
 let readOnce = false;
@@ -74,6 +89,7 @@ async function read(coach: boolean): Promise<void> {
     lines: counts.filter(([, n]) => n > 0).map(([kind, n]) => ({ kind, n })),
     checkModel: toCheck[0] ?? null,
     ownChat: Boolean(setup.own_chat),
+    skipped: setup.skipped_models.filter((m) => m.on.slice(0, 10) === today()).map((m) => m.by),
   });
 }
 

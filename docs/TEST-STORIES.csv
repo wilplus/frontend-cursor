@@ -908,8 +908,11 @@ src/components/willab/chats/hostsetup/needsYou.test.tsx,Story,"As a host with th
 words, Back never sends a sent one twice; then ""All sent."" and Done.
 O2  Will's lines count my own work from routes that exist, in N629's
 words, singular and plural, each opening its work.
+O4  A model left out today for want of tokens is a line to read in Will,
+one of the things that need me (backend N630 item 1).
 O3  With the ring the list has no ""Your queue"" and no ""AI models"" rows and
 Will's line says how many things need me; without it, as it was.","O1 -> ""N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice""
+O4 -> ""N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list""
 O2 -> ""N629-1 Will says what needs you, each line opening its work; nothing waiting says so""
 O3 -> ""N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was""",
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2

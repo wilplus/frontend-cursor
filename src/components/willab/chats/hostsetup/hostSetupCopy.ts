@@ -157,6 +157,7 @@ export const W = {
   modelsToCheck: (n: number) => (n === 1 ? "1 model to check" : `${n} models to check`),
   modelsLine: "Its guesses, on examples it has not seen.",
   nothingNeedsYou: "Nothing needs you now.",
+  leftOut: (name: string) => `I left out ${name}'s model today. You're out of tokens.`,
   thingsNeedYou: (n: number) => (n === 1 ? "1 thing needs you" : `${n} things need you`),
   nothingNeedsYouRow: "Nothing needs you now",
   yoursAnyTime: "And yours to open any time:",

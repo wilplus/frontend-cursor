@@ -10,9 +10,12 @@ OUTCOME
       words, Back never sends a sent one twice; then "All sent." and Done.
   O2  Will's lines count my own work from routes that exist, in N629's
       words, singular and plural, each opening its work.
+  O4  A model left out today for want of tokens is a line to read in Will,
+      one of the things that need me (backend N630 item 1).
   O3  With the ring the list has no "Your queue" and no "AI models" rows and
       Will's line says how many things need me; without it, as it was.
 PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice"
+         O4 -> "N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list"
          O2 -> "N629-1 Will says what needs you, each line opening its work; nothing waiting says so"
          O3 -> "N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was"
 */
@@ -209,5 +212,31 @@ describe("what needs you is in Will (backend N629)", () => {
     act(() => root.render(list()));
     await flush();
     expect(text()).toContain("Nothing needs you now");
+  });
+
+  it("N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list", async () => {
+    const d = new Date();
+    const two = (n: number) => String(n).padStart(2, "0");
+    const on = `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+    bff.routes["GET /api/v2/chats/setup"] = {
+      ...SETUP,
+      skipped_models: [
+        { model_id: "k1", q: "Is the skin red?", by: "Kasia", on },
+        { model_id: "t1", q: "Is it thinning?", by: "Tomek", on: "2001-01-01" },
+      ],
+    };
+    act(() => root.render(createElement(WillNeedsYou)));
+    await flush();
+    expect(text().startsWith("This needs you:")).toBe(true);
+    const left = [...container.querySelectorAll("[data-left-out]")].map((p) => p.textContent);
+    expect(left).toEqual(["I left out Kasia's model today. You're out of tokens."]);
+    expect(container.querySelector("[data-left-out] button, button[data-left-out]")).toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    act(() =>
+      root.render(createElement(ChatList, { chats: [], onOpenWill: () => undefined, onOpen: () => undefined })),
+    );
+    await flush();
+    expect(text()).toContain("1 thing needs you");
   });
 });
