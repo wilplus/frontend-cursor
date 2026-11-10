@@ -1485,7 +1485,16 @@ community on WillpowerLab. Join it, so people there can answer your
 Takes?"" with ""Join"" and ""Not now""; either answer is sent once and
 the choice comes back; with no offer, or a 404, no bubble. Its words
 are drafted, so it stays off until the founder signs them (MATCH-06;
-N559 item 1, Never 4).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2. W8: N559 item 1 (founder, 9 November 2026), backend PR #1862."
+N559 item 1, Never 4).
+W9  After the walk, a sharer's bubble (""Next, set up your assistant,
+..."") carries ""Set up my chat ›"", the setup's own words, which
+begins the setup of their own chat in Will's chat; without the chat
+builder's ring, no link (WAYIN-N578-4; backend
+`way_in._after_walk_row` opens ""setup_chat"", N578 item 4).
+W10 While the way in waits and nothing new comes (a Take with no
+words), the app asks less and less often, never more than once a
+minute, and stops after a long quiet instead of asking forever
+(WAYIN-POLL-1).",each test's name begins with the story it proves.,"backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in); N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2. W8: N559 item 1 (founder, 9 November 2026), backend PR #1862."
 src/components/willab/practiceStep.test.tsx,Story,"As a speaker, I want my answer on a bookmark with no exercise to lead to the right lane, so that a No always leads somewhere and Audio unclear leads nowhere.","O1  No (a recognised problem, no exercise): the sheet says the coach is
 working on it, with my recording, and Next closes the sheet.
 O2  Audio unclear on the same bookmark: no coach sentence, the sheet closes.

@@ -149,6 +149,7 @@ export function usePlanLounge({
   recordHeld,
   onOpenFeedback,
   onJoinQuestions,
+  onSetUpChat,
   onWords,
 }: {
   signedIn: boolean;
@@ -161,6 +162,8 @@ export function usePlanLounge({
   onOpenFeedback?: () => void;
   /** "Your questions for people who join ›" (N572 item 1). */
   onJoinQuestions?: () => void;
+  /** "Set up my chat ›" after the walk, for sharers (N578 item 4). */
+  onSetUpChat?: () => void;
   /** "Something else" opens the box for one's own words (N573 item 1). */
   onWords?: () => void;
 }): PlanLounge {
@@ -348,6 +351,7 @@ export function usePlanLounge({
         onBook: openBook,
         onOpenFeedback,
         onJoinQuestions,
+        onSetUpChat,
       }
     : undefined;
 
