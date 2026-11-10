@@ -15,6 +15,7 @@ import { MODELS_WORDS } from "../../models/modelsCopy";
 import { refreshHostWork } from "./hostWork";
 import { W } from "./hostSetupCopy";
 import { OPEN_EVENT, knowSetup, type OpenDetail } from "./hostSetupDoor";
+import { CoverSiteBar } from "../siteBarCover";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup in the list of chats (backend N616, N618 item 8): the     */
@@ -84,8 +85,11 @@ export default function HostSetupRows() {
       </>
     );
   }
+  // Everything that opens over the list opens like a chat: its own header
+  // with Back, and no site bar above it (as the AI models, N632 item 6).
   const frame = open ? (
     <div data-host-setup="" className="absolute inset-0 z-40 flex flex-col bg-background">
+      <CoverSiteBar />
       <OverList open={open} read={read} name={name} onClose={close} />
     </div>
   ) : null;
