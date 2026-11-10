@@ -248,7 +248,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(puts("send")).toEqual([["photo", "text"]]);
   });
 
-  it("FIRST-04 what people send shows what the recipe holds: A message ticked with the first suggestion (N623)", async () => {
+  it("FIRST-04 what people send shows what the recipe holds: A message ticked with the first suggestion (N625)", async () => {
     backend();
     recipe = first({ send: ["photo", "text"] });
     bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
