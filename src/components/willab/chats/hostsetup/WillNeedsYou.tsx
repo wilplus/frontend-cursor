@@ -48,9 +48,14 @@ export default function WillNeedsYou() {
   };
   return (
     <div data-will-needs-you="" className="mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5">
-      {work.lines.length ? (
+      {work.lines.length || work.skipped.length ? (
         <>
           <Said>{W.needsYou}</Said>
+          {work.skipped.map((by, k) => (
+            <p key={`${by}-${k}`} data-left-out="" className="m-0 rounded-2xl bg-muted px-3.5 py-2.5 text-[15px] leading-snug text-foreground">
+              {W.leftOut(by)}
+            </p>
+          ))}
           {work.lines.map(({ kind, n }) => (
             <Row key={kind} kind={kind} title={kinds[kind].title(n)} line={kinds[kind].line} onOpen={kinds[kind].open} />
           ))}

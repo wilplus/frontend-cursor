@@ -51,7 +51,10 @@ export type SetupRead = {
   parts: SetupPart[];
   own_chat: OwnChat | null;
   cost: ChatCost | null;
+  /** Models left out because the host was out of tokens, by day (N630 item 1). */
+  skipped_models: SkippedModel[];
 };
+export type SkippedModel = { model_id: string; q: string; by: string; on: string };
 /** The host's own chat: its row, the share link (`/c/<token>`), and the line
  *  a newcomer reads before joining ("People come to {name} ..."). */
 export type OwnChat = { title: string; line: string; link?: { token: string; path: string } | null; join_line?: string | null };
@@ -84,6 +87,7 @@ export async function readSetup(): Promise<SetupRead | null> {
     parts: list<SetupPart>(body.parts),
     own_chat: own && typeof own.title === "string" ? own : null,
     cost: costOf(body.cost),
+    skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
   };
 }
 

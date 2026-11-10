@@ -8,7 +8,7 @@ import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
 import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
-import { useHostWork } from "./hostsetup/hostWork";
+import { thingsNeedingYou, useHostWork } from "./hostsetup/hostWork";
 import { W as HOST_WORDS } from "./hostsetup/hostSetupCopy";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { AddSomeoneSheet } from "./AddSomeoneSheet";
@@ -381,7 +381,7 @@ export default function ChatList({
   // list, reads them again as a coach (hostWork.ts).
   const work = useHostWork(false);
   const willPreview = work.ring
-    ? work.lines.length ? HOST_WORDS.thingsNeedYou(work.lines.length) : HOST_WORDS.nothingNeedsYouRow
+    ? thingsNeedingYou(work) ? HOST_WORDS.thingsNeedYou(thingsNeedingYou(work)) : HOST_WORDS.nothingNeedsYouRow
     : will.preview;
   const row = (chat: Chat, justJoined = false) => (
     <ChatListRow
