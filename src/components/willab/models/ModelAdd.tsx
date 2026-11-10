@@ -32,11 +32,15 @@ async function wordsOf(file: File): Promise<string> {
   return read.trim().slice(0, 4000);
 }
 
-export function AddExampleScreen({ onBack, onClose, onAdded }: Nav & { onAdded?: (added: Added) => void }) {
+export function AddExampleScreen({ onBack, onClose, onAdded, only = null }: Nav & {
+  onAdded?: (added: Added) => void;
+  /** One model alone (a host's new model, from the blank setup): no choice. */
+  only?: string | null;
+}) {
   const queue = useRead(() => getQueue(), "add");
-  const models = queue?.models ?? [];
+  const models = only ? [] : queue?.models ?? [];
   const [chosen, setChosen] = useState<string | null>(null);
-  const modelId = chosen ?? models[0]?.id ?? null;
+  const modelId = only ?? chosen ?? models[0]?.id ?? null;
   const pick = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const add = async (file: File) => {

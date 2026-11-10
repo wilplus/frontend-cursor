@@ -18,6 +18,7 @@ import {
 import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import HostOwnChat from "./HostOwnChat";
+import HostTeach from "./HostTeach";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -35,8 +36,8 @@ import HostOwnChat from "./HostOwnChat";
 
 type Step =
   | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
-  | "model" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+  | "model" | "teach" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's `next`). */
 const THROUGH: Step[] = ["q", "qmore", "model", "try", "live"];
 /** A part's row opens its step. */
@@ -133,7 +134,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     if (!R) return false;
     switch (id) {
       case "out": return R.suggest.out[0] === "answer" && !S.edit;
-      case "qmore": return true;
+      case "qmore": case "teach": return true;
       case "way": case "model": case "more": return noModels();
       case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
       case "order": return models().length < 2;
@@ -447,6 +448,10 @@ function StepScreen(c: Ctx) {
       );
     case "model":
       return <ModelStep c={c} />;
+    case "teach": {
+      const made = models.at(-1);
+      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={() => c.go("more")} /> : null;
+    }
     case "more":
       return (
         <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; c.go("way"); }, models.length >= 3)}>
@@ -483,7 +488,14 @@ function StepScreen(c: Ctx) {
 function ModelStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const models = R.models ?? [];
-  const add = (m: RecipeModel) => c.keep("models", [...models, m], () => { S.picked = null; S.ownQ = null; c.go("more"); });
+  // A model the host made has a model_id once the backend made it (with the
+  // ring ai_models): its teaching opens; without one, on to "Add another".
+  const add = (m: RecipeModel) => c.keep("models", [...models, m], () => {
+    S.picked = null;
+    S.ownQ = null;
+    const made = (S.recipe?.models ?? []).at(-1);
+    c.go(made?.own && made.model_id ? "teach" : "more");
+  });
   if (R.way === "use" && S.picked) {
     const m = S.picked;
     return (

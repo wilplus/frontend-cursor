@@ -167,8 +167,11 @@ export function openSetup(modelId: string | null, step: SetupStep | null = null)
   return modelId ? getSetup(modelId, step) : beginSetup();
 }
 
-export default function ModelSetup({ first, onBack, onClose, onList, onTeachOther, onTry }: {
+export default function ModelSetup({ first, onBack, onClose, onList, onTeachOther, onTry, onPast }: {
   first: SetupState;
+  /** Called once the setup moves past its first step (the blank setup opens
+   *  only the owner's first 10, then goes on with its own steps). */
+  onPast?: () => void;
   /** ‹ on the setup's first screen: out of it. */
   onBack?: () => void;
   /** ✕: the draft is kept; back to the list (MOD-25). */
@@ -182,6 +185,10 @@ export default function ModelSetup({ first, onBack, onClose, onList, onTeachOthe
   const s = useSetup(first);
   const canTry = useTry(s.state.model_id, s.state.status !== "draft");
   const { screen, model_id: id } = s.state;
+  const past = Boolean(onPast) && screen.step !== first.screen.step;
+  useEffect(() => {
+    if (past) onPast?.();
+  }, [past, onPast]);
   const p: StepProps = {
     screen,
     busy: s.busy,

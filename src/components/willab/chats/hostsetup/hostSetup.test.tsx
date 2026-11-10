@@ -25,12 +25,13 @@ vi.mock("@/lib/api/bffFetch", () => ({
     const answer = bff.routes[`${call.method} ${path}`];
     if (answer === undefined) return { kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } };
     const got = typeof answer === "function" ? await (answer as (c: Call) => unknown)(call) : answer;
-    const refused = got && typeof got === "object" && "status" in got ? (got as { status: number; body: unknown }) : null;
+    const refused = got && typeof got === "object" && typeof (got as { status?: unknown }).status === "number" ? (got as { status: number; body: unknown }) : null;
     return refused ? { kind: "response", ok: false, ...refused } : { kind: "response", ok: true, status: 200, body: got };
   }),
 }));
 vi.mock("../../useUserProfile", () => ({ useUserProfile: () => ({ profile: { first_name: "Lena" }, loading: false, isCoach: false }) }));
 
+import MS from "../../models/setupFixtures.json";
 import HostSetupRows from "./HostSetupRows";
 import { forgetSetup, openSetupFromNote, openSetupFromWill, sayToWill } from "./hostSetupDoor";
 
@@ -354,6 +355,51 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Is the hair thinning here?");
     await tap("Keep");
     expect(puts("models")).toEqual([[{ ...SUGGEST.models[1], own: true }]]);
+    expect(text()).toContain("Add another model?");
+  });
+
+  /** On to a model of one's own that the backend made, with its model_id. */
+  async function madeModel() {
+    await begun();
+    bff.routes["PUT /api/v2/chats/setup/models"] = (c: Call) => {
+      recipe = { ...recipe, models: ((c.json as R).value as R[]).map((m) => ({ ...m, model_id: "m-own" })) };
+      return { recipe, cost: FREE };
+    };
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Train my own");
+    await tap("Keep");
+  }
+  const own = (state: R) => ({ ...state, model_id: "m-own" });
+
+  it("FIRST-08 teach it: the owner's first 10 for the model just made, then on to another model", async () => {
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10);
+    bff.routes["POST /api/v2/models/m-own/setup/first10"] = own(MS.share);
+    await madeModel();
+    expect(text()).toContain("Now answer the first 10 yourself, the way your teachers will.");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10Teach);
+    await tap("Start");
+    expect(text()).toContain("How rushed does it sound?");
+    expect(text()).toContain("So our ask is two million and we close in March");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await madeModel();
+    await tap("Do it later");
+    expect(text()).toContain("Add another model?");
+  });
+
+  it("FIRST-23 a new model has no examples yet: the host adds one of their own for that model", async () => {
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
+    bff.routes["GET /api/v2/models/queue"] = { models: [{ id: "other", name: "Someone's model" }], examples: [] };
+    await madeModel();
+    expect(text()).toContain("Do you know a case this model should learn from? Add it, then answer it yourself.");
+    expect(text()).toContain("Upload a file");
+    expect(text()).not.toContain("Someone's model");
+    const back = container.querySelector<HTMLButtonElement>("[data-walk-nav] button, button[aria-label]")!;
+    await act(async () => back.click());
+    await flush();
     expect(text()).toContain("Add another model?");
   });
 
