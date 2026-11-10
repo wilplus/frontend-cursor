@@ -140,45 +140,85 @@ export async function getHost(chatId: string): Promise<Host | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/host`, { method: "GET" });
   const host = body?.host as Record<string, unknown> | null | undefined;
   if (!host || typeof host.assistant !== "string" || !host.assistant) return null;
-  return { assistant: host.assistant, about: strings(host.about), questions: questionsOf(host.questions), answerWith: answerWithOf(host.answer_with) };
+  // In someone's chat, typing is on only where the read says so (N610): a
+  // read with no `type` is a chat that takes no typing.
+  const typing = (host.answer_with as { type?: unknown } | null | undefined)?.type === true;
+  return {
+    assistant: host.assistant,
+    about: strings(host.about),
+    questions: questionsOf(host.questions),
+    answerWith: { ...answerWithOf(host.answer_with), type: typing },
+  };
 }
 
 /* ── One recording answers everyone who asked (backend N584) ──────────── */
 
 /** How sure a match is (N580 item 3): a colour, never a number. */
 export type Mark = "green" | "yellow" | "red";
-export type BundleQuestion = { id: string; words: string; mark: Mark | null; name: string | null; chat: string; sent: boolean };
-/** One bundle in Will's queue: its line in the backend's words ("{n} people
- *  asked: {question}"), and "Record one answer" while it waits (null once
- *  answered). */
-export type Bundle = { id: string; line: string; answered: boolean; record: string | null; questions: BundleQuestion[] };
+/** One bundle in Will's queue, one card (N602 item 1), in the backend's
+ *  words: its title ("{n} people asked"), the question, the first names of
+ *  who asked (their faces), the assistant's note once it has answered them
+ *  (null until then), "See who asked", and "Record one answer" while it
+ *  waits (null once answered). */
+export type Bundle = {
+  id: string;
+  title: string;
+  question: string;
+  faces: string[];
+  note: string | null;
+  see: string | null;
+  answered: boolean;
+  record: string | null;
+};
+/** One person in the sheet "Who asked" (N602 item 2). */
+export type BundleAsker = { id: string; words: string; mark: Mark | null; name: string | null; chat: string; sent: boolean };
+/** The sheet "Who asked": its title and "Split them up", in the backend's words. */
+export type BundleWho = { title: string; split: string | null; people: BundleAsker[] };
 
 const MARKS: readonly string[] = ["green", "yellow", "red"];
 export const markOf = (value: unknown): Mark | null => (typeof value === "string" && MARKS.includes(value) ? (value as Mark) : null);
+const text = (value: unknown): string | null => (typeof value === "string" && value.trim() ? value : null);
 
-/** My bundles, or null: no ring (404), or any failure. */
+/** My bundles, or null: no ring or no route (404), or any failure. */
 export async function getBundles(): Promise<Bundle[] | null> {
   const body = await call("/api/v2/chats/bundles", { method: "GET" });
   if (!body || !Array.isArray(body.bundles)) return null;
   return body.bundles.flatMap((raw) => {
     const b = raw as Record<string, unknown> | null;
-    if (!b || typeof b.id !== "string" || typeof b.line !== "string") return [];
-    const questions = Array.isArray(b.questions)
-      ? b.questions.flatMap((q) => {
-          const x = q as Record<string, unknown> | null;
-          if (!x || typeof x.id !== "string" || typeof x.words !== "string") return [];
-          return [{
-            id: x.id,
-            words: x.words,
-            mark: markOf(x.mark),
-            name: typeof x.name === "string" && x.name ? x.name : null,
-            chat: String(x.chat ?? ""),
-            sent: x.sent === true,
-          }];
-        })
-      : [];
-    return [{ id: b.id, line: b.line, answered: b.answered === true, record: typeof b.record === "string" && b.record ? b.record : null, questions }];
+    const title = text(b?.title);
+    const question = text(b?.question);
+    if (!b || typeof b.id !== "string" || !title || !question) return [];
+    return [{
+      id: b.id,
+      title,
+      question,
+      faces: Array.isArray(b.faces) ? b.faces.map((f) => (typeof f === "string" ? f : "")) : [],
+      note: text(b.note),
+      see: text(b.see),
+      answered: b.answered === true,
+      record: text(b.record),
+    }];
   });
+}
+
+/** "See who asked ›": the sheet "Who asked", or null (404, any failure). */
+export async function getBundleWho(bundleId: string): Promise<BundleWho | null> {
+  const body = await call(`/api/v2/chats/bundles/${encodeURIComponent(bundleId)}`, { method: "GET" });
+  const title = text(body?.title);
+  if (!body || !title || !Array.isArray(body.people)) return null;
+  const people = body.people.flatMap((raw) => {
+    const x = raw as Record<string, unknown> | null;
+    if (!x || typeof x.id !== "string" || typeof x.words !== "string") return [];
+    return [{ id: x.id, words: x.words, mark: markOf(x.mark), name: text(x.name), chat: String(x.chat ?? ""), sent: x.sent === true }];
+  });
+  return { title, split: text(body.split), people };
+}
+
+/** "Split them up": the picked questions into a bundle of their own; the
+ *  new bundle's id, or null when refused. */
+export async function splitBundle(bundleId: string, questions: string[]): Promise<string | null> {
+  const body = await call(`/api/v2/chats/bundles/${encodeURIComponent(bundleId)}/split`, { method: "POST", json: { questions } });
+  return typeof body?.bundle === "string" ? body.bundle : null;
 }
 
 /** The host's one recording to everyone in the bundle; how many it reached,

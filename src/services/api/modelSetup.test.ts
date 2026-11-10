@@ -18,7 +18,7 @@ import { describe, expect, it, vi } from "vitest";
 const bff = vi.fn();
 vi.mock("@/lib/api/bffFetch", () => ({ bffFetch: (...a: unknown[]) => bff(...a) }));
 
-import { beginSetup, getInviteLink, getSetup, saveSetupStep } from "./modelSetup";
+import { beginSetup, getSetup, saveSetupStep } from "./modelSetup";
 
 const kind = {
   model_id: "m1",
@@ -32,8 +32,6 @@ describe("starting a model", () => {
     expect(await beginSetup()).toBeNull();
     bff.mockRejectedValueOnce(new Error("offline"));
     expect(await getSetup("m1")).toBeNull();
-    bff.mockResolvedValueOnce({ kind: "response", ok: false, status: 404, body: null });
-    expect(await getInviteLink("m1")).toBeNull();
   });
 
   it("returns the next step, or the reason a step was refused", async () => {

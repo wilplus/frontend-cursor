@@ -145,8 +145,9 @@ O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""pas
 O2 -> ""still relays a rewrite's 409 as it came""",
 src/app/api/v2/user/takes/[takeSessionId]/share/route.test.ts,Story,"As a speaker, I want my share choice for a Take saved to that Take, so that only the people I chose see it.","O1  The share choice is sent (PUT) unchanged to the backend path for
 exactly this Take.","O1 -> ""relays the share body to the encoded take path""",
-src/app/c/[token]/JoinPage.test.tsx,Story,"As someone who got a colleague's link in an email, I want to see who invites me and what I get, then join in one tap, signing in first if I must, so that I land in my chat with them (N308, N328, N335, N348).","O1  The page names who invites me and what I get, in the signed words,
-with one button, Join (N307, N310, N335).
+src/app/c/[token]/JoinPage.test.tsx,Story,"As someone who got a colleague's link in an email, I want to see who invites me and what I get, then join in one tap, signing in first if I must, so that I land in my chat with them (N308, N328, N348, N601).","O1  The page is three lines and Join, nothing under it (N601): ""Tomek
+invited you"", what I'll learn when the host's words are sent, ""Only
+the two of you are in this chat.""; the old title and lines are gone.
 O2  Signed in, Join posts to the link and opens my chat with the one who
 invited me (/chat?with=<chat>).
 O3  Signed out, Join goes to sign in and comes back to this link to
@@ -155,7 +156,7 @@ O4  Opened from the website chat's ""Sign up"" (#g=, backend N591 item 4;
 WID-29), Join signs me up on that chat instead of joining anew:
 signed out it goes to sign in first (a phone, email, Google or another
 sign-in), then the sign-up carries my secret and opens the chat, now
-mine.","O1 -> ""the page names who invites me and what I get""
+mine.","O1 -> ""N601-1: the page is three lines and Join, nothing under it""
 O2 -> ""signed in, Join joins and opens my chat with the one who invited me""
 O3 -> ""signed out, Join goes to sign in and finishes on the way back""
 O4 -> ""WID-29: from the website chat's Sign up, Join signs me up on that chat, after signing in""",
@@ -644,35 +645,82 @@ O4 -> ""WID-17, WID-18, WID-29: after asking, the sign-up step in N595's words, 
 O5 -> ""WID-29: Sign up opens the join page with my chat""
 O6 -> ""WID-28: signed up, the line says where the notice goes, and the host's voice answer opens its words behind Read it""
 O7 -> ""WID-25: every call carries my secret, and a chat the backend forgot is forgotten here""","The founder, 9 November 2026 (N591): ""There's really no difference between the widget and the normal chat. It's just that the chat is placed on the public side.""; 10 November (N595): the consent card, ""drop!""."
-src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, and my link's join page to name my assistant and what Will's chat is for, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3, N586 item 2; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-1: with the ring, a chat with a person in my list says
+src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3; behind the ring row chat_builder, N579 item 2). The join page is three lines (N601; its own story is JoinPage.test.tsx).","O1  HOST-N578-1: with the ring, a chat with a person in my list says
 ""Tomek's assistant"" under the name, with the assistant's mark on the
 circle; without the ring (no `assistant` from the backend) the row is
 as it was, with no mark.
-O2  HOST-N586-2: the join page of a tester's link says ""Tomek's
-assistant"" and Will's line in the backend's words (""Will's chat is
-where you can set up a chat of your own.""); anyone else's link keeps
-""Your own chat with Will, your speaking coach"" and no assistant.
-O3  HOST-N586-2: the join page's read takes `assistant` and `will_line`
-from the backend only when it sends them.
-O4  HOST-N586-1: the join page draws the host's `about` lines (who they
-are, what you can learn with them) as the chat's top does, only when
-the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
-O2 -> ""HOST-N586-2: a tester's join page names the assistant and Will's chat""
-O3 -> ""HOST-N586-2: the join page's read keeps the two lines only when sent""
-O4 -> ""HOST-N586-1: the join page says who the host is and what you can learn with them, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
-src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584; behind the ring row chat_builder, N579 item 2).","O1  HOST-N584-1: in Will's chat, each bundle still waiting is one card:
-""2 people asked: How do I start a handstand?"", each person's question
-with its colour (green or yellow, never a number) and ""Record one
-answer""; an answered bundle is not shown; without the ring (404) the
-queue draws nothing.
+O2  HOST-N601-1: the join page's read keeps only the name and the host's
+`about` words, and the page draws them as one line of what you'll
+learn, only when the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
+O2 -> ""HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
+src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584, N602; behind the ring row chat_builder, N579 item 2).","O1  HOST-N602-1: in Will's chat, each bundle still waiting is one card,
+in the backend's words: ""2 people asked"", the question large, the
+faces of who asked, ""See who asked ›"" and ""Record one answer""; no
+list of every asker's question on the card; an answered bundle is not
+shown; without the ring or the route (404) the queue draws nothing.
+O4  HOST-N602-2: ""See who asked ›"" opens ""Who asked"": each person's own
+words and name with the match's colour (never a number); ""Split them
+up ›"" turns the rows into picks and ""Split them up"" sends the picked
+ones to the split route {questions}, then the queue is read again;
+a sheet the backend refuses (404) does not open.
 O2  HOST-N584-2: ""Record one answer"" hands the recording screens the first
 question and the bundle; once the Take is up it goes to the bundle's
 route {take, duration_ms}, at once and with no Undo, and the queue is
 read again.
 O3  HOST-N584-3: the person who asked meets the answer in their own chat
-with me, under their own question quoted, with the match's colour.","O1 -> ""HOST-N584-1: the queue shows each waiting bundle in the backend's words, and nothing without the ring""
+with me, under their own question quoted, with the match's colour.","O1 -> ""HOST-N602-1: each waiting bundle is one card in the backend's words, and nothing without the ring""
 O2 -> ""HOST-N584-2: one recording goes to the bundle's route, at once""
-O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
+O3 -> ""HOST-N584-3: the answer comes under the asker's own question, with its colour""
+O4 -> ""HOST-N602-2: See who asked opens the sheet, and Split them up moves the picked questions out""","""how do we bundle the people who have similar questions ... so that I can answer it to that whole group with my one recording?"" (founder, 9 November 2026, N584)."
+src/components/willab/chats/chatBar.test.tsx,Story,"As someone in a host's chat or a chat with another person, I want the bar to be two places, the ""+"" and the one thing to do now, so that I always know what to do next: ask, answer, or say thanks (backend N610, the locked page ""The Bar, To Lock""; replaces N600's bar and, for these chats, N483's three emoji in the middle).","O1  BAR-N610-FE-1: the bar holds two things and nothing else: the ""+""
+(named ""Add"") and one black ""Ask {name}"" while nothing is asked, in a
+chat with no host, a host's chat that takes recordings and one that
+takes only taps; it is never disabled, opens ""Ask {name}"", and there
+are no emoji and no mic in the bar.
+O2  BAR-N610-FE-2: when the chat asks, the middle answers: ""Record your
+answer"" where the chat takes recordings, handing the recording
+screens the question; where it takes only taps the middle stays
+""Ask {name}"". Answers to tap sit above the bar with ""Not now"" under
+them; ""Not now"" takes them away until the chat is opened again and
+the system keeps the decline.
+O3  BAR-N610-FE-3: after a person's recorded answer, three thanks to tap
+above the bar, 👀, 👍 and 🙏, the last filled; one tap posts
+{""kind"":""emoji"",""body"":…}, shows it at once, large, with its meaning,
+and the taps go; none after the assistant's message, none while
+something is asked, and none again once my thanks is the newest.
+O4  BAR-N610-FE-4: the ""+"" sheet. Nothing asked: ""Ask {name}"" with
+""Record your question"" (the default presentation) and ""Send a photo"",
+which posts the photo picked to the chat's photo route and shows it.
+While the chat asks: ""Answer {name}"" with ""Send a photo"" and no
+""Record your question"".
+O5  BAR-N610-FE-5: typing is on where the host's read says the host
+chose Type (`host.answer_with.type`); a chat with no host, a host
+read with no `type`, or a backend without the host's route (404),
+has no box. Nothing asked:
+the box ""Ask {name}"" (recording on too: still the box), and the
+words go as {""kind"":""text"",""body"":…}, shown at once. Asked where
+recording is on too, ""Record your answer"" keeps the middle and ""Type
+your answer"" behind the ""+"" opens the box; asked where only typing
+is on, the box ""Type your answer""; typed words that answer go with
+`to`, the waiting question's id (one to tap included), and the
+answer comes back with the host's next lines. No thanks taps: you
+type your thanks.
+O6  BAR-N610-FE-6: a question that asks for a photo
+(`meta.setup.kind === ""photo""`) puts ""Add a photo"" in the middle; the
+photo picked goes to that question's own photo route, and the photo
+comes back with the host's next lines.
+O7  BAR-N610-FE-7: typed words are never lost. A send the backend
+refuses (the chat takes no typing, the question takes a pick, it was
+answered already, no such route) or that never reaches it puts the
+words back in the box exactly as typed, the box still there and the
+caret in it (""Type your answer"" opened from the ""+"" stays open), and
+no new words show on screen.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
+O2 -> ""BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them""
+O3 -> ""BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice""
+O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
+O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
+O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
+O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).
 O19 As a user with no ring at all, signed in, I land on the list of
@@ -687,10 +735,6 @@ and ""Add someone to chat with"", on the web as in the iPhone app, and
 no demo chats are asked for (N401). Will's row uncovers the Lounge,
 never remounted, with a back to the list (customer-requests.md C1;
 N274, N298, N322).
-O3  In a chat, one bar: the ""+"" left, the three emoji in the box, no
-typing and no mic (N483 item 3; was the mic, N368); a tap on an emoji
-posts {""kind"":""emoji"",""body"":…} and shows the emoji at once, large,
-with its meaning and time under it (N306, N311, N322).
 O4  The WillpowerLab bar shows on the list only: in a person's chat and
 in Will's, the chat's own top bar takes its place (N321 item 1, N334).
 O5  A chat whose last message is newer than the last time it was opened
@@ -727,7 +771,8 @@ recording screens on the default presentation (a project with no
 slides of its own, named ""To {name}""), and the question goes to the
 question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
 {name}"". Until I first tap it the ""+"" is orange; then it is plain.
-Photos, Camera, Files and Someone else are off (N483 item 4).
+Camera, Files and Someone else are off (N483 item 4); ""Send a
+photo"" is chatBar.test.tsx's (N610).
 O14 The other person's file shows a tile with its extension and its own
 name, and downloads
 from the chat's file route; a photo opens full size with a close and
@@ -737,8 +782,8 @@ was said over in a strip that marks the one being heard as it plays,
 and its words closed behind ""Read it""; no Take number.
 O16 A question Will marked as about a product or a treatment takes one
 black ""Record your answer"" in the bar's middle, the ""+"" on its left and
-no mic (N321 item 4, N361, N483 items 3 and 5), and ""Not now"", a grey
-word under the question, brings the emoji back, telling them nothing,
+nothing else (N321 item 4, N361, N483 items 3 and 5, N610), and ""Not now"", a grey
+word under the question, brings ""Ask {name}"" back, telling them nothing,
 until the chat is opened again; the answer hands the recording screens the
 chat, the person and the question. Back from them, the bar's middle
 reads ""Sending to {name}… {n}"" with Undo while the answer, already
@@ -798,7 +843,6 @@ O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
 O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
 O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
 O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
-O3 -> ""an emoji tapped in a chat is posted and shown at once with its meaning, and the bar has no mic""
 O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
 O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
 O26 -> ""the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back""
@@ -1514,8 +1558,10 @@ at the top of this chat."" as Will's bubble; ""Your feedback is
 ready."" with ""Open your feedback ›""; after the walk one bubble by
 the choice (""Next, ask someone who knows. Tap + to start.""), and
 ""Tell me what you'd like to do, and I'll show you where."" waits for
-typed words; ""Record Take 2"" stays faded until the walk is done
-(FT-14, WAYIN-N592-1..4; N592).
+typed words, with the first choice's other answers as taps, one of
+which answers it (WAYIN-N604-1; backend N604); ""Record Take 2""
+stays faded until the walk is done (FT-14, FT-15,
+WAYIN-N592-1..4; N592).
 W7  The way in is the speaking chat's: every call names it (WAYIN-N590-1;
 N590).
 W8  A newcomer who came by the link of someone at a business is offered

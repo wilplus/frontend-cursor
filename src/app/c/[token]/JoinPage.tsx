@@ -5,16 +5,7 @@ import { useRouter } from "next/navigation";
 import { joinChatLink } from "@/services/api/chats";
 import { signUpWidgetChat } from "@/services/api/chatWidget";
 import { getAuthToken } from "@/lib/api/auth-client";
-import { AssistantMark } from "@/components/willab/chats/ChatList";
-import { HostAboutLines } from "@/components/willab/chats/HostChat";
-import {
-  JOIN_BUTTON,
-  JOIN_NOBODY_ELSE,
-  JOIN_NOTHING_TO_INSTALL,
-  JOIN_WILL_LINE,
-  joinChatWith,
-  joinTitle,
-} from "@/components/willab/chats/joinCopy";
+import { JOIN_BUTTON, JOIN_ONLY_THE_TWO_OF_YOU, joinInvited } from "@/components/willab/chats/joinCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The join page (backend N308, N328, N335; rules:                            */
@@ -29,11 +20,11 @@ import {
 /*  in (phone, email, Google or another sign-in), and Join takes the         */
 /*  website chat, named after them, instead of making a new one.             */
 /*                                                                            */
-/*  A link whose owner has the chat builder (ring row `chat_builder`, N579    */
-/*  item 2) also says whose assistant answers in their chat ("{name}'s        */
-/*  assistant", N578 item 1, with its mark) and gives Will's line its new     */
-/*  words (N586 item 2); both come from the backend, which sends them only    */
-/*  for that ring. Without them the page is as it was.                        */
+/*  Three lines and Join, nothing under it (backend N601): "{name} invited   */
+/*  you"; what you'll learn in their chat, in the host's words when the       */
+/*  backend sends them (N586 item 1's about); "Only the two of you are in    */
+/*  this chat.". Was (N310 item 3, N335 item 2, N586 item 2): a title, a      */
+/*  list with the assistant's name and Will's line, and a line under Join.   */
 /* -------------------------------------------------------------------------- */
 
 const SIGNING_UP = (token: string) => `wpl-sign-up:${token}`;
@@ -58,19 +49,13 @@ export default function JoinPage({
   token,
   name,
   finish,
-  assistant = null,
-  willLine = null,
   about = [],
 }: {
   token: string;
   name: string;
   finish: boolean;
-  /** "{name}'s assistant", from the backend, for the chat builder's ring. */
-  assistant?: string | null;
-  /** Will's line in the backend's words (N586 item 2), for that ring. */
-  willLine?: string | null;
-  /** Who the host is and what you can learn with them, in their own words
-   *  (N586 item 1), as the backend sends them; none otherwise. */
+  /** What you'll learn in their chat, in the host's own words (N601 item
+   *  1), as the backend sends it; nothing otherwise. */
   about?: readonly string[];
 }) {
   const router = useRouter();
@@ -135,19 +120,15 @@ export default function JoinPage({
       >
         {(Array.from(name.trim())[0] ?? "").toUpperCase()}
       </span>
-      <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">{joinTitle(name)}</h1>
-      <HostAboutLines lines={about} />
-      <ul className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3 text-[15px] leading-snug text-foreground">
-        <li>{joinChatWith(name)}</li>
-        {assistant ? (
-          <li data-join-assistant="" className="flex items-center gap-2">
-            <AssistantMark label={assistant} inline />
-            {assistant}
-          </li>
-        ) : null}
-        <li data-join-will-line="">{willLine ?? JOIN_WILL_LINE}</li>
-        <li>{JOIN_NOBODY_ELSE}</li>
-      </ul>
+      <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">{joinInvited(name)}</h1>
+      {about.length > 0 ? (
+        <p data-join-learn="" className="text-[16px] leading-snug text-foreground">
+          {about.join(" ")}
+        </p>
+      ) : null}
+      <p data-join-only-two="" className="text-[15px] leading-snug text-muted-foreground">
+        {JOIN_ONLY_THE_TWO_OF_YOU}
+      </p>
       <div className="flex-1" />
       <button
         type="button"
@@ -158,7 +139,6 @@ export default function JoinPage({
       >
         {JOIN_BUTTON}
       </button>
-      <p className="text-center text-[13px] text-muted-foreground">{JOIN_NOTHING_TO_INSTALL}</p>
     </main>
   );
 }

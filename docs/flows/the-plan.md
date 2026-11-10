@@ -666,8 +666,10 @@ Waiting for the founder's OK:
     will appear at the top of this chat." or "Your feedback is ready."
     with "Open your feedback ›", and after the walk one by the choice,
     "Tell me what you'd like to do, and I'll show you where." answered by
-    typing. "Record Take 2" stays faded until the walk is done
-    (`plan.way_in.record_next`). The plan's own questions stand down while
+    typing, or by a tap on one of the first choice's other answers ("Prepare
+    a talk", "Share what I know", "Learn from others", those not chosen),
+    which brings that choice's next line (N604). "Record Take 2" stays
+    faded until the walk is done (`plan.way_in.record_next`). The plan's own questions stand down while
     the way in runs, so nobody is asked "When is your deadline?".
   - Built, off until its words are signed (N559 item 1, App Model
     MATCH-06; backend #1862, open): a newcomer who came by the link of
@@ -838,6 +840,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N604 · §2: after the walk, "Tell me what you'd like to do, and I'll show you where." carries the first choice's other answers as taps (`metadata.chips`, those not chosen); one tap answers it (`{beat: "else", picked}`), shows as the speaker's answer, and Will says that choice's line from N592 item 2. Words still answer it. Was: the typing box alone. No new words · BE, FE (this PR)
 - 2026-11-10 · N572, N578 item 4 · §2: the way in's poll backs off (5 s, then half as long again up to a minute) and stops after 20 minutes with nothing new, starting over whenever the way in moves on (`wayIn.ts`, `WayIn.tsx`); a sharer's after-walk bubble (`opens: "setup_chat"`) carries "Set up my chat ›", the setup's own words, which begins the setup of their own chat in Will's chat, drawn only with the chat builder's ring (`usePlanLounge`, `Lounge.tsx`). What stops: asking the way in every 5 s forever when Take 1 has no words · FE (this PR)
 - 2026-11-09 · N559 item 1 · §2, §3: the newcomer's one offer to join their business's community, built in the way in after the profile and before the first choice ("Join", "Not now"; `WayIn.tsx`, `wayIn.ts`, `communityOffer.ts`, BFF `/api/v2/me/community-offer`), off until its drafted words are signed (`COMMUNITY_OFFER_SIGNED`); a 404 or no offer, no bubble. Nothing changes on screen today · BE #1862 (open), FE (this PR)
 - 2026-11-09 · N453, N564, N572, N573, N590, N592 · §2, §4: the speaking way in while Take 1 is processed, drawn from the backend's rows (`metadata.way_in`) through `POST /api/v2/plan/way-in` and its spoken twin `/api/v2/plan/way-in/voice` (`plan/WayIn.tsx`, `lib/willab/wayIn.ts`, `usePlanLounge`, `Lounge.tsx`); Take 1's wait is the thin row on top, orange when the walk is ready, and the walk waits for the tap; "Record Take 2" faded until the walk is done; `PickRow` moves beside `TapRow` (`WillQuestion.tsx`). What stops: for Take 1 on the way in, the full wait after the hand-over and the walk opening by itself; the plan's own questions while the way in runs. No new words: every line is the backend's · BE #1854, FE (this PR)

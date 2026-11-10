@@ -377,19 +377,32 @@ describe("starting a model: Share, ready, the owner's page (MOD-34 to MOD-37)", 
     expect(posted("/setup/public")).toEqual([{ confirm: true }]);
   });
 
-  it("MOD-35: \"Who should teach it with you?\": each person chosen is invited; \"Copy an invite link\"", async () => {
+  it("MOD-35: \"Who should teach it with you?\": each person chosen is invited; \"Copy an invite link\" copies the owner's own chat link (N598)", async () => {
     const writeText = vi.fn(async () => undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    await openStep("invite", {
+    await openList({
+      [`GET ${SETUP}`]: { ...S.invite, screen: { ...S.invite.screen, chat_link: "/c/OwnLinkToken" } },
       "POST /api/v2/models/pitch/setup/invite": S.ready,
-      "GET /api/v2/models/pitch/setup/invite-link": { link: "https://willpowerlab.com/models/pitch" },
     });
+    await tap("Continue");
     expectWords(["Who should teach it with you?", "Maya Lindqvist", "Head of Sales", "Invite them"]);
     await tap("Copy an invite link");
-    expect(writeText).toHaveBeenCalledWith("https://willpowerlab.com/models/pitch");
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/c/OwnLinkToken`);
+    expect(bff.calls.some((c) => c.path === "/api/v2/chats/link")).toBe(false);
     await tapEl(container.querySelector('[data-setup-choice="maya"]'));
     await tap("Invite them");
     expect(posted("/setup/invite")).toEqual([{ people: ["maya"] }]);
+  });
+
+  it("MOD-35 (N598): with no chat link yet, \"Copy an invite link\" makes it through GET /v2/chats/link; nothing is copied on a 404", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await openStep("invite");
+    await tap("Copy an invite link");
+    expect(writeText).not.toHaveBeenCalled();
+    bff.routes["GET /api/v2/chats/link"] = { token: "MadeNow", path: "/c/MadeNow" };
+    await tap("Copy an invite link");
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/c/MadeNow`);
   });
 
   it("MOD-36: ready to learn, \"To finish setting it up\" with each part, \"Sell it through an API\" locked, \"Back to the list\"", async () => {
@@ -450,6 +463,23 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     await tap("This is my field");
     expect(posted("/invites/inv1/accept")).toEqual([{}]);
     expect(posted("/speak/enter")).toEqual([]);
+  });
+
+  it("MOD-49 (N598): an accepted invite opens the inviter's own chat, where the teacher teaches", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, origin: window.location.origin, assign });
+    try {
+      await openList({
+        "GET /api/v2/models/invites": S.invites,
+        "GET /api/v2/models/door": F.door,
+        "POST /api/v2/models/invites/inv1/accept": { status: "accepted", model_id: "speak", chat_link: "/c/MayasLink" },
+      });
+      await tap("Open");
+      await tap("This is my field");
+      expect(assign).toHaveBeenCalledWith("/c/MayasLink");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("MOD-49: \"Not now\" on an invite's door keeps it and goes back to the list", async () => {
