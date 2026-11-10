@@ -1,5 +1,6 @@
 "use client";
 
+import { withOwnBubble, type OwnBubble } from "../useLoungeThread";
 import { useEffect, useRef, useState } from "react";
 import Linkified from "../Linkified";
 import { SOMETHING_ELSE, TapRow } from "../WillQuestion";
@@ -56,18 +57,20 @@ export function joinSetupWaiting(
 
 /** What Will's chat does with the setup: a tap, typed words, the summary
  *  again; each then reads the thread again. */
-export function useJoinSetup(reload: () => Promise<void>, setThinking: (on: boolean) => void) {
-  const run = async (work: () => Promise<boolean>) => {
+export function useJoinSetup(reload: () => Promise<void>, setThinking: (on: boolean) => void, own?: OwnBubble) {
+  // The tap or the words show at once as one's own bubble (backend N632
+  // item 7); the backend's row takes its place with the next read.
+  const run = async (work: () => Promise<boolean>, mine: string | null = null) => {
     setThinking(true);
     try {
-      if (await work()) await reload();
+      if (await withOwnBubble(own, mine, work, Boolean)) await reload();
     } finally {
       setThinking(false);
     }
   };
   return {
-    tap: (to: string, picked: string) => run(() => answerJoinSetup(to, { picked })),
-    say: (to: string, said: string) => run(() => answerJoinSetup(to, { said })),
+    tap: (to: string, picked: string) => run(() => answerJoinSetup(to, { picked }), picked),
+    say: (to: string, said: string) => run(() => answerJoinSetup(to, { said }), said),
     again: () => run(joinSetupAgain),
   };
 }

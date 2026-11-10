@@ -9,7 +9,7 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { PickRow, TapRow } from "@/components/willab/WillQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
-import { PLAN_COPY, fmtShort, isoDay } from "@/lib/willab/planCopy";
+import { PLAN_COPY, fmtDay, fmtShort, isoDay } from "@/lib/willab/planCopy";
 import {
   UNDO_MS,
   askedBefore,
@@ -867,19 +867,38 @@ let localSeq = 0;
  *  4), "Send" for the bar's middle when
  *  it takes several, and the date sheet for "Yes" to the hurry. A tap
  *  answers at once; what follows comes back and joins the thread. */
-function useSetupQuestion(chatId: string, messages: ChatMessage[] | null, left: readonly string[], onSent: (sent: ChatMessage[]) => void) {
+function useSetupQuestion(
+  chatId: string,
+  messages: ChatMessage[] | null,
+  left: readonly string[],
+  setMessages: (change: (list: ChatMessage[] | null) => ChatMessage[] | null) => void,
+) {
   const [picked, setPicked] = useState<string[]>([]);
   const [readyBy, setReadyBy] = useState(false);
   const setup = setupWaits(messages);
   // "Not now" under the answers leaves it until the chat is opened again.
   if (!setup || left.includes(setup.message.id)) return { id: null, answers: null, send: null, sheet: null };
   const { question } = setup;
+  // The answer shows at the tap as one's own bubble, as the backend writes
+  // it (backend N632 item 7); the backend's rows take its place, and a
+  // refused answer takes it away with the answers back under the question.
   const answer = async (answers: string[], date?: string) => {
+    localSeq += 1;
+    const local: ChatMessage = {
+      id: `local-${localSeq}`,
+      mine: true,
+      author: "",
+      kind: "text",
+      body: date && question.kind === "hurry" && answers[0] === question.answers.at(-1) ? fmtDay(new Date(`${date}T00:00:00`)) : answers.join(", "),
+      meta: { setup_answer: { to: setup.message.id, picked: answers } },
+      created_at: new Date().toISOString(),
+    };
+    setMessages((list) => [...(list ?? []), local]);
     const sent = await answerChatSetup(chatId, setup.message.id, answers, date);
+    setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : (sent ?? []))));
     if (!sent) return;
     sendTick();
     setPicked([]);
-    onSent(sent);
   };
   const yes = question.answers.at(-1) ?? "";
   const tap = (label: string) => (question.kind === "hurry" && label === yes ? setReadyBy(true) : void answer([label]));
@@ -1030,7 +1049,7 @@ export default function ChatThread({
   // Their question, their Take, or a photo they ask for: the middle answers,
   // "Not now" under it (N361, N483 item 3, N493 item 3, N610 item 4).
   const answer = useAnswerWait(chat.id, messages, !!onRecordAnswer);
-  const setup = useSetupQuestion(chat.id, messages, answer.left, (sent) => setMessages((list) => [...(list ?? []), ...sent]));
+  const setup = useSetupQuestion(chat.id, messages, answer.left, setMessages);
   // A host's own chat (backend N578, N586 item 1, N590): who they are on
   // top, their assistant's messages labelled as its own. Null: as it was.
   const host = useHost(chat.id);

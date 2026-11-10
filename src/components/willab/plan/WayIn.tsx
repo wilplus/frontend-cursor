@@ -15,6 +15,7 @@ import {
   WAY_IN_POLL_MS,
   nextWayInPoll,
   WAY_IN_WORDS,
+  wayInShown,
   wayInAsk,
   wayInBeat,
   wayInPollKey,
@@ -286,7 +287,7 @@ export function useWayIn({
   messages: LoungeMessage[];
   firstTakeInFlight: boolean;
   busy: boolean;
-  run: (work: () => Promise<PlanState | null>) => Promise<void>;
+  run: (work: () => Promise<PlanState | null>, quiet?: boolean, mine?: string | null) => Promise<void>;
   apply: (state: PlanState) => void;
   reload: () => Promise<void> | void;
   /** Open the box for one's own words ("Something else", N573 item 1). */
@@ -343,7 +344,8 @@ export function useWayIn({
     };
   }, [pollKey]);
 
-  const answer = (a: WayInAnswer) => void run(() => wayIn(a));
+  // One's own bubble shows at the tap (backend N632 item 7).
+  const answer = (a: WayInAnswer) => void run(() => wayIn(a), false, wayInShown(a, ask && "chips" in ask ? ask.chips : []));
   const voice = usePlanVoice({
     open: ask?.kind === "voice" && !busy,
     onAnswer: (audio) => run(() => wayInVoice(audio, ask?.beat ?? "profile")),

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { withOwnBubble, type OwnBubble } from "@/components/willab/useLoungeThread";
 import {
   answerConsent,
   answerDeadline,
@@ -19,7 +20,7 @@ import {
   type Plan,
   type PlanState,
 } from "@/services/api/plan";
-import { fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
+import { fmtDay, fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
 import type { FirstTakeSlide } from "@/lib/willab/firstTake";
 import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
 import { TapRow } from "@/components/willab/WillQuestion";
@@ -95,7 +96,7 @@ export type PlanLounge = {
 export type PlanStart = { firstTake?: FirstTakeSlide[] | null; afterFirstTake?: boolean };
 
 
-type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void };
+type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promise<void> | void; own?: OwnBubble };
 
 /** Back in the app sooner than this after the plan was last read, it is not
  *  read again: a tab switch and back is not a new day. */
@@ -223,13 +224,15 @@ export function usePlanLounge({
     if (!first) void load();
   }, [newestTake, state?.enabled, busy, load]);
 
+  const own = thread.own;
   const run = useCallback(
-    async (work: () => Promise<PlanState | null>, quiet = false) => {
+    async (work: () => Promise<PlanState | null>, quiet = false, mine: string | null = null) => {
       setBusy(true);
       // A booking shows its bubble at once: no "Will is typing" (N281).
       if (!quiet) setThinking(true);
       try {
-        const got = await work();
+        // One's own answer shows the moment it is tapped (backend N632 item 7).
+        const got = await withOwnBubble(own, mine, work, (state) => state !== null);
         if (got) setState((s) => ({ ...(s ?? got), ...got, plan: got.plan ?? s?.plan ?? null }));
         await reload();
         // The chat follows the newest bubble after an answer (N319 item 9).
@@ -239,7 +242,7 @@ export function usePlanLounge({
         setBusy(false);
       }
     },
-    [reload, setThinking],
+    [reload, setThinking, own],
   );
 
   // A plan read in the background (the way in's calls while Take 1 is
@@ -255,7 +258,9 @@ export function usePlanLounge({
 
   const actions: PlanActions = useMemo(
     () => ({
-      deadline: (day) => void run(() => answerDeadline(day)),
+      // Each tap's own bubble, as the backend writes it, shows at once
+      // (backend `plan_flow`; N632 item 7).
+      deadline: (day) => void run(() => answerDeadline(day), false, day ? fmtDay(new Date(`${day}T00:00:00`)) : PLAN_COPY.noDate),
       answer: async (audio, ms) => {
         const src = URL.createObjectURL(audio);
         setSent({ src, ms });
@@ -278,9 +283,9 @@ export function usePlanLounge({
         if (plan?.first_take) onStartRecording?.(topic, { firstTake: plan.first_take_slides ?? null });
         else onStartRecording?.(topic);
       },
-      next: (choice) => void run(() => nextPlan(choice)),
-      sameEvent: (yes) => void run(() => sameEvent(yes)),
-      consent: (yes) => void run(() => answerConsent(yes)),
+      next: (choice) => void run(() => nextPlan(choice), false, choice === "keep_practising" ? PLAN_COPY.keepPractising : PLAN_COPY.newEvent),
+      sameEvent: (yes) => void run(() => sameEvent(yes), false, yes ? PLAN_COPY.yes : PLAN_COPY.no),
+      consent: (yes) => void run(() => answerConsent(yes), false, yes ? PLAN_COPY.consentYes : PLAN_COPY.consentNo),
     }),
     [run, onStartRecording, plan?.topic, plan?.first_take, plan?.first_take_slides],
   );

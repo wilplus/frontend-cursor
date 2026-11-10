@@ -1596,8 +1596,8 @@ export default function Lounge({
   // and "What should change?" keeps the box open.
   // Will's other setup, one's own chat (backend N582, the chat builder's
   // ring): the same box, the same taps.
-  const joinSetup = useJoinSetup(reload, setBotThinking);
-  const chatSetup = useChatSetup(reload, setBotThinking);
+  const joinSetup = useJoinSetup(reload, setBotThinking, thread.own);
+  const chatSetup = useChatSetup(reload, setBotThinking, thread.own);
   // For whoever has the new setup, Will's chat asks none of the earlier
   // builder's questions (backend N632 item 1).
   const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup, assistant.retired);
