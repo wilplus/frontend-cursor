@@ -115,17 +115,33 @@ workspace, no form.
     made when the chat doesn't take it), with the host's welcome and the
     host's own questions (N590 item 2) before it, one at a time, tapped
     above the bar (a
-    date for "Yes" to "Are you in a hurry?", with Send). **The bar** follows
-    the host's recipe (`writes` from the backend) as in a host's chat (N600):
-    "+" on the left (once the chat exists), the typing box in the middle
-    when it takes words, else the three emoji, and a small mic on the right
-    when it takes recordings, which for a visitor is only after the sign-up
-    (the processing-authorization path has no one to ask before). The same
-    bar whether or not a question waits. N603's image button (on the right,
-    while a chat asks for a photo) has no place here yet: the backend's
-    `writes` has no photo and no widget route takes one. Signed up, "+" and the mic open the
-    chat in WillpowerLab, where the recording is made; before it, "+" opens
-    the sign-up. No fixed greeting and no fixed questions (N591 item 5;
+    date for "Yes" to "Are you in a hurry?", with Send), "Not now" under
+    them (N610 item 4), which leaves the question until the chat is opened
+    again. The welcome is drawn as the host's own words, with no assistant's
+    mark (the backend's welcome lines carry no `meta.assistant`). **The bar**
+    is the locked two places (N610, the components of C1's bar,
+    `ChatBar.tsx`): the "+" on the left, always there, and "Ask {name}" in
+    the middle, a box where the host's recipe (`writes` from the backend)
+    takes typing, a black button where it does not; never grey, no emoji in
+    the bar and no mic on the right (N600's bar is replaced). The same bar
+    whether or not a question waits: the host's question is answered by its
+    taps, and a visitor's typed words are a question, not an answer to it,
+    so the middle stays "Ask {name}". Where the chat takes no typing, asking
+    is recording, which for a visitor is only after the sign-up (the
+    processing-authorization path has no one to ask before): the black
+    "Ask {name}" makes their chat (`start` with no message) and opens the
+    sign-up's join page; signed up, it and "+" open the chat in
+    WillpowerLab, where the question is recorded and a photo sent. Before
+    the sign-up "+" opens the sign-up; before the chat exists it does what
+    the middle does (the caret in the box, or the button's tap). **Thanks**
+    (N610 item 5): after the host's recorded answer in a chat without
+    typing, 👀, 👍 and 🙏 above the bar, the last filled; one tap sends it
+    and they go; an emoji is sent no other way. No photo here yet: no
+    widget route takes one (N611 item 8). **No answer at once** (N606): the
+    visitor's question waits for the host, and nothing in the widget
+    expects the assistant's; "Asked. {name} answers here." (signed, N610
+    item 7) is not drawn on the locked page, so it is not shown here
+    either. No fixed greeting and no fixed questions (N591 item 5;
     N567's "Hi, I'm {name}. Tap to answer, and I'll answer you out loud.",
     the three questions and "{name} answers out loud…" are gone, N569 item
     2). The browser keeps the visitor's chat on that site; the chat is read
@@ -134,11 +150,12 @@ workspace, no form.
     1), **Widget / Visitor {n}**, "From {site}" under it; their answers
     arrive as the card ("Visitor {n}'s answers", N569 item 6). The host
     answers as in any chat (N591 item 3): the bar is the chat's bar, the
-    "+" and the three emoji; a visitor's question is not marked for
-    **Record your answer** (that was N567 item 6). An answer already saved
-    goes by itself through the bundles (N584, backend). Typing in the bar
-    (N483) waits for the founder's OK on the locked bar, so the host does
-    not type yet. Block and Report as in every chat.
+    locked two places (N610, C1): the "+", and **Record your answer** in
+    the middle for a visitor's typed question, which the backend marks as
+    any question (`record_answer`); with nothing asked, "Ask {name}". A
+    question signed up for joins its bundle and waits for the host (N584,
+    N606 item 1: the assistant sends nothing until its minimum). Block and
+    Report as in every chat.
 13. **The sign-up, after asking** (N591 item 4, N595 item 2; was "Keep this
     chat", N567 item 7): once the visitor has written (`sign_up` from the
     backend), a card: "To get {name}'s answer, sign up.", "The first notice
@@ -1007,6 +1024,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N610, N606 · B11: the website chat's bar is the locked two places, on `ChatBar.tsx`'s components: the "+" on the left, always there, and "Ask {name}" in the middle, a box where the chat takes typing, a black button where it does not; "Not now" under a question's taps; the three thanks above the bar after the host's recorded answer in a chat without typing. Where the chat takes no typing, the black "Ask {name}" makes the visitor's chat and opens the sign-up (asking is recording there); signed up, it and "+" open the chat in WillpowerLab. The welcome is the host's own words, with no assistant's mark, and no answer is expected at once (N606). What stops: the three emoji in the bar's middle (an emoji as a visitor's first message with them), the small mic on the right, and "+" appearing only once the chat exists. In the host's list (B12) a visitor's chat has the same two places: "Record your answer" for their typed question, which the backend marks; was the "+" and the three emoji. Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE #1868, FE (this PR)
 - 2026-11-10 · N595, N600 · B11, B13: no consent card in the website chat (the visitor writes at once; the first message makes the chat); the sign-up step in N595's signed words ("To get {name}'s answer, sign up." and its note, "Signed up. The first notice…"); the host's welcome shows before the visitor writes, and `start` carries the first message; the visitor's bar follows the recipe as in a host's chat: "+" left, the box (or the emoji) in the middle, a small mic on the right once signed up, the same while a question waits (N603's image button waits for a photo in the widget's routes). Was: "Your taps go to {name} through WillpowerLab." with Agree and start, and the drafted sign-up words · BE #1868 (#1874, #1876 log), FE (this PR)
 - 2026-11-09 · N591 · B8 to B13: the website chat is the host's own chat on the public side. The visitor meets the host's welcome and own questions, then writes as the host's recipe allows (the emoji, and typed words when typing is on); after asking, a sign-up step ("Sign up to get {name}'s answer, by email or on your phone.", drafted) replaces "Keep this chat" and `/sign-up` replaces `/keep`; the host's answers wait behind it. Gone: the fixed greeting, the three questions, "answers out loud", the `/ask` route and "Record your answer" for a visitor. The switch stays hidden; the consent line is unchanged. Host typing in the locked bar waits for the founder's OK · BE #1868, FE (this PR)
 - 2026-11-10 · N610 · C1, §2 to §5: the bar in a host's chat and a chat between people is two places, as the locked page draws it: the "+" (named "Add" for a screen reader), which never moves, and the one thing to do now. Nothing asked: "Ask {name}", a black button, which opens "Ask {name}". The chat asks: "Record your answer" where it takes recordings; where it takes only taps the middle stays "Ask {name}"; answers to tap above the bar with "Not now" under them, the questions asked when you join included. Thanks: after a person's recorded answer, 👀, 👍 and 🙏 above the bar, the last filled; one tap sends it and they go; never after the assistant, never twice. The "+" sheet: "Ask {name}" with "Record your question" and "Send a photo" (the photo route of N351, its BFF route back), or "Answer {name}" while the chat asks. What stops: the three emoji in the bar's middle (an emoji is sent only as thanks now), N600's mic on the right, and "Record your question" in one tap from a host's bar. Waits for the backend (#1880), built and off until its routes answer: the box ("Ask {name}", "Type your answer", and "Type your answer" behind the "+"), on where `GET /v2/chats/<id>/host` says `answer_with.type`, the words to `POST /v2/chats/<id>/messages` as `{"kind": "text", "body", "to"?}`; "Add a photo" in the middle for a question with `meta.setup.kind === "photo"`, the photo to `POST /v2/chats/<id>/setup/<message_id>/photo`. Typed words a send refuses come back to the box as typed. Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE N610 (#1878), BE #1880, FE (this PR)

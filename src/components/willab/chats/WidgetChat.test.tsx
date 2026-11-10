@@ -3,20 +3,26 @@
 STORY    As someone on a host's website, I want to write to them there at
          once, as their chat lets me, and sign up after asking to get their
          answer, so that the website chat is their own chat on the public
-         side (backend N591, N595, N600; amending N567 and N569).
+         side (backend N591, N595, N606, N610; amending N567 and N569).
 OUTCOME
   O1  The pill reads "Ask {name}"; opened, the host's welcome shows, with
       no consent card and no "Agree and start": nothing is sent until I
       write, and my first message makes my chat in one call, with the
       message in it, kept in this browser (WID-13 as N595 item 1 has it).
-  O2  No fixed greeting and no fixed questions: the host's own welcome and
-      their own questions come, tapped one at a time above the bar ("Yes"
-      to "Are you in a hurry?" opens a date with Send); nothing says the
-      host answers "out loud" (WID-14, WID-15, WID-16).
-  O3  The bar follows the host's recipe, the same whether or not a question
-      waits (N600): "+" on the left, the typing box in the middle when it
-      takes words, else the three emoji; a small mic on the right only once
-      recording is open to me, after the sign-up.
+  O2  No fixed greeting and no fixed questions: the host's own welcome,
+      drawn as the host's words with no assistant's mark, and their own
+      questions come, tapped one at a time above the bar ("Yes" to "Are you
+      in a hurry?" opens a date with Send); nothing says the host answers
+      "out loud" (WID-14, WID-15, WID-16).
+  O3  The bar is two places, the same whether or not a question waits
+      (N610): "+" on the left, always, and "Ask {name}" in the middle, a box
+      where the chat takes typing, a black button where it does not; no
+      emoji in the bar and no mic on the right. A question's taps sit above
+      it, "Not now" under them. Where the chat takes no typing, the button
+      makes my chat and opens the sign-up, since asking is recording there;
+      signed up, it and "+" open the chat in WillpowerLab. After the host's
+      recorded answer, the three thanks come above the bar; one tap sends
+      it and they go.
   O4  After asking, the sign-up step in N595's signed words: "To get
       {name}'s answer, sign up." and "The first notice of the answer comes
       to your phone or email. After that, this chat is yours.", with "Sign
@@ -32,9 +38,9 @@ OUTCOME
       link) is forgotten here (WID-25).
 PROVES   O1 -> "WID-13: no consent card, and my first message makes my chat"
          O2 -> "WID-14, WID-15, WID-16: the host's welcome and own questions come, tapped above the bar, with no fixed ones"
-         O3 -> "N600: the bar is +, the box and no mic before the sign-up, the same while a question waits"
-         O3 -> "N600: with typing off, the three emoji in the middle"
-         O3 -> "N600: signed up with recording open, a small mic on the right"
+         O3 -> "N610: the bar is + and the box, the same while a question waits, Not now under its taps"
+         O3 -> "N610: with typing off, the black Ask Tomek makes my chat and opens the sign-up"
+         O3 -> "N610: signed up, + opens the app, no mic, and the host's recorded answer brings the three thanks"
          O4 -> "WID-17, WID-18, WID-29: after asking, the sign-up step in N595's words, and Not now leaves Sign up by the foot"
          O5 -> "WID-29: Sign up opens the join page with my chat"
          O6 -> "WID-28: signed up, the line says where the notice goes, and the host's voice answer opens its words behind Read it"
@@ -129,7 +135,7 @@ const tap = async (el: Element | null | undefined) => {
 };
 const button = (text: string) => [...container.querySelectorAll("button")].find((b) => b.textContent?.trim() === text);
 const typeIn = async (words: string) => {
-  const box = container.querySelector<HTMLInputElement>("[data-widget-type] input");
+  const box = container.querySelector<HTMLInputElement>("[data-widget-bar] [data-chat-box] input");
   expect(box).toBeTruthy();
   await act(async () => {
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
@@ -144,15 +150,13 @@ async function openWidget(writes: unknown = TAP_AND_TYPE) {
   await tap(container.querySelector("[data-widget-pill]"));
 }
 
-/** The first message (it makes the chat), then the host's question answered. */
-async function writeAndAnswer(first = "👍") {
-  await tap(button(first) ?? container.querySelector("[data-widget-emoji] button"));
-  await tap(button("English"));
-}
-
+/** Typed in the box; the keyboard's own key sends. */
 async function typeAndSend(words: string) {
   await typeIn(words);
-  await tap(container.querySelector("[data-widget-send]"));
+  await act(async () => {
+    container.querySelector("[data-widget-bar] [data-chat-box]")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+  await flush();
 }
 
 describe("the website chat on someone's site", () => {
@@ -183,6 +187,8 @@ describe("the website chat on someone's site", () => {
     const thread = container.querySelector("[data-widget-thread]")!.textContent;
     expect(thread).toContain("Welcome to my scalp clinic. Ask me anything about your scalp.");
     expect(thread).toContain("Are you in a hurry?");
+    // The welcome is the host's own words: no assistant's mark on it.
+    expect(container.querySelector("[data-assistant-says]")).toBeNull();
     await tap(button("Yes"));
     expect(container.querySelector('input[type="date"]')).not.toBeNull();
     expect(button("Send")).toBeTruthy();
@@ -191,44 +197,65 @@ describe("the website chat on someone's site", () => {
     }
   });
 
-  it("N600: the bar is +, the box and no mic before the sign-up, the same while a question waits", async () => {
+  it("N610: the bar is + and the box, the same while a question waits, Not now under its taps", async () => {
     await openWidget();
     const bar = () => container.querySelector("[data-widget-bar]")!;
-    // Before my chat exists: the box; "+" comes with the chat.
-    expect(bar().querySelector("[data-widget-type] input")).not.toBeNull();
-    expect(bar().querySelector("[data-widget-emoji]")).toBeNull();
-    expect(bar().querySelector("[data-widget-mic]")).toBeNull();
+    const places = () => [...bar().children].map((c) => (c.hasAttribute("data-chat-plus") ? "+" : c.hasAttribute("data-chat-box") ? "box" : "?"));
+    // Before my chat exists: two places already, "+" and the box that asks.
+    expect(places()).toEqual(["+", "box"]);
+    expect(bar().querySelector<HTMLInputElement>("input")?.placeholder).toBe("Ask Tomek");
     await typeAndSend("Hello");
-    // The host's question waits: its taps sit above the same bar.
+    // The host's question waits: its taps above the same bar, "Not now" under them.
     expect(container.querySelector("[data-widget-answers]")).not.toBeNull();
-    const asked = bar().innerHTML;
-    expect(bar().querySelector("[data-widget-plus]")).not.toBeNull();
-    expect(bar().querySelector("[data-widget-type] input")).not.toBeNull();
-    expect(bar().querySelector("[data-widget-mic]")).toBeNull();
-    await tap(button("English"));
+    expect(places()).toEqual(["+", "box"]);
+    expect(bar().querySelector<HTMLInputElement>("input")?.placeholder).toBe("Ask Tomek");
+    expect(bar().textContent).toBe("");
     await tap(button("Not now"));
-    expect(bar().innerHTML).toBe(asked);
+    expect(container.querySelector("[data-widget-answers]")).toBeNull();
+    expect(calls.some((c) => c.url.includes("/setup/"))).toBe(false);
+    expect(places()).toEqual(["+", "box"]);
   });
 
-  it("N600: with typing off, the three emoji in the middle", async () => {
-    startRead = { writes: TAP_ONLY, messages: [WELCOME, QUESTION] };
+  it("N610: with typing off, the black Ask Tomek makes my chat and opens the sign-up", async () => {
+    const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() };
+    const opened = vi.fn(() => tab);
+    vi.stubGlobal("open", opened);
+    startRead = { writes: TAP_ONLY, messages: [WELCOME] };
     await openWidget(TAP_ONLY);
-    await writeAndAnswer();
-    expect(container.querySelector("[data-widget-type]")).toBeNull();
-    expect(container.querySelector("[data-widget-emoji]")?.textContent).toBe("👍👀🙏");
-    expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { kind: "emoji", body: "👍" } });
+    const bar = container.querySelector("[data-widget-bar]")!;
+    expect(bar.querySelector("[data-chat-box]")).toBeNull();
+    expect(bar.textContent).toBe("Ask Tomek");
+    expect(bar.querySelector("[data-chat-ask]")?.hasAttribute("disabled")).toBe(false);
+    expect(calls).toEqual([]);
+    await tap(bar.querySelector("[data-chat-ask]"));
+    // My chat is made with no message in it, and the join page opens with it.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { site: "invitaheadspa.com" } });
+    expect(calls[0].body).not.toHaveProperty("body");
+    expect(window.localStorage.getItem(`wpl-widget:${TOKEN}`)).toBe("g1.secret");
+    expect(tab.location.href).toBe(`${window.location.origin}/c/${TOKEN}?from=widget#g=g1.secret`);
+    expect(tab.opener).toBeNull();
+    expect(container.querySelector("[data-widget-foot]")?.textContent).toBe("with WillpowerLab");
   });
 
-  it("N600: signed up with recording open, a small mic on the right", async () => {
+  it("N610: signed up, + opens the app, no mic, and the host's recorded answer brings the three thanks", async () => {
     const opened = vi.fn();
     vi.stubGlobal("open", opened);
     window.localStorage.setItem(`wpl-widget:${TOKEN}`, "g1.secret");
-    read = { writes: { tap: true, type: true, record: true }, messages: [WELCOME], signed_up: true };
+    const answer = { ...VOICE, meta: { ...VOICE.meta, answer: true } };
+    read = { writes: { tap: true, type: false, record: true }, messages: [WELCOME, answer], signed_up: true };
     await openWidget();
     const bar = container.querySelector("[data-widget-bar]")!;
-    expect([...bar.children].map((c) => (c.hasAttribute("data-widget-plus") ? "+" : c.hasAttribute("data-widget-type") ? "box" : c.hasAttribute("data-widget-mic") ? "mic" : "?"))).toEqual(["+", "box", "mic"]);
-    await tap(bar.querySelector("[data-widget-mic]"));
+    expect([...bar.children].map((c) => (c.hasAttribute("data-chat-plus") ? "+" : c.hasAttribute("data-chat-ask") ? "ask" : "?"))).toEqual(["+", "ask"]);
+    await tap(bar.querySelector("[data-chat-plus]"));
     expect(opened).toHaveBeenCalledWith(`${window.location.origin}/chat`, "_blank", "noopener");
+    await tap(bar.querySelector("[data-chat-ask]"));
+    expect(opened).toHaveBeenCalledTimes(2);
+    const thanks = container.querySelector("[data-chat-thanks]");
+    expect(thanks?.textContent).toBe("👀👍🙏");
+    await tap(thanks?.querySelector("[data-goes]"));
+    expect(calls.at(-1)).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/messages`, body: { kind: "emoji", body: "🙏" }, guest: "g1.secret" });
+    expect(container.querySelector("[data-chat-thanks]")).toBeNull();
   });
 
   it("WID-17, WID-18, WID-29: after asking, the sign-up step in N595's words, and Not now leaves Sign up by the foot", async () => {

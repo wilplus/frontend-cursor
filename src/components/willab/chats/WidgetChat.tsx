@@ -5,7 +5,8 @@ import { TapRow } from "@/components/willab/WillQuestion";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { LetterCircle } from "@/components/willab/chats/ChatList";
 import { VoiceWords, setupWaits } from "@/components/willab/chats/ChatThread";
-import { CHAT_EMOJI, type ChatMessage } from "@/services/api/chats";
+import { BarBox, BarButton, BarPlus, ThanksTaps, middleOf, thanksDue } from "@/components/willab/chats/ChatBar";
+import type { ChatEmoji, ChatMessage } from "@/services/api/chats";
 import {
   answerWidgetSetup,
   readWidgetChat,
@@ -27,16 +28,18 @@ import {
 } from "@/components/willab/chats/joinCopy";
 
 /* -------------------------------------------------------------------------- */
-/*  The website chat (backend N591, N595, N600; rules: docs/flows/            */
+/*  The website chat (backend N591, N595, N606, N610; rules: docs/flows/      */
 /*  customer-requests.md B8 to B13). The page w.js opens in an iframe on       */
 /*  someone's site: the pill, "Ask {name}", and the host's own chat behind it, */
 /*  on the public side. No consent card (N595 item 1): the visitor writes at  */
 /*  once, and their first message makes their chat, with the host's welcome  */
-/*  and the host's own questions (N590 item 2), tapped above the bar. The bar */
-/*  follows the host's recipe as in a host's chat (N600): "+" on the left,    */
-/*  the typing box (or the three emoji) in the middle, a small mic on the     */
-/*  right once recording is open to them. After asking, they sign up to get  */
-/*  the answer (N591 item 4, N595's signed words): until then the host's      */
+/*  (the host's own words, with no assistant's mark) and the host's own       */
+/*  questions (N590 item 2), tapped above the bar. The bar is the locked two  */
+/*  places (N610, ChatBar.tsx): the "+" on the left, which never moves, and   */
+/*  "Ask {name}" in the middle, a box where the chat takes typing, a black    */
+/*  button where it does not. After asking, they sign up to get the answer    */
+/*  (N591 item 4, N595's signed words): every question waits for the host    */
+/*  (N606: no assistant answers at once), and until the sign-up the host's   */
 /*  answers are held back by the backend. The sign-up opens the join page in */
 /*  a new tab with the visitor's secret; once signed up, the answers show    */
 /*  here, a voice answer with "Read it". The secret is kept in this browser  */
@@ -46,8 +49,6 @@ import {
 const KEY = (token: string) => `wpl-widget:${token}`;
 const SEEN = (token: string) => `wpl-widget-seen:${token}`;
 const READ_EVERY_MS = 15_000;
-/** The longest message a visitor types (backend chat_widget.MAX_TEXT). */
-const MAX_TEXT = 2000;
 
 function kept(key: string): string | null {
   try {
@@ -118,12 +119,14 @@ function Bubble({ token, guest, message }: { token: string; guest: string; messa
 }
 
 /** One of the host's own questions, answered by taps above the bar (N487,
- *  N590 item 2, N600 item 3); "Yes" to "Are you in a hurry?" opens a date
- *  with Send. */
-function SetupAnswers({ waiting, busy, onAnswer }: {
+ *  N590 item 2), "Not now" under them (N610 item 4), which leaves the
+ *  question until the chat is opened again; "Yes" to "Are you in a hurry?"
+ *  opens a date with Send. */
+function SetupAnswers({ waiting, busy, onAnswer, onLeave }: {
   waiting: NonNullable<ReturnType<typeof setupWaits>>;
   busy: boolean;
   onAnswer: (message: ChatMessage, picked: string[], date?: string) => void;
+  onLeave: () => void;
 }) {
   const [day, setDay] = useState("");
   const question = waiting.question;
@@ -146,6 +149,7 @@ function SetupAnswers({ waiting, busy, onAnswer }: {
         dataAttr={{ "data-widget-answers": "" }}
         onTap={(label) => (hurryYes && label === "Yes" ? setDay("pick") : onAnswer(waiting.message, [label]))}
       />
+      <TapRow labels={[NOT_NOW]} disabled={busy} onTap={onLeave} dataAttr={{ "data-widget-not-now": "" }} />
     </div>
   );
 }
@@ -167,74 +171,29 @@ function SignUpCard({ name, onSignUp, onLater }: { name: string; onSignUp: () =>
   );
 }
 
-/** The visitor's bar (N600 items 1 to 3, as for a host's chat): "+" on the
- *  left; in the middle the typing box when the host's recipe takes words,
- *  else the three emoji; a small mic on the right when it takes recordings
- *  (for a visitor, only once signed up, N591). The same bar whether or not
- *  a question waits: its tap answers sit above it. "+" and the mic open the
- *  chat in WillpowerLab, where a recording goes through the
- *  processing-authorization path; before the sign-up "+" opens the sign-up. */
-function WriteBar({ name, writes, busy, onSend, onPlus, onMic }: {
+/** The visitor's bar: the locked two places (N610, drawn by ChatBar.tsx as
+ *  in a host's chat). The "+" on the left, always there. In the middle the
+ *  one thing to do now, "Ask {name}": a box where the host's recipe takes
+ *  typing, a black button where it does not; never grey. A question of the
+ *  host's that waits is answered by the taps above the bar, so the middle
+ *  stays "Ask {name}" (item 4: the widget's typed words are a question, not
+ *  an answer to it). No emoji in the bar and no mic on the right. */
+function WriteBar({ name, writes, onType, onAsk, onPlus }: {
   name: string;
   writes: WidgetWrites;
-  busy: boolean;
-  onSend: (kind: "emoji" | "text", body: string) => Promise<boolean>;
-  onPlus: (() => void) | null;
-  onMic: () => void;
+  onType: (words: string) => Promise<boolean>;
+  onAsk: () => void;
+  onPlus: () => void;
 }) {
-  const [draft, setDraft] = useState("");
-  const words = draft.trim();
-  const send = async () => {
-    if (words && (await onSend("text", words))) setDraft("");
-  };
-  const round = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full";
+  const middle = middleOf(writes, { answer: false, taps: false, photo: false });
   return (
     <div data-widget-bar="" className="flex items-center gap-2 px-3 pb-1.5">
-      {onPlus ? (
-        <button type="button" data-widget-plus="" aria-label="+" onClick={onPlus} className={`${round} border border-border text-[22px] leading-none text-foreground`}>
-          +
-        </button>
-      ) : null}
-      {writes.type ? (
-        <form
-          data-widget-type=""
-          className="flex min-w-0 flex-1 items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <input
-            type="text"
-            value={draft}
-            maxLength={MAX_TEXT}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label={name}
-            className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-[15px]"
-          />
-          {words ? (
-            <button type="submit" data-widget-send="" disabled={busy} className="h-11 shrink-0 rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-50">
-              {SEND_PICKED}
-            </button>
-          ) : null}
-        </form>
+      <BarPlus fresh={false} onClick={onPlus} />
+      {middle === "ask-box" ? (
+        <BarBox hint={askName(name)} onSend={onType} />
       ) : (
-        <div data-widget-emoji="" className="flex h-[46px] min-w-0 flex-1 items-center justify-around rounded-full border border-border">
-          {CHAT_EMOJI.map((e) => (
-            <button key={e} type="button" disabled={busy} onClick={() => void onSend("emoji", e)} className="h-10 w-12 rounded-full text-[24px] disabled:opacity-60">
-              {e}
-            </button>
-          ))}
-        </div>
+        <BarButton label={askName(name)} onClick={onAsk} dataAttr={{ "data-chat-ask": "" }} />
       )}
-      {writes.record ? (
-        <button type="button" data-widget-mic="" aria-label="🎤" onClick={onMic} className={`${round} text-[18px] text-muted-foreground`}>
-          <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <rect x="9" y="3" width="6" height="11" rx="3" />
-            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-          </svg>
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -282,9 +241,12 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   const [writes, setWrites] = useState<WidgetWrites>(firstWrites);
   const [state, setState] = useState(NOTHING_YET);
   const [later, setLater] = useState(false);
+  // "Not now" under a question's taps leaves it until the chat is opened again.
+  const [left, setLeft] = useState<readonly string[]>([]);
   const [busy, setBusy] = useState(false);
   const [unread, setUnread] = useState(false);
   const pill = useRef<HTMLButtonElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
 
   const took = useCallback((chat: WidgetChatRead) => {
@@ -345,6 +307,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
 
   const openChat = () => {
     setOpen(true);
+    setLeft([]);
     setUnread(false);
     keep(SEEN(token), seenCount({ messages, answered: state.answered }));
     if (guest) void read(guest, true);
@@ -408,9 +371,42 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
     setLater(true);
   };
 
-  // Signed up: "+" and the mic open the chat in WillpowerLab, where a
-  // recording goes through the processing-authorization path.
+  // Signed up: "+" and the black "Ask {name}" open the chat in WillpowerLab,
+  // where a recording goes through the processing-authorization path.
   const inTheApp = () => window.open(`${window.location.origin}/chat`, "_blank", "noopener");
+
+  // A chat that takes no typing is asked by recording, which needs an
+  // account (the processing-authorization path has no one to ask before):
+  // the black "Ask {name}" goes to the sign-up, making the visitor's chat
+  // first when there is none (the backend's "start" at their first tap). The
+  // tab is opened in the tap itself, so the browser lets it open.
+  const signUpToAsk = () => {
+    if (guest) return signUp();
+    if (busy) return;
+    const tab = window.open("", "_blank");
+    void run(async () => {
+      const started = await startWidgetChat(token, site, null);
+      if (!started) return tab?.close();
+      keep(KEY(token), started.guest);
+      setGuest(started.guest);
+      took(started.chat);
+      setLater(true);
+      if (!tab) return;
+      tab.opener = null;
+      tab.location.href = `${window.location.origin}/c/${encodeURIComponent(token)}?from=widget#g=${encodeURIComponent(started.guest)}`;
+    });
+  };
+
+  // The "+" never moves (N610 item 1). Signed up, it opens the chat in
+  // WillpowerLab, where a question is recorded and a photo sent; before
+  // that, the sign-up; before the visitor's chat exists, it is the middle's
+  // own action: the caret in the box, or the button's tap.
+  const plus = () => {
+    if (state.signedUp) return void inTheApp();
+    if (guest) return signUp();
+    if (writes.type) return bar.current?.querySelector("input")?.focus();
+    signUpToAsk();
+  };
 
   if (!open) {
     return (
@@ -430,9 +426,13 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
     );
   }
 
-  const waiting = setupWaits(messages);
+  const asked = setupWaits(messages);
+  const waiting = asked && asked.question && !left.includes(asked.message.id) ? asked : null;
   const signUpDue = Boolean(guest) && !state.signedUp && state.signUp;
-  const plus = state.signedUp ? inTheApp : guest ? signUp : null;
+  const signUpCard = !waiting && signUpDue && !later;
+  // Thanks (N610 item 5): after the host's recorded answer, in a chat
+  // without typing, three taps above the bar; one tap sends it and they go.
+  const thanks = thanksDue(writes, messages, [waiting, signUpCard, busy]);
 
   return (
     <section data-widget-chat="" aria-label={name} className="fixed inset-0 flex flex-col overflow-hidden rounded-[22px] bg-background text-foreground">
@@ -461,12 +461,30 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
           </p>
         ) : null}
       </div>
-      {waiting && waiting.question ? (
-        <SetupAnswers key={waiting.message.id} waiting={waiting} busy={busy} onAnswer={(m, picked, date) => void tapSetup(m, picked, date)} />
-      ) : signUpDue && !later ? (
+      {waiting ? (
+        <SetupAnswers
+          key={waiting.message.id}
+          waiting={waiting}
+          busy={busy}
+          onAnswer={(m, picked, date) => void tapSetup(m, picked, date)}
+          onLeave={() => setLeft((was) => [...was, waiting.message.id])}
+        />
+      ) : signUpCard ? (
         <SignUpCard name={name} onSignUp={signUp} onLater={() => setLater(true)} />
+      ) : thanks ? (
+        <div className="px-3 pb-2">
+          <ThanksTaps onPick={(emoji: ChatEmoji) => void send("emoji", emoji)} />
+        </div>
       ) : null}
-      <WriteBar name={name} writes={writes} busy={busy} onSend={send} onPlus={plus} onMic={inTheApp} />
+      <div ref={bar}>
+        <WriteBar
+          name={name}
+          writes={writes}
+          onType={(words) => send("text", words.trim())}
+          onAsk={state.signedUp ? () => void inTheApp() : signUpToAsk}
+          onPlus={plus}
+        />
+      </div>
       <Foot signUpLater={signUpDue && later} onSignUp={signUp} />
     </section>
   );

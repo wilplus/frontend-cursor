@@ -11,7 +11,8 @@ import type { ChatMessage } from "@/services/api/chats";
 export const WIDGET_GUEST_HEADER = "X-Willab-Widget-Guest";
 
 /** How a visitor may write, from the host's recipe (N591 item 2): tap (the
- *  three emoji), type, record (only once signed up, and then in the app). */
+ *  host's questions, and the three emoji as thanks, N610 item 5), type,
+ *  record (only once signed up, and then in the app). */
 export interface WidgetWrites {
   tap: boolean;
   type: boolean;
@@ -77,16 +78,17 @@ function chatOf(body: unknown): WidgetChat | null {
   };
 }
 
-/** The visitor's chat, made with their first message (N595 item 1: no card
- *  before it): the host's welcome and questions first, then that message.
- *  The chat and the visitor's secret; null when it did not go (a message the
- *  host's chat does not take is refused before anything is made). */
+/** The visitor's chat, made with their first message, or at their first tap
+ *  with none (N595 item 1: no card before it): the host's welcome and
+ *  questions first, then that message. The chat and the visitor's secret;
+ *  null when it did not go (a message the host's chat does not take is
+ *  refused before anything is made). */
 export async function startWidgetChat(
   token: string,
   site: string | null,
-  first: { kind: "emoji" | "text"; body: string },
+  first: { kind: "emoji" | "text"; body: string } | null,
 ): Promise<{ guest: string; chat: WidgetChat } | null> {
-  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site, ...first } })) as { guest?: unknown } | null;
+  const body = (await call(`${base(token)}/start`, null, { method: "POST", json: { site, ...(first ?? {}) } })) as { guest?: unknown } | null;
   const chat = chatOf(body);
   return chat && typeof body?.guest === "string" ? { guest: body.guest, chat } : null;
 }
@@ -104,8 +106,8 @@ export async function answerWidgetSetup(token: string, guest: string, messageId:
   return Array.isArray(body?.messages) ? body.messages : null;
 }
 
-/** The visitor's own message (N591 item 2): one of the three emoji, or
- *  typed words where the host's setup allows typing. The message, and
+/** The visitor's own message (N591 item 2): typed words where the host's
+ *  setup allows typing, or one of the three emoji as thanks (N610 item 5). The message, and
  *  whether the sign-up step is now due; null when it did not go. */
 export async function sendWidgetMessage(
   token: string,
