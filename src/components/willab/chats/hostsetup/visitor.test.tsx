@@ -19,6 +19,7 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }
 vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => false }));
 
 import ChatThread from "../ChatThread";
+import { forgetHostWork } from "./hostWork";
 import type { Chat } from "@/services/api/chats";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -58,6 +59,7 @@ const MODEL = row("r-2", "Your scalp looks dry here.", { model_line: { q: "Is th
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  forgetHostWork();
   routes = {};
   fetchMock.mockClear();
   vi.stubGlobal("fetch", fetchMock);
@@ -148,6 +150,33 @@ describe("what a visitor meets (VIS-)", () => {
     await flush();
     expect(container.querySelector("[data-visitor-taps]")).toBeNull();
     expect(container.querySelector("[data-host-hello]")).toBeNull();
+  });
+
+  it("TRIAL-1 the box shows Will's Send once there are words, and it sends; without the ring, as before", async () => {
+    routes["GET /api/v2/chats/setup"] = () => json({ recipe: null, parts: [], own_chat: null, cost: null });
+    routes["POST /api/v2/chats/c-9/messages"] = () => json({ message: row("m-1", "Hello there", null, true) });
+    await open([row("m-0", "Hi", null, true)], ["text"]);
+    expect(container.querySelector("[data-chat-send]")).toBeNull();
+    const input = box()!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Hello there");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const send = container.querySelector<HTMLButtonElement>("[data-chat-send]");
+    expect(send?.getAttribute("aria-label")).toBe("Send");
+    await act(async () => send!.click());
+    await flush();
+    expect(sentTo("POST /api/v2/chats/c-9/messages")).toEqual([{ kind: "text", body: "Hello there" }]);
+    act(() => root.unmount());
+    root = createRoot(container);
+    forgetHostWork();
+    delete routes["GET /api/v2/chats/setup"];
+    await open([row("m-0", "Hi", null, true)], ["text"]);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box()!, "Hello");
+      box()!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.querySelector("[data-chat-send]")).toBeNull();
   });
 
   it("VIS-02 the bar follows what the host takes: a message, the box; a recording alone, no box", async () => {
