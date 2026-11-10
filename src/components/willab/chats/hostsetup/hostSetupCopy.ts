@@ -80,10 +80,8 @@ export const W = {
   wayUseNone: "Nobody has shared one yet. Yours can be the first.",
   wayOwn: "Train your own",
   wayOwnSub: "Free. It needs your answers and some time before it works. Later, others can pay you to use it.",
-  ownSay: "Your own model, in plain words:",
-  ownWhat: ["What it is", "A model of your own answers one question the way you would. You teach it by answering examples."],
-  ownWorth: ["Worth it", "Worth it when you answer the same kind of thing again and again, and want your chat to notice it at once, for everyone. Later, others can pay you to use it."],
-  ownNot: ["Not worth it", "Not worth it when few people will send you things: it needs about 200 answers to get good. Or when every case is different, so there is nothing to learn. Or when a model that does this already exists."],
+  /** Why one's own model, in two lines (N636 item 6). */
+  ownSay: ["Your own model answers one question the way you would.", "You teach it by answering examples. It needs about 200 to get good."],
   trainMyOwn: "Train my own",
   usableSay: "Models you can use.",
   usableCap: "Add one and your chat gets a key to it. Each time someone sends you something, your chat asks the model and says what it found.",
@@ -92,21 +90,33 @@ export const W = {
   stillLearning: "Still learning",
   /** Under "Still learning" (N634 item 2). */
   learningLine: "It says nothing yet. Your answers teach it.",
-  /** What a model of one's own is built on (N634 item 1): only a ready one taps. */
+  /** What one's own model gives back (N636 item 6): only a ready one taps. */
+  givesSay: "What should it give back?",
+  gives: [
+    ["pick", "A pick from a list"],
+    ["score", "A score, not ready yet"],
+    ["words", "An answer in your words, not ready yet"],
+  ] as const,
+  /** What one's own model is built on (N634 item 1, its words N636 item 6). */
   baseSay: "What should it be built on?",
   bases: [
-    ["gpt", "GPT", "A general model from OpenAI. Ready now."],
-    ["claude", "Claude", "A general model from Anthropic. Not ready yet."],
-    ["own", "WillpowerLab's own", "Made for reading how people behave. Not ready yet."],
+    ["gpt", "GPT"],
+    ["claude", "Claude, not ready yet"],
+    ["own", "WillpowerLab's own, not ready yet"],
   ] as const,
   eachUse: (by: string, price: number) => `${by} made it. ${price} tokens each use.`,
   needs: (by: string, needs: string) => `${by} made it. It needs ${needs.toLowerCase()}.`,
   smarterToday: "Your chat gets smarter today: it notices this with no training from you.",
   costsYou: (price: number) => `It costs you ${price} tokens each time it runs. Your people pay nothing.`,
   addIt: "Add it",
-  firstModel: "Now a model. It learns one thing from you.",
+  firstModel: "What should it notice?",
   nextModel: "Your next model:",
-  modelCap: "One question, three answers. That is a model.",
+  /** The model in blocks (N636 item 6). */
+  stackSay: "Your model. Tap a block to change it.",
+  givesBlock: (gives: string) => `It gives back ${gives.toLowerCase()}`,
+  builtOnGpt: "Built on GPT",
+  taughtByYou: "Taught by you",
+  teachIt: "Teach it",
   modelAsk: "What should it spot? Write it as a question.",
   modelPlaceholder: "Is this a dry scalp?",
   checkSay: "Now it guesses. You check.",
