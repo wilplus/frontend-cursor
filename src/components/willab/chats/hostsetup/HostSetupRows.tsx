@@ -67,6 +67,7 @@ export default function HostSetupRows() {
           recipe={recipe}
           parts={open.at === "setup" && open.detail.parts ? open.detail.parts : recipe ? { line: null, parts: read?.parts ?? [] } : null}
           cost={read?.cost ?? null}
+          ownChat={read?.own_chat ?? null}
           onClose={close}
         />
       )}

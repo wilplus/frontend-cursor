@@ -24,12 +24,14 @@ vi.mock("@/lib/api/bffFetch", () => ({
     bff.calls.push(call);
     const answer = bff.routes[`${call.method} ${path}`];
     if (answer === undefined) return { kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } };
-    const body = typeof answer === "function" ? await (answer as (c: Call) => unknown)(call) : answer;
-    return { kind: "response", ok: true, status: 200, body };
+    const got = typeof answer === "function" ? await (answer as (c: Call) => unknown)(call) : answer;
+    const refused = got && typeof got === "object" && typeof (got as { status?: unknown }).status === "number" ? (got as { status: number; body: unknown }) : null;
+    return refused ? { kind: "response", ok: false, ...refused } : { kind: "response", ok: true, status: 200, body: got };
   }),
 }));
 vi.mock("../../useUserProfile", () => ({ useUserProfile: () => ({ profile: { first_name: "Lena" }, loading: false, isCoach: false }) }));
 
+import MS from "../../models/setupFixtures.json";
 import HostSetupRows from "./HostSetupRows";
 import { forgetSetup, openSetupFromNote, openSetupFromWill, sayToWill } from "./hostSetupDoor";
 
@@ -77,7 +79,7 @@ function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null
   recipe = first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
-  for (const part of ["line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
+  for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
     bff.routes[`PUT /api/v2/chats/setup/${part}`] = (c: Call) => {
       recipe = { ...recipe, [part]: (c.json as R).value };
       return { recipe, cost: FREE };
@@ -139,6 +141,7 @@ async function begun() {
   await flush();
   await tap("Answer");
   await type("trichologist");
+  await tap("No");
 }
 /** On to a step, keeping Will's first suggestion on each. */
 async function keepTo(say: string) {
@@ -169,8 +172,51 @@ describe("the blank setup (FIRST-)", () => {
     await act(async () => answer({ recipe: first() }));
     await flush();
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "trichologist" });
+    expect(text()).toContain("Is your work about health, law or money?");
+  });
+
+  it("FIRST-15 health, law or money is asked first; with Yes, nothing goes out until the host sends it", async () => {
+    backend();
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    await tap("Answer");
+    await type("dermatologist");
+    expect(text()).toContain("Is your work about health, law or money?");
+    expect(text()).toContain("If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.");
+    await tap("Yes");
+    expect(puts("care")).toEqual([true]);
     expect(text()).toContain("People come to you for this:");
-    expect(text()).toContain(SUGGEST.line[0]);
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Not now");
+    expect(text()).toContain("Your work is about health, law or money, so nothing goes out until you send it.");
+    expect(text()).toContain("I draft, you send");
+    expect(text()).toContain("Only you");
+    expect(text()).not.toContain("I answer at once");
+  });
+
+  it("FIRST-03 the line says new people read it; refused words keep the screen and say so", async () => {
+    await begun();
+    expect(text()).toContain("New people read this before they join your chat.");
+    bff.routes["PUT /api/v2/chats/setup/line"] = { status: 400, body: { code: "RECIPE_WORDS" } };
+    await tap("Type my own");
+    await type("People come to you for a score out of ten.");
+    await tap("Keep");
+    expect(text()).toContain("People come to you for this:");
+    expect(text()).toContain("Try other words. Your chat can't show scores or verdicts.");
+    await tap("Change");
+    expect(text()).not.toContain("Try other words.");
+  });
+
+  it("FIRST-06 Type my own on the taps sends the one tap typed", async () => {
+    await begun();
+    await keepTo("People tap what they want:");
+    await tap("Type my own");
+    await type("Check my scalp");
+    expect(text()).toContain("Check my scalp");
+    expect(text()).toContain("Something else");
+    await tap("Keep");
+    expect(puts("taps")).toEqual([["Check my scalp"]]);
   });
 
   it("FIRST-03 one decision per screen: Change shows Will's next, Type my own comes back, Back keeps it", async () => {
@@ -218,6 +264,7 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     await tap("Answer");
     await type("speaking coach");
+    await tap("No");
     await tap("Keep");
     await tap("Done");
     expect(text()).toContain("They get back:");
@@ -308,6 +355,66 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Is the hair thinning here?");
     await tap("Keep");
     expect(puts("models")).toEqual([[{ ...SUGGEST.models[1], own: true }]]);
+    expect(text()).toContain("Add another model?");
+  });
+
+  /** On to a model of one's own that the backend made, with its model_id. */
+  async function madeModel() {
+    await begun();
+    bff.routes["PUT /api/v2/chats/setup/models"] = (c: Call) => {
+      recipe = { ...recipe, models: ((c.json as R).value as R[]).map((m) => ({ ...m, model_id: "m-own" })) };
+      return { recipe, cost: FREE };
+    };
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Train my own");
+    await tap("Keep");
+  }
+  const own = (state: R) => ({ ...state, model_id: "m-own" });
+
+  it("FIRST-08 teach it: the owner's first 10 for the model just made, then on to another model", async () => {
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10);
+    bff.routes["POST /api/v2/models/m-own/setup/first10"] = own(MS.share);
+    await madeModel();
+    expect(text()).toContain("Now answer the first 10 yourself, the way your teachers will.");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10Teach);
+    await tap("Start");
+    expect(text()).toContain("How rushed does it sound?");
+    expect(text()).toContain("So our ask is two million and we close in March");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await madeModel();
+    await tap("Do it later");
+    expect(text()).toContain("Add another model?");
+  });
+
+  it("FIRST-23 a new model has no examples yet: the host adds one of their own for that model", async () => {
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
+    bff.routes["GET /api/v2/models/queue"] = { models: [{ id: "other", name: "Someone's model" }], examples: [] };
+    await madeModel();
+    expect(text()).toContain("Do you know a case this model should learn from? Add it, then answer it yourself.");
+    expect(text()).toContain("Upload a file");
+    expect(text()).not.toContain("Someone's model");
+    // A written case of their own, with no answer; then answered as one of the first 10.
+    bff.routes["POST /api/v2/models/m-own/examples"] = { example_id: "ex1", note: null };
+    const file = container.querySelector<HTMLInputElement>("[data-model-add-file]")!;
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10Teach);
+    await act(async () => {
+      Object.defineProperty(file, "files", { value: [new File(["My scalp itches after I wash it."], "case.txt", { type: "text/plain" })], configurable: true });
+      file.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flush();
+    expect(bff.calls.find((c) => c.path === "/api/v2/models/m-own/examples")?.json).toEqual({ text: "My scalp itches after I wash it." });
+    expect(text()).toContain("How rushed does it sound?");
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
+    act(() => root.unmount());
+    root = createRoot(container);
+    await madeModel();
+    const back = container.querySelector<HTMLButtonElement>("[data-walk-nav] button, button[aria-label]")!;
+    await act(async () => back.click());
+    await flush();
     expect(text()).toContain("Add another model?");
   });
 
@@ -433,8 +540,11 @@ describe("the blank setup (FIRST-)", () => {
     await keepTo("Right now your chat isn't a specialist in anything.");
     await tap("Not now");
     await tap("I draft, you send");
+    bff.routes["GET /api/v2/chats/setup"] = { recipe, parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0], join_line: "People come to Lena with hair and scalp worries." }, cost: FREE };
     await tap("Not now");
-    expect(text()).toContain("Anyone with your link can use it.");
+    expect(text()).toContain("Anyone with your link can use it. This is what they read before they join:");
+    expect(text()).toContain("Lena's chat");
+    expect(text()).toContain("People come to Lena with hair and scalp worries.");
     bff.routes["GET /api/v2/chats/setup"] = { recipe: { ...recipe, live: true }, parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE };
     await tap("Yes");
     expect(puts("live")).toEqual([true]);
@@ -448,7 +558,7 @@ describe("the blank setup (FIRST-)", () => {
       { part: "line", title: "Why people come", value: SUGGEST.line[0] },
       { part: "hello", title: "Your hello", value: SUGGEST.hello[0] },
     ];
-    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0], link: { token: "k7Q2", path: "/c/k7Q2" } }, cost: FREE });
     bff.routes["POST /api/v2/chats/setup/edit"] = { line: "Here are your chat's parts. Tap one to change it.", parts };
     await mount();
     expect(openSetupFromWill(0)).toBe(false);
@@ -457,12 +567,26 @@ describe("the blank setup (FIRST-)", () => {
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/edit")?.json).toEqual({ said: "I want to edit my chat" });
     expect(text()).toContain("Here are your chat's parts. Tap one to change it.");
     expect(text()).toContain("Why people come");
+    expect(text()).toContain("willpowerlab.com/c/k7Q2");
+    expect(text()).toContain("This link opens your chat.");
     await tap("Your hello");
     expect(text()).toContain("Your chat opens with:");
     await tap("Change");
     await tap("Keep");
     expect(puts("hello")).toEqual([SUGGEST.hello[1]]);
     expect(text()).toContain("Your hello");
+  });
+
+  it("FIRST-21 an ordinary message from a host with a set-up chat goes to Will as before", async () => {
+    backend({ recipe: first({ live: true }), parts: [], own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    bff.routes["POST /api/v2/chats/setup/edit"] = { line: "Here are your chat's parts. Tap one to change it.", parts: [{ part: "line", title: "Why people come", value: "x" }] };
+    await mount();
+    for (const said of ["How do I record my next talk?", "My chat with Kasia was lovely", "Can I change my slides?"]) {
+      await act(async () => { expect(await sayToWill(said)).toBe(false); });
+    }
+    expect(bff.calls.some((c) => c.path === "/api/v2/chats/setup/edit")).toBe(false);
+    expect(container.querySelector("[data-host-setup]")).toBeNull();
+    await act(async () => { expect(await sayToWill("Can I change my chat's hello?")).toBe(true); });
   });
 
   it("FIRST-02 404: below the ring no way in opens anything and nothing is drawn", async () => {

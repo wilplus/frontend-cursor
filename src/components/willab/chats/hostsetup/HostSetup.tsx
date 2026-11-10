@@ -8,6 +8,7 @@ import {
   startSetup,
   type ChatCost,
   type HostRecipe,
+  type OwnChat,
   type ModelDraft,
   type RecipeModel,
   type SendKind,
@@ -17,6 +18,7 @@ import {
 import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import HostOwnChat from "./HostOwnChat";
+import HostTeach from "./HostTeach";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -33,9 +35,9 @@ import HostOwnChat from "./HostOwnChat";
 /* -------------------------------------------------------------------------- */
 
 type Step =
-  | "what" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
-  | "model" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+  | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
+  | "model" | "teach" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's `next`). */
 const THROUGH: Step[] = ["q", "qmore", "model", "try", "live"];
 /** A part's row opens its step. */
@@ -68,10 +70,13 @@ type State = {
   partsLine: string | null;
   testing: boolean;
   busy: boolean;
+  /** The backend refused the host's own words on this screen (N622 item 3). */
+  refused: boolean;
+  ownChat: OwnChat | null;
 };
 
 const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
-  at: parts && recipe ? "done" : recipe ? "line" : "what",
+  at: parts && recipe ? "done" : recipe ? "care" : "what",
   history: [],
   recipe,
   cost,
@@ -93,6 +98,8 @@ const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   partsLine: parts?.line ?? null,
   testing: false,
   busy: false,
+  refused: false,
+  ownChat: null,
 });
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -105,16 +112,18 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, onClose }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
   /** Opened from Will's chat with the parts ("I want to edit my chat"). */
   parts?: Parts | null;
   cost?: ChatCost | null;
+  /** The share link and the newcomer's line, as last read. */
+  ownChat?: OwnChat | null;
   onClose: () => void;
 }) {
-  const { S, paint } = useSetup(() => fresh(recipe, parts, cost));
+  const { S, paint } = useSetup(() => ({ ...fresh(recipe, parts, cost), ownChat }));
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -125,7 +134,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     if (!R) return false;
     switch (id) {
       case "out": return R.suggest.out[0] === "answer" && !S.edit;
-      case "qmore": return true;
+      case "qmore": case "teach": return true;
       case "way": case "model": case "more": return noModels();
       case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
       case "order": return models().length < 2;
@@ -137,8 +146,16 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     }
   };
   const go = (to: Step) => {
+    S.refused = false;
     S.history.push(S.at);
     S.at = to;
+    // What a newcomer reads is the line as kept now (N622 item 2).
+    if (to === "live") {
+      void readSetup().then((read) => {
+        if (read?.own_chat) S.ownChat = read.own_chat;
+        paint();
+      });
+    }
     if (to === "way" && S.shared === null) {
       void sharedModels().then((got) => {
         S.shared = got;
@@ -151,6 +168,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     void readSetup().then((read) => {
       if (read) {
         S.parts = read.parts;
+        S.ownChat = read.own_chat ?? S.ownChat;
         S.cost = read.cost ?? S.cost;
       }
       S.history = [];
@@ -171,6 +189,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       S.thread.pop();
       return paint();
     }
+    S.refused = false;
     const was = S.history.pop();
     if (!was) return onClose();
     if (was === "q" && (S.at === "qmore" || S.at === "taps")) S.qs.pop();
@@ -183,7 +202,10 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.busy = true;
     void keepPart(part, value).then((got) => {
       S.busy = false;
-      if (!got) return paint();
+      if (!got || "refused" in got) {
+        S.refused = got?.refused === "RECIPE_WORDS";
+        return paint();
+      }
       S.recipe = got.recipe;
       S.cost = got.cost ?? S.cost;
       then();
@@ -197,6 +219,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       done: (v) => {
         S.thread.push({ w: false, t: v });
         S.typing = null;
+        S.refused = false;
         done(v);
         paint();
       },
@@ -212,7 +235,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (got) {
         S.recipe = got;
         S.qs = [];
-        go("line");
+        go("care");
       } else paint();
     });
   };
@@ -286,7 +309,7 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
       foot={
         <>
           <Two
-            left={<Btn out label={W.change} onClick={() => { S.own[id] = null; S.i[id] = (S.i[id] ?? start) + 1; c.paint(); }} />}
+            left={<Btn out label={W.change} onClick={() => { S.own[id] = null; S.refused = false; S.i[id] = (S.i[id] ?? start) + 1; c.paint(); }} />}
             right={<Btn label={W.keep} onClick={() => onKeep(value)} />}
           />
           {typeAsk ? <Link label={W.typeOwn} onClick={() => c.typeIn(typeAsk, (v) => { S.own[id] = v; })} /> : null}
@@ -295,8 +318,67 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
     >
       <Say>{line}</Say>
       <div data-setup-value="">{show(value)}</div>
+      {S.refused ? (
+        <p role="alert" data-setup-refused="" className="m-0 text-[14px] font-semibold text-[#C2410C]">
+          {W.refusedWords}
+        </p>
+      ) : null}
     </Frame>
   );
+}
+
+/** The screens of one question with two answers. */
+function YesNoStep(c: Ctx): ReactNode {
+  const { S, R } = c;
+  const models = R.models ?? [];
+  const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void) => (
+    <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} />} />
+  );
+  switch (S.at) {
+    case "care":
+      return (
+        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, () => c.keep("care", false), () => c.keep("care", true))}>
+          <Say>{W.careSay}</Say>
+          <Cap>{W.careCap}</Cap>
+        </Frame>
+      );
+    case "smart":
+      return (
+        <Frame onBack={c.back} foot={yesNo(W.notNow, W.yes, () => c.keep("smart", false, () => c.go("who")), () => c.keep("smart", true))}>
+          <Say>{W.notSpecialist}</Say>
+          <Say>{W.makeSmart(R.spec)}</Say>
+          <Cap>{W.smartCap}</Cap>
+        </Frame>
+      );
+    case "share":
+      return (
+        <Frame onBack={c.back} foot={yesNo(W.notNow, W.shareThem, () => c.keep("share", false), () => c.keep("share", true))}>
+          <Say>{W.shareSay}</Say>
+          {models.filter((m) => m.own).map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
+          <Say>{W.shareTwo}</Say>
+          <Card b={W.shareHere[0]} s={W.shareHere[1]} />
+          <Card b={W.shareKey[0]} s={W.shareKey[1]} />
+          <Cap>{W.shareCap}</Cap>
+        </Frame>
+      );
+    case "try":
+      return (
+        <Frame onBack={c.back} foot={yesNo(W.notNow, W.testMyChat, c.next, () => { S.testing = true; c.paint(); })}>
+          <Say>{W.ready}</Say>
+          <Say>{W.wantTest}</Say>
+        </Frame>
+      );
+    case "live":
+      return (
+        <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.onClose), () => c.keep("live", true, c.onClose))}>
+          <Say>{W.openToPeople}</Say>
+          <Cap>{W.anyoneLink}</Cap>
+          <Card b={W.chatOf(S.ownChat?.title || c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${S.ownChat?.title || c.name}`)} />
+        </Frame>
+      );
+    default:
+      return null;
+  }
 }
 
 function StepScreen(c: Ctx) {
@@ -305,9 +387,11 @@ function StepScreen(c: Ctx) {
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
+  const asked = YesNoStep(c);
+  if (asked) return asked;
   switch (c.S.at) {
     case "line":
-      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <Card b={v} />, (v) => c.keep("line", v), W.lineAsk, (v) => v);
+      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => c.keep("line", v), W.lineAsk, (v) => v);
     case "send": {
       const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
       S.sendSet = set;
@@ -342,14 +426,6 @@ function StepScreen(c: Ctx) {
       );
     case "taps":
       return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => c.keep("taps", v), W.tapsAsk, (v) => [v]);
-    case "smart":
-      return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.yes, () => c.keep("smart", false, () => c.go("who")), () => c.keep("smart", true))}>
-          <Say>{W.notSpecialist}</Say>
-          <Say>{W.makeSmart(R.spec)}</Say>
-          <Cap>{W.smartCap}</Cap>
-        </Frame>
-      );
     case "way": {
       const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
       return (
@@ -372,6 +448,10 @@ function StepScreen(c: Ctx) {
       );
     case "model":
       return <ModelStep c={c} />;
+    case "teach": {
+      const made = models.at(-1);
+      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={() => c.go("more")} /> : null;
+    }
     case "more":
       return (
         <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; c.go("way"); }, models.length >= 3)}>
@@ -390,40 +470,18 @@ function StepScreen(c: Ctx) {
       return (
         <Frame onBack={c.back}>
           <Say>{W.whoSay}</Say>
-          {WHO.map(([kind, title, sub], k) => (
+          {/* "I answer at once" waits for a No to health, law or money: until
+              then the backend refuses it (sensitive defaults to true). */}
+          {R.care ? <Cap>{W.careWho}</Cap> : null}
+          {WHO.filter(([kind]) => !(R.care !== false && kind === "assistant")).map(([kind, title, sub], k) => (
             <Opt key={kind} title={title} sub={sub} on={R.who === kind} badge={k === 0 ? W.suggested : undefined} onClick={() => c.keep("who", kind)} />
           ))}
-        </Frame>
-      );
-    case "share":
-      return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.shareThem, () => c.keep("share", false), () => c.keep("share", true))}>
-          <Say>{W.shareSay}</Say>
-          {models.filter((m) => m.own).map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
-          <Say>{W.shareTwo}</Say>
-          <Card b={W.shareHere[0]} s={W.shareHere[1]} />
-          <Card b={W.shareKey[0]} s={W.shareKey[1]} />
-          <Cap>{W.shareCap}</Cap>
         </Frame>
       );
     case "price":
       return kc(c, "price", W.priceSay, PRICES, R.price, (v) => <Card b={W.tokens(v)} />, (v) => c.keep("price", v));
     case "cost":
       return <CostStep c={c} />;
-    case "try":
-      return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.testMyChat, c.next, () => { S.testing = true; c.paint(); })}>
-          <Say>{W.ready}</Say>
-          <Say>{W.wantTest}</Say>
-        </Frame>
-      );
-    case "live":
-      return (
-        <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.onClose), () => c.keep("live", true, c.onClose))}>
-          <Say>{W.openToPeople}</Say>
-          <Cap>{W.anyoneLink}</Cap>
-        </Frame>
-      );
     default:
       return <PartsStep c={c} />;
   }
@@ -432,7 +490,14 @@ function StepScreen(c: Ctx) {
 function ModelStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const models = R.models ?? [];
-  const add = (m: RecipeModel) => c.keep("models", [...models, m], () => { S.picked = null; S.ownQ = null; c.go("more"); });
+  // A model the host made has a model_id once the backend made it (with the
+  // ring ai_models): its teaching opens; without one, on to "Add another".
+  const add = (m: RecipeModel) => c.keep("models", [...models, m], () => {
+    S.picked = null;
+    S.ownQ = null;
+    const made = (S.recipe?.models ?? []).at(-1);
+    c.go(made?.own && made.model_id ? "teach" : "more");
+  });
   if (R.way === "use" && S.picked) {
     const m = S.picked;
     return (
@@ -549,6 +614,7 @@ function PartsStep({ c }: { c: Ctx }) {
   return (
     <Frame title={R.spec} onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
+      {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
           <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>

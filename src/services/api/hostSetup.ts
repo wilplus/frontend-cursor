@@ -41,15 +41,20 @@ export type HostRecipe = {
   price: number;
   cost: { people: number; sends: number };
   live: boolean;
+  /** About health, law or money (N622 item 1): only suggestions to the host. */
+  care?: boolean;
 };
 export type SetupPart = { part: string; title: string; value: string };
 export type ChatCost = { lines: { q: string; by: string; price: number }[]; per_send: number; month: number; nothing?: boolean };
 export type SetupRead = {
   recipe: HostRecipe | null;
   parts: SetupPart[];
-  own_chat: { title: string; line: string } | null;
+  own_chat: OwnChat | null;
   cost: ChatCost | null;
 };
+/** The host's own chat: its row, the share link (`/c/<token>`), and the line
+ *  a newcomer reads before joining ("People come to {name} ..."). */
+export type OwnChat = { title: string; line: string; link?: { token: string; path: string } | null; join_line?: string | null };
 export type SharedModel = { model_id: string; q: string; opts: string[]; by: string; price: number; fits: boolean; needs: string };
 export type ReplyLine = { kind: "answer" | "model"; body: string; by: string };
 
@@ -88,10 +93,21 @@ export async function startSetup(what: string): Promise<HostRecipe | null> {
 }
 
 /** One part kept; null when the backend refused it (the screen stays). */
-export async function keepPart(part: string, value: unknown): Promise<{ recipe: HostRecipe; cost: ChatCost | null } | null> {
-  const body = await call(`/api/v2/chats/setup/${encodeURIComponent(part)}`, { method: "PUT", json: { value } });
-  const recipe = recipeOf(body?.recipe);
-  return recipe ? { recipe, cost: costOf(body?.cost) } : null;
+export type Kept = { recipe: HostRecipe; cost: ChatCost | null } | { refused: string };
+
+/** One part kept; {refused} with the backend's code (RECIPE_WORDS for words
+ *  its checks refuse), null on any other failure (the screen stays). */
+export async function keepPart(part: string, value: unknown): Promise<Kept | null> {
+  try {
+    const result = await bffFetch(`/api/v2/chats/setup/${encodeURIComponent(part)}`, { cache: "no-store", method: "PUT", json: { value } });
+    if (result.kind !== "response") return null;
+    const body = (result.body && typeof result.body === "object" ? result.body : {}) as Body;
+    if (!result.ok) return typeof body.code === "string" ? { refused: body.code } : null;
+    const recipe = recipeOf(body.recipe);
+    return recipe ? { recipe, cost: costOf(body.cost) } : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function sharedModels(): Promise<SharedModel[]> {
