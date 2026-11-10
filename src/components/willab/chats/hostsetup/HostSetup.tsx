@@ -422,11 +422,18 @@ function StepScreen(c: Ctx) {
     case "send": {
       const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
       S.sendSet = set;
+      // Each row ticks on its own, any number of them; the last tick stays,
+      // so the screen never drops to none (FIRST-04).
+      const tick = (k: SendKind) => {
+        if (set.includes(k) && set.length === 1) return;
+        S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k];
+        c.paint();
+      };
       return (
         <Frame onBack={c.back} foot={<Btn label={W.done} disabled={!set.length} onClick={() => c.keep("send", R.suggest.send.filter((k) => set.includes(k)))} />}>
           <Say>{W.sendSay}</Say>
           {R.suggest.send.map((k) => (
-            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => { S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k]; c.paint(); }} />
+            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => tick(k)} />
           ))}
         </Frame>
       );

@@ -265,6 +265,69 @@ describe("the blank setup (FIRST-)", () => {
     expect(puts("send")).toEqual([["photo", "text"]]);
   });
 
+  it("FIRST-04 several rows tick, each on its own; the last tick cannot be unticked; Done saves them all", async () => {
+    await begun();
+    await tap("Keep");
+    const ticked = () => [...container.querySelectorAll('[role="checkbox"][aria-checked="true"]')].map((b) => b.querySelector("b")?.textContent);
+    const row = (name: string) => [...container.querySelectorAll<HTMLButtonElement>('[role="checkbox"]')].find((b) => b.querySelector("b")?.textContent === name)!;
+    const press = async (name: string) => {
+      await act(async () => row(name).click());
+      await flush();
+    };
+    expect(ticked()).toEqual(["A photo"]);
+    await press("A message");
+    await press("A recording");
+    await press("A file");
+    expect(ticked()).toEqual(["A photo", "A message", "A recording", "A file"]);
+    for (const name of ["A photo", "A message", "A recording"]) await press(name);
+    expect(ticked()).toEqual(["A file"]);
+    await press("A file");
+    expect(ticked()).toEqual(["A file"]);
+    await press("A message");
+    await tap("Done");
+    expect(puts("send")).toEqual([["text", "file"]]);
+  });
+
+  it("FIRST-03 every step of the setup has Back, and Back returns to the step before", async () => {
+    backend();
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    const steps: { go: () => Promise<void>; see: string }[] = [
+      { go: async () => undefined, see: "What do you do?" },
+      { go: async () => { await tap("Answer"); await type("trichologist"); }, see: "Is your work about health, law or money?" },
+      { go: () => tap("No"), see: "People come to you for this:" },
+      { go: () => tap("Keep"), see: "What do people send you? Tick all that apply." },
+      { go: () => tap("Done"), see: "Your chat opens with:" },
+      { go: () => tap("Keep"), see: "Then it asks:" },
+      { go: () => tap("Keep"), see: "Ask one more question?" },
+      { go: () => tap("No"), see: "People tap what they want:" },
+      { go: () => tap("Keep"), see: "Right now your chat isn't a specialist in anything." },
+      { go: () => tap("Yes"), see: "Two ways to make it smart. Pick one." },
+      { go: () => tap("Train your own"), see: "Your own model, in plain words:" },
+      { go: () => tap("Train my own"), see: "One question, three answers. That is a model." },
+      { go: () => tap("Keep"), see: "Add another model?" },
+      // Back to the model and Keep again made a second one: the order follows.
+      { go: () => tap("No"), see: "Your models speak in this order:" },
+      { go: () => tap("Keep"), see: "People will ask you things when you are busy. Who answers them?" },
+      { go: () => tap("I draft, you send"), see: "These are your models. Share them, and earn tokens each time someone uses one." },
+      { go: () => tap("Share them"), see: "Each use costs them:" },
+      { go: () => tap("Keep"), see: "Your chat costs you nothing." },
+      { go: () => tap("Next"), see: "Your chat is ready." },
+      { go: () => tap("Not now"), see: "Open your chat to people?" },
+    ];
+    for (let k = 0; k < steps.length; k += 1) {
+      await steps[k].go();
+      expect(text()).toContain(steps[k].see);
+      expect(container.querySelector("[data-host-back]")?.textContent).toBe("‹ Back");
+      if (k === 0) continue;
+      await tap("‹ Back");
+      expect(text()).toContain(steps[k - 1].see);
+      await steps[k].go();
+      expect(text()).toContain(steps[k].see);
+    }
+  });
+
   it("FIRST-05 what they get back is asked only when it isn't simply an answer", async () => {
     await begun();
     await tap("Keep");
