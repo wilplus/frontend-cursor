@@ -43,6 +43,15 @@
  *       the choice comes back; with no offer, or a 404, no bubble. Its words
  *       are drafted, so it stays off until the founder signs them (MATCH-06;
  *       N559 item 1, Never 4).
+ *   W9  After the walk, a sharer's bubble ("Next, set up your assistant,
+ *       ...") carries "Set up my chat ›", the setup's own words, which
+ *       begins the setup of their own chat in Will's chat; without the chat
+ *       builder's ring, no link (WAYIN-N578-4; backend
+ *       `way_in._after_walk_row` opens "setup_chat", N578 item 4).
+ *   W10 While the way in waits and nothing new comes (a Take with no
+ *       words), the app asks less and less often, never more than once a
+ *       minute, and stops after a long quiet instead of asking forever
+ *       (WAYIN-POLL-1).
  * PROVES   each test's name begins with the story it proves.
  * WHY      backend PR #1854 (`services/way_in.py`, POST /v2/plan/way-in);
  *          N453, N564, N572, N573, N590, N592; docs/flows/the-plan.md §2.
@@ -148,6 +157,8 @@ const posts = () =>
 const onWords = vi.fn();
 const onOpenFeedback = vi.fn();
 const onJoinQuestions = vi.fn();
+const onSetUpChat = vi.fn();
+let setUpChatOn = true;
 const reload = vi.fn(async () => {});
 
 /** Will's chat, as much of it as the way in touches: the thread's answers,
@@ -160,6 +171,7 @@ function Chat({ messages, inFlight = false }: { messages: LoungeMessage[]; inFli
     recordHeld: inFlight,
     onOpenFeedback,
     onJoinQuestions,
+    onSetUpChat: setUpChatOn ? onSetUpChat : undefined,
     onWords,
   });
   sayRef.current = plan.say;
@@ -457,6 +469,48 @@ it("WAYIN-N592-4: \"Record Take 2\" stays faded until the walk is done", async (
   expect(button().disabled).toBe(true);
   await show(planWith({ done: ["set", "next"], walk_ready: true, walk_done: true, record_next: true }), []);
   expect(button().disabled).toBe(false);
+});
+
+// ── WAYIN-N578, WAYIN-POLL ──────────────────────────────────────────────────
+
+it("WAYIN-N578-4: after the walk a sharer's bubble carries \"Set up my chat ›\", which begins the setup of their own chat", async () => {
+  const next = will("Next, set up your assistant, so people who join you are met your way.", {
+    way_in: "next",
+    way_in_next: ["Share what I know"],
+    opens: "setup_chat",
+  });
+  await show(planWith({ done: ["set", "next"], walk_done: true, record_next: true, chosen: ["Share what I know"] }), [next]);
+  expect(thread().textContent).toContain("Next, set up your assistant, so people who join you are met your way.");
+  expect(labels(thread())).toEqual(["Set up my chat›"]);
+  await tap(thread(), "Set up my chat");
+  expect(onSetUpChat).toHaveBeenCalledOnce();
+  // Without the chat builder's ring the setup cannot begin: no link.
+  setUpChatOn = false;
+  await show(planWith({ done: ["set", "next"], walk_done: true, record_next: true, chosen: ["Share what I know"] }), [next]);
+  expect(labels(thread())).toEqual([]);
+  setUpChatOn = true;
+});
+
+it("WAYIN-POLL-1: while nothing new comes, the way in is asked less and less often, and then no more", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await show(planWith({ done: ["opener"] }), []);
+    expect(posts()).toHaveLength(1);
+    const after = async (ms: number) => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+      return posts().length;
+    };
+    expect(await after(5_000)).toBe(2); // a few seconds first
+    expect(await after(5_000)).toBe(2); // then half as long again
+    expect(await after(2_500)).toBe(3);
+    const hour = await after(60 * 60_000);
+    expect(hour).toBeLessThan(40); // never more than once a minute once slowed
+    expect(await after(3 * 60 * 60_000)).toBe(hour); // and then it stops
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 // ── WAYIN-N590 ─────────────────────────────────────────────────────────────

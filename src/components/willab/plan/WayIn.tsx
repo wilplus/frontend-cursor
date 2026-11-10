@@ -11,10 +11,13 @@ import {
   linkLabel,
   profileOf,
   rowLinks,
+  WAY_IN_POLL_GIVE_UP_MS,
   WAY_IN_POLL_MS,
+  nextWayInPoll,
   WAY_IN_WORDS,
   wayInAsk,
   wayInBeat,
+  wayInPollKey,
   wayInPolls,
   type WayInAsk,
   type WayInProfile,
@@ -40,6 +43,10 @@ export type WayInRowCtx = {
   onOpenFeedback?: () => void;
   /** "Your questions for people who join ›": the summary again. */
   onJoinQuestions?: () => void;
+  /** "Set up my chat ›" after the walk, for sharers: the setup of their own
+   *  chat in Will's chat, begun (or its open question asked again). Absent
+   *  without the chat builder's ring: the link is then not drawn. */
+  onSetUpChat?: () => void;
 };
 
 /** "Here's how others will see you:": the card from slide 1, the name from
@@ -70,7 +77,12 @@ export function WayInProfileCard({ profile }: { profile: WayInProfile }) {
 
 function WayLink({ label, ctx }: { label: string; ctx: WayInRowCtx }) {
   if (label === WAY_IN_WORDS.copyLink) return <CopyLinkLine />;
-  const onClick = label === WAY_IN_WORDS.joinQuestions ? ctx.onJoinQuestions : ctx.onOpenFeedback;
+  const onClick =
+    label === WAY_IN_WORDS.joinQuestions
+      ? ctx.onJoinQuestions
+      : label === WAY_IN_WORDS.setUpMyChat
+        ? ctx.onSetUpChat
+        : ctx.onOpenFeedback;
   return <ChatLink label={linkLabel(label)} onClick={onClick} />;
 }
 
@@ -81,7 +93,8 @@ export function wayInRowFor(message: LoungeMessage, ctx: WayInRowCtx): ReactNode
   if (wayInBeat(message) === null || message.role === "user") return null;
   const profile = profileOf(message);
   if (profile) return <WayInProfileCard profile={profile} />;
-  const links = rowLinks(message);
+  // "Set up my chat ›" only where the setup can begin (the builder's ring).
+  const links = rowLinks(message).filter((label) => label !== WAY_IN_WORDS.setUpMyChat || ctx.onSetUpChat);
   if (links.length === 0) return null;
   return (
     <>
@@ -280,31 +293,48 @@ export function useWayIn({
   // While the way in waits on the Take (its reading, the beats due), ask
   // again every few seconds; never two calls at once.
   const polls = wayInPolls(plan, firstTakeInFlight);
+  const pollKey = polls ? wayInPollKey(plan) : null;
   const latest = useRef({ apply, reload, busy });
   latest.current = { apply, reload, busy };
+  // A call that brings nothing waits longer (up to a minute), and after a
+  // long while with nothing new the asking stops until the way in moves on.
   useEffect(() => {
-    if (!polls) return;
+    if (pollKey === null) return;
     let stopped = false;
-    let inFlight = false;
+    let delay = WAY_IN_POLL_MS;
+    let quietFor = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
-      if (inFlight || latest.current.busy) return;
-      inFlight = true;
-      try {
-        const got = await wayIn();
-        if (stopped || !got) return;
-        latest.current.apply(got);
-        if (got.wrote) await latest.current.reload();
-      } finally {
-        inFlight = false;
+      let wrote = false;
+      if (!latest.current.busy) {
+        try {
+          const got = await wayIn();
+          if (stopped) return;
+          if (got) {
+            latest.current.apply(got);
+            wrote = got.wrote;
+            if (got.wrote) await latest.current.reload();
+          }
+        } catch {
+          // Asked again at the next tick.
+        }
       }
+      if (stopped) return;
+      if (wrote) {
+        delay = WAY_IN_POLL_MS;
+        quietFor = 0;
+      }
+      if (quietFor >= WAY_IN_POLL_GIVE_UP_MS) return;
+      timer = setTimeout(() => void tick(), delay);
+      quietFor += delay;
+      delay = nextWayInPoll(delay);
     };
     void tick();
-    const id = setInterval(() => void tick(), WAY_IN_POLL_MS);
     return () => {
       stopped = true;
-      clearInterval(id);
+      if (timer) clearTimeout(timer);
     };
-  }, [polls]);
+  }, [pollKey]);
 
   const answer = (a: WayInAnswer) => void run(() => wayIn(a));
   const voice = usePlanVoice({

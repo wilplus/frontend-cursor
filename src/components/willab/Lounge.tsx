@@ -1219,6 +1219,9 @@ export default function Lounge({
   const resending = useTakeResend({ userId, labOpen: isLabOverlay(state), busy: analysing, thread });
   const takeInFlight = analysing || resending;
 
+  // One's own chat (backend N582, the chat builder's ring): Will's offer,
+  // the builder's way in, and whether "Set up my chat ›" can begin it.
+  const assistant = useAssistantInWill(thread.signedIn, reload);
   // The plan in the Lounge (docs/flows/the-plan.md): its rows, its answers
   // in the thread with the Lounge's bar under them (N319 item 1), its sheets.
   // Off unless the ring row reaches.
@@ -1230,6 +1233,7 @@ export default function Lounge({
     recordHeld: takeInFlight,
     onOpenFeedback: () => openFirstTakeFeedback(),
     onJoinQuestions: () => void joinSetup.again().then(followAnswer),
+    onSetUpChat: assistant.builder ? () => void chatSetup.begin().then(followAnswer) : undefined,
     onWords: () => words.start(),
   });
   wayInTakeRef.current = plan.firstTakeWayIn;
@@ -1577,7 +1581,6 @@ export default function Lounge({
   const joinSetup = useJoinSetup(reload, setBotThinking);
   const chatSetup = useChatSetup(reload, setBotThinking);
   const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup);
-  const assistant = useAssistantInWill(thread.signedIn, reload);
   // Will's key line asks to be said (backend N544): "Record your answer" in
   // the bar's middle records it in the small recording bar, no box for it.
   const keyLine = useKeyLineHear({
