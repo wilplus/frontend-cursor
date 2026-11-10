@@ -31,6 +31,7 @@ import {
   chatVoiceSrc,
   getChatThread,
   setupOf,
+  answerChatPhoto,
   sendChatEmoji,
   sendChatPhoto,
   sendChatText,
@@ -72,8 +73,8 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  {name}…" with Undo for 5 seconds (N345), then the answer or the question, */
 /*  with "Sent" under it (N342, N361, N504). After a person's answer, three   */
 /*  thanks to tap above the bar, once. A host's chat follows the host's       */
-/*  answer_with: a box where it takes typing, once the backend keeps typed    */
-/*  words. Only the conversation shows here; no asks (N305). Blocked from     */
+/*  answer_with: a box where the host chose typing (backend #1880).         */
+/*  Only the conversation shows here; no asks (N305). Blocked from            */
 /*  their profile, the bar is one grey pill with Unblock; the messages stay   */
 /*  (N466).                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -644,7 +645,10 @@ function useAnswerWait(chatId: string, messages: readonly ChatMessage[] | null, 
   return {
     question: waiting ?? topic,
     slides: topic && take?.slides.length ? take.slides.map((slide) => slide.title || topic) : undefined,
-    photo: stays && photoWaits(messages) !== null,
+    /** The question typed words answer (`to`), when one waits. */
+    id: waiting && newest ? newest.id : null,
+    /** The question that asks for a photo, while it waits. */
+    photo: [photoWaits(messages)?.id ?? null].find((id) => id !== null && !left.includes(id)) ?? null,
     left,
     /** "Not now": the newest message and, when it waits, the question to tap. */
     leave: (tapped: string | null) => {
@@ -770,21 +774,22 @@ function PeopleBar({
   chat: Chat;
   takes: Takes;
   /** What the chat asks of me now. */
-  asked: { question: string | null; slides?: string[]; photo: boolean };
+  asked: { question: string | null; slides?: string[]; taps: boolean; photo: boolean };
   /** What stands in the middle for now: "Send", or "Sending to {name}…". */
   status: ReactNode;
   /** The "+" orange: not tapped yet, nothing asked of you. */
   fresh: boolean;
   onPlus: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
-  onSay: (words: string) => void;
+  /** Typed words; `answers`: they answer what the chat asks. */
+  onSay: (words: string, answers: boolean) => void;
   onPhoto: (photo: File) => void;
 }) {
   const [sheet, setSheet] = useState(false);
   const [typing, setTyping] = useState(false);
   const picker = usePhotoPicker(onPhoto);
   const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
-  const middle = middleOf(takes, { answer: asked.question !== null, photo: asked.photo });
+  const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
   const answers = middle !== "ask" && middle !== "ask-box";
   // A chat that takes only typing has no recording in it.
   const recordQuestion =
@@ -812,7 +817,7 @@ function PeopleBar({
           onAsk={() => setSheet(true)}
           onRecordAnswer={() => onRecordAnswer?.({ ...base, question: asked.question ?? "", slides: asked.slides })}
           onPhoto={picker.pick}
-          onType={onSay}
+          onType={(words) => onSay(words, answers)}
           onTypingDone={() => setTyping(false)}
         />
       )}
@@ -929,8 +934,6 @@ export default function ChatThread({
   const [through, setThrough] = useState<string | null>(null);
   const [joinedAsksFirst, setJoinedAsksFirst] = useState(false);
   const [joinedBy, setJoinedBy] = useState<string | null>(null);
-  // Whether the backend keeps typed words here (N610 item 8); not yet.
-  const [typed, setTyped] = useState(false);
   // The "+" asks them (N483 item 4): "Ask {name}"; orange until first tapped.
   const [plusNew, setPlusNew] = useState(() => !plusSeen() && !askedBefore());
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
@@ -960,7 +963,6 @@ export default function ChatThread({
       setThrough(thread?.joinedThrough ?? null);
       setJoinedAsksFirst(thread?.joinedAsks ?? false);
       setJoinedBy(thread?.joinedBy ?? null);
-      setTyped(thread?.typed ?? false);
       if (thread) setBlocked(thread.blocked);
     });
     return () => {
@@ -974,8 +976,10 @@ export default function ChatThread({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Drawn at once; the backend's copy replaces it, a failed send takes it away.
-  const send = async (kind: "emoji" | "text", body: string) => {
+  // Drawn at once; the backend's copy replaces it (an answer's, with the
+  // host's next lines after it), a failed send takes it away. `to`: the
+  // question typed words answer.
+  const send = async (kind: "emoji" | "text", body: string, to: string | null = null) => {
     localSeq += 1;
     const local: ChatMessage = {
       id: `local-${localSeq}`,
@@ -988,16 +992,25 @@ export default function ChatThread({
     };
     setMessages((list) => [...(list ?? []), local]);
     sendTick();
-    const sent = kind === "emoji" ? await sendChatEmoji(chat.id, body as ChatEmoji) : await sendChatText(chat.id, body);
-    setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : sent ? [sent] : [])));
+    const one = async () => {
+      const sent = await sendChatEmoji(chat.id, body as ChatEmoji);
+      return sent ? [sent] : null;
+    };
+    const sent = kind === "emoji" ? await one() : await sendChatText(chat.id, body, to);
+    setMessages((list) => (list ?? []).flatMap((m) => (m.id !== local.id ? [m] : (sent ?? []))));
   };
-  // A photo, made smaller first when it is big (N351); a refused one shows nothing.
-  const sendPhoto = async (photo: File) => {
+  // A photo, made smaller first when it is big (N351); a refused one shows
+  // nothing. While the chat asks for one, it answers that question.
+  const sendPhoto = async (photo: File, asked: string | null) => {
     const { blob, name } = await photoForUpload(photo);
-    const sent = await sendChatPhoto(chat.id, blob, name);
+    const one = async () => {
+      const sent = await sendChatPhoto(chat.id, blob, name);
+      return sent ? [sent] : null;
+    };
+    const sent = asked ? await answerChatPhoto(chat.id, asked, blob, name) : await one();
     if (!sent) return;
     sendTick();
-    setMessages((list) => [...(list ?? []), sent]);
+    setMessages((list) => [...(list ?? []), ...sent]);
   };
 
   // Their question, their Take, or a photo they ask for: the middle answers,
@@ -1009,7 +1022,7 @@ export default function ChatThread({
   const host = useHost(chat.id);
   const assistantName = host?.assistant ?? chat.assistant ?? null;
   // How this chat takes what I send: the host's answer_with (N610).
-  const takes = takesOf(host?.answerWith ?? null, typed);
+  const takes = takesOf(host?.answerWith ?? null);
   const asks = [answer.question, answer.photo, setup.answers].some(Boolean);
   // Thanks, one tap, after a person's answer where nothing types (N610 item 5).
   const thanks = thanksDue(takes, messages, [pending, asks, safety.blocked]);
@@ -1052,7 +1065,7 @@ export default function ChatThread({
           )}
           {setup.answers}
           {asks && !pending ? (
-            <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id)} dataAttr={{ "data-chat-not-now": "" }} />
+            <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />
           ) : null}
           {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
         </div>
@@ -1066,7 +1079,7 @@ export default function ChatThread({
           <PeopleBar
             chat={chat}
             takes={takes}
-            asked={answer}
+            asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo !== null }}
             status={
               setup.send ??
               (pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null)
@@ -1077,8 +1090,8 @@ export default function ChatThread({
               setPlusNew(false);
             }}
             onRecordAnswer={onRecordAnswer}
-            onSay={(words) => void send("text", words)}
-            onPhoto={(photo) => void sendPhoto(photo)}
+            onSay={(words, answers) => void send("text", words, answers ? (setup.id ?? answer.id) : null)}
+            onPhoto={(photo) => void sendPhoto(photo, answer.photo)}
           />
         )}
       </div>

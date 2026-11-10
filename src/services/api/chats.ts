@@ -93,9 +93,6 @@ export async function getChatThread(chatId: string): Promise<{
   joinedAsks: boolean;
   joinedBy: string | null;
   blocked: boolean;
-  /** The backend keeps typed words between people in this chat (N610 item
-   *  8). Not sent yet: absent reads as false, and nothing types. */
-  typed: boolean;
 } | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages`, { method: "GET" });
   if (!body || !Array.isArray(body.messages)) return null;
@@ -106,7 +103,6 @@ export async function getChatThread(chatId: string): Promise<{
     joinedAsks: body.joined_asks === true,
     joinedBy: name(body.joined_by),
     blocked: body.blocked === true,
-    typed: body.typed === true,
   };
 }
 
@@ -269,16 +265,37 @@ export function chatFileSrc(chatId: string, messageId: string): string {
   return `/api/v2/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/file`;
 }
 
-/** Typed words sent in a chat (backend N610 item 8). Assumed, until the
- *  backend builds it: the emoji's own route with {"kind": "text", "body"}
- *  answering {"message"}; today that is 400, and the bar offers no box
- *  until the chat's read says `typed`. */
-export async function sendChatText(chatId: string, words: string): Promise<ChatMessage | null> {
+/** What a send that answers a question brings back: the answer, then the
+ *  host's next lines; or the one message of a send that answers nothing. */
+function sentOf(body: Record<string, unknown> | null): ChatMessage[] | null {
+  if (body && Array.isArray(body.messages)) return body.messages as ChatMessage[];
+  const message = messageOf(body);
+  return message ? [message] : null;
+}
+
+/** Typed words sent in a chat (backend N610 item 8, backend #1880): the
+ *  emoji's own route with {"kind": "text", "body", "to"?}, 1 to 2000
+ *  characters. `to` is the other person's waiting question when the words
+ *  answer it: then {"message", "messages": [the answer, the host's next
+ *  lines]}; without it the words are a question of my own. Refused (null)
+ *  where the chat takes no typing, or the question takes a pick. */
+export async function sendChatText(chatId: string, words: string, to: string | null = null): Promise<ChatMessage[] | null> {
   const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/messages`, {
     method: "POST",
-    json: { kind: "text", body: words },
+    json: { kind: "text", body: words, ...(to ? { to } : {}) },
   });
-  return messageOf(body);
+  return sentOf(body);
+}
+
+/** The photo a question asks for (backend N610 item 4, backend #1880):
+ *  multipart `file` to that question's own route; the photo, then the
+ *  host's next lines. */
+export async function answerChatPhoto(chatId: string, messageId: string, photo: Blob, name: string): Promise<ChatMessage[] | null> {
+  const form = new FormData();
+  form.append("file", photo, name);
+  const path = `/api/v2/chats/${encodeURIComponent(chatId)}/setup/${encodeURIComponent(messageId)}/photo`;
+  const body = await call(path, { method: "POST", timeoutMs: 60_000, body: form });
+  return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
 /** A photo sent in a chat (backend N351): multipart `file` to the chat's

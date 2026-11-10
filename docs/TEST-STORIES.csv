@@ -666,21 +666,25 @@ O4  BAR-N610-FE-4: the ""+"" sheet. Nothing asked: ""Ask {name}"" with
 which posts the photo picked to the chat's photo route and shows it.
 While the chat asks: ""Answer {name}"" with ""Send a photo"" and no
 ""Record your question"".
-O5  BAR-N610-FE-5: typing waits for the backend. A host who chose Type
-gets no box while the chat's read does not say `typed`. Once it does:
-nothing asked, the box ""Ask {name}"" (recording on too: still the
-box), and the words go as {""kind"":""text"",""body"":…}, shown at once;
-asked where recording is on too, ""Record your answer"" keeps the
-middle and ""Type your answer"" behind the ""+"" opens the box; asked
-where only typing is on, the box ""Type your answer""; and no thanks
-taps, you type your thanks.
-O6  BAR-N610-FE-6: a photo the chat asks for (`meta.photo_asked`, not
-sent by the backend yet) puts ""Add a photo"" in the middle, and the
-photo picked goes to the chat's photo route.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
+O5  BAR-N610-FE-5: typing is on where the host's read says the host
+chose Type (`host.answer_with.type`); a chat with no host, or a
+backend without the host's route (404), has no box. Nothing asked:
+the box ""Ask {name}"" (recording on too: still the box), and the
+words go as {""kind"":""text"",""body"":…}, shown at once. Asked where
+recording is on too, ""Record your answer"" keeps the middle and ""Type
+your answer"" behind the ""+"" opens the box; asked where only typing
+is on, the box ""Type your answer""; typed words that answer go with
+`to`, the waiting question's id (one to tap included), and the
+answer comes back with the host's next lines. No thanks taps: you
+type your thanks.
+O6  BAR-N610-FE-6: a question that asks for a photo
+(`meta.setup.kind === ""photo""`) puts ""Add a photo"" in the middle; the
+photo picked goes to that question's own photo route, and the photo
+comes back with the host's next lines.","O1 -> ""BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked""
 O2 -> ""BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them""
 O3 -> ""BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice""
 O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
-O5 -> ""BAR-N610-FE-5: the box types only once the backend keeps typed words""
+O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
 O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
 src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
 and no chat is read (Never 3).

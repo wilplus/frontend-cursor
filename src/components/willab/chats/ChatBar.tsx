@@ -47,28 +47,37 @@ export { TYPE_YOUR_ANSWER };
 export type Takes = AnswerWith;
 export const PEOPLE_TAKE: Takes = { tap: true, type: false, record: true };
 
-/** What a chat takes: the host's answer_with, with typing only once the
- *  backend keeps typed words between people (`typed`, see chats.ts). */
-export function takesOf(answerWith: AnswerWith | null, typed: boolean): Takes {
-  const takes = answerWith ?? PEOPLE_TAKE;
-  return { ...takes, type: takes.type && typed };
+/** What a chat takes: the host's answer_with (GET /v2/chats/<id>/host).
+ *  Typing is on where the host chose it; a chat with no host, or a backend
+ *  without the host's route (404), has none. */
+export function takesOf(answerWith: AnswerWith | null): Takes {
+  return answerWith ?? PEOPLE_TAKE;
 }
 
 /** The one thing in the middle (N610 items 2 to 4). */
 export type Middle = "ask" | "ask-box" | "record-answer" | "answer-box" | "add-photo";
 
-export function middleOf(takes: Takes, asked: { answer: boolean; photo: boolean }): Middle {
+/** `answer`: a question or a Take that takes a recorded answer waits;
+ *  `taps`: a question with answers to tap waits, which typed words answer
+ *  too, but a recording does not. */
+export function middleOf(takes: Takes, asked: { answer: boolean; taps: boolean; photo: boolean }): Middle {
   if (asked.photo) return "add-photo";
   if (asked.answer && takes.record) return "record-answer";
-  if (asked.answer && takes.type) return "answer-box";
+  if ((asked.answer || asked.taps) && takes.type) return "answer-box";
   return takes.type ? "ask-box" : "ask";
 }
 
-/** A photo the chat asks for, when their newest message asks for one
- *  (`meta.photo_asked`, which the backend does not send yet). */
+/** The question that asks for a photo and still waits (its message has
+ *  `meta.setup.kind === "photo"`, backend #1880): the newest of their
+ *  questions, unless an answer or a photo of mine came after it. */
 export function photoWaits(messages: readonly ChatMessage[] | null): ChatMessage | null {
-  const newest = messages?.at(-1);
-  return newest && !newest.mine && newest.meta?.photo_asked === true ? newest : null;
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i -= 1) {
+    const message = messages![i];
+    if (message.meta?.setup_answer || (message.mine && message.kind === "photo")) return null;
+    const setup = message.mine ? undefined : (message.meta?.setup as { kind?: unknown } | undefined);
+    if (setup) return setup.kind === "photo" ? message : null;
+  }
+  return null;
 }
 
 /** The answer a thanks is for (N610 item 5): their newest message, when a

@@ -27,22 +27,26 @@ OUTCOME
       which posts the photo picked to the chat's photo route and shows it.
       While the chat asks: "Answer {name}" with "Send a photo" and no
       "Record your question".
-  O5  BAR-N610-FE-5: typing waits for the backend. A host who chose Type
-      gets no box while the chat's read does not say `typed`. Once it does:
-      nothing asked, the box "Ask {name}" (recording on too: still the
-      box), and the words go as {"kind":"text","body":…}, shown at once;
-      asked where recording is on too, "Record your answer" keeps the
-      middle and "Type your answer" behind the "+" opens the box; asked
-      where only typing is on, the box "Type your answer"; and no thanks
-      taps, you type your thanks.
-  O6  BAR-N610-FE-6: a photo the chat asks for (`meta.photo_asked`, not
-      sent by the backend yet) puts "Add a photo" in the middle, and the
-      photo picked goes to the chat's photo route.
+  O5  BAR-N610-FE-5: typing is on where the host's read says the host
+      chose Type (`host.answer_with.type`); a chat with no host, or a
+      backend without the host's route (404), has no box. Nothing asked:
+      the box "Ask {name}" (recording on too: still the box), and the
+      words go as {"kind":"text","body":…}, shown at once. Asked where
+      recording is on too, "Record your answer" keeps the middle and "Type
+      your answer" behind the "+" opens the box; asked where only typing
+      is on, the box "Type your answer"; typed words that answer go with
+      `to`, the waiting question's id (one to tap included), and the
+      answer comes back with the host's next lines. No thanks taps: you
+      type your thanks.
+  O6  BAR-N610-FE-6: a question that asks for a photo
+      (`meta.setup.kind === "photo"`) puts "Add a photo" in the middle; the
+      photo picked goes to that question's own photo route, and the photo
+      comes back with the host's next lines.
 PROVES   O1 -> "BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked"
          O2 -> "BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them"
          O3 -> "BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice"
          O4 -> "BAR-N610-FE-4: the + sheet asks, answers and sends a photo"
-         O5 -> "BAR-N610-FE-5: the box types only once the backend keeps typed words"
+         O5 -> "BAR-N610-FE-5: the box types where the host chose Type"
          O6 -> "BAR-N610-FE-6: a photo asked for takes Add a photo in the middle"
 WHY      The founder locked the two-place bar on 10 November 2026 ("ok lock
          that", backend N610) after a morning of drafts; N600's bar, built
@@ -116,12 +120,14 @@ const ASKED = theirs("m-q", { body: "Which shampoo suits me?", meta: { record_an
 const TO_TAP = theirs("m-t", { body: "What do you know better than most?", meta: { setup: { i: 0, kind: "tap", answers: ["A hobby", "Something I lived through"] } } });
 const ANSWER = theirs("m-a", { kind: "voice", meta: { answer: true, duration_ms: 64000 } });
 
-/** Opens the chat: its messages, the host's answer_with (null: no host),
- *  and whether the backend says it keeps typed words. */
-async function open(messages: unknown[], answerWith: With | null = null, typed = false) {
-  routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages, ...(typed ? { typed: true } : {}) });
-  routes["GET /api/v2/chats/c-1/host"] = () =>
-    json({ host: answerWith ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith } : null });
+/** Opens the chat: its messages and the host's answer_with (null: no
+ *  host; "404": a backend without the host's route). */
+async function open(messages: unknown[], answerWith: With | null | "404" = null) {
+  routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages });
+  if (answerWith === "404") delete routes["GET /api/v2/chats/c-1/host"];
+  else
+    routes["GET /api/v2/chats/c-1/host"] = () =>
+      json({ host: answerWith ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith } : null });
   act(() => root.unmount());
   root = createRoot(container);
   await act(async () => root.render(createElement(ChatThread, { chat: CHAT, onBack: () => undefined, onRecordAnswer })));
@@ -250,22 +256,26 @@ describe("the bar in a host's chat and between people (N610)", () => {
     expect(sheetRows()).toEqual(["Send a photo", "Cancel"]);
   });
 
-  it("BAR-N610-FE-5: the box types only once the backend keeps typed words", async () => {
-    // The host chose Type, the backend does not keep typed words yet: no box.
-    for (const messages of [[], [ASKED]]) {
-      await open(messages, BOTH);
-      expect(box()).toBeNull();
+  it("BAR-N610-FE-5: the box types where the host chose Type", async () => {
+    // No host, or a backend without the host's route: no box, asked or not.
+    for (const host of [null, "404"] as const) {
+      for (const messages of [[], [ASKED]]) {
+        await open(messages, host);
+        expect(box()).toBeNull();
+      }
     }
+
+    // The host chose Type. Nothing asked: the box asks, recording on or not.
+    const next = theirs("m-n", { body: "Thanks. One more thing." });
+    routes["POST /api/v2/chats/c-1/messages"] = (init) => {
+      const said = JSON.parse(String(init?.body));
+      const message = { id: "m-w", mine: true, author: "", kind: "text", body: said.body, meta: null, created_at: "2026-11-10T10:07:00Z" };
+      return json(said.to ? { message, messages: [message, next] } : { message });
+    };
     await open([], TYPES);
     expect(inBar()).toEqual(["Add", "Ask Tomek"]);
-
-    // The backend says `typed`. Nothing asked: the box asks, recording on or not.
-    routes["POST /api/v2/chats/c-1/messages"] = (init) =>
-      json({ message: { id: "m-w", mine: true, author: "", kind: "text", body: JSON.parse(String(init?.body)).body, meta: null, created_at: "2026-11-10T10:07:00Z" } });
-    await open([], TYPES, true);
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
     expect(box()?.disabled).toBe(false);
-    await open([], BOTH, true);
+    await open([], BOTH);
     expect(box()?.getAttribute("placeholder")).toBe("Ask Tomek");
     await say("What should my first offer cost?");
     expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "What should my first offer cost?" });
@@ -273,29 +283,48 @@ describe("the bar in a host's chat and between people (N610)", () => {
     expect(box()?.value).toBe("");
 
     // Asked, recording on too: the button records; "Type your answer" is behind the "+".
-    await open([ASKED], BOTH, true);
+    await open([ASKED], BOTH);
     expect(inBar()).toEqual(["Add", "Record your answer"]);
     await tap(bar().querySelector("[data-chat-plus]"));
     expect(sheetRows()).toEqual(["Type your answer", "Send a photo", "Cancel"]);
     await tap(within("[data-ask-sheet]", "Type your answer"));
     expect(inBar()).toEqual(["Add", "Type your answer"]);
     await say("The gentle one");
-    expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "The gentle one" });
+    expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "The gentle one", to: "m-q" });
+    // The answer, then the host's next line.
+    expect([...container.querySelectorAll("[data-chat-thread] [data-bubble]")].map((b) => b.textContent?.replace(/\d\d:\d\d$/, ""))).toEqual([
+      "Which shampoo suits me?",
+      "The gentle one",
+      "Thanks. One more thing.",
+    ]);
 
-    // Asked, only typing: the box answers. And no thanks taps: you type them.
-    await open([ASKED], TYPES, true);
+    // Asked, only typing: the box answers, a question to tap too. No thanks taps.
+    await open([ASKED], TYPES);
     expect(inBar()).toEqual(["Add", "Type your answer"]);
-    await open([ANSWER], TYPES, true);
+    await open([TO_TAP], TYPES);
+    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    await say("Beekeeping");
+    expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "Beekeeping", to: "m-t" });
+    await open([ANSWER], TYPES);
     expect(container.querySelector("[data-chat-thanks]")).toBeNull();
   });
 
   it("BAR-N610-FE-6: a photo asked for takes Add a photo in the middle", async () => {
-    routes[PHOTO] = photoSent;
-    await open([theirs("m-ph", { body: "Send me a photo of your hair.", meta: { photo_asked: true } })], RECORDS);
+    const ASKS_PHOTO = "POST /api/v2/chats/c-1/setup/m-ph/photo";
+    routes[ASKS_PHOTO] = () =>
+      json({
+        messages: [
+          { id: "m-p", mine: true, author: "", kind: "photo", body: "", meta: { setup_answer: {} }, created_at: "2026-11-10T10:05:00Z" },
+          theirs("m-n", { body: "Lovely. Thank you." }),
+        ],
+      });
+    await open([theirs("m-ph", { body: "Send me a photo of your hair.", meta: { setup: { i: 2, kind: "photo", answers: [] } } })], RECORDS);
     expect(inBar()).toEqual(["Add", "Add a photo"]);
     await tap(bar().querySelector("[data-chat-add-photo]"));
     await pickPhoto();
-    expect(calls(PHOTO)).toHaveLength(1);
+    expect(((calls(ASKS_PHOTO).at(-1)?.[1]?.body as FormData).get("file") as File).name).toBe("hair.jpg");
+    expect(calls(PHOTO)).toHaveLength(0);
+    expect(container.querySelector("[data-chat-thread]")?.textContent).toContain("Lovely. Thank you.");
     expect(inBar()).toEqual(["Add", "Ask Tomek"]);
   });
 });

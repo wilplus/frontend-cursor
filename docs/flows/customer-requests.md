@@ -265,10 +265,15 @@ their join link: no workspace, no form, a visitor who only taps.
      - "Sending to {name}… {n}" with Undo, a bold word in the pill, stands
        in the middle while an answer or a question goes; "Send" while
        several answers are picked (N487).
-     - **Typing waits for the backend** (N610 item 8): the box shows only
-       when the chat's read says the backend keeps typed words (`typed`,
-       assumed; see §3). Until then a chat whose host chose Type is drawn
-       as one that does not take typing.
+     - **Typing is on where the host chose Type** (`host.answer_with.type`
+       on `GET /v2/chats/<id>/host`; backend #1880): a chat with no host,
+       or a backend without that route, has no box. The words go to
+       `POST /v2/chats/<id>/messages` as `{"kind": "text", "body", "to"?}`;
+       `to` is the waiting question's id when the words answer it (a
+       question to tap included), and the answer comes back with the
+       host's next lines. A photo is asked for by a question whose message
+       has `meta.setup.kind === "photo"`; the photo picked goes to
+       `POST /v2/chats/<id>/setup/<message_id>/photo`.
      No mic: no voice notes (N483 item 3). Every send gives a short
      sound, and a small buzz where the device allows it. Was: the three
      emoji in the middle (N483), in a host's chat with a small mic on the
@@ -792,16 +797,14 @@ item 15, N225):
 
 ## 3. Still open
 
-- **The bar's two parts that wait for the backend** (N610 item 8), built
-  and switched off, on fields this page assumed until the backend names
-  its own: typed words between people (the chat's read,
-  `GET /v2/chats/<id>/messages`, says `typed: true`; the words go to
-  `POST /v2/chats/<id>/messages` as `{"kind": "text", "body": "…"}` and
-  come back as `{"message"}`, as an emoji does); a photo the chat asks for
-  (their newest message carries `meta.photo_asked: true`; the photo goes to
-  `POST /v2/chats/<id>/photo`, multipart `file`, as "Send a photo" does).
-  Also open: "Asked. {name} answers here." (signed, N610 item 7), which
-  the locked page does not draw.
+- **The bar's two parts that wait for the backend** (N610 item 8; backend
+  #1880, not merged): typed words between people and a photo the chat asks
+  for. Both are built on #1880's names (C1, "The bar") and stay off until
+  its routes answer: the host's read is 404 before then, so nothing types
+  and no question asks for a photo. A refused typed send (400, 409) takes
+  the words away without putting them back in the box. Also open: "Asked.
+  {name} answers here." (signed, N610 item 7), which the locked page does
+  not draw; the founder left it unbuilt for now.
 - **The DPA and the form's consent**, for counsel, before the first real
   customer; what the client pays, before going live (N239 item 6).
 - **The locked screens it touches**, each needing its own page's line when
@@ -972,7 +975,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-10 · N610 · C1, §2 to §5: the bar in a host's chat and a chat between people is two places, as the locked page draws it: the "+" (named "Add" for a screen reader), which never moves, and the one thing to do now. Nothing asked: "Ask {name}", a black button, which opens "Ask {name}". The chat asks: "Record your answer" where it takes recordings; where it takes only taps the middle stays "Ask {name}"; answers to tap above the bar with "Not now" under them, the questions asked when you join included. Thanks: after a person's recorded answer, 👀, 👍 and 🙏 above the bar, the last filled; one tap sends it and they go; never after the assistant, never twice. The "+" sheet: "Ask {name}" with "Record your question" and "Send a photo" (the photo route of N351, its BFF route back), or "Answer {name}" while the chat asks. What stops: the three emoji in the bar's middle (an emoji is sent only as thanks now), N600's mic on the right, and "Record your question" in one tap from a host's bar. Waits for the backend, built and switched off: the box ("Ask {name}", "Type your answer", and "Type your answer" behind the "+") until the chat's read says `typed: true` and `POST /v2/chats/<id>/messages` takes `{"kind": "text", "body"}`; "Add a photo" in the middle until a message carries `meta.photo_asked: true` (the photo goes to `POST /v2/chats/<id>/photo`). Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE N610 (#1878), FE (this PR)
+- 2026-11-10 · N610 · C1, §2 to §5: the bar in a host's chat and a chat between people is two places, as the locked page draws it: the "+" (named "Add" for a screen reader), which never moves, and the one thing to do now. Nothing asked: "Ask {name}", a black button, which opens "Ask {name}". The chat asks: "Record your answer" where it takes recordings; where it takes only taps the middle stays "Ask {name}"; answers to tap above the bar with "Not now" under them, the questions asked when you join included. Thanks: after a person's recorded answer, 👀, 👍 and 🙏 above the bar, the last filled; one tap sends it and they go; never after the assistant, never twice. The "+" sheet: "Ask {name}" with "Record your question" and "Send a photo" (the photo route of N351, its BFF route back), or "Answer {name}" while the chat asks. What stops: the three emoji in the bar's middle (an emoji is sent only as thanks now), N600's mic on the right, and "Record your question" in one tap from a host's bar. Waits for the backend (#1880), built and off until its routes answer: the box ("Ask {name}", "Type your answer", and "Type your answer" behind the "+"), on where `GET /v2/chats/<id>/host` says `answer_with.type`, the words to `POST /v2/chats/<id>/messages` as `{"kind": "text", "body", "to"?}`; "Add a photo" in the middle for a question with `meta.setup.kind === "photo"`, the photo to `POST /v2/chats/<id>/setup/<message_id>/photo`. Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE N610 (#1878), BE #1880, FE (this PR)
 - 2026-11-10 · N602 · C1: behind the ring row `chat_builder`, a bundle in Will's chat is one card in the backend's words: "{n} people asked", the question large, the faces of who asked, "See who asked ›" and "Record one answer"; the list of every asker's question goes. "See who asked ›" opens "Who asked", each person's words and name with the match's colour, and "Split them up ›" picks questions out into a bundle of their own. Read from backend #1857's contract (GET /v2/chats/bundles/<id>, POST …/split), unmerged: every read is 404 until it is, and nothing draws. Not yet: "Record one answer" in the bar's middle (still on the card), "{name}, {name} and {n} more" and "in your chat" / "on your website" (not in N602 item 4's signed words) · FE (this PR)
 - 2026-11-10 · N601 · C1: the join page in three lines, "{name} invited you", what you'll learn (the host's `about` words when the backend sends them, one line in place of #1356's card) and "Only the two of you are in this chat.", then Join with nothing under it; the old title, "A chat with {name}", the assistant's name, Will's line, "Nobody else…" and "Opens in your browser…" go. Not yet: Artur's signed sentence ("Record a short talk. He'll tell you what landed and what to try next.") needs the backend to send it for his link · FE (this PR)
 - 2026-11-10 · N600 items 1 to 4 · C1: in a host's chat (GET /v2/chats/<id>/host) the bar follows the host's answer_with: "+" on the left; a small mic on the right when Record is chosen, which records the answer to what waits ("Record your answer" no longer takes the middle) or, at rest, a question as the "+" does; Tap alone has no mic; no "Something else"; the same bar at rest and while a question waits. Artur's chat keeps "Record Take N" (item 4). Not yet: the typing box (POST /v2/chats/<id>/messages takes the three emoji only, so the emoji keep the middle), and the setup's "Like this:" frames (item 5, no backend data) · FE (this PR)
