@@ -412,9 +412,12 @@ function ChatsFront({
             : "none",
       }}
     >
-      {/* The list stays drawn under a chat, so it keeps its place (item 5). */}
+      {/* The list stays drawn under a chat, so it keeps its place (item 5).
+          The list and a person's chat fill this column, as Will's chat does
+          (founder 2026-11-10, backend N628; was a 480 px column in the
+          middle on a computer). On a phone all are the window's width. */}
       <div className="absolute inset-0 flex flex-col bg-background" {...away(!!slide)}>
-        <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">{list}</div>
+        <div className="flex min-h-0 w-full flex-1 flex-col">{list}</div>
       </div>
       {slide ? (
         <ChatSlide
@@ -423,7 +426,7 @@ function ChatsFront({
           drag={chatOpen ? drag : null}
           pull={!chatOpen && pulling?.at === "chat" && pulling.chat.id === slide.id ? pull : null}
         >
-          <div className="mx-auto flex min-h-0 w-full max-w-[480px] flex-1 flex-col">{thread(slide, chatOpen)}</div>
+          <div className="flex min-h-0 w-full flex-1 flex-col">{thread(slide, chatOpen)}</div>
         </ChatSlide>
       ) : null}
     </div>
