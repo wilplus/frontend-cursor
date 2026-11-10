@@ -448,8 +448,9 @@ workspace, no form.
    - **Will's chat** has its own top bar too, as every chat (N334 item
      1): back, his mark and "Will", over the Lounge; the WillpowerLab bar
      shows on the list only. Was (N322 item 4): the WillpowerLab bar with
-     "‹ Will" under it. On a computer, the list and a person's chat sit in
-     a phone-wide column in the middle.
+     "‹ Will" under it. On a computer, the list and a person's chat are as
+     wide as Will's chat, the column his chat and its bar fill (N628; was a
+     phone-wide column in the middle, N321, N322).
    - **Back** (the iPhone's swipe, the browser's Back) from Will's chat or
      a person's chat goes back by one, to the list, however abrupt the
      swipe; from the list it goes nowhere, never off /chat to the sign-in
@@ -1024,6 +1025,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N628 · C1: on a computer, the list of chats and a person's chat fill the column Will's chat and its bar fill (`useChatsDoor.tsx`), as the AI models overlay does since N618 item 10. On a phone nothing changes. Sheets from the bottom (Add someone) keep their width. No new words. Was: a 480 px column in the middle (N321, N322) · BE #1909, FE (this PR)
 - 2026-11-10 · N610, N606 · B11: the website chat's bar is the locked two places, on `ChatBar.tsx`'s components: the "+" on the left, always there, and "Ask {name}" in the middle, a box where the chat takes typing, a black button where it does not; "Not now" under a question's taps; the three thanks above the bar after the host's recorded answer in a chat without typing. Where the chat takes no typing, the black "Ask {name}" makes the visitor's chat and opens the sign-up (asking is recording there); signed up, it and "+" open the chat in WillpowerLab. The welcome is the host's own words, with no assistant's mark, and no answer is expected at once (N606). What stops: the three emoji in the bar's middle (an emoji as a visitor's first message with them), the small mic on the right, and "+" appearing only once the chat exists. In the host's list (B12) a visitor's chat has the same two places: "Record your answer" for their typed question, which the backend marks; was the "+" and the three emoji. Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE #1868, FE (this PR)
 - 2026-11-10 · N595, N600 · B11, B13: no consent card in the website chat (the visitor writes at once; the first message makes the chat); the sign-up step in N595's signed words ("To get {name}'s answer, sign up." and its note, "Signed up. The first notice…"); the host's welcome shows before the visitor writes, and `start` carries the first message; the visitor's bar follows the recipe as in a host's chat: "+" left, the box (or the emoji) in the middle, a small mic on the right once signed up, the same while a question waits (N603's image button waits for a photo in the widget's routes). Was: "Your taps go to {name} through WillpowerLab." with Agree and start, and the drafted sign-up words · BE #1868 (#1874, #1876 log), FE (this PR)
 - 2026-11-09 · N591 · B8 to B13: the website chat is the host's own chat on the public side. The visitor meets the host's welcome and own questions, then writes as the host's recipe allows (the emoji, and typed words when typing is on); after asking, a sign-up step ("Sign up to get {name}'s answer, by email or on your phone.", drafted) replaces "Keep this chat" and `/sign-up` replaces `/keep`; the host's answers wait behind it. Gone: the fixed greeting, the three questions, "answers out loud", the `/ask` route and "Record your answer" for a visitor. The switch stays hidden; the consent line is unchanged. Host typing in the locked bar waits for the founder's OK · BE #1868, FE (this PR)
