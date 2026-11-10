@@ -474,6 +474,9 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
   expect(host.querySelector("[data-plan-card]")!.textContent).toBe(
     "PlanLet your key line landYour deadline: Sat 14 NovChange your plan",
   );
+  // A day the app gave, not the speaker, is never shown as theirs (backend N631 item 4).
+  act(() => root.render(<>{planRowFor(row({ plan_card: true }), ctx({ ...talk.plan!, deadline_given: true }))}</>));
+  expect(host.querySelector("[data-plan-card]")!.textContent).toBe("PlanLet your key line landChange your plan");
   act(() => root.render(<>{planRowFor(row({ plan_card: true }), c)}</>));
   const change = [...card.querySelectorAll("button")].find((b) => b.textContent === "Change your plan")!;
   act(() => change.click());

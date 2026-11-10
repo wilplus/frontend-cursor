@@ -24,8 +24,10 @@ export function usePlanCallsOn(): boolean {
 
 function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) => void }) {
   const callsOn = usePlanCallsOn();
-  // The talk's date, only for someone preparing a talk (N564 item 6).
-  const date = plan.deadline ? plan.deadline_short : null;
+  // The talk's date, only for someone preparing a talk (N564 item 6), and
+  // only a day they chose (backend N631 item 4): a day the app gave is
+  // never shown as theirs.
+  const date = plan.deadline && !plan.deadline_given ? plan.deadline_short : null;
   if (!callsOn && !date) return null;
   return (
     <ul className="m-0 flex list-disc flex-col gap-1.5 pl-[18px] text-[15px] leading-[1.4] marker:text-[#9A9A9A]">

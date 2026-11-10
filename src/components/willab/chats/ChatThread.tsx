@@ -579,6 +579,19 @@ const DONE = "Done";
 
 /** Under the joiner's answer to "Are you in a hurry?": the deadline it set
  *  ("Your deadline: {date}", signed with the plan). */
+/** The day under a join answer, only when the person picked it (backend
+ *  N631 item 2): never after "No" to "Are you in a hurry?", whose day is
+ *  one step of the plan away. `deadline_given` (the plan's word: a day the
+ *  app gave) says so when the backend sends it; without it, a "No" is no
+ *  day of theirs. */
+export function chosenDeadline(answer: unknown): string | null {
+  const a = answer as { deadline?: unknown; deadline_given?: unknown; picked?: unknown } | null | undefined;
+  if (typeof a?.deadline !== "string") return null;
+  if (typeof a.deadline_given === "boolean") return a.deadline_given ? null : a.deadline;
+  const picked = Array.isArray(a.picked) ? a.picked : [];
+  return picked.length === 1 && picked[0] === "No" ? null : a.deadline;
+}
+
 function DeadlineLine({ iso }: { iso: string }) {
   const day = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(day.getTime())) return null;
@@ -1062,8 +1075,8 @@ export default function ChatThread({
                   </TakeAnswersUnder>
                 </AnswerQuote>
               </AssistantSays>,
-              ...(typeof (message.meta?.setup_answer as { deadline?: unknown } | undefined)?.deadline === "string"
-                ? [<DeadlineLine key={`deadline-${message.id}`} iso={(message.meta!.setup_answer as { deadline: string }).deadline} />]
+              ...(chosenDeadline(message.meta?.setup_answer)
+                ? [<DeadlineLine key={`deadline-${message.id}`} iso={chosenDeadline(message.meta?.setup_answer)!} />]
                 : []),
             ])
           )}

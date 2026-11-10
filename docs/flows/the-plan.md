@@ -242,8 +242,10 @@ built and what is still to come.
    Will says "You're all set. Here's your plan." Then the card, the plan
    only (N319 item 6, N564): "Plan"; the level's name; its four marks, the
    done ones filled (3); "Your deadline: {date}", the date in orange (for
-   example "Sat 14 Nov"), only for someone preparing a talk (N564 item 6);
-   then "Change your plan", which opens its sheet (H). No practice days and
+   example "Sat 14 Nov"), only for someone preparing a talk (N564 item 6)
+   and only for a day they chose: a day the app gave ("No date yet"'s two
+   months, a first Take with no day heard, a join link's "No") shows no
+   deadline line (backend N631); then "Change your plan", which opens its sheet (H). No practice days and
    no "Ready by {date}" heading. Gone from the card: the key line, "How you
    said it", "Why this line?", the pace week's line and the call lines
    (N315, N319 item 6). "See your plan" opens the same card.
@@ -842,6 +844,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-10 · N631 · E1: a day the speaker never chose is never shown as theirs. The plan card hides "Your deadline:" when the plan's `deadline_given` says the day was the app's (`plan/PlanCard.tsx`), and in a host's chat "Your deadline: {date}" is drawn only under a day the person picked, never after "No" to "Are you in a hurry?" (`chats/ChatThread.tsx`). Rebuilt from FE #1266, whose number N524 went to another entry. No new words. What stops: the app's own date shown as the speaker's · BE N631, FE (this PR)
 - 2026-11-10 · N623 · E3, G13: after the walk, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`). No new words. Was: the bar under the hello and again after each walk the same day · BE #1900, FE (this PR)
 - 2026-11-10 · N604 · §2: after the walk, "Tell me what you'd like to do, and I'll show you where." carries the first choice's other answers as taps (`metadata.chips`, those not chosen); one tap answers it (`{beat: "else", picked}`), shows as the speaker's answer, and Will says that choice's line from N592 item 2. Words still answer it. Was: the typing box alone. No new words · BE, FE (this PR)
 - 2026-11-10 · N572, N578 item 4 · §2: the way in's poll backs off (5 s, then half as long again up to a minute) and stops after 20 minutes with nothing new, starting over whenever the way in moves on (`wayIn.ts`, `WayIn.tsx`); a sharer's after-walk bubble (`opens: "setup_chat"`) carries "Set up my chat ›", the setup's own words, which begins the setup of their own chat in Will's chat, drawn only with the chat builder's ring (`usePlanLounge`, `Lounge.tsx`). What stops: asking the way in every 5 s forever when Take 1 has no words · FE (this PR)
