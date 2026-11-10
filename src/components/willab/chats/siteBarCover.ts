@@ -30,6 +30,13 @@ export function useCoverSiteBar(): void {
   }, []);
 }
 
+/** Drawn with a screen that opens like a chat: the site's bar is hidden
+ *  while it is (the setup and "Test my chat", the founder's trial). */
+export function CoverSiteBar(): null {
+  useCoverSiteBar();
+  return null;
+}
+
 /** True while some screen covers the site's bar. */
 export function useSiteBarCovered(): boolean {
   return useSyncExternalStore(subscribe, () => covers > 0, () => false);

@@ -33,6 +33,7 @@ vi.mock("../../useUserProfile", () => ({ useUserProfile: () => ({ profile: { fir
 
 import MS from "../../models/setupFixtures.json";
 import HostSetupRows from "./HostSetupRows";
+import { useSiteBarCovered } from "../siteBarCover";
 import { forgetSetup, openSetupFromNote, openSetupFromWill, sayToWill } from "./hostSetupDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -715,6 +716,35 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     expect(puts("cost")).toEqual([{ people: 20, sends: 1 }]);
     expect(container.querySelector("[data-cost-month]")?.textContent).toBe("240");
+  });
+
+  it("TRIAL-2 the setup and Test my chat open like a chat: no site bar above them while they are open", async () => {
+    backend();
+    let covered = false;
+    function SiteBar() {
+      covered = useSiteBarCovered();
+      return null;
+    }
+    act(() => root.render(createElement("div", null, createElement(SiteBar), createElement(HostSetupRows))));
+    await flush();
+    expect(covered).toBe(false);
+    act(() => void openSetupFromWill(0));
+    await flush();
+    expect(text()).toContain("What do you do?");
+    expect(covered).toBe(true);
+    await tap("Answer");
+    await type("trichologist");
+    await tap("No");
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Not now");
+    await tap("I draft, you send");
+    await tap("Test my chat");
+    expect(container.querySelector("[data-host-own-chat]")).not.toBeNull();
+    expect(covered).toBe(true);
+    await tap("‹ Back");
+    await tap("Not yet");
+    expect(container.querySelector("[data-host-setup]")).toBeNull();
+    expect(covered).toBe(false);
   });
 
   it("FIRST-20 Test my chat opens my own chat under my name, taps as orange bubbles, the answer and each model's line", async () => {
