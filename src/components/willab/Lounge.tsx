@@ -1693,12 +1693,21 @@ export default function Lounge({
   // only, for turns the BE persists) or any non-persisted path. New answer
   // buttons: route the label through here, full stop.
   // WIL-74 — "Did this feedback help you?": the backend keeps the tap and
-  // writes it with the signed reply, then the thread reads it back.
+  // writes it with the signed reply, then the thread reads it back. The
+  // typing dots while it does, as for Will's question and a typed answer
+  // (B8; founder 2026-11-10: "nothing happens for a moment").
   async function answerFeedbackCheck(
     target: { arcId: string; takeSessionId: string },
     choice: FeedbackCheckChoice,
   ): Promise<void> {
-    if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
+    setBotThinking(true);
+    followAnswer();
+    try {
+      if (await postFeedbackCheck(target.arcId, target.takeSessionId, choice)) await reload();
+    } finally {
+      setBotThinking(false);
+    }
+    followAnswer();
   }
 
   // N82 — Will's one question after a Take: the backend keeps the tap and
