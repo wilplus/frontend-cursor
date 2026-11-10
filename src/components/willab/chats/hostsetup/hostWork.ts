@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { getCheck, getDrafts, readSetup } from "@/services/api/hostSetup";
+import { getCheck, getDrafts, keepPart, readSetup, type PriceChange, type RecipeModel } from "@/services/api/hostSetup";
 import { getQueue } from "@/services/api/models";
 import { fetchMomentsQueue } from "@/services/api/coachWalk";
 
@@ -33,9 +33,13 @@ export type HostWork = {
   /** Whose models were left out today, the host being out of tokens (N630
    *  item 1): a line each to read, each one of the things that need them. */
   skipped: string[];
+  /** Someone's model whose price changed, to keep at the new price or drop
+   *  (N633 item 4), with the chat's models as kept now. */
+  priceChanges: PriceChange[];
+  models: RecipeModel[];
 };
 
-const NONE: HostWork = { ring: false, lines: [], checkModel: null, ownChat: false, skipped: [] };
+const NONE: HostWork = { ring: false, lines: [], checkModel: null, ownChat: false, skipped: [], priceChanges: [], models: [] };
 
 /** Today, as the backend's "on" writes a day (YYYY-MM-DD), on this device. */
 function today(): string {
@@ -44,9 +48,25 @@ function today(): string {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 }
 
-/** How many things need the person: each line, and each model left out. */
+/** How many things need the person: each line, each model left out, and
+ *  each changed price. */
 export function thingsNeedingYou(work: HostWork): number {
-  return work.lines.length + work.skipped.length;
+  return work.lines.length + work.skipped.length + work.priceChanges.length;
+}
+
+/** Keep someone's model at its new price, or drop it (N633 item 4): the
+ *  chat's models saved with that card's price set, or without that card
+ *  (PUT /v2/chats/setup/models). Then what needs the person is read again,
+ *  and the line goes. False when the backend did not keep it. */
+export async function answerPriceChange(change: PriceChange, keep: boolean, coach: boolean): Promise<boolean> {
+  const theirs = (m: RecipeModel) => !m.own && m.model_id === change.model_id;
+  const models = keep
+    ? work.models.map((m) => (theirs(m) ? { ...m, price: change.now, learning: undefined } : m))
+    : work.models.filter((m) => !theirs(m));
+  const kept = await keepPart("models", models);
+  if (!kept || "refused" in kept) return false;
+  await refreshHostWork(coach);
+  return true;
 }
 let work: HostWork = NONE;
 let loading: Promise<void> | null = null;
@@ -90,6 +110,8 @@ async function read(coach: boolean): Promise<void> {
     checkModel: toCheck[0] ?? null,
     ownChat: Boolean(setup.own_chat),
     skipped: setup.skipped_models.filter((m) => m.on.slice(0, 10) === today()).map((m) => m.by),
+    priceChanges: setup.price_changes,
+    models: setup.recipe?.models ?? [],
   });
 }
 

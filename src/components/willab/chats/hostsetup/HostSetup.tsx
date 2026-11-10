@@ -570,12 +570,20 @@ function ModelStep({ c }: { c: Ctx }) {
     return (
       <Frame
         onBack={c.back}
-        foot={<Two left={<Btn out label={W.backPlain} onClick={() => { S.picked = null; c.paint(); }} />} right={<Btn label={W.addIt} onClick={() => add({ q: m.q, opts: m.opts, says: "", own: false, model_id: m.model_id, by: m.by, price: m.price })} />} />}
+        foot={<Two left={<Btn out label={W.backPlain} onClick={() => { S.picked = null; c.paint(); }} />} right={<Btn label={W.addIt} onClick={() => add({ q: m.q, opts: m.opts, says: "", own: false, model_id: m.model_id, by: m.by, price: m.learning ? 0 : m.price })} />} />}
       >
         <Say>{m.q}</Say>
         <Card b={m.opts.join(" · ")} s={W.madeIt(m.by)} />
-        <Say>{W.smarterToday}</Say>
-        <Cap>{W.costsYou(m.price)}</Cap>
+        {/* Still learning: it says nothing yet and costs nothing, so no
+            promise of a line and no price (N633 item 1). */}
+        {m.learning ? (
+          <Cap>{W.stillLearning}</Cap>
+        ) : (
+          <>
+            <Say>{W.smarterToday}</Say>
+            <Cap>{W.costsYou(m.price)}</Cap>
+          </>
+        )}
       </Frame>
     );
   }
@@ -589,7 +597,8 @@ function ModelStep({ c }: { c: Ctx }) {
           <Opt
             key={m.model_id}
             title={m.q}
-            sub={`${m.opts.join(" · ")}\n${m.fits ? W.eachUse(m.by, m.price) : W.needs(m.by, m.needs)}`}
+            sub={`${m.opts.join(" · ")}\n${usable(m)}`}
+            badge={m.learning ? W.stillLearning : undefined}
             disabled={!m.fits}
             onClick={() => { S.picked = m; c.paint(); }}
           />
@@ -620,8 +629,16 @@ function ModelStep({ c }: { c: Ctx }) {
   );
 }
 
+/** Under a model one can use: who made it, and its price unless it is
+ *  still learning (free, and no price is written for it); or what it needs. */
+function usable(m: SharedModel): string {
+  if (!m.fits) return W.needs(m.by, m.needs);
+  return m.learning ? W.madeIt(m.by) : W.eachUse(m.by, m.price);
+}
+
 function CostStep({ c }: { c: Ctx }) {
   const { S, R } = c;
+  const learns = (q: string) => (R.models ?? []).some((m) => m.learning && m.q === q);
   const cost = S.cost;
   const per = cost?.per_send ?? 0;
   const typed = (key: "people" | "sends", max: number) => (e: { target: { value: string } }) => {
@@ -654,7 +671,7 @@ function CostStep({ c }: { c: Ctx }) {
           <div key={l.q} data-cost-line="" className="flex items-start justify-between gap-3 py-1">
             <span className="flex flex-col text-[15px] text-foreground">
               {l.q}
-              <small className="text-[13px] text-muted-foreground">{l.price ? W.ownersModel(l.by) : W.yourModel}</small>
+              <small className="text-[13px] text-muted-foreground">{learns(l.q) ? W.stillLearning : l.price ? W.ownersModel(l.by) : W.yourModel}</small>
             </span>
             <b className="text-[15px]">{l.price ? W.tokens(l.price) : W.free}</b>
           </div>
@@ -671,6 +688,23 @@ function CostStep({ c }: { c: Ctx }) {
   );
 }
 
+/** A part's value; "Your models" marks each one still learning (N633 item 1). */
+function PartValue({ part, models }: { part: SetupPart; models: RecipeModel[] }) {
+  if (part.part === "models" && models.some((m) => m.learning)) {
+    return (
+      <span className="flex flex-col gap-0.5">
+        {models.map((m) => (
+          <span key={m.q} className="text-[16px] font-semibold text-foreground">
+            {m.q}
+            {m.learning ? <small data-still-learning="" className="ml-1.5 text-[13px] font-medium text-muted-foreground">{W.stillLearning}</small> : null}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return part.value ? <span className="text-[16px] font-semibold text-foreground">{part.value}</span> : null;
+}
+
 function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
@@ -685,7 +719,7 @@ function PartsStep({ c }: { c: Ctx }) {
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
           <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>
-          {p.value ? <span className="text-[16px] font-semibold text-foreground">{p.value}</span> : null}
+          <PartValue part={p} models={R.models ?? []} />
         </button>
       ))}
       {/* Quiet, under the parts, never beside "Back to my chats" (N632 item 4). */}
