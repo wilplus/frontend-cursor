@@ -813,11 +813,19 @@ back to the box; Will's offer, once newer bubbles came under it,
 carries ""Set up my chat ›"", which begins the setup again, until the
 assistant is live.
 O4  HOST-N586-5: Will's offer is asked of the backend once, only for a
-tester with no recipe; with a recipe, or without the ring, it is not.","O1 -> ""HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring""
+tester with no recipe; with a recipe, or without the ring, it is not.
+O6  HOST-N600-3: in a host's chat the bar follows how the host lets
+people answer: Record gives a small mic on the right (""Record your
+answer"" leaves the middle; the mic records the answer to what waits,
+else ""Ask Tomek""), Tap alone gives no mic, and the three emoji keep
+the middle while the backend takes no typed words between people; the
+same bar at rest and while a question waits, with no ""Something
+else""; a chat with no host keeps ""Record your answer"" in the middle.","O1 -> ""HOST-N578-7: the builder starts from Artur's five, saves what is mine, and is nothing without the ring""
 O2 -> ""HOST-N590-8: the joiner meets the host's welcome first, as the assistant's""
 O3 -> ""HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words""
 O5 -> ""HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again""
-O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
+O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""
+O6 -> ""HOST-N600-3: the bar follows the host's answer_with, the same whether or not something is asked""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
 src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
 who answered and the names the backend shows (my coach's and the best
 other); a tap opens all of them under ""On your speaking"" and ""On the

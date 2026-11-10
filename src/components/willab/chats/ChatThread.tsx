@@ -39,7 +39,7 @@ import {
 import Profile from "./Profile";
 import { BlockedBar, useBlocking } from "./BlockReport";
 import { EMOJI_MEANING, LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
-import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
+import { AnswerQuote, AssistantAbout, AssistantSays, HostMic, hostBar, useHost } from "./HostChat";
 import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
@@ -69,6 +69,8 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  with "Sent to {name}" under it (N342, N361). No mic, no typing.           */
 /*  Only the conversation shows here; no asks (N305). Blocked from their      */
 /*  profile, the bar is one grey pill with Unblock; the messages stay (N466). */
+/*  In a host's chat the bar follows the host's answer_with (N600): the mic   */
+/*  on the right for Record, never "Record your answer" in the middle.       */
 /* -------------------------------------------------------------------------- */
 
 /** The device's Back (the iPhone's swipe, the browser's Back) closes the
@@ -795,6 +797,28 @@ function EmojiBar({
   );
 }
 
+/** The mic on the right of a host's bar (N600), when Record is chosen: the
+ *  answer to what waits, else a question, as "Record your answer" and the
+ *  "+" did. */
+function hostMicFor(
+  bar: { mic: boolean } | null,
+  chat: Chat,
+  answer: { question: string | null; slides?: string[] },
+  onRecordAnswer?: (answer: AnswerFor) => void,
+): ReactNode {
+  if (!bar?.mic || !onRecordAnswer) return null;
+  const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
+  const question = answer.question;
+  return (
+    <HostMic
+      label={question ? RECORD_YOUR_ANSWER : askName(chat.title)}
+      onClick={() =>
+        onRecordAnswer(question ? { ...base, question, slides: answer.slides } : { ...base, question: "", asks: true })
+      }
+    />
+  );
+}
+
 let localSeq = 0;
 
 /** The link owner's question waiting in this chat (backend N487 item 4):
@@ -948,6 +972,8 @@ export default function ChatThread({
   // top, their assistant's messages labelled as its own. Null: as it was.
   const host = useHost(chat.id);
   const assistantName = host?.assistant ?? chat.assistant ?? null;
+  // A host's chat: the bar follows how the host lets people answer (N600).
+  const bar = host ? hostBar(host.answerWith) : null;
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -1009,7 +1035,7 @@ export default function ChatThread({
             middle={
               setup.send ?? (pending ? (
                 <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
-              ) : answer.question && onRecordAnswer ? (
+              ) : !bar && answer.question && onRecordAnswer ? (
                 <RecordAnswerButton
                   onClick={() => onRecordAnswer({ chatId: chat.id, name: chat.title, question: answer.question!, customer, slides: answer.slides })}
                 />
@@ -1017,6 +1043,7 @@ export default function ChatThread({
             }
           />
         )}
+        {safety.blocked ? null : hostMicFor(bar, chat, answer, onRecordAnswer)}
       </div>
       {asking ? (
         <AskSheet
