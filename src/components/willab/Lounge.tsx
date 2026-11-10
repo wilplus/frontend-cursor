@@ -30,6 +30,7 @@ import {
   type FailedTakeVerdict,
 } from "./useFailedTakeRecheck";
 import { useUserId } from "./useUserId";
+import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import {
   readProcessingTake,
   clearProcessingTake,
@@ -296,9 +297,10 @@ function wordsWaitFor(missing: unknown, setupWaits: { words: boolean } | null, w
 }
 
 /** The processing bubble at the bottom of the thread: any Take but the way
- *  in's Take 1, whose wait is the thin row on top (N453 item 1). */
-function bottomProcessing<T extends { status: string }>(resume: T | null, firstTakeWayIn: boolean): resume is T {
-  return resume?.status === "analyzing" && !firstTakeWayIn;
+ *  in's Take 1, whose wait is the thin row on top (N453 item 1), and a Take
+ *  still going up after its screens closed (founder 2026-11-10). */
+function bottomProcessing(resume: { status: string } | null, firstTakeWayIn: boolean, uploading: boolean): boolean {
+  return uploading || (resume?.status === "analyzing" && !firstTakeWayIn);
 }
 
 /** The bar's middle: the way in's "Send" while its choice has picks, else
@@ -1218,7 +1220,11 @@ export default function Lounge({
   // (backend N553 item 2, N556): while it does, Record waits with its signed
   // line, as for any Take still landing.
   const resending = useTakeResend({ userId, labOpen: isLabOverlay(state), busy: analysing, thread });
-  const takeInFlight = analysing || resending;
+  // A Take still going up after its screens closed: its bubble and the held
+  // record button at once, before the server has answered (founder
+  // 2026-11-10).
+  const uploadingUnwatched = useTakeUploadingUnwatched();
+  const takeInFlight = [analysing, resending, uploadingUnwatched].some(Boolean);
 
   // One's own chat (backend N582, the chat builder's ring): Will's offer,
   // the builder's way in, and whether "Set up my chat ›" can begin it.
@@ -1572,6 +1578,15 @@ export default function Lounge({
   // comes, and when the wait's ✕ shows the chat, the thread lands on it
   // (founder 2026-11-09: closing the wait left it below the screen).
   useLandOnProcessing(processingResume, followAnswer);
+  // The bubble of a Take still going up lands in view too.
+  useEffect(() => {
+    if (uploadingUnwatched) followAnswer();
+  }, [uploadingUnwatched, followAnswer]);
+  /** The bubble's tap: the full wait, once the Take has a session (until the
+   *  upload answers there is nothing to open yet). */
+  function openProcessing(resume: { sessionId: string; status: string } | null): void {
+    if (resume?.status === "analyzing") setOpenedProcessingSessionId(resume.sessionId);
+  }
   const shownMessages = useMemo(() => shownItems.map((item) => item.message), [shownItems]);
   // The box only when Will asks for words (N483 item 2): "Something else",
   // his follow-up with no answers to tap, or "What was missing?".
@@ -2107,13 +2122,14 @@ export default function Lounge({
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
-        {bottomProcessing(processingResume, plan.firstTakeWayIn) ? (
+        {bottomProcessing(processingResume, plan.firstTakeWayIn, uploadingUnwatched) ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <button
               ref={processingTriggerRef}
               type="button"
               aria-haspopup="dialog"
-              onClick={() => setOpenedProcessingSessionId(processingResume.sessionId)}
+              data-processing-bubble=""
+              onClick={() => openProcessing(processingResume)}
               className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
             >
               <TypingGlyph />
