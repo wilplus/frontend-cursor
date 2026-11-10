@@ -19,6 +19,7 @@ import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
+import HostCheck from "./HostCheck";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -36,8 +37,8 @@ import HostTeach from "./HostTeach";
 
 type Step =
   | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
-  | "model" | "teach" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+  | "model" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "model", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's `next`). */
 const THROUGH: Step[] = ["q", "qmore", "model", "try", "live"];
 /** A part's row opens its step. */
@@ -73,6 +74,8 @@ type State = {
   /** The backend refused the host's own words on this screen (N622 item 3). */
   refused: boolean;
   ownChat: OwnChat | null;
+  /** The last move was Back: a step with nothing to show passes on backwards. */
+  backward: boolean;
 };
 
 const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | null): State => ({
@@ -100,6 +103,7 @@ const fresh = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   busy: false,
   refused: false,
   ownChat: null,
+  backward: false,
 });
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -134,7 +138,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     if (!R) return false;
     switch (id) {
       case "out": return R.suggest.out[0] === "answer" && !S.edit;
-      case "qmore": case "teach": return true;
+      case "qmore": case "teach": case "check": return true;
       case "way": case "model": case "more": return noModels();
       case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
       case "order": return models().length < 2;
@@ -147,6 +151,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   const go = (to: Step) => {
     S.refused = false;
+    S.backward = false;
     S.history.push(S.at);
     S.at = to;
     // What a newcomer reads is the line as kept now (N622 item 2).
@@ -190,6 +195,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       return paint();
     }
     S.refused = false;
+    S.backward = true;
     const was = S.history.pop();
     if (!was) return onClose();
     if (was === "q" && (S.at === "qmore" || S.at === "taps")) S.qs.pop();
@@ -381,13 +387,34 @@ function YesNoStep(c: Ctx): ReactNode {
   }
 }
 
+/** Teach it and Check its guesses, for the model the host just made. */
+function TeachSteps(c: Ctx): ReactNode {
+  const models = c.R.models ?? [];
+  const { S } = c;
+  switch (S.at) {
+    case "check": {
+      // Its guesses, once it has something to check; else on (LEARN-03).
+      const made = models.at(-1);
+      return made?.model_id ? (
+        <HostCheck key={made.model_id} modelId={made.model_id} question={made.q} onBack={c.back} onDone={() => c.go("more")} onNothing={S.backward ? c.back : () => c.go("more")} />
+      ) : null;
+    }
+    case "teach": {
+      const made = models.at(-1);
+      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={() => c.go("check")} /> : null;
+    }
+    default:
+      return null;
+  }
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
-  const asked = YesNoStep(c);
+  const asked = YesNoStep(c) ?? TeachSteps(c);
   if (asked) return asked;
   switch (c.S.at) {
     case "line":
@@ -448,10 +475,6 @@ function StepScreen(c: Ctx) {
       );
     case "model":
       return <ModelStep c={c} />;
-    case "teach": {
-      const made = models.at(-1);
-      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={() => c.go("more")} /> : null;
-    }
     case "more":
       return (
         <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; c.go("way"); }, models.length >= 3)}>

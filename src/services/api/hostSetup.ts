@@ -134,3 +134,29 @@ export async function answerUseful(chatId: string, messageId: string, answer: "y
   );
   return body?.ok === true;
 }
+
+/* ── The owner's check (backend N616 item 23, LEARN-03) ─────────────────── */
+
+export type CheckItem = {
+  example_id: string;
+  example: { content?: Record<string, unknown> | null } & Record<string, unknown>;
+  guess: string;
+  kept: boolean | null;
+  answer: string | null;
+};
+export type ModelCheck = { version: unknown; answers: string[]; items: CheckItem[]; done: boolean };
+
+function checkOf(body: Body | null): ModelCheck | null {
+  if (!body || !Array.isArray(body.items)) return null;
+  return { version: body.version, answers: list<string>(body.answers), items: list<CheckItem>(body.items), done: body.done === true };
+}
+
+export async function getCheck(modelId: string): Promise<ModelCheck | null> {
+  return checkOf(await call(`/api/v2/models/${encodeURIComponent(modelId)}/check`, { method: "GET" }));
+}
+
+/** Keep the model's guess, or give the right answer instead. */
+export async function answerCheck(modelId: string, exampleId: string, answer: string | null): Promise<ModelCheck | null> {
+  const json = answer === null ? { example_id: exampleId, keep: true } : { example_id: exampleId, keep: false, answer };
+  return checkOf(await call(`/api/v2/models/${encodeURIComponent(modelId)}/check`, { method: "POST", json }));
+}

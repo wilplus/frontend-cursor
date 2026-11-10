@@ -390,6 +390,41 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Add another model?");
   });
 
+  it("LEARN-03 check its guesses: one example per screen, its guess first, Keep or the right answer; no numbers", async () => {
+    const item = (id: string, words: string, guess: string) => ({ example_id: id, example: { id, content: { text: words } }, guess, kept: null as boolean | null, answer: null });
+    const ITEMS = [item("c1", "My scalp is tight and flaky after washing.", "Yes"), item("c2", "My hair feels soft and my scalp is calm.", "Somewhat")];
+    let state = { version: "v1", answers: ["Yes", "Somewhat", "No"], items: ITEMS, done: false };
+    bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10);
+    bff.routes["POST /api/v2/models/m-own/setup/first10"] = own(MS.share);
+    bff.routes["GET /api/v2/models/m-own/check"] = () => state;
+    bff.routes["POST /api/v2/models/m-own/check"] = (c: Call) => {
+      const sent = c.json as { example_id: string };
+      const items = state.items.map((x) => (x.example_id === sent.example_id ? { ...x, kept: true } : x));
+      state = { ...state, items, done: items.every((x) => x.kept !== null) };
+      return state;
+    };
+    await madeModel();
+    await tap("Do it later");
+    expect(text()).toContain("Now it guesses. You check.");
+    expect(text()).toContain("My scalp is tight and flaky after washing.");
+    expect(text()).toContain("Is this a dry scalp?");
+    expect(text()).toContain("Its guess: Yes");
+    expect(text()).not.toMatch(/\d/);
+    await tap("Keep");
+    expect(text()).toContain("My hair feels soft and my scalp is calm.");
+    await tap("‹ Back");
+    expect(text()).toContain("My scalp is tight and flaky after washing.");
+    await tap("Keep");
+    await tap("Change");
+    expect(text()).toContain("What's the right answer?");
+    expect(text()).toContain("Each fix teaches it.");
+    expect([...container.querySelectorAll("button")].map((b) => b.textContent)).not.toContain("Somewhat");
+    await tap("No");
+    const posted = bff.calls.filter((c) => c.path === "/api/v2/models/m-own/check" && c.method === "POST").map((c) => c.json);
+    expect(posted).toEqual([{ example_id: "c1", keep: true }, { example_id: "c1", keep: true }, { example_id: "c2", keep: false, answer: "No" }]);
+    expect(text()).toContain("Add another model?");
+  });
+
   it("FIRST-23 a new model has no examples yet: the host adds one of their own for that model", async () => {
     bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
     bff.routes["GET /api/v2/models/queue"] = { models: [{ id: "other", name: "Someone's model" }], examples: [] };
