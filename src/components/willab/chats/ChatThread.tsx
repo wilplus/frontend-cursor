@@ -45,7 +45,6 @@ import { BlockedBar, useBlocking } from "./BlockReport";
 import { LetterCircle, firstName, meaningOf, takeSentYou } from "./ChatList";
 import { AnswerQuote, AssistantAbout, AssistantSays, useHost } from "./HostChat";
 import { HostHello, ReplyBy, UsefulAsk } from "./hostsetup/VisitorBits";
-import { useHostWork } from "./hostsetup/hostWork";
 import { TakeAnswersUnder } from "./TakeAnswers";
 import { TopBar } from "./TopBar";
 // The top bars live in ./TopBar, so Will's draws without this chat's code;
@@ -784,13 +783,9 @@ function PeopleBar({
   onRecordAnswer,
   onSay,
   onPhoto,
-  ringHost = false,
 }: {
   chat: Chat;
   takes: Takes;
-  /** The chat is a ring host's (its host read answers): its people, on the
-   *  ring or not, get Will's Send too (the founder's customers). */
-  ringHost?: boolean;
   /** What the chat asks of me now. */
   asked: { question: string | null; slides?: string[]; taps: boolean; photo: boolean };
   /** What stands in the middle for now: "Send", or "Sending to {name}…". */
@@ -806,9 +801,6 @@ function PeopleBar({
   const [sheet, setSheet] = useState(false);
   const [typing, setTyping] = useState(false);
   const picker = usePhotoPicker(onPhoto);
-  // Will's Send in the box, for the chat builder's ring and for anyone in a
-  // ring host's chat (the founder's trial).
-  const ring = useHostWork(false).ring || ringHost;
   const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
   const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
   const answers = middle !== "ask" && middle !== "ask-box";
@@ -835,7 +827,6 @@ function PeopleBar({
           middle={middle}
           name={chat.title}
           typing={typing && middle === "record-answer"}
-          sendButton={ring}
           onAsk={() => setSheet(true)}
           onRecordAnswer={() => onRecordAnswer?.({ ...base, question: asked.question ?? "", slides: asked.slides })}
           onPhoto={picker.pick}
@@ -1126,7 +1117,6 @@ export default function ChatThread({
           <PeopleBar
             chat={chat}
             takes={takes}
-            ringHost={host !== null}
             asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo !== null }}
             status={
               setup.send ??

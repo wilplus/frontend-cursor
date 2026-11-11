@@ -909,7 +909,10 @@ O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe
 src/components/willab/chats/hostsetup/hostSetup.test.tsx,Story,"As the first person ever on WillpowerLab, nobody's invitee, I set up a chat with Will one decision per screen, Keep or Change, typing in Will's chat when words are needed; I test it as my people will, open it, and change it later by telling Will (backend N612, N616 to N618; the blank setup's stories FIRST-02 to FIRST-22).","O1  Each screen shows the locked prototype's words, and each Keep reaches
 the backend as one part in the recipe v2 shape (backend #1893).
 O2  Change cycles Will's suggestions with no call; Back keeps the answer.
-O3  Below the ring the read is 404 and no way in opens anything.","one test per story, named by its id",
+O3  Below the ring the read is 404 and no way in opens anything.
+O4  The setup reads as a chat: each step answered stays above, Will's
+lines and my answer as my own bubble; typing is the app's bottom bar;
+Back takes the answer of the step asked again away (backend N647 item 9).","one test per story, named by its id",
 src/components/willab/chats/hostsetup/needsYou.test.tsx,Story,"As a host with the chat builder's ring, my chat is built in Build: ""Your chat"" holds its parts and what needs me about it (the answers Will drafted, a model left out, a changed price); ""AI models"" holds the models and everything I teach, my speakers' moments among it, so a coach always reaches them; Live is my chat as people meet it. The list of chats holds Will and people only, and I send drafted answers one per screen, changing the words where I want (backend N629, N642, N643).","O1  Drafted answers, one per screen, in N629's words; Change sends my own
 words, Back never sends a sent one twice; then ""All sent."" and Done.
 O2  Build's ""Your chat"": Will's line and the parts, each opening its step

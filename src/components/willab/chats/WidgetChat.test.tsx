@@ -214,6 +214,10 @@ describe("the website chat on someone's site", () => {
     expect(container.querySelector("[data-widget-answers]")).toBeNull();
     expect(calls.some((c) => c.url.includes("/setup/"))).toBe(false);
     expect(places()).toEqual(["+", "box"]);
+    // Words typed: the send icon on the box's right (backend N647 item 9).
+    expect(bar().querySelector("[data-chat-send]")).toBeNull();
+    await typeIn("Hi");
+    expect(bar().querySelector("[data-chat-box] [data-chat-send]")?.getAttribute("aria-label")).toBe("Send");
   });
 
   it("N610: with typing off, the black Ask Tomek makes my chat and opens the sign-up", async () => {
