@@ -1097,7 +1097,7 @@ export default function ChatThread({
               <AssistantSays key={message.id} name={assistantName} message={message}>
                 <AnswerQuote message={message}>
                   <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
-                    <ReplyBy message={message}>
+                    <ReplyBy message={message} chatId={chat.id}>
                       <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
                     </ReplyBy>
                   </TakeAnswersUnder>
