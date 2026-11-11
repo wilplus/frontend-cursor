@@ -9,7 +9,7 @@ import HostSetup from "./HostSetup";
 import HostOwnChat from "./HostOwnChat";
 import HostDrafts from "./HostDrafts";
 import HostCheck from "./HostCheck";
-import ModelsOverlay from "../../models/ModelsOverlay";
+import ModelsOverlay, { type ModelsScreen } from "../../models/ModelsOverlay";
 import { getModelsChatRows } from "@/services/api/models";
 import { MODELS_WORDS } from "../../models/modelsCopy";
 import { refreshHostWork } from "./hostWork";
@@ -103,11 +103,15 @@ export default function HostSetupRows() {
       : column !== undefined ? (column ? createPortal(node, column) : node) : null;
   // The AI models draw their own overlay, in the same column (N629 item 1),
   // and their own Back; the edge swipe in the iPhone app is that Back.
-  if (kind === "models" || kind === "teach") {
+  if (kind === "models" || kind === "teach" || kind === "start") {
+    const detail = open?.at === "setup" ? open.detail : {};
+    // From Build's AI models (N642 item 3): a model's own page, or a model
+    // of one's own in blocks; Back from there comes back to Build.
+    const start: ModelsScreen = kind === "teach" ? { at: "queue" } : kind === "start" ? { at: "blocks" } : detail.modelId ? { at: "page", id: detail.modelId } : { at: "list" };
     const models = (
       <>
         <OneBarContext.Provider value>
-          <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
+          <ModelsOverlay start={start} queueTitle={queueTitle} blocks onClose={close} />
         </OneBarContext.Provider>
         <EdgeBack />
       </>
@@ -178,6 +182,7 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       cost={read?.cost ?? null}
       ownChat={read?.own_chat ?? null}
       guess={read?.spec_guess ?? null}
+      part={detail.part ?? null}
       onClose={onClose}
     />
     </FrameTitle.Provider>

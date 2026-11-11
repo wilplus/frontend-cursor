@@ -6,6 +6,7 @@ import type { Chat } from "@/services/api/chats";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import ChatList from "./ChatList";
 import { WillTopBar } from "./TopBar";
+import WillBuild from "./WillBuild";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import LoadingState from "../LoadingState";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -171,10 +172,12 @@ function placeOf(view: View, ring: boolean): LoungePlace | null {
   return ring && view.at === "will" ? view.place : null;
 }
 
-/** The Lounge's top bar while it is open: its chat's name for the ring. */
+/** The Lounge's top bar while it is open: its chat's name for the ring;
+ *  for the ring's own chat, Build and Live (backend N642 item 3). */
 function willBar(view: View, ring: boolean, onBack: () => void): ReactNode {
   if (view.at !== "will") return null;
-  return <WillTopBar onBack={onBack} place={ring ? view.place : "will"} />;
+  const build = ring && view.place === "will" ? <WillBuild onBack={onBack} /> : null;
+  return <WillTopBar onBack={onBack} place={ring ? view.place : "will"} build={build} />;
 }
 
 /** `willFirst`: a link that opens something in the Lounge (the coach's
