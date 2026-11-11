@@ -194,6 +194,18 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     expectWords(["Now answer the first 10 yourself"]);
   });
 
+  it("N642-3 a model started from Build opens on its first screen: \"Not now\" and Back both close to where it was opened from", async () => {
+    serve({ ...LIST });
+    for (const leave of ["Not now", "back"]) {
+      let closed = 0;
+      await render(createElement(ModelsOverlay, { start: { at: "blocks" }, queueTitle: "Your queue", blocks: true, onClose: () => { closed += 1; } }));
+      expectWords(["Your own model answers one question the way you would."]);
+      if (leave === "back") await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+      else await tap(leave);
+      expect(closed).toBe(1);
+    }
+  });
+
   it("N638 N645 a model made in blocks has no cases: the guide, then \"Write one\" takes a case typed in Will's chat, and the answering opens; \"Record one\" cannot be tapped", async () => {
     let added = false;
     serve({

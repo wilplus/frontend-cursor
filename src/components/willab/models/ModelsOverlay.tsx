@@ -68,10 +68,12 @@ type Stack = {
 function useStack(start: ModelsScreen, onClose: () => void) {
   const [stack, setStack] = useState<ModelsScreen[]>([start]);
   const push = useCallback((s: ModelsScreen) => setStack((was) => [...was, s]), []);
-  const back = useCallback(() => setStack((was) => (was.length > 1 ? was.slice(0, -1) : was)), []);
+  const depth = stack.length;
+  // One step back; from the first screen (a model started from Build's
+  // "Start your own" opens on it) Back closes to where it was opened from.
+  const back = useCallback(() => (depth > 1 ? setStack((was) => was.slice(0, -1)) : onClose()), [depth, onClose]);
   /** Swap the top screen for another (the door for teaching, once joined). */
   const swap = useCallback((s: ModelsScreen) => setStack((was) => [...was.slice(0, -1), s]), []);
-  const depth = stack.length;
   useBackDismiss(onClose, () => {
     if (depth <= 1) return false;
     back();
