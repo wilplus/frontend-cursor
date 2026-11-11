@@ -27,6 +27,9 @@ OUTCOME
       worked today, and Start your own; Live is the test chat under the
       chat's name with "You run this chat.", the switch only once there is
       something to try.
+  O8  AI models shows the queue's tasks as models with what waits, each
+      opening the queue, and "Images, coming." and "Video, coming." with
+      "I want this", which tells the founder once (backend N642 item 6).
 PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice"
          O4 -> "N630-1 a model left out today because the host is out of tokens gets its line in Will"
          O5 -> "N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes"
@@ -37,6 +40,7 @@ PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own word
          O6 -> "N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too"
          O6 -> "N642-5 someone who is not a coach has no moments line in AI models"
          O7 -> "N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own"
+         O8 -> "N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this"
          O7 -> "N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try"
 */
 import { act, createElement } from "react";
@@ -439,5 +443,41 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetHostWork();
     await build({ ...SETUP, can_try: false });
     expect(container.querySelector("[data-live-build]")).toBeNull();
+  });
+
+  it("N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this", async () => {
+    bff.routes["GET /api/v2/models/coach-tasks"] = {
+      tasks: [
+        { id: "moments", kind: "moments", title: "Moments to answer", line: "", waiting: 37, open: { at: "coach_queue" } },
+        { id: "hear_it", kind: "hear_it", title: "Do you hear it?", line: "", waiting: 20, open: { at: "screen", screen: "error_audit" } },
+      ],
+      coming: [{ kind: "images", title: "Images", wanted: false }, { kind: "video", title: "Video", wanted: true }, { kind: "recordings", title: "", wanted: false }],
+    };
+    let told = 0;
+    bff.routes["POST /api/v2/models/coming/images/want"] = () => {
+      told += 1;
+      return { wanted: true };
+    };
+    await build({ ...SETUP, can_try: false });
+    await tab("models");
+    const models = container.querySelector("[data-build-models]")!;
+    const rows = [...models.querySelectorAll("[data-needs-you]")].map((r) => r.textContent);
+    expect(rows).toContain("Moments to answer37 waiting›");
+    expect(rows).toContain("Do you hear it?20 waiting›");
+    expect(rows.filter((r) => r?.startsWith("Moments to answer"))).toHaveLength(1);
+    const got: unknown[] = [];
+    const on = (e: Event) => got.push((e as CustomEvent).detail);
+    window.addEventListener(OPEN_QUEUE_EVENT, on);
+    await act(async () => (models.querySelector('[data-needs-you="task"]') as HTMLButtonElement).click());
+    window.removeEventListener(OPEN_QUEUE_EVENT, on);
+    expect(got).toEqual([{ fromWill: true }]);
+    const coming = () => [...models.querySelectorAll("[data-build-coming]")].map((b) => b.textContent);
+    expect(coming()).toEqual(["Images, coming. I want this", "Video, coming. Thanks. I've told Artur."]);
+    await act(async () => (models.querySelector('[data-build-coming="images"]') as HTMLButtonElement).click());
+    await flush();
+    expect(coming()).toEqual(["Images, coming. Thanks. I've told Artur.", "Video, coming. Thanks. I've told Artur."]);
+    await act(async () => (models.querySelector('[data-build-coming="images"]') as HTMLButtonElement).click());
+    await flush();
+    expect(told).toBe(1);
   });
 });

@@ -283,8 +283,28 @@ export async function readComing(): Promise<{ kind: ComingKind; wanted: boolean 
     : null;
 }
 
+/** A coach's task, shown as a model in Build's AI models (backend N642
+ *  item 6): its own title and how many wait. */
+export type CoachTask = { id: string; kind: string; title: string; waiting: number };
+/** Models that learn from images or from video, coming (N642 item 6). */
+export type BuildComing = { kind: "images" | "video"; wanted: boolean };
+
+/** The coach's tasks, in the backend's order, and images and video coming;
+ *  null when the read is not there (then Build draws what it drew before). */
+export async function readCoachTasks(): Promise<{ tasks: CoachTask[]; coming: BuildComing[] } | null> {
+  const body = await call("/api/v2/models/coach-tasks", { method: "GET" });
+  if (!body || !Array.isArray(body.tasks)) return null;
+  const tasks = (body.tasks as Record<string, unknown>[])
+    .filter((t) => typeof t?.id === "string" && typeof t.title === "string" && t.title)
+    .map((t) => ({ id: t.id as string, kind: String(t.kind ?? ""), title: t.title as string, waiting: Math.max(0, Number(t.waiting) || 0) }));
+  const coming = (Array.isArray(body.coming) ? (body.coming as Record<string, unknown>[]) : [])
+    .filter((c) => c?.kind === "images" || c?.kind === "video")
+    .map((c) => ({ kind: c.kind as BuildComing["kind"], wanted: c.wanted === true }));
+  return { tasks, coming };
+}
+
 /** "I want this" for a kind coming: true once the founder was told. */
-export async function wantComing(kind: ComingKind): Promise<boolean> {
+export async function wantComing(kind: ComingKind | BuildComing["kind"]): Promise<boolean> {
   const body = await call(`/api/v2/models/coming/${id(kind)}/want`, { method: "POST", json: {} });
   return body?.wanted === true;
 }
