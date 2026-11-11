@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { TypingGlyph } from "../../TypingDots";
 import { W } from "./hostSetupCopy";
+import { BarBox } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
 
 /* -------------------------------------------------------------------------- */
@@ -25,6 +26,10 @@ export function WillDots() {
  *  the setup and its parts); null: the arrow alone (N639). */
 export const FrameTitle = createContext<ReactNode>(null);
 
+/** The setup read as a chat (backend N647 item 9): the steps answered so far,
+ *  drawn above the screen on show; null where a screen stands alone. */
+export const FrameHistory = createContext<ReactNode>(null);
+
 /** One screen: its top bar, Will's lines, and what to tap at the foot. The
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
@@ -38,6 +43,7 @@ export function Frame({ title, onBack, circle, foot, children }: {
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   const named = useContext(FrameTitle);
+  const history = useContext(FrameHistory);
   useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
@@ -59,6 +65,7 @@ export function Frame({ title, onBack, circle, foot, children }: {
         <OneTopBar onBack={onBack} title={title ?? named} />
       )}
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+        {history}
         {children}
       </div>
       {foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
@@ -185,8 +192,9 @@ export function Dots() {
   );
 }
 
-/** The box: it grows with its text up to seven lines (N618 item 4); Enter
- *  sends, Shift+Enter is a new line. */
+/** Where the person types: the app's own bottom bar (backend N647 item 9;
+ *  was a box of its own with a "Send" word, N618 item 4): the chats' box,
+ *  its send icon on the right once there are words. */
 export function Box({ placeholder, onSend, before, after, initial = "" }: {
   placeholder: string;
   onSend: (text: string) => void;
@@ -195,50 +203,20 @@ export function Box({ placeholder, onSend, before, after, initial = "" }: {
   /** Already in the box, to send as it is or change. */
   initial?: string;
 }) {
-  const [text, setText] = useState(initial);
-  const ta = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = ta.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
-  }, [text]);
-  const send = () => {
-    const v = text.trim();
-    if (!v) return;
-    setText("");
-    onSend(v);
-  };
   return (
-    <form
-      data-host-box=""
-      className="flex items-end gap-2 border-t border-border px-3 py-2.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        send();
-      }}
-    >
+    <div data-host-box="" data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
       {before}
-      <textarea
-        ref={ta}
-        rows={1}
-        maxLength={400}
-        value={text}
-        placeholder={placeholder}
-        autoComplete="off"
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            send();
-          }
+      <BarBox
+        hint={placeholder}
+        open
+        sendButton
+        initial={initial}
+        onSend={async (words) => {
+          onSend(words.trim());
+          return true;
         }}
-        className="min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2.5 text-[16px] leading-snug outline-none"
       />
-      <button type="submit" className="min-h-[44px] rounded-full bg-foreground px-4 text-[15px] font-semibold text-background">
-        {W.send}
-      </button>
       {after}
-    </form>
+    </div>
   );
 }

@@ -178,10 +178,14 @@ export function BarBox({
   hint,
   open = false,
   sendButton = false,
+  initial = "",
   onSend,
   onLeave,
 }: {
   hint: string;
+  /** Already in the box, to send as it is or change (the setup's "What do
+   *  you do?" with the first Take's guess, N632 item 2). */
+  initial?: string;
   /** Will's own Send inside the box once there are words (the chat
    *  builder's ring, the founder's trial of 10 November 2026). */
   sendButton?: boolean;
@@ -192,7 +196,7 @@ export function BarBox({
   /** Left empty: the middle goes back to what it was. */
   onLeave?: () => void;
 }) {
-  const [words, setWords] = useState("");
+  const [words, setWords] = useState(initial);
   const ref = useRef<HTMLInputElement>(null);
   // Words on their way: the box is empty, but not left.
   const going = useRef(false);

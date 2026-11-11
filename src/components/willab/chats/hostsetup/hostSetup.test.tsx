@@ -10,6 +10,9 @@ OUTCOME
       the backend as one part in the recipe v2 shape (backend #1893).
   O2  Change cycles Will's suggestions with no call; Back keeps the answer.
   O3  Below the ring the read is 404 and no way in opens anything.
+  O4  The setup reads as a chat: each step answered stays above, Will's
+      lines and my answer as my own bubble; typing is the app's bottom bar;
+      Back takes the answer of the step asked again away (backend N647 item 9).
 PROVES   one test per story, named by its id
 */
 import { act, createElement } from "react";
@@ -113,7 +116,12 @@ afterEach(() => {
 const flush = async () => {
   for (let i = 0; i < 6; i += 1) await act(async () => { await Promise.resolve(); });
 };
-const text = () => container.textContent ?? "";
+/** What the screen on show says, without the steps answered above it (N647 item 9). */
+const text = () => {
+  const copy = container.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("[data-setup-history]").forEach((h) => h.remove());
+  return copy.textContent ?? "";
+};
 function button(label: string): HTMLButtonElement {
   const found = [...container.querySelectorAll("button")].find((b) => b.textContent?.trim() === label || b.textContent?.includes(label));
   if (!found) throw new Error(`no button "${label}" in: ${text()}`);
@@ -147,14 +155,18 @@ async function makeOwn(teach = true) {
   await tap("Keep");
   if (teach) await tap("Teach it");
 }
+/** Where the person types: the app's bottom bar in the setup (N647 item 9),
+ *  the box in "Test my chat". */
+const field = () => container.querySelector<HTMLInputElement | HTMLTextAreaElement>("[data-chat-box] input, textarea")!;
 async function type(words: string) {
-  const ta = container.querySelector("textarea") as HTMLTextAreaElement;
-  const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+  const ta = field();
+  const proto = ta instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+  const set = Object.getOwnPropertyDescriptor(proto, "value")!.set!;
   await act(async () => {
     set.call(ta, words);
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await act(async () => (container.querySelector("form") as HTMLFormElement).requestSubmit());
+  await act(async () => (ta.closest("form") as HTMLFormElement).requestSubmit());
   await flush();
 }
 const puts = (part: string) => bff.calls.filter((c) => c.method === "PUT" && c.path === `/api/v2/chats/setup/${part}`).map((c) => (c.json as R).value);
@@ -184,6 +196,31 @@ async function keepTo(say: string) {
 }
 
 describe("the blank setup (FIRST-)", () => {
+  it("N647-9 the setup reads as a chat: an answered step stays above as my own bubble, and Back takes it away", async () => {
+    backend();
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    await tap("Answer");
+    // Typing is the app's bottom bar, its send on the right once there are words.
+    expect(container.querySelector("[data-chat-bar] [data-chat-box] input")).not.toBeNull();
+    await type("trichologist");
+    await tap("No");
+    const mine = () => [...container.querySelectorAll("[data-setup-history] [data-my-line]")].map((b) => b.textContent);
+    const his = () => [...container.querySelectorAll("[data-setup-history] [data-will-line]")].map((b) => b.textContent);
+    // What I typed and what I tapped, each as my own bubble under Will's question.
+    expect(mine()).toEqual(["trichologist", "No"]);
+    expect(his()).toContain("What do you do?");
+    expect(his()).toContain("Is your work about health, law or money?");
+    // Keep: the bubble says what was kept.
+    await tap("Keep");
+    expect(mine()).toEqual(["trichologist", "No", "People come to you with hair and scalp worries."]);
+    // Back asks that step again, and its answer goes.
+    await back();
+    expect(text()).toContain("People come to you for this:");
+    expect(mine()).toEqual(["trichologist", "No"]);
+  });
+
   it("FIRST-02 Will asks what you do; you type it in his chat; three dots while he works it out", async () => {
     backend();
     let answer: (v: unknown) => void = () => undefined;
@@ -196,7 +233,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("I ask one thing at a time. You tap Keep or Change. It takes about five minutes.");
     expect(text()).toContain("What do you do?");
     await tap("Answer");
-    expect((container.querySelector("textarea") as HTMLTextAreaElement).placeholder).toBe("Speaking coach");
+    expect(field().placeholder).toBe("Speaking coach");
     await type("trichologist");
     expect(text()).toContain("Trichologist. One moment.");
     expect(container.querySelector('[role="status"][aria-label="Will is thinking"]')).not.toBeNull();
@@ -1030,7 +1067,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Lena's assistant");
     expect(text()).toContain("Lena's model");
     expect(text()).toContain("Was this useful?");
-    expect(container.querySelector("textarea")).not.toBeNull();
+    expect(field()).not.toBeNull();
     await tap("‹ Back");
     expect(text()).toContain("Open your chat to people?");
   });
@@ -1084,8 +1121,8 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     expect(text()).toContain("What do you do?");
     await tap("Answer");
-    expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe("Trichologist");
-    await act(async () => (container.querySelector("form") as HTMLFormElement).requestSubmit());
+    expect(field().value).toBe("Trichologist");
+    await act(async () => (field().closest("form") as HTMLFormElement).requestSubmit());
     await flush();
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "Trichologist" });
     expect(text()).toContain("Is your work about health, law or money?");

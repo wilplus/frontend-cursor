@@ -18,7 +18,8 @@ import {
   wantWalk,
 } from "@/services/api/hostSetup";
 import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
-import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
+import { Box, Btn, Cap, Card, Chips, Dots, Frame, FrameHistory, Link, Mine, Opt, Say, Two } from "./SetupBits";
+import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
 import HostCheck from "./HostCheck";
@@ -98,6 +99,15 @@ type State = {
   ownChat: OwnChat | null;
   /** The last move was Back: a step with nothing to show passes on backwards. */
   backward: boolean;
+  /** The steps answered, one per step in `history` (null: moved on with no
+   *  answer to show), drawn above the one on show (N647 item 9). */
+  log: (Said | null)[];
+  /** What the last tap answered, kept once the step moves on. */
+  pending: Said | null;
+  /** Will's lines on the screen of the last tap (typing keeps them). */
+  lastWill: string[];
+  /** "What do you do?" answered before this visit, rebuilt from the recipe. */
+  seed: Said[];
 };
 
 /** A recipe Will has suggested every step for. Without that (a recipe from
@@ -152,6 +162,10 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   refused: false,
   ownChat: null,
   backward: false,
+  log: [],
+  pending: null,
+  lastWill: [],
+  seed: [],
 });
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -177,7 +191,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   guess?: string | null;
   onClose: () => void;
 }) {
-  const { S, paint } = useSetup(() => ({ ...fresh(recipe, parts, cost), ownChat }));
+  const { S, paint } = useSetup(() => seeded({ ...fresh(recipe, parts, cost), ownChat }, name));
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -208,6 +222,10 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.refused = false;
     S.backward = false;
     S.history.push(S.at);
+    // The answer to the step left stays above (N647 item 9).
+    S.log.length = S.history.length - 1;
+    S.log.push(S.pending);
+    S.pending = null;
     S.at = to;
     // What a newcomer reads is the line as kept now (N622 item 2).
     if (to === "live") {
@@ -232,6 +250,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
         S.cost = read.cost ?? S.cost;
       }
       S.history = [];
+      S.log = [];
       S.at = "done";
       paint();
     });
@@ -262,6 +281,9 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.backward = true;
     const was = S.history.pop();
     if (!was) return onClose();
+    // The answer to the step asked again goes (N647 item 9).
+    S.log.length = S.history.length;
+    S.pending = null;
     if (was === "q" && (S.at === "qmore" || S.at === "taps")) S.qs.pop();
     S.at = was;
     paint();
@@ -289,6 +311,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       initial,
       done: (v) => {
         S.thread.push({ w: false, t: v });
+        S.pending = { will: S.lastWill, me: v };
         S.typing = null;
         S.refused = false;
         done(v);
@@ -306,12 +329,20 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
+        Object.assign(S, { seed: [], recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
         go("care");
       } else paint();
     });
   };
 
+  // A tap on the screen: what it answered, and Will's lines it answered.
+  const heard = (e: { target: EventTarget; currentTarget: HTMLElement }) => {
+    const button = (e.target as Element).closest?.("button");
+    if (!(button instanceof HTMLElement)) return;
+    S.lastWill = willLines(e.currentTarget);
+    const me = answerOf(e.currentTarget, button);
+    if (me !== null) S.pending = { will: S.lastWill, me };
+  };
   if (S.testing && R) {
     return (
       <HostOwnChat
@@ -325,6 +356,35 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       />
     );
   }
+  // An edit of one part stands alone; the first run reads as a chat.
+  const history = S.edit ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
+  return (
+    <FrameHistory.Provider value={history}>
+      <div className="contents" onClickCapture={heard}>
+        <SetupScreen S={S} R={R} name={name} guess={guess} back={back} typeIn={typeIn} begin={begin} ctx={{ S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) }} />
+      </div>
+    </FrameHistory.Provider>
+  );
+}
+
+/** Before this visit, "What do you do?" was answered: its answer stays
+ *  above, rebuilt from the recipe (N647 item 9). */
+function seeded(S: State, name: string): State {
+  if (S.recipe && !S.edit && S.at === "care") S.seed = [{ will: [...W.hi(name), W.whatDoYouDo], me: S.recipe.spec }];
+  return S;
+}
+
+/** The screen on show: Will working, the typing, "What do you do?", or a step. */
+function SetupScreen({ S, R, name, guess, back, typeIn, begin, ctx }: {
+  S: State;
+  R: HostRecipe | null;
+  name: string;
+  guess: string | null;
+  back: () => void;
+  typeIn: (ask: string, done: (v: string) => void, ph?: string, initial?: string) => void;
+  begin: (v: string) => void;
+  ctx: Ctx;
+}) {
   if (S.thinking) {
     return (
       <Frame>
@@ -335,12 +395,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   }
   if (S.typing) {
     const t = S.typing;
+    // Typing is the app's own bottom bar, its send on the right (N647 item 9).
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <Frame onBack={back}>
           {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
         </Frame>
-        <Box placeholder={t.ph} onSend={t.done} initial={t.initial} />
+        <Box key={t.ask} placeholder={t.ph} initial={t.initial} onSend={t.done} />
       </div>
     );
   }
@@ -353,8 +414,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     );
   }
   // In an edit, a step that ended the first run ends at the parts instead.
-  const done = () => (S.edit ? toParts() : onClose());
-  return <StepScreen S={S} R={R} paint={paint} go={go} next={next} back={back} keep={keep} typeIn={typeIn} name={name} onClose={onClose} done={done} />;
+  return <StepScreen {...ctx} />;
 }
 
 type Ctx = {
