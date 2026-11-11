@@ -191,13 +191,16 @@ export function Dots() {
 
 /** The box: it grows with its text up to seven lines (N618 item 4); Enter
  *  sends, Shift+Enter is a new line. */
-export function Box({ placeholder, onSend, before, after, initial = "" }: {
+export function Box({ placeholder, onSend, before, after, initial = "", lines = false }: {
   placeholder: string;
-  onSend: (text: string) => void;
+  /** False: not taken, the words stay in the box. */
+  onSend: (text: string) => void | boolean;
   before?: ReactNode;
   after?: ReactNode;
   /** Already in the box, to send as it is or change. */
   initial?: string;
+  /** One thing on each line: Enter is a new line, only Send sends. */
+  lines?: boolean;
 }) {
   const [text, setText] = useState(initial);
   const ta = useRef<HTMLTextAreaElement | null>(null);
@@ -210,8 +213,9 @@ export function Box({ placeholder, onSend, before, after, initial = "" }: {
   const send = () => {
     const v = text.trim();
     if (!v) return;
+    // A send its screen does not take keeps the words in the box.
+    if (onSend(v) === false) return;
     setText("");
-    onSend(v);
   };
   return (
     <form
@@ -232,7 +236,7 @@ export function Box({ placeholder, onSend, before, after, initial = "" }: {
         autoComplete="off"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
+          if (e.key === "Enter" && !e.shiftKey && !lines) {
             e.preventDefault();
             send();
           }

@@ -132,6 +132,10 @@ export const W = {
   teachIt: "Teach it",
   modelAsk: "What should it spot? Write it as a question.",
   modelPlaceholder: "Is this a dry scalp?",
+  /** The answers a typed question suggests, and one's own (N646). */
+  answersSay: "People answer with:",
+  answersAsk: "Type two or three answers, one on each line.",
+  writeHere: "Write here",
   checkSay: "Now it guesses. You check.",
   itsGuess: (g: string) => `Its guess: ${g}`,
   rightAnswer: "What's the right answer?",
