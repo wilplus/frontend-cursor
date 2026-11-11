@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { WILL_ROW_TITLE, WillMark } from "./ChatList";
+import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
 
 /* -------------------------------------------------------------------------- */
 /*  The chats' top bars, apart from the chat itself (ChatThread.tsx): Will's   */
@@ -68,13 +69,13 @@ export function TopBar({
 /** Will's chat's top bar, over the Lounge: his mark and his name; the
  *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
  *  Lounge's column, across its side padding. */
-export function WillTopBar({ onBack }: { onBack: () => void }) {
+export function WillTopBar({ onBack, place = "will" }: { onBack: () => void; place?: LoungePlace }) {
   // The device's Back (the iPhone's swipe) is this bar's back: one step, to
   // the list, as in a person's chat (N378).
   useBackDismiss(onBack);
   return (
     <div className="-mx-4">
-      <TopBar circle={<WillMark size={36} />} title={WILL_ROW_TITLE} onBack={onBack} />
+      <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
     </div>
   );
 }

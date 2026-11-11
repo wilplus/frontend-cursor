@@ -48,7 +48,14 @@ export type WayInRowCtx = {
    *  chat in Will's chat, begun (or its open question asked again). Absent
    *  without the chat builder's ring: the link is then not drawn. */
   onSetUpChat?: () => void;
+  /** False in the ring's speaking chat: "Copy my link ›" and "Your questions
+   *  for people who join ›" are about one's own chat, so Will's chat shows
+   *  them instead (N636 item 3). */
+  ownChatLinks?: boolean;
 };
+
+/** The way in's links about one's own chat (N636 item 3). */
+export const OWN_CHAT_LINKS: readonly string[] = [WAY_IN_WORDS.copyLink, WAY_IN_WORDS.joinQuestions];
 
 /** "Here's how others will see you:": the card from slide 1, the name from
  *  sign-up, the role, one line of About, up to three "Ask about {topic}"
@@ -95,7 +102,9 @@ export function wayInRowFor(message: LoungeMessage, ctx: WayInRowCtx): ReactNode
   const profile = profileOf(message);
   if (profile) return <WayInProfileCard profile={profile} />;
   // "Set up my chat ›" only where the setup can begin (the builder's ring).
-  const links = rowLinks(message).filter((label) => label !== WAY_IN_WORDS.setUpMyChat || ctx.onSetUpChat);
+  const links = rowLinks(message).filter(
+    (label) => (label !== WAY_IN_WORDS.setUpMyChat || ctx.onSetUpChat) && (ctx.ownChatLinks !== false || !OWN_CHAT_LINKS.includes(label)),
+  );
   if (links.length === 0) return null;
   return (
     <>
