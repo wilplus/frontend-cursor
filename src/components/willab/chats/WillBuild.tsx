@@ -39,7 +39,7 @@ function Switch({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) 
       data-switch={m}
       aria-pressed={mode === m}
       onClick={() => onMode(m)}
-      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-foreground text-background" : "text-muted-foreground"}`}
+      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
     >
       {label}
     </button>
@@ -68,7 +68,7 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
       data-build-tab={t}
       aria-selected={tab === t}
       onClick={() => onTab(t)}
-      className={`flex-1 border-b-2 py-2.5 text-[15px] font-semibold ${tab === t ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}
+      className={`flex-1 border-b-2 py-2.5 text-[15px] font-semibold ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
     >
       {label}
     </button>
