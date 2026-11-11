@@ -162,6 +162,9 @@ export async function fetchLoungeHistory(opts?: {
   before?: string;
   /** No answer within this long counts as no answer (`failed`). */
   timeoutMs?: number;
+  /** A host's chat that takes Takes: only that chat's rows (backend N648
+   *  item 8; the person's own rows of a Take made there). */
+  chat?: string | null;
 }): Promise<LoungeHistoryPage> {
   const empty: LoungeHistoryPage = {
     messages: [],
@@ -171,6 +174,7 @@ export async function fetchLoungeHistory(opts?: {
   const qs = new URLSearchParams();
   qs.set("limit", String(opts?.limit ?? LOUNGE_PAGE_SIZE));
   if (opts?.before) qs.set("before", opts.before);
+  if (opts?.chat) qs.set("chat", opts.chat);
 
   const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store", timeoutMs: opts?.timeoutMs })) as
     | (LoungeHistoryPage & { new_coach_feedback?: unknown })
@@ -179,7 +183,7 @@ export async function fetchLoungeHistory(opts?: {
   // The newest page carries the Ideal Text bubble's "new", one yes/no per
   // project (D-FW-19; backend 0439). Absent or unreadable: what is known
   // stays, never a guess.
-  if (!opts?.before) {
+  if (!opts?.before && !opts?.chat) {
     const fresh = readNewCoachFeedback(data.new_coach_feedback);
     if (fresh) setNewCoachFeedback(fresh);
   }

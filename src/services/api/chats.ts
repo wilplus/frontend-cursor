@@ -32,6 +32,11 @@ export type Chat = {
   /** An asking chat: a matched Take that reached you, not yet a chat of its
    *  own (backend N485, #1712). Drawn by InquiryThread. */
   inquiry?: Inquiry;
+  /** A Take can be recorded here, through the one loop (backend N648 item
+   *  8, #1961): the chat builder's ring, in one's chat with the speaking
+   *  host, whose chat takes recordings and whose walk ends in an Ideal
+   *  Text. Absent everywhere else. */
+  takes?: boolean;
 };
 export type ChatMessage = {
   id: string;
@@ -77,6 +82,13 @@ export async function getChats(): Promise<Chat[] | null> {
   return chatsOf(await call("/api/v2/chats", { method: "GET" }));
 }
 
+
+/** A Take recorded in this chat, through the one loop (backend N648 item 8):
+ *  the person's own Take, tagged with the chat it was made in, once. True
+ *  once the backend kept the tag; never throws. */
+export async function tagTakeMadeIn(chatId: string, take: string): Promise<boolean> {
+  return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/take`, { method: "POST", json: { take } })) !== null;
+}
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[] | null> {
   return (await getChatThread(chatId))?.messages ?? null;

@@ -398,7 +398,7 @@ function ChatTakeBubble({
 }
 
 /** A photo full size, over everything, with a close ✕ and no words (N351). */
-function PhotoFull({ src, onClose }: { src: string; onClose: () => void }) {
+export function PhotoFull({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <div data-chat-photo-full="" className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={onClose}>
       {/* eslint-disable-next-line @next/next/no-img-element -- as in the bubble */}
@@ -419,7 +419,7 @@ function PhotoFull({ src, onClose }: { src: string; onClose: () => void }) {
  *  on the right, its time inside, bottom right; an emoji large, with its
  *  meaning and time under it; a voice note with its player; a photo or a
  *  file (N351). */
-function ChatRow({
+export function ChatRow({
   chatId,
   message,
   onPhoto,
