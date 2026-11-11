@@ -57,7 +57,7 @@ const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "w
  *  check, as in the first run (N632 item 5). */
 const THROUGH: Step[] = ["walk", "walkorder", "walkout", "q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
-const PART_STEP: Record<string, Step> = { name: "name", line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
+const PART_STEP: Record<string, Step> = { what: "what", name: "name", line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
 
 /** The parts with Will's line over them; null: the line of where the chat is. */
 type Parts = { line: string | null; parts: SetupPart[] };
@@ -124,6 +124,8 @@ type State = {
   /** Opened at one part from Build's "Your chat": kept or Back, Build again
    *  (backend N642 item 3). */
   onePart: boolean;
+  /** "What you do" opened as an edit of one part: kept, not started again (N649 item 2). */
+  whatEdit?: boolean;
   /** The last move was Back: a step with nothing to show passes on backwards. */
   backward: boolean;
   /** The steps answered, one per step in `history` (null: moved on with no
@@ -215,7 +217,7 @@ function stepOfPart(part: string, recipe: HostRecipe): Step {
  *  nothing before it, so Back and the end of the edit both close. */
 function atPart(state: State, part: string | null): State {
   if (!part || !state.recipe || !state.edit) return state;
-  return { ...state, at: stepOfPart(part, state.recipe), onePart: true, qs: part === "questions" ? [] : state.qs };
+  return { ...state, at: stepOfPart(part, state.recipe), onePart: true, whatEdit: part === "what", qs: part === "questions" ? [] : state.qs };
 }
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -397,6 +399,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   const begin = (v: string) => {
     const spec = capital(v);
+    if (S.whatEdit) {
+      // An edit of this one part: every other answer stays (N649 item 2).
+      return keep("what", spec, () => {
+        S.whatEdit = false;
+        toParts();
+      });
+    }
     S.thinking = spec;
     paint();
     void startSetup(v).then((got) => {
@@ -1316,6 +1325,7 @@ function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
     if (part === "questions") S.qs = [];
+    S.whatEdit = part === "what";
     c.go(stepOfPart(part, R));
   };
   return (
@@ -1328,7 +1338,7 @@ function PartsStep({ c }: { c: Ctx }) {
         </PartRow>
       ))}
       {/* Quiet, under the parts, never beside "Back to my chats" (N632 item 4). */}
-      <Link label={W.startAgain} onClick={() => c.go("what")} />
+      <Link label={W.startAgain} onClick={() => { S.whatEdit = false; c.go("what"); }} />
     </Frame>
   );
 }
