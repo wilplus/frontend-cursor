@@ -45,9 +45,18 @@ export const MODELS_WORDS = {
   add_write_line: "Type the case in your own words.",
   add_record: "Record one",
   add_record_line: "Say the case in your own voice",
+  /** The guide, two of Will's lines (N645 item 1). */
+  add_guide: ["A case is one real thing someone sent you.", "Add ten that differ from each other. Easy ones teach little."],
+  /** The three-chapter setup's file row (the data and study steps). */
   add_upload: "Upload a file",
-  /** What it takes, only a text file (N638 item 3). */
-  add_upload_line: "A written case",
+  /** A set, by kind (N645 items 2 to 4). */
+  add_set: "Upload a set",
+  set_texts: "Texts",
+  set_coming: { recordings: "Recordings, coming.", images: "Images, coming." },
+  set_want: "I want this",
+  set_told: "Thanks. I've told Artur.",
+  set_texts_line: "One case per line, or one file per case.",
+  set_may_use: "I may use these.",
   add_counts_once: "It counts once another teacher agrees with your answer.",
   release_not_yet: "Not yet",
   profile_section: "AI models",
