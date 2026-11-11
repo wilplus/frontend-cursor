@@ -93,7 +93,9 @@ export type SharedModel = { model_id: string; q: string; opts: string[]; by: str
 /** Someone's model in the host's chat whose price is no longer the one the
  *  host agreed to (N630 item 3, N633 item 4); `was` 0: it was still learning. */
 export type PriceChange = { model_id: string; q: string; by: string; was: number; now: number };
-export type ReplyLine = { kind: "answer" | "model"; body: string; by: string };
+/** `walk`: a walk line of the host's saved walk (backend N647 item 8); in
+ *  "Test my chat" it shows as the chat shows it, and nothing is kept. */
+export type ReplyLine = { kind: "answer" | "model"; body: string; by: string; walk?: boolean };
 
 type Body = Record<string, unknown>;
 
