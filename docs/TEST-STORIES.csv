@@ -919,20 +919,21 @@ O4  A model left out today for want of tokens is a line to read in Will,
 one of the things that need me (backend N630 item 1).
 O5  A model whose price changed is a line in Will with Keep and Drop; one
 tap saves the chat's models and the line goes (backend N633 item 4).
-O3  With the ring the list has no ""Your queue"" and no ""AI models"" rows and
-Will's line says how many things need me; without it, as it was.
+O3  With the ring the list has no ""Your queue"" and no ""AI models"" rows,
+and its pinned row is my own chat under its name with its hello
+(""Your chat"" before there is one); without it, as it was.
 O6  A ring coach reaches the moments from Build's AI models in every state
 (no chat, Live, Build); someone who is not a coach has no such line.
 O7  AI models: the models and what is taught, each opening where it is
 worked today, and Start your own; Live is the test chat under the
 chat's name with ""You run this chat."", the switch only once there is
 something to try.","O1 -> ""N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice""
-O4 -> ""N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list""
+O4 -> ""N630-1 a model left out today because the host is out of tokens gets its line in Will""
 O5 -> ""N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes""
 O2 -> ""N642-3 Build's Your chat: Will's line, the chat's parts, each opening its step, then the answers to send; what is taught is not here""
 O2 -> ""N642-3 a part opened from Build opens its step, and Keep comes back to Build, not to the parts""
 O2 -> ""N629-1 without a chat of the new setup, Your chat opens the setup at What do you do?""
-O3 -> ""N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was""
+O3 -> ""N642-2 for the ring the pinned row is one's own chat, its circle, name and hello; Your chat before there is one; without the ring as it was""
 O6 -> ""N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too""
 O6 -> ""N642-5 someone who is not a coach has no moments line in AI models""
 O7 -> ""N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own""
