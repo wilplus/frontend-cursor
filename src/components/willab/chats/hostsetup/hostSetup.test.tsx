@@ -119,6 +119,22 @@ async function tap(label: string) {
   await act(async () => button(label).click());
   await flush();
 }
+const chips = () => [...container.querySelectorAll("[data-chip]")].map((c) => c.textContent);
+const blocks = () => [...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent);
+async function tapBlock(label: string) {
+  const found = [...container.querySelectorAll("[data-model-stack] button")].find((b) => b.textContent === label) as HTMLButtonElement | undefined;
+  if (!found) throw new Error(`no block "${label}" in: ${blocks().join(" | ")}`);
+  await act(async () => found.click());
+  await flush();
+}
+/** One's own model in blocks, from "What should it give back?": the ready
+ *  choices, Will's first question, and "Teach it" unless asked to stop at the stack. */
+async function makeOwn(teach = true) {
+  await tap("A pick from a list");
+  await tap("GPT");
+  await tap("Keep");
+  if (teach) await tap("Teach it");
+}
 async function type(words: string) {
   const ta = container.querySelector("textarea") as HTMLTextAreaElement;
   const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
@@ -164,7 +180,8 @@ describe("the blank setup (FIRST-)", () => {
     expect(openSetupFromWill(1)).toBe(false);
     act(() => void openSetupFromWill(0));
     await flush();
-    expect(text()).toContain("Hi Lena. I'm Will. I ask one thing at a time. You tap Keep or Change.");
+    expect(text()).toContain("Hi Lena. I'm Will. Let's set up your chat, so people can come to you through one link.");
+    expect(text()).toContain("I ask one thing at a time. You tap Keep or Change. It takes about five minutes.");
     expect(text()).toContain("What do you do?");
     await tap("Answer");
     expect((container.querySelector("textarea") as HTMLTextAreaElement).placeholder).toBe("Speaking coach");
@@ -306,13 +323,14 @@ describe("the blank setup (FIRST-)", () => {
       { go: () => tap("No"), see: "People tap what they want:" },
       { go: () => tap("Keep"), see: "Right now your chat isn't a specialist in anything." },
       { go: () => tap("Yes"), see: "Two ways to make it smart. Pick one." },
-      { go: () => tap("Train your own"), see: "Your own model, in plain words:" },
-      { go: () => tap("Train my own"), see: "What should it be built on?" },
-      { go: () => tap("GPT"), see: "One question, three answers. That is a model." },
-      { go: () => tap("Keep"), see: "Add another model?" },
-      // Back to the model and Keep again made a second one: the order follows.
-      { go: () => tap("No"), see: "Your models speak in this order:" },
-      { go: () => tap("Keep"), see: "People will ask you things when you are busy. Who answers them?" },
+      { go: () => tap("Train your own"), see: "Your own model answers one question the way you would." },
+      { go: () => tap("Train my own"), see: "What should it give back?" },
+      { go: () => tap("A pick from a list"), see: "What should it be built on?" },
+      { go: () => tap("GPT"), see: "What should it notice?" },
+      { go: () => tap("Keep"), see: "Your model. Tap a block to change it." },
+      // Back to the blocks and "Teach it" again saves no second model.
+      { go: () => tap("Teach it"), see: "Add another model?" },
+      { go: () => tap("No"), see: "People will ask you things when you are busy. Who answers them?" },
       { go: () => tap("I draft, you send"), see: "These are your models. Share them, and earn tokens each time someone uses one." },
       { go: () => tap("Share them"), see: "Each use costs them:" },
       { go: () => tap("Keep"), see: "Your chat costs you nothing." },
@@ -458,13 +476,14 @@ describe("the blank setup (FIRST-)", () => {
       own_chat: { title: "Lena", line: SUGGEST.hello[0] },
       cost: LEARNING,
     });
+    expect(puts("models")).toHaveLength(1);
     await tap("Not yet");
     act(() => void openSetupFromNote());
     await flush();
     expect(container.querySelector('[data-part="models"]')?.textContent).toBe("Your modelsIs the scalp flaky?Still learning");
   });
 
-  it("N634-1 what one's own model is built on: asked once before its question; only GPT taps; kept on the card", async () => {
+  it("N636-6 a model in blocks: what it gives back, then what it is built on, only a ready one taps; no small grey text; kept on the card", async () => {
     await begun();
     bff.routes["GET /api/v2/chats/setup/models"] = {
       models: [{ model_id: "m1", q: "Is the skin red?", opts: ["Yes", "Somewhat", "No"], by: "Kasia", price: 3, fits: true, needs: "" }],
@@ -473,26 +492,76 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     await tap("Train my own");
+    expect(text()).toContain("What should it give back?");
+    expect(button("A pick from a list").disabled).toBe(false);
+    expect(button("A score, not ready yet").disabled).toBe(true);
+    expect(button("An answer in your words, not ready yet").disabled).toBe(true);
+    expect(container.querySelector("small")).toBeNull();
+    await tap("A pick from a list");
     expect(text()).toContain("What should it be built on?");
-    for (const line of ["A general model from OpenAI. Ready now.", "A general model from Anthropic. Not ready yet.", "Made for reading how people behave. Not ready yet."]) {
-      expect(text()).toContain(line);
-    }
-    expect(button("Claude").disabled).toBe(true);
-    expect(button("WillpowerLab's own").disabled).toBe(true);
     expect(button("GPT").disabled).toBe(false);
+    expect(button("Claude, not ready yet").disabled).toBe(true);
+    expect(button("WillpowerLab's own, not ready yet").disabled).toBe(true);
+    expect(text()).not.toContain("A general model from OpenAI");
+    expect(container.querySelector("small")).toBeNull();
     await tap("GPT");
-    expect(text()).toContain("One question, three answers. That is a model.");
+    expect(text()).toContain("What should it notice?");
+    expect(text()).toContain(SUGGEST.models[0].q);
+    expect(chips()).toEqual(["Yes", "Somewhat", "No"]);
+    expect(text()).not.toContain("One question, three answers.");
+    expect(container.querySelector("small")).toBeNull();
     await tap("Keep");
-    expect((puts("models")[0] as R[])[0]).toMatchObject({ own: true, base: "gpt" });
-    // Another of one's own: not asked again.
+    expect(blocks()).toEqual([SUGGEST.models[0].q, "It gives back a pick from a list", "Built on GPT", "Taught by you"]);
+    expect(container.querySelector("small")).toBeNull();
+    expect(puts("models")).toEqual([]);
+    await tap("Teach it");
+    expect(puts("models")).toEqual([[{ ...SUGGEST.models[0], own: true, base: "gpt", gives: "pick" }]]);
+    // Another of one's own: neither asked again.
     await tap("Yes");
     await tap("Train your own");
+    expect(text()).toContain("Your next model:");
+    expect(text()).not.toContain("What should it give back?");
     expect(text()).not.toContain("What should it be built on?");
     // Someone else's model: never asked.
     await tap("‹ Back");
     await tap("Use a model that exists");
     expect(text()).toContain("Models you can use.");
-    expect(text()).not.toContain("What should it be built on?");
+    expect(text()).not.toContain("What should it give back?");
+  });
+
+  it("N636-6 a tapped block changes that one choice and comes back to the stack; the card is saved only on Teach it", async () => {
+    await begun();
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Train my own");
+    await makeOwn(false);
+    await tapBlock("It gives back a pick from a list");
+    expect(text()).toContain("What should it give back?");
+    await tap("A pick from a list");
+    expect(text()).toContain("Your model. Tap a block to change it.");
+    await tapBlock("Built on GPT");
+    expect(text()).toContain("What should it be built on?");
+    await tap("GPT");
+    expect(text()).toContain("Your model. Tap a block to change it.");
+    await tapBlock(SUGGEST.models[0].q);
+    expect(text()).toContain("What should it notice?");
+    await tap("Change");
+    await tap("Keep");
+    expect(blocks()[0]).toBe(SUGGEST.models[1].q);
+    expect(puts("models")).toEqual([]);
+    await tap("Teach it");
+    expect(puts("models")).toEqual([[{ ...SUGGEST.models[1], own: true, base: "gpt", gives: "pick" }]]);
+    expect(text()).toContain("Add another model?");
+    // A second of one's own goes straight to its question, then its blocks; two speak in an order.
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Keep");
+    expect(text()).toContain("Your model. Tap a block to change it.");
+    await tap("Teach it");
+    expect((puts("models")[1] as R[]).length).toBe(2);
+    await tap("No");
+    expect(text()).toContain("Your models speak in this order:");
   });
 
   it("N634-2 a model still learning says so about itself under Still learning; the list's caption stays", async () => {
@@ -507,16 +576,18 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Add one and your chat gets a key to it.");
   });
 
-  it("FIRST-19 your own model: what it is, worth it, not worth it; Train my own goes on", async () => {
+  it("FIRST-19 N636-6 your own model, in two lines: what it does and what it takes; Not now or Train my own", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");
     await tap("Yes");
     await tap("Train your own");
-    expect(text()).toContain("Your own model, in plain words:");
-    for (const b of ["What it is", "Worth it", "Not worth it"]) expect(text()).toContain(b);
+    expect(text()).toContain("Your own model answers one question the way you would.");
+    expect(text()).toContain("Four choices, then you teach it by answering examples. It needs about 200 to get good.");
+    for (const b of ["What it is", "Worth it", "Not worth it"]) expect(text()).not.toContain(b);
+    expect(container.querySelector("small")).toBeNull();
+    expect(button("Not now").disabled).toBe(false);
     await tap("Train my own");
-    await tap("GPT");
-    expect(text()).toContain("Now a model. It learns one thing from you.");
+    expect(text()).toContain("What should it give back?");
   });
 
   it("FIRST-07 a model is one question with three answers; Change shows another; Keep keeps it", async () => {
@@ -525,13 +596,15 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     await tap("Train my own");
+    await tap("A pick from a list");
     await tap("GPT");
     expect(text()).toContain("Is this a dry scalp?");
-    expect(text()).toContain("Yes · Somewhat · No");
+    expect(chips()).toEqual(["Yes", "Somewhat", "No"]);
     await tap("Change");
     expect(text()).toContain("Is the hair thinning here?");
     await tap("Keep");
-    expect(puts("models")).toEqual([[{ ...SUGGEST.models[1], own: true, base: "gpt" }]]);
+    await tap("Teach it");
+    expect(puts("models")).toEqual([[{ ...SUGGEST.models[1], own: true, base: "gpt", gives: "pick" }]]);
     expect(text()).toContain("Add another model?");
   });
 
@@ -546,8 +619,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     await tap("Train my own");
-    await tap("GPT");
-    await tap("Keep");
+    await makeOwn();
   }
   const own = (state: R) => ({ ...state, model_id: "m-own" });
 
@@ -647,8 +719,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     await tap("Train my own");
-    await tap("GPT");
-    await tap("Keep");
+    await makeOwn();
     await tap("No");
     await tap("I draft, you send");
     expect(text()).toContain("These are your models. Share them, and earn tokens each time someone uses one.");
@@ -668,8 +739,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     await tap("Train my own");
-    await tap("GPT");
-    await tap("Keep");
+    await makeOwn();
     await tap("No");
     await tap("I draft, you send");
     await tap("Not now");
@@ -890,9 +960,8 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Two ways to make it smart. Pick one.");
     await tap("Train your own");
     await tap("Train my own");
-    await tap("GPT");
-    await tap("Keep");
-    expect(puts("models")).toEqual([[{ ...SUGGEST.models[0], own: true, base: "gpt" }]]);
+    await makeOwn();
+    expect(puts("models")).toEqual([[{ ...SUGGEST.models[0], own: true, base: "gpt", gives: "pick" }]]);
     await tap("No");
     // Sharing them, then whether to open it, as in the first run; a Not yet stays a Not yet.
     expect(text()).toContain("These are your models.");

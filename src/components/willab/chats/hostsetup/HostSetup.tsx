@@ -37,12 +37,12 @@ import HostCheck from "./HostCheck";
 
 type Step =
   | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
-  | "base" | "model" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "base", "model", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+  | "gives" | "base" | "model" | "stack" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
  *  `next`); "Your models" goes the whole way of a model, from "smart" to its
  *  check, as in the first run (N632 item 5). */
-const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "base", "model", "teach", "check", "try", "live"];
+const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
 const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who" };
 
@@ -68,6 +68,15 @@ type State = {
   ownSeen: boolean;
   /** What the host's own models are built on, once chosen (N634 item 1). */
   base: string | null;
+  /** What they give back, once chosen (N636 item 6). */
+  gives: string | null;
+  /** A block of the stack was tapped: its choice comes back to the stack. */
+  toStack: boolean;
+  /** The model as kept, shown in blocks until "Teach it" saves its card. */
+  draft: RecipeModel | null;
+  /** Where on the card the draft was saved: Back to the stack shows it, and
+   *  "Teach it" again saves no second one. */
+  savedAt: number | null;
   shared: SharedModel[] | null;
   picked: SharedModel | null;
   edit: boolean;
@@ -117,6 +126,10 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   ownQ: null,
   ownSeen: false,
   base: recipe?.models?.find((m) => m.own && m.base)?.base ?? null,
+  gives: recipe?.models?.find((m) => m.own && m.gives)?.gives ?? null,
+  toStack: false,
+  draft: null,
+  savedAt: null,
   shared: null,
   picked: null,
   edit: !!parts && !!recipe,
@@ -166,7 +179,9 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       case "qmore": case "teach": case "check": return true;
       case "way": case "model": case "more": return noModels();
       case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
+      case "gives": return noModels() || R.way !== "own" || !!S.gives;
       case "base": return noModels() || R.way !== "own" || !!S.base;
+      case "stack": return !S.draft;
       case "order": return models().length < 2;
       case "share": return !models().some((m) => m.own);
       case "price": return !R.share;
@@ -277,7 +292,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, picked: null });
+        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, picked: null });
         go("care");
       } else paint();
     });
@@ -318,7 +333,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   if (!R || S.at === "what") {
     return (
       <Frame onBack={back} foot={<Btn label={W.answer} onClick={() => typeIn(W.whatDoYouDo, begin, W.whatPlaceholder, guess ?? undefined)} />}>
-        <Say>{W.hi(name)}</Say>
+        {W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
         <Say>{W.whatDoYouDo}</Say>
       </Frame>
     );
@@ -449,13 +464,57 @@ function TeachSteps(c: Ctx): ReactNode {
   }
 }
 
+/** One's own model, made in blocks, one choice per screen (N636 item 6). */
+function OwnModelStep(c: Ctx): ReactNode {
+  const { S } = c;
+  const models = c.R.models ?? [];
+  const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void) => (
+    <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} />} />
+  );
+  switch (S.at) {
+    case "ownwhy":
+      return (
+        <Frame
+          onBack={c.back}
+          foot={yesNo(W.notNow, W.trainMyOwn, () => (models.length ? c.go("more") : c.keep("smart", false, S.edit ? c.done : () => c.go("who"))), () => { S.ownSeen = true; c.next(); })}
+        >
+          {W.ownSay.map((line) => <Say key={line}>{line}</Say>)}
+        </Frame>
+      );
+    case "gives":
+      return (
+        <Frame onBack={c.back}>
+          <Say>{W.givesSay}</Say>
+          {W.gives.map(([id, title]) => (
+            <Opt key={id} title={title} on={S.gives === id} disabled={id !== "pick"} onClick={() => { S.gives = id; chosen(c); }} />
+          ))}
+        </Frame>
+      );
+    case "base":
+      return (
+        <Frame onBack={c.back}>
+          <Say>{W.baseSay}</Say>
+          {W.bases.map(([id, title]) => (
+            <Opt key={id} title={title} on={S.base === id} disabled={id !== "gpt"} onClick={() => { S.base = id; chosen(c); }} />
+          ))}
+        </Frame>
+      );
+    case "model":
+      return <ModelStep c={c} />;
+    case "stack":
+      return <StackStep c={c} />;
+    default:
+      return null;
+  }
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
-  const asked = YesNoStep(c) ?? TeachSteps(c);
+  const asked = YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c);
   if (asked) return asked;
   switch (c.S.at) {
     case "line":
@@ -511,30 +570,9 @@ function StepScreen(c: Ctx) {
         </Frame>
       );
     }
-    case "ownwhy":
-      return (
-        <Frame
-          onBack={c.back}
-          foot={yesNo(W.notNow, W.trainMyOwn, () => (models.length ? c.go("more") : c.keep("smart", false, S.edit ? c.done : () => c.go("who"))), () => { S.ownSeen = true; c.next(); })}
-        >
-          <Say>{W.ownSay}</Say>
-          {[W.ownWhat, W.ownWorth, W.ownNot].map(([b, s]) => <Card key={b} b={b} s={s} />)}
-        </Frame>
-      );
-    case "base":
-      return (
-        <Frame onBack={c.back}>
-          <Say>{W.baseSay}</Say>
-          {W.bases.map(([id, title, sub]) => (
-            <Opt key={id} title={title} sub={sub} on={S.base === id} disabled={id !== "gpt"} onClick={() => { S.base = id; c.next(); }} />
-          ))}
-        </Frame>
-      );
-    case "model":
-      return <ModelStep c={c} />;
     case "more":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; c.go("way"); }, models.length >= 3)}>
+        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; S.draft = null; S.savedAt = null; c.go("way"); }, models.length >= 3)}>
           <Say>{W.moreSay}</Say>
           {models.map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
         </Frame>
@@ -567,17 +605,44 @@ function StepScreen(c: Ctx) {
   }
 }
 
+/** A model the host made has a model_id once the backend made it (with the
+ *  ring ai_models): its teaching opens; without one, on to "Add another". */
+const onFrom = (c: Ctx, made: RecipeModel | undefined) => c.go(made?.own && made.model_id ? "teach" : "more");
+
+/** One more model on the card, someone's or one's own. */
+function addModel(c: Ctx, m: RecipeModel) {
+  const { S } = c;
+  c.keep("models", [...(c.R.models ?? []), m], () => {
+    S.picked = null;
+    S.ownQ = null;
+    onFrom(c, (S.recipe?.models ?? []).at(-1));
+  });
+}
+
+/** "Teach it": the blocks saved on the card as one more model, or in place
+ *  of the one saved before when Back led here; unchanged, nothing is sent. */
+function teachIt(c: Ctx, m: RecipeModel) {
+  const { S } = c;
+  const models = c.R.models ?? [];
+  const at = S.savedAt;
+  if (at !== null && models[at]) {
+    const was = models[at];
+    // A card read before the backend kept `gives` reads without it.
+    const sameModel = was.q === m.q && same(was.opts, m.opts);
+    if (sameModel && was.base === m.base && (was.gives ?? m.gives) === m.gives) return onFrom(c, was);
+    const list = models.map((x, k) => (k === at ? { ...m, ...(sameModel && was.model_id ? { model_id: was.model_id } : {}) } : x));
+    return c.keep("models", list, () => onFrom(c, (S.recipe?.models ?? [])[at]));
+  }
+  c.keep("models", [...models, m], () => {
+    S.savedAt = (S.recipe?.models ?? []).length - 1;
+    onFrom(c, (S.recipe?.models ?? []).at(-1));
+  });
+}
+
 function ModelStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const models = R.models ?? [];
-  // A model the host made has a model_id once the backend made it (with the
-  // ring ai_models): its teaching opens; without one, on to "Add another".
-  const add = (m: RecipeModel) => c.keep("models", [...models, m], () => {
-    S.picked = null;
-    S.ownQ = null;
-    const made = (S.recipe?.models ?? []).at(-1);
-    c.go(made?.own && made.model_id ? "teach" : "more");
-  });
+  const add = (m: RecipeModel) => addModel(c, m);
   if (R.way === "use" && S.picked) {
     const m = S.picked;
     return (
@@ -630,15 +695,48 @@ function ModelStep({ c }: { c: Ctx }) {
         <>
           <Two
             left={<Btn out label={W.change} onClick={() => { if (S.ownQ) S.mopts += 1; else S.mi += 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => add({ ...d, own: true, base: S.base ?? "gpt" })} />}
+            right={<Btn label={W.keep} onClick={() => { S.draft = { ...d, own: true, base: S.base ?? "gpt", gives: S.gives ?? "pick" }; c.next(); }} />}
           />
           <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => { S.ownQ = /\?$/.test(v) ? v : `${v}?`; }, W.modelPlaceholder)} />
         </>
       }
     >
       <Say>{models.length ? W.nextModel : W.firstModel}</Say>
-      <Card b={d.q} s={d.opts.join(" · ")} />
-      <Cap>{W.modelCap}</Cap>
+      <Card b={d.q} />
+      <Chips items={d.opts} />
+    </Frame>
+  );
+}
+
+/** A choice of the model's made: on, or back to the stack it was opened from. */
+function chosen(c: Ctx) {
+  if (!c.S.toStack) return c.next();
+  c.S.toStack = false;
+  c.go("stack");
+}
+
+/** The model in blocks (N636 item 6): the question, what it gives back, what
+ *  it is built on, who teaches it. A block opens its one choice and comes
+ *  back; "Teach it" saves the card and goes on to its teaching. */
+function StackStep({ c }: { c: Ctx }) {
+  const { S } = c;
+  const d = S.draft;
+  if (!d) return null;
+  const gives = W.gives.find(([id]) => id === (S.gives ?? "pick"))?.[1] ?? W.gives[0][1];
+  const reopen = (to: Step) => () => {
+    S.toStack = to !== "model";
+    c.go(to);
+  };
+  const BLOCK = "rounded-[10px] bg-foreground px-4 py-3.5 text-left text-[16px] font-semibold text-background";
+  return (
+    <Frame onBack={c.back} foot={<Btn label={W.teachIt} onClick={() => teachIt(c, { ...d, base: S.base ?? "gpt", gives: S.gives ?? "pick" })} />}>
+      <Say>{W.stackSay}</Say>
+      <div data-model-stack="" className="flex flex-col gap-[3px]">
+        <button type="button" className={BLOCK} onClick={reopen("model")}>{d.q}</button>
+        <button type="button" className={BLOCK} onClick={reopen("gives")}>{W.givesBlock(gives)}</button>
+        <button type="button" className={BLOCK} onClick={reopen("base")}>{W.builtOnGpt}</button>
+        <div className={BLOCK}>{W.taughtByYou}</div>
+      </div>
     </Frame>
   );
 }
@@ -666,14 +764,14 @@ function CostStep({ c }: { c: Ctx }) {
         <>
           <div className="flex items-baseline gap-2">
             <b data-cost-month="" className="text-[34px] font-bold text-foreground">{cost?.month ?? 0}</b>
-            <span className="text-[15px] text-muted-foreground">{W.aMonth}</span>
+            <span className="text-[16px] text-foreground">{W.aMonth}</span>
           </div>
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1 text-[13px] text-muted-foreground">
+            <label className="flex flex-1 flex-col gap-1 text-[16px] text-foreground">
               {W.people}
               <input type="number" inputMode="numeric" min={1} max={100000} defaultValue={R.cost?.people ?? 10} onChange={typed("people", 100000)} className="rounded-xl border border-border px-3 py-2 text-[16px] text-foreground" />
             </label>
-            <label className="flex flex-1 flex-col gap-1 text-[13px] text-muted-foreground">
+            <label className="flex flex-1 flex-col gap-1 text-[16px] text-foreground">
               {W.eachSends}
               <input type="number" inputMode="numeric" min={1} max={1000} defaultValue={R.cost?.sends ?? 1} onChange={typed("sends", 1000)} className="rounded-xl border border-border px-3 py-2 text-[16px] text-foreground" />
             </label>
@@ -685,7 +783,7 @@ function CostStep({ c }: { c: Ctx }) {
           <div key={l.q} data-cost-line="" className="flex items-start justify-between gap-3 py-1">
             <span className="flex flex-col text-[15px] text-foreground">
               {l.q}
-              <small className="text-[13px] text-muted-foreground">{learns(l.q) ? W.stillLearning : l.price ? W.ownersModel(l.by) : W.yourModel}</small>
+              <span className="text-[16px] text-foreground">{learns(l.q) ? W.stillLearning : l.price ? W.ownersModel(l.by) : W.yourModel}</span>
             </span>
             <b className="text-[15px]">{l.price ? W.tokens(l.price) : W.free}</b>
           </div>
@@ -710,7 +808,7 @@ function PartValue({ part, models }: { part: SetupPart; models: RecipeModel[] })
         {models.map((m) => (
           <span key={m.q} className="text-[16px] font-semibold text-foreground">
             {m.q}
-            {m.learning ? <small data-still-learning="" className="ml-1.5 text-[13px] font-medium text-muted-foreground">{W.stillLearning}</small> : null}
+            {m.learning ? <span data-still-learning="" className="ml-1.5 text-[16px] font-normal text-foreground">{W.stillLearning}</span> : null}
           </span>
         ))}
       </span>
@@ -732,7 +830,7 @@ function PartsStep({ c }: { c: Ctx }) {
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
-          <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>
+          <span className="text-[16px] text-foreground">{p.title}</span>
           <PartValue part={p} models={R.models ?? []} />
         </button>
       ))}
