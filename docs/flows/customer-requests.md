@@ -283,7 +283,11 @@ workspace, no form.
      bin is in its place), and the one thing to do now in the middle: a
      black button records, a box types, and the middle is never grey or
      disabled. A chat with no host takes recordings and taps; a host's chat
-     takes what the host chose (answer_with).
+     takes what the host chose (answer_with). The box has the send icon
+     inside its right edge once there are words, in every chat, the
+     website chat's included; the keyboard's own key still sends (N647
+     item 9, "every text field in the app has its send button on the
+     right"; was the chat builder's ring and a ring host's chat only).
      - **Nothing asked: the middle asks.** "Ask {name}", a black button
        with no dot where the chat takes recordings or only taps, which
        opens the "+" sheet's "Ask {name}"; a box with the words "Ask
@@ -1025,6 +1029,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-11 · N647 item 9 · C1, B11: the bar's box has the send icon on its right once there are words in every chat, the website chat's included (`BarBox` in `ChatBar.tsx`). Was: the chat builder's ring and a ring host's chat only, Enter for everyone else. The box stays one line; the setup's box, the same bar box, grows to seven lines (N618 item 4). Nothing else in the bar changes · FE (this PR)
 - 2026-11-10 · N628 · C1: on a computer, the list of chats and a person's chat fill the column Will's chat and its bar fill (`useChatsDoor.tsx`), as the AI models overlay does since N618 item 10. On a phone nothing changes. Sheets from the bottom (Add someone) keep their width. No new words. Was: a 480 px column in the middle (N321, N322) · BE #1909, FE (this PR)
 - 2026-11-10 · N610, N606 · B11: the website chat's bar is the locked two places, on `ChatBar.tsx`'s components: the "+" on the left, always there, and "Ask {name}" in the middle, a box where the chat takes typing, a black button where it does not; "Not now" under a question's taps; the three thanks above the bar after the host's recorded answer in a chat without typing. Where the chat takes no typing, the black "Ask {name}" makes the visitor's chat and opens the sign-up (asking is recording there); signed up, it and "+" open the chat in WillpowerLab. The welcome is the host's own words, with no assistant's mark, and no answer is expected at once (N606). What stops: the three emoji in the bar's middle (an emoji as a visitor's first message with them), the small mic on the right, and "+" appearing only once the chat exists. In the host's list (B12) a visitor's chat has the same two places: "Record your answer" for their typed question, which the backend marks; was the "+" and the three emoji. Not built: "Asked. {name} answers here." (signed, not drawn on the page) · BE #1868, FE (this PR)
 - 2026-11-10 · N595, N600 · B11, B13: no consent card in the website chat (the visitor writes at once; the first message makes the chat); the sign-up step in N595's signed words ("To get {name}'s answer, sign up." and its note, "Signed up. The first notice…"); the host's welcome shows before the visitor writes, and `start` carries the first message; the visitor's bar follows the recipe as in a host's chat: "+" left, the box (or the emoji) in the middle, a small mic on the right once signed up, the same while a question waits (N603's image button waits for a photo in the widget's routes). Was: "Your taps go to {name} through WillpowerLab." with Agree and start, and the drafted sign-up words · BE #1868 (#1874, #1876 log), FE (this PR)
