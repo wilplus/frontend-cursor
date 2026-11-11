@@ -230,6 +230,35 @@ describe("what a visitor meets (VIS-)", () => {
     expect(container.querySelector("[data-useful-ask]")).toBeNull();
   });
 
+  it("N647-8 a reply with two walk lines asks \"Did this help?\" under each; answering one sends that line's id and asks no more under it; an answered one does not ask", async () => {
+    routes["POST /api/v2/chats/c-9/messages/w-1/useful"] = () => json({ ok: true });
+    const walk = (id: string, body: string, extra: Record<string, unknown> = {}) =>
+      row(id, body, { model_line: { q: "Is this a dry scalp?", by: "Lena's model" }, walk_line: { model_id: "m-own", says: body }, useful_ask: true, ...extra });
+    await open([
+      row("m-1", "My scalp itches.", null, true),
+      walk("w-0", "An older line.", { useful: "yes" }),
+      walk("w-1", "Your scalp looks dry here."),
+      walk("w-2", "The crown is thinner than the sides."),
+    ]);
+    const asks = () => [...container.querySelectorAll("[data-useful-ask]")].map((a) => a.getAttribute("data-useful-for"));
+    expect(asks()).toEqual(["w-1", "w-2"]);
+    expect([...container.querySelectorAll("[data-useful-ask]")].map((a) => a.textContent)).toEqual(["Did this help?YesNoSkip", "Did this help?YesNoSkip"]);
+    expect(thread()).not.toContain("Was this useful?");
+    const first = container.querySelector('[data-useful-for="w-1"]')!;
+    await act(async () => ([...first.querySelectorAll("button")].find((b) => b.textContent === "Yes") as HTMLButtonElement).click());
+    await flush();
+    expect(sentTo("POST /api/v2/chats/c-9/messages/w-1/useful")).toEqual([{ answer: "yes" }]);
+    expect(sentTo("POST /api/v2/chats/c-9/messages/w-2/useful")).toEqual([]);
+    expect(asks()).toEqual(["w-2"]);
+    expect(box()).not.toBeNull();
+  });
+
+  it("VIS-05 a line already answered (meta.useful) does not ask again after a reload", async () => {
+    await open([row("m-1", "My scalp itches.", null, true), ANSWER, { ...MODEL, meta: { ...MODEL.meta, useful: "no" } }]);
+    expect(thread()).not.toContain("Was this useful?");
+    expect(container.querySelector("[data-useful-ask]")).toBeNull();
+  });
+
   it("VIS-06 before the minimum the question waits for the host: nothing is answered for them", async () => {
     routes["POST /api/v2/chats/c-9/messages"] = () => json({ message: row("m-1", "My scalp itches.", null, true), reply: { waits: true } });
     await open([row("m-0", "Look at my scalp", null, true)]);

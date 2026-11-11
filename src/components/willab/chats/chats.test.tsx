@@ -418,6 +418,18 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe(BUILD_NAME);
     expect([...container.querySelectorAll("[data-build-tab]")].map((t) => t.textContent)).toEqual(["Your chat", "AI models"]);
     expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("will");
+    // No chat yet: Build opens at "What do you do?"; the phone's Back comes
+    // back to Build, taking the setup's history entry with it.
+    const setup = () => document.querySelector("[data-host-setup]");
+    expect(setup()?.textContent).toContain("What do you do?");
+    await act(async () => {
+      const popped = new Promise((done) => window.addEventListener("popstate", done, { once: true }));
+      window.history.back();
+      await popped;
+    });
+    await flush();
+    expect(setup()).toBeNull();
+    expect(container.querySelector("[data-build-bar]")).not.toBeNull();
     // A tap there whose sheet is the speaking chat's opens that chat (N636 item 2).
     await act(async () => askForPlace("speaking"));
     expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Speaking coach");

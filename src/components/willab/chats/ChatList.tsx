@@ -7,8 +7,8 @@ import type { LoungeKind, LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
-import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
-import { thingsNeedingYou, useHostWork } from "./hostsetup/hostWork";
+import { openSetupFromNote, useKnownSetup } from "./hostsetup/hostSetupDoor";
+import { useHostWork } from "./hostsetup/hostWork";
 import { PLACE_TITLES, PRINCIPLES_OPENING, inPlace, type LoungePlace } from "./loungePlace";
 import { W as HOST_WORDS } from "./hostsetup/hostSetupCopy";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
@@ -336,6 +336,21 @@ function useWillRow(willOpen: boolean, back: boolean, place: LoungePlace | null 
   };
 }
 
+/** The pinned row. For the ring it is one's own chat (backend N642 item 2,
+ *  N643 item 2): its circle, its name and its hello; "Your chat" before
+ *  there is one. Was (N629 item 2): "Will", with what needs you counted.
+ *  Everyone else: Will, with his newest line. */
+function usePinnedRow(ring: boolean, willLine: string): { circle: ReactNode; title: string; preview: string } {
+  const setup = useKnownSetup();
+  const own = ring && setup?.recipe && setup.own_chat ? setup.own_chat : null;
+  if (!ring) return { circle: <WillMark />, title: WILL_ROW_TITLE, preview: willLine };
+  return {
+    circle: own ? <LetterCircle id={`own-${own.title}`} name={own.title} size={48} /> : <WillMark />,
+    title: own?.title ?? HOST_WORDS.yourChatTitle,
+    preview: own?.hello || own?.line || "",
+  };
+}
+
 /** Newest last message first; a chat with none goes last. */
 function newestFirst(chats: readonly Chat[]): Chat[] {
   const at = (chat: Chat) => timeOf(chat.last?.created_at) ?? -Infinity;
@@ -408,9 +423,7 @@ export default function ChatList({
       onOpen={() => onOpenPlace?.(place)}
     />
   );
-  const willPreview = work.ring
-    ? thingsNeedingYou(work) ? HOST_WORDS.thingsNeedYou(thingsNeedingYou(work)) : HOST_WORDS.nothingNeedsYouRow
-    : will.preview;
+  const pinnedRow = usePinnedRow(work.ring, will.preview);
   const row = (chat: Chat, justJoined = false) => (
     <ChatListRow
       key={chat.id}
@@ -438,9 +451,9 @@ export default function ChatList({
       <div data-chat-list className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
       <ChatListRow
         id={WILL_CHAT}
-        circle={<WillMark />}
-        title={WILL_ROW_TITLE}
-        preview={willPreview}
+        circle={pinnedRow.circle}
+        title={pinnedRow.title}
+        preview={pinnedRow.preview}
         isNew={will.isNew}
         pinned
         cameFrom={cameFrom === WILL_CHAT}
