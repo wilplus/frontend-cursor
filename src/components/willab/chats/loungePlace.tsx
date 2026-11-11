@@ -137,13 +137,21 @@ export function useOpenPlace(): LoungePlace | null {
 /* A host's chat that takes Takes (backend N648 item 8): the Lounge is drawn
  * as the speaking chat, its rows read for that chat alone (?chat=). */
 let openChat: string | null = null;
+let openChatName = "";
 const chatListeners = new Set<() => void>();
 
-/** The door: the host's chat the Lounge is drawn for (null: none). */
-export function setOpenChat(chat: string | null): void {
-  if (openChat === chat) return;
+/** The door: the host's chat the Lounge is drawn for (null: none), and its
+ *  name, for the chat's own messages drawn there. */
+export function setOpenChat(chat: string | null, name = ""): void {
+  if (openChat === chat && openChatName === name) return;
   openChat = chat;
+  openChatName = chat ? name : "";
   chatListeners.forEach((listen) => listen());
+}
+
+/** The open host's chat's name ("" with none). */
+export function useOpenChatName(): string {
+  return useSyncExternalStore(subscribeChat, () => openChatName, () => "");
 }
 
 function subscribeChat(listen: () => void): () => void {

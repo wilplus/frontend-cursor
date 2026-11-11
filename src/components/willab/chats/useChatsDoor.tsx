@@ -211,7 +211,8 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   useEffect(() => setOpenPlace(placeOpen), [placeOpen]);
   // The host's chat whose Takes the Lounge draws (N648 item 8).
   const chatOpen = takesChatOf(view);
-  useEffect(() => setOpenChat(chatOpen), [chatOpen]);
+  const chatName = view.at === "will" ? view.chat?.title ?? "" : "";
+  useEffect(() => setOpenChat(chatOpen, chatName), [chatOpen, chatName]);
   useEffect(() => () => setOpenChat(null), []);
   // A tap in one of the Lounge's chats that opens another chat's sheet opens
   // that chat (N636 item 2); only while the Lounge is open.

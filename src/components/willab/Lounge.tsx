@@ -169,7 +169,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -187,6 +187,7 @@ import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import { WayInTop } from "./plan/WayIn";
 import { firstTakeArcOf } from "@/lib/willab/wayIn";
 import { DayLine, dayLinesFor } from "./plan/dayLines";
+import { hostRowsAround, useHostMessages } from "./chats/hostChatMessages";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -199,6 +200,8 @@ const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false 
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillNeedsYou = dynamic(() => import("./chats/hostsetup/WillNeedsYou"), { ssr: false, loading: () => null });
 const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
+// A host's chat's own messages, among its Takes (N648 item 8): off the boot bundle.
+const HostChatRow = dynamic(() => import("./chats/HostChatRow"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
 // Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
 // Feedback walk and Ideal Text code may load after the thread paints as long
@@ -512,6 +515,9 @@ export default function Lounge({
   const place = useOpenPlace();
   // A host's chat that takes Takes: the speaking chat's rows for it (N648 item 8).
   const openChat = useOpenChat();
+  const openChatName = useOpenChatName();
+  // Its own messages, drawn among its Takes by time (N648 item 8).
+  const hostMessages = useHostMessages(openChat);
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
     // idempotent client_ids are the identity. A double-insert (retry, optimistic
@@ -568,6 +574,10 @@ export default function Lounge({
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
   const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  const hostRows = useMemo(
+    () => hostRowsAround(hostMessages, shownItems.map((item) => item.message.client_created_at)),
+    [hostMessages, shownItems],
+  );
   // A small grey day line before each day's first message, in a chat that
   // spans several days (the-plan.md G3, backend N169).
   const dayLines = useMemo(
@@ -1961,6 +1971,21 @@ export default function Lounge({
 
   // One shown row: a Take's Feedback walk with its card as one pair (N202),
   // else the row as drawn.
+  /** A host's chat's own messages newer than its newest row (N648 item 8). */
+  const hostRowsAfter = () =>
+    openChat ? hostRows.after.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat} name={openChatName} message={m} />) : null;
+  /** A host's chat's own messages that came before row i, drawn right
+   *  before it (N648 item 8); the row alone everywhere else. */
+  const withHostRows = (i: number, node: ReactNode) => {
+    const before = openChat ? hostRows.before[i] : undefined;
+    if (!before?.length) return node;
+    return (
+      <Fragment key={`host-before:${shownItems[i].reactKey}`}>
+        {before.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat as string} name={openChatName} message={m} />)}
+        {node}
+      </Fragment>
+    );
+  };
   const drawShown = (item: ThreadItem, i: number) => {
     const id = item.message.client_id;
     const walk = walkAt.get(id);
@@ -2146,16 +2171,19 @@ export default function Lounge({
             if (pairedCards.has(id)) return null;
             const line = dayLines.get(i);
             if (line) {
-              return (
+              return withHostRows(
+                i,
                 <Fragment key={`day:${item.reactKey}`}>
                   <DayLine text={line} />
                   {drawShown(item, i)}
-                </Fragment>
+                </Fragment>,
               );
             }
-            return drawShown(item, i);
+            return withHostRows(i, drawShown(item, i));
           })
         )}
+        {/* A host's chat's own messages after its newest Take (N648 item 8). */}
+        {hostRowsAfter()}
 
         {/* The questions people asked, bundled, for the chat builder's ring
             (backend N584 item 2); nothing without it. */}
