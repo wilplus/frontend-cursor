@@ -936,6 +936,13 @@ offer; Will's own offer row is still his.
 O2  What I type in a chat carries only its chat (and, in the speaking
 chat, its Take), never an offer's mark.","O1 -> ""my own words in Principles are mine, on the right""
 O2 -> loungePlace.test.tsx ""N636-2""","#1391 marked a row typed in Principles with offer ""voice_notebook"", and a row with an offer's mark was drawn as Will's offer whoever wrote it."
+src/components/willab/chats/principlesOpening.test.tsx,Story,"As someone with the chat builder's ring, Principles tells me what it is for before I write anything, and each chat's field says what to do there (backend N640).","O1  Principles opens with ""This is where your principles live. Write
+what's on your mind, and I'll keep it."" above everything in it, and
+its field reads ""Write here""; Will's chat has no such line and its
+field reads ""Message Will"".
+O2  In the list, the Principles row shows that line until something else
+is written there, then the newest row's words.","O1 -> ""Principles opens with its line and Write here; Will's field reads Message Will""
+O2 -> ""the list's Principles row shows the opening line until something is written""","The founder's walk-through, 11 November 2026: Will's field and Principles' both read ""Type your answer"", the field's one words for every chat (""Message Will"" was only its name for a screen reader)."
 src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
 who answered and the names the backend shows (my coach's and the best
 other); a tap opens all of them under ""On your speaking"" and ""On the
