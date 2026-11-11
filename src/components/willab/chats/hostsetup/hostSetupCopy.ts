@@ -48,7 +48,8 @@ export const W = {
   notYet: "Not yet",
   send: "Send",
   typeHere: "Type here",
-  hi: (name: string) => `Hi ${name}. I'm Will. I ask one thing at a time. You tap Keep or Change.`,
+  /** The first screen says where the setup leads (N637 item 2). */
+  hi: (name: string) => [`Hi ${name}. I'm Will. Let's set up your chat, so people can come to you through one link.`, "I ask one thing at a time. You tap Keep or Change. It takes about five minutes."],
   whatDoYouDo: "What do you do?",
   answer: "Answer",
   whatPlaceholder: "Speaking coach",
@@ -80,8 +81,8 @@ export const W = {
   wayUseNone: "Nobody has shared one yet. Yours can be the first.",
   wayOwn: "Train your own",
   wayOwnSub: "Free. It needs your answers and some time before it works. Later, others can pay you to use it.",
-  /** Why one's own model, in two lines (N636 item 6). */
-  ownSay: ["Your own model answers one question the way you would.", "You teach it by answering examples. It needs about 200 to get good."],
+  /** Why one's own model, in two lines (N636 item 6, the second N637 item 3). */
+  ownSay: ["Your own model answers one question the way you would.", "Four choices, then you teach it by answering examples. It needs about 200 to get good."],
   trainMyOwn: "Train my own",
   usableSay: "Models you can use.",
   usableCap: "Add one and your chat gets a key to it. Each time someone sends you something, your chat asks the model and says what it found.",

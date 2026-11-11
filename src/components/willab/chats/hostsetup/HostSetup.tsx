@@ -333,7 +333,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   if (!R || S.at === "what") {
     return (
       <Frame onBack={back} foot={<Btn label={W.answer} onClick={() => typeIn(W.whatDoYouDo, begin, W.whatPlaceholder, guess ?? undefined)} />}>
-        <Say>{W.hi(name)}</Say>
+        {W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
         <Say>{W.whatDoYouDo}</Say>
       </Frame>
     );
@@ -764,14 +764,14 @@ function CostStep({ c }: { c: Ctx }) {
         <>
           <div className="flex items-baseline gap-2">
             <b data-cost-month="" className="text-[34px] font-bold text-foreground">{cost?.month ?? 0}</b>
-            <span className="text-[15px] text-muted-foreground">{W.aMonth}</span>
+            <span className="text-[16px] text-foreground">{W.aMonth}</span>
           </div>
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1 text-[13px] text-muted-foreground">
+            <label className="flex flex-1 flex-col gap-1 text-[16px] text-foreground">
               {W.people}
               <input type="number" inputMode="numeric" min={1} max={100000} defaultValue={R.cost?.people ?? 10} onChange={typed("people", 100000)} className="rounded-xl border border-border px-3 py-2 text-[16px] text-foreground" />
             </label>
-            <label className="flex flex-1 flex-col gap-1 text-[13px] text-muted-foreground">
+            <label className="flex flex-1 flex-col gap-1 text-[16px] text-foreground">
               {W.eachSends}
               <input type="number" inputMode="numeric" min={1} max={1000} defaultValue={R.cost?.sends ?? 1} onChange={typed("sends", 1000)} className="rounded-xl border border-border px-3 py-2 text-[16px] text-foreground" />
             </label>
@@ -783,7 +783,7 @@ function CostStep({ c }: { c: Ctx }) {
           <div key={l.q} data-cost-line="" className="flex items-start justify-between gap-3 py-1">
             <span className="flex flex-col text-[15px] text-foreground">
               {l.q}
-              <small className="text-[13px] text-muted-foreground">{learns(l.q) ? W.stillLearning : l.price ? W.ownersModel(l.by) : W.yourModel}</small>
+              <span className="text-[16px] text-foreground">{learns(l.q) ? W.stillLearning : l.price ? W.ownersModel(l.by) : W.yourModel}</span>
             </span>
             <b className="text-[15px]">{l.price ? W.tokens(l.price) : W.free}</b>
           </div>
@@ -808,7 +808,7 @@ function PartValue({ part, models }: { part: SetupPart; models: RecipeModel[] })
         {models.map((m) => (
           <span key={m.q} className="text-[16px] font-semibold text-foreground">
             {m.q}
-            {m.learning ? <small data-still-learning="" className="ml-1.5 text-[13px] font-medium text-muted-foreground">{W.stillLearning}</small> : null}
+            {m.learning ? <span data-still-learning="" className="ml-1.5 text-[16px] font-normal text-foreground">{W.stillLearning}</span> : null}
           </span>
         ))}
       </span>
@@ -830,7 +830,7 @@ function PartsStep({ c }: { c: Ctx }) {
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
         <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
-          <small className="text-[13px] font-medium text-muted-foreground">{p.title}</small>
+          <span className="text-[16px] text-foreground">{p.title}</span>
           <PartValue part={p} models={R.models ?? []} />
         </button>
       ))}

@@ -180,7 +180,8 @@ describe("the blank setup (FIRST-)", () => {
     expect(openSetupFromWill(1)).toBe(false);
     act(() => void openSetupFromWill(0));
     await flush();
-    expect(text()).toContain("Hi Lena. I'm Will. I ask one thing at a time. You tap Keep or Change.");
+    expect(text()).toContain("Hi Lena. I'm Will. Let's set up your chat, so people can come to you through one link.");
+    expect(text()).toContain("I ask one thing at a time. You tap Keep or Change. It takes about five minutes.");
     expect(text()).toContain("What do you do?");
     await tap("Answer");
     expect((container.querySelector("textarea") as HTMLTextAreaElement).placeholder).toBe("Speaking coach");
@@ -581,7 +582,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     await tap("Train your own");
     expect(text()).toContain("Your own model answers one question the way you would.");
-    expect(text()).toContain("You teach it by answering examples. It needs about 200 to get good.");
+    expect(text()).toContain("Four choices, then you teach it by answering examples. It needs about 200 to get good.");
     for (const b of ["What it is", "Worth it", "Not worth it"]) expect(text()).not.toContain(b);
     expect(container.querySelector("small")).toBeNull();
     expect(button("Not now").disabled).toBe(false);

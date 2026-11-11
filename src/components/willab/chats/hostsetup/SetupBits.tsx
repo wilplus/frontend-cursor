@@ -75,15 +75,17 @@ export function Mine({ children }: { children: ReactNode }) {
   );
 }
 
+/** A line that explains a screen: one of Will's lines, the same size as the
+ *  rest, never small grey letters (N637 item 1). */
 export function Cap({ children }: { children: ReactNode }) {
-  return <p className="m-0 text-[14px] leading-snug text-muted-foreground">{children}</p>;
+  return <Say>{children}</Say>;
 }
 
 export function Card({ b, s, children }: { b?: ReactNode; s?: ReactNode; children?: ReactNode }) {
   return (
     <div data-setup-card="" className="flex flex-col gap-1 rounded-2xl border border-border px-3.5 py-3">
       {b ? <b className="text-[16px] font-semibold text-foreground">{b}</b> : null}
-      {s ? <small className="text-[14px] text-muted-foreground">{s}</small> : null}
+      {s ? <span className="text-[16px] text-foreground">{s}</span> : null}
       {children}
     </div>
   );
@@ -152,9 +154,9 @@ export function Opt({ title, sub, on = false, tick, disabled = false, onClick, b
       )}
       <span className="flex flex-col gap-0.5">
         {badge ? <span className="self-start rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#2F9E6E]">{badge}</span> : null}
-        {under ? <small className="text-[13.5px] text-muted-foreground">{under}</small> : null}
+        {under ? <span className="text-[16px] text-foreground">{under}</span> : null}
         <b className="text-[16px] font-semibold text-foreground">{title}</b>
-        {sub ? <small className="text-[13.5px] text-muted-foreground">{sub}</small> : null}
+        {sub ? <span className="text-[16px] text-foreground">{sub}</span> : null}
       </span>
     </button>
   );
