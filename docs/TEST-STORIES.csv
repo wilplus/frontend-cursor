@@ -880,6 +880,13 @@ O26 -> ""a website visitor's answers carry the visitor's name, not the word Widg
 O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
 O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""
 O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
+src/components/willab/chats/devMode.test.tsx,Story,"As a host with the chat builder's ring, I switch on Developer mode under Build's two tabs and see in plain numbers how close my chat is to the speaking coach, what it notices, what it says, charts by week and my training data to keep; off the ring I see none of it (backend N648).","O1  With the ring, Build has a ""Developer mode"" switch; on, it shows the
+five parts, each opening its screen.
+O2  A week with fewer than five people reads ""fewer than 5"", and a chart
+that could not be counted is drawn as not counted, never as zero.
+O3  Off the ring (the read is 404) there is no switch and nothing else.","O1 -> ""N648 Developer mode: the switch under the tabs shows the five parts, each opening its screen""
+O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""
+O3 -> ""N648 off the ring nothing of Developer mode shows""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,

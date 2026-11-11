@@ -30,6 +30,10 @@ export const FrameTitle = createContext<ReactNode>(null);
  *  drawn above the screen on show; null where a screen stands alone. */
 export const FrameHistory = createContext<ReactNode>(null);
 
+/** Will's line under the screen on show when a save failed (backend N649
+ *  item 1); null otherwise. */
+export const FrameNote = createContext<ReactNode>(null);
+
 /** One screen: its top bar, Will's lines, and what to tap at the foot. The
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
@@ -46,6 +50,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
   const body = useRef<HTMLDivElement | null>(null);
   const named = useContext(FrameTitle);
   const history = useContext(FrameHistory);
+  const note = useContext(FrameNote);
   useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
@@ -71,6 +76,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
         {history}
         {children}
+        {note}
       </div>
       {foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
     </div>

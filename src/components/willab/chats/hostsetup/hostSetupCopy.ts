@@ -58,6 +58,8 @@ export const W = {
   careSay: "Is your work about health, law or money?",
   careCap: "If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.",
   careWho: "Your work is about health, law or money, so nothing goes out until you send it.",
+  // A part that could not be kept (backend N649 item 1).
+  notSaved: "That didn't save. Try again.",
   refusedWords: "Try other words. Your chat can't show a score or a number about someone.",
   lineCap: "New people read this before they join your chat.",
   lineSay: "People come to you for this:",
@@ -79,6 +81,10 @@ export const W = {
   // The walk, part by part (N647 items 1, 2, 6, 7).
   walkHome: "Your walk, part by part. Tap one to change it.",
   walkParts: { steps: "Its steps", notice: "What I notice", say: "What I say", out: "What they get" } as const,
+  /** "See it run" (N647 item 1; the pinned prototype's run screen). */
+  seeItRun: "See it run",
+  sampleTake: "▶ 0:42",
+  thanks: "Thanks.",
   noticeSay: "This is what I notice in a message. Tap one.",
   readyNow: "Ready",
   off: "Off",
@@ -266,4 +272,48 @@ export const W = {
   wouldAnswer: "I'd answer:",
   allSent: "All sent.",
   eachChanged: "Each one you changed teaches me to answer like you.",
+};
+
+/** Developer mode's words, copied from the pinned prototype's devPage()
+ *  (backend N648; docs/design/the-blank-setup-2026-11-10/the-blank-setup.html). */
+export const DEV = {
+  switch: "Developer mode",
+  home: "What I measure, in plain numbers. Tap one.",
+  close: "How close to the speaking coach",
+  notice: "What I notice",
+  says: "What I say",
+  charts: "Charts",
+  data: "Your training data",
+  closeCount: (n: number, m: number) => `${n} of ${m} built`,
+  noticeCount: (n: number, ex: number | null) => `${n} ${n === 1 ? "thing" : "things"}${ex === null ? "" : `, ${ex} ${ex === 1 ? "experiment" : "experiments"} run`}`,
+  saysCount: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
+  chartsCount: (n: number) => `${n} to download`,
+  dataCount: "Cases and answers, to keep",
+  closeSay: (n: number, m: number) => `Your chat does ${n} of the ${m} things the speaking coach does.`,
+  marks: { built: "●", being_built: "◐", not_started: "○" } as const,
+  legend: "● built   ◐ being built   ○ not started",
+  noticeSay: "Each thing I notice, and how far it is from its next level.",
+  next: (level: string, next: string | null) => `${level}.${next ? ` Next: ${next}.` : ""}`,
+  needSettle: (more: number) => `${more} more settled cases before it learns`,
+  needCheck: (have: number, of: number) => `Your check: ${have} of ${of} answered`,
+  needExam: (have: number, of: number) => `Pass the exam: ${have} of ${of} exam cases set aside`,
+  segments: (n: number) => `${n} segments`,
+  agreed: (a: number, b: number) => `coaches agreed ${a} of ${b}`,
+  saysSay: "Each line, and whether it helped.",
+  helped: (a: number, b: number) => `Helped ${a} of ${b} times.`,
+  more: (n: number) => `${n} more answers before I can tell for sure.`,
+  enough: "Enough answers to tell.",
+  chartsSay: "The last eight weeks. Tap a chart to download its numbers.",
+  chartNames: {
+    people: "People who wrote or recorded, each week",
+    walks: "Walks run, each week",
+    helped: "\"Did this help?\" Yes, out of 10",
+    ideal_texts: "Ideal Texts made, each week",
+  } as Record<string, string>,
+  download: "Download",
+  fewerThan: (n: number) => `fewer than ${n}`,
+  notCounted: "Not counted right now.",
+  dataSay: ["Everything you taught, in pairs: the case and the answer. Tap one to download.", "Cases you wrote come with their text. Other people's words stay out."],
+  dataRow: "Your cases, with your answers",
+  back: "Back",
 };

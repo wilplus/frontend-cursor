@@ -287,3 +287,27 @@ export async function sendDraft(messageId: string, own: string | null): Promise<
   });
   return Boolean(body);
 }
+
+/** Developer mode's numbers (backend N648; services/dev_mode.py): the host's
+ *  own, never a speaker's. Null off the ring (the read is 404) or unread. */
+export type DevNotice = {
+  model_id?: string; cue?: string; kind?: "cue"; q: string; level_name: string; next_name: string | null;
+  need: { step: string; have?: number; of?: number; more?: number } | null; pct: number;
+  segments: number; experiments: number | null; agreed: { a: number; b: number } | null;
+};
+export type DevWeek = { week: string; count: number | null; fewer_than?: number; of?: number };
+export type DevSay = WalkSay & { more_to_tell: number; enough_at: number };
+export type DevRead = {
+  close: { done: number; of: number; items: { key: string; label: string; status: "built" | "being_built" | "not_started" }[] };
+  notice: DevNotice[];
+  says: DevSay[];
+  charts: { name: string; weeks: DevWeek[] | null }[];
+  data: { model_id: string; q: string; files: { jsonl: string; csv: string } }[];
+};
+
+export async function readDev(): Promise<DevRead | null> {
+  const body = await call("/api/v2/chats/setup/dev", { method: "GET" });
+  return body && body.close && Array.isArray(body.notice) && Array.isArray(body.says) && Array.isArray(body.charts) && Array.isArray(body.data)
+    ? (body as unknown as DevRead)
+    : null;
+}
