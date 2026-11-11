@@ -62,6 +62,8 @@ export const W = {
   lineCap: "New people read this before they join your chat.",
   lineSay: "People come to you for this:",
   lineAsk: "Why do people come to you?",
+  nameSay: "Your chat is called:",
+  nameAsk: "What should your chat be called?",
   sendSay: "What do people send you? Tick all that apply.",
   outSay: "They get back:",
   // The feedback walk, kept and not run yet (N641).

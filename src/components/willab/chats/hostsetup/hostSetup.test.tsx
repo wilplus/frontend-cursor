@@ -81,7 +81,7 @@ function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null
   recipe = (read.recipe as R | null) ?? first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
-  for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live", "walk"]) {
+  for (const part of ["care", "line", "name", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live", "walk"]) {
     bff.routes[`PUT /api/v2/chats/setup/${part}`] = (c: Call) => {
       recipe = { ...recipe, [part]: (c.json as R).value };
       return { recipe, cost: FREE };
@@ -229,6 +229,57 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Try other words. Your chat can't show a score or a number about someone.");
     await tap("Change");
     expect(text()).not.toContain("Try other words.");
+  });
+
+  it("N642-1 the chat's name comes after why people come: Keep, Change or Type my own; among the parts its row is Name", async () => {
+    const NAMES = ["Lena's chat", "Ask Lena", "Trichologist with Lena"];
+    backend({ recipe: null, parts: [], own_chat: null, cost: null });
+    recipe = first({ suggest: { ...SUGGEST, name: NAMES }, name: null });
+    bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
+    await mount();
+    act(() => void openSetupFromWill(0));
+    await flush();
+    await tap("Answer");
+    await type("trichologist");
+    await tap("No");
+    await tap("Keep");
+    expect(text()).toContain("Your chat is called:");
+    expect(text()).toContain(NAMES[0]);
+    const calls = bff.calls.length;
+    await tap("Change");
+    expect(text()).toContain(NAMES[1]);
+    expect(bff.calls.length).toBe(calls);
+    await tap("Type my own");
+    expect(text()).toContain("What should your chat be called?");
+    await type("Hair with Lena");
+    expect(text()).toContain("Hair with Lena");
+    bff.routes["PUT /api/v2/chats/setup/name"] = { status: 400, body: { code: "RECIPE_WORDS" } };
+    await tap("Keep");
+    expect(text()).toContain("Your chat is called:");
+    expect(text()).toContain("Try other words.");
+    bff.routes["PUT /api/v2/chats/setup/name"] = (c: Call) => ({ recipe: { ...recipe, name: (c.json as R).value }, cost: FREE });
+    await tap("Keep");
+    expect(puts("name")).toEqual(["Hair with Lena", "Hair with Lena"]);
+    expect(text()).toContain("What do people send you? Tick all that apply.");
+  });
+
+  it("N642-1 the Name part opens its step and comes back to the parts; without suggested names the step is not asked", async () => {
+    const parts = [
+      { part: "name", title: "Name", value: "Ask Lena" },
+      { part: "line", title: "Why people come", value: SUGGEST.line[0] },
+    ];
+    backend({ recipe: first({ live: true, suggest: { ...SUGGEST, name: ["Lena's chat", "Ask Lena"] }, name: "Ask Lena" }), parts, own_chat: { title: "Ask Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    bff.routes["POST /api/v2/chats/setup/edit"] = { line: "Here are your chat's parts. Tap one to change it.", parts };
+    await mount();
+    await act(async () => { expect(await sayToWill("I want to edit my chat")).toBe(true); });
+    await flush();
+    await tap("Name");
+    expect(text()).toContain("Your chat is called:");
+    expect(text()).toContain("Ask Lena");
+    await tap("Change");
+    await tap("Keep");
+    expect(puts("name")).toEqual(["Lena's chat"]);
+    expect(text()).toContain("Here are your chat's parts. Tap one to change it.");
   });
 
   it("FIRST-06 Type my own on the taps sends the one tap typed", async () => {

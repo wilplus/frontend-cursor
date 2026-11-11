@@ -39,15 +39,15 @@ import { BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./Mo
 /* -------------------------------------------------------------------------- */
 
 type Step =
-  | "what" | "care" | "line" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
+  | "what" | "care" | "line" | "name" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
   | "gives" | "base" | "model" | "stack" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "walk", "walkorder", "walkout", "walkwant", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "walkorder", "walkout", "walkwant", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
  *  `next`); "Your models" goes the whole way of a model, from "smart" to its
  *  check, as in the first run (N632 item 5). */
 const THROUGH: Step[] = ["walk", "walkorder", "walkout", "q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
-const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
+const PART_STEP: Record<string, Step> = { name: "name", line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
 
 /** The parts with Will's line over them; null: the line of where the chat is. */
 type Parts = { line: string | null; parts: SetupPart[] };
@@ -183,16 +183,18 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
   const noModels = () => S.recipe?.smart === false;
 
+  /** One's own model's first screens, each shown once. */
+  const ownSeen = (id: Step): boolean => (id === "ownwhy" ? S.ownSeen : id === "gives" ? !!S.gives : !!S.base);
   const skip = (id: Step): boolean => {
     const R = S.recipe;
     if (!R) return false;
     switch (id) {
       case "out": return R.suggest.out[0] === "answer" && !S.edit;
+      // A backend that suggests no names yet: the first name stays the name.
+      case "name": return !R.suggest.name?.length;
       case "qmore": case "teach": case "check": return true;
       case "way": case "model": case "more": return noModels();
-      case "ownwhy": return noModels() || R.way !== "own" || S.ownSeen;
-      case "gives": return noModels() || R.way !== "own" || !!S.gives;
-      case "base": return noModels() || R.way !== "own" || !!S.base;
+      case "ownwhy": case "gives": case "base": return noModels() || R.way !== "own" || ownSeen(id);
       case "stack": return !S.draft;
       case "order": return models().length < 2;
       case "share": return !models().some((m) => m.own);
@@ -401,6 +403,25 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
   );
 }
 
+/** The chat's own words, each Keep or Change with "Type my own": why
+ *  people come, the chat's name (backend N642 item 1, N643 item 1) and the
+ *  hello. */
+function WordSteps(c: Ctx): ReactNode {
+  const { R } = c;
+  switch (c.S.at) {
+    case "line":
+      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => c.keep("line", v), W.lineAsk, (v) => v);
+    case "name": {
+      const names = R.suggest.name ?? [];
+      return kc(c, "name", W.nameSay, names, R.name ?? names[0], (v) => <Card b={v} />, (v) => c.keep("name", v), W.nameAsk, (v) => v);
+    }
+    case "hello":
+      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => c.keep("hello", v), W.helloAsk, (v) => v);
+    default:
+      return null;
+  }
+}
+
 /** The screens of one question with two answers. */
 function YesNoStep(c: Ctx): ReactNode {
   const { S, R } = c;
@@ -593,11 +614,9 @@ function StepScreen(c: Ctx) {
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
-  const asked = YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c);
+  const asked = WordSteps(c) ?? YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c);
   if (asked) return asked;
   switch (c.S.at) {
-    case "line":
-      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => c.keep("line", v), W.lineAsk, (v) => v);
     case "send": {
       const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
       S.sendSet = set;
@@ -619,8 +638,6 @@ function StepScreen(c: Ctx) {
     }
     case "out":
       return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => c.keep("out", v));
-    case "hello":
-      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => c.keep("hello", v), W.helloAsk, (v) => v);
     case "q": {
       const n = S.qs.length;
       const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
