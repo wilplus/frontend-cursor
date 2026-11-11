@@ -489,6 +489,8 @@ describe("the blank setup (FIRST-)", () => {
     act(() => void openSetupFromNote());
     await flush();
     await tap("The feedback walk");
+    // A walk already kept opens part by part (N647 item 1); "Its steps" is today's.
+    await tap("Its steps");
     expect(text()).toContain("What should yours hold? Tick all that apply.");
     await tap("Done");
     expect(text()).toContain("1. One moment to try another way");
@@ -498,6 +500,102 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Thanks. I've told Artur.");
     await tap("Done");
     expect(text()).toContain("Open your chat to people?");
+  });
+
+  /** A host with a walk kept, its part opened; the walk read as the backend gives it. */
+  async function walkHome(read: R) {
+    backend({
+      recipe: first({ send: ["rec", "text"], walk: { steps: ["best", "fix", "words"], out: "ideal_text" } }),
+      parts: [{ part: "walk", title: "The feedback walk", value: "Their best moment · One moment to try another way · The helper words · An Ideal Text" }],
+      own_chat: null,
+      cost: FREE,
+    });
+    bff.routes["GET /api/v2/chats/setup/walk"] = read;
+    await mount();
+    act(() => void openSetupFromNote());
+    await flush();
+    await tap("The feedback walk");
+  }
+  const WALK_READ = {
+    steps: ["best", "fix", "words"], out: "ideal_text", runs_on_messages: true,
+    notice: [
+      { model_id: "m-dry", q: "Is this a dry scalp?", ready: true, learning: false, on: true, agreed: null },
+      { model_id: "m-thin", q: "Is the hair thinning here?", ready: false, learning: true, on: true, agreed: null },
+    ],
+    say: [
+      { model_id: "m-dry", q: "Is this a dry scalp?", says: "Your scalp looks dry here.", on: true, helped: { a: 7, b: 10 } },
+      { model_id: "m-thin", q: "Is the hair thinning here?", says: "The crown is thinner.", on: true, helped: null },
+    ],
+  };
+  const sentItems = () => bff.calls.filter((c) => c.method === "PUT" && c.path.startsWith("/api/v2/chats/setup/walk/items/")).map((c) => [c.path.split("/").pop(), c.json]);
+
+  it("N647-1 a kept walk opens part by part: Its steps, What I notice, What I say, What they get", async () => {
+    await walkHome(WALK_READ);
+    expect(text()).toContain("Your walk, part by part. Tap one to change it.");
+    const rows = [...container.querySelectorAll("button")].map((b) => b.textContent).filter((t) => ["Its steps", "What I notice", "What I say", "What they get"].includes(t ?? ""));
+    expect(rows).toEqual(["Its steps", "What I notice", "What I say", "What they get"]);
+    await tap("What they get");
+    expect(text()).toContain("What do they get at the end?");
+  });
+
+  it("N647-2 What I notice: each of one's own models, Ready or Still learning; one turned off is sent as {on:false}; Something else tells Artur", async () => {
+    bff.routes["POST /api/v2/chats/setup/walk/want"] = { wanted: true };
+    bff.routes["PUT /api/v2/chats/setup/walk/items/m-dry"] = { ...WALK_READ, notice: [{ ...WALK_READ.notice[0], on: false }, WALK_READ.notice[1]] };
+    await walkHome(WALK_READ);
+    await tap("What I notice");
+    expect(text()).toContain("This is what I notice in a message. Tap one.");
+    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Ready");
+    expect(button("Is the hair thinning here?").textContent).toBe("Is the hair thinning here?Still learning");
+    expect(text()).not.toContain("Coaches agreed");
+    expect(text()).not.toContain("Catch more");
+    await tap("Is this a dry scalp?");
+    await tap("Turn it off");
+    expect(sentItems()).toEqual([["m-dry", { on: false }]]);
+    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Off");
+    await tap("Something else. I want this");
+    expect(bff.calls.filter((c) => c.path === "/api/v2/chats/setup/walk/want")).toHaveLength(1);
+    expect(text()).toContain("Thanks. I've told Artur.");
+  });
+
+  it("N647-6 What I say: a line's count, or It's new; Change the words sends them; a refused change keeps the words", async () => {
+    let refuse = true;
+    bff.routes["PUT /api/v2/chats/setup/walk/items/m-thin"] = (c: Call) => {
+      if (refuse) return { status: 400, body: { code: "RECIPE_WORDS" } };
+      return { ...WALK_READ, say: [WALK_READ.say[0], { ...WALK_READ.say[1], says: (c.json as { says: string }).says }] };
+    };
+    await walkHome(WALK_READ);
+    await tap("What I say");
+    expect(text()).toContain("This is what I say when I notice something. Tap one.");
+    await tap("Your scalp looks dry here.");
+    expect(text()).toContain("When I notice is this a dry scalp?, I say:");
+    expect(text()).toContain("People said it helped 7 times out of 10.");
+    await tap("Keep it");
+    await tap("The crown is thinner.");
+    expect(text()).toContain("It's new. I'll tell you how it does.");
+    await tap("Change the words");
+    expect(text()).toContain("What should I say?");
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
+    await type("The crown looks thinner than the sides.");
+    expect(container.querySelector("textarea")?.value).toBe("The crown looks thinner than the sides.");
+    refuse = false;
+    await type("The crown looks thinner than the sides.");
+    expect(sentItems().at(-1)).toEqual(["m-thin", { says: "The crown looks thinner than the sides." }]);
+    expect(text()).toContain("The crown looks thinner than the sides.");
+    expect(container.querySelector("textarea")).toBeNull();
+  });
+
+  it("N647 the not-running screen: on messages it asks for recordings; otherwise as before", async () => {
+    await walkHome(WALK_READ);
+    await tap("What they get");
+    await tap("An Ideal Text");
+    expect(text()).toContain("Your walk runs on messages. Recordings are not ready yet. Want them?");
+    expect(text()).not.toContain("Your chat can't run this yet.");
+    act(() => root.unmount());
+    root = createRoot(container);
+    await walkHome({ ...WALK_READ, runs_on_messages: false });
+    await tap("What they get");
+    await tap("An Ideal Text");
+    expect(text()).toContain("Your chat can't run this yet. Want it?");
   });
 
   it("FIRST-03 every step of the setup has Back, and Back returns to the step before", async () => {
