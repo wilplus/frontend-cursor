@@ -371,7 +371,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(posts("/api/v2/chats/setup/walk/want")).toHaveLength(1);
     expect(text()).toContain("Thanks. I've told Artur.");
     expect(text()).not.toContain("Want it?");
-    await tap("‹ Back");
+    await back();
     await tap("An Ideal Text");
     expect(text()).toContain("Thanks. I've told Artur.");
     expect(() => button("I want this")).toThrow();
