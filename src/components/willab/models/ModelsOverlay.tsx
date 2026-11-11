@@ -4,7 +4,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCoverSiteBar } from "../chats/siteBarCover";
 import { answerModelInvite, enterModel, getModelPage, type ModelPage } from "@/services/api/models";
-import type { SetupState, SetupStep } from "@/services/api/modelSetup";
+import { getFirstTen, type SetupState, type SetupStep } from "@/services/api/modelSetup";
 import { useBackDismiss } from "../useBackDismiss";
 import { DoorScreen, ModelListScreen, ModelPageScreen, QueueScreen, WhatDoIGetScreen } from "./ModelScreens";
 import ModelTeach from "./ModelTeach";
@@ -48,6 +48,8 @@ export type ModelsScreen =
   | { at: "setup"; first: SetupState }
   /** A model's first 10, after a set of cases (N645 item 4). */
   | { at: "first"; id: string }
+  /** A contributor's set, each new case answered in turn (N645 item 4). */
+  | { at: "addedSet"; set: Added[] }
   /** A model started in blocks (N636 item 7). */
   | { at: "blocks" }
   | ApiScreen;
@@ -97,6 +99,19 @@ function useSetupWays(st: Stack, blocks: boolean) {
     });
   };
   return { open, start: noSetup ? null : blocks ? () => st.push({ at: "blocks" }) : () => open(null) };
+}
+
+/** After a set of cases (N645 item 4): the owner answers them as their
+ *  first 10 (the read answers only for the owner); anyone else answers
+ *  each new case in turn, when the backend gave their ids; else the list. */
+function setWay(st: Stack) {
+  return (id: string, set: Added[] | null) => {
+    void getFirstTen(id).then((first) => {
+      if (first) st.swap({ at: "first", id });
+      else if (set?.length) st.swap({ at: "addedSet", set });
+      else st.toList();
+    });
+  };
 }
 
 function teachWay(st: Stack, how: "push" | "swap" = "push") {
@@ -196,11 +211,23 @@ function Top({ st, queueTitle, setup }: { st: Stack; queueTitle: string; setup: 
       );
     case "add":
       // A set opens the owner's first 10 on it (N645 item 4).
-      return <AddExampleScreen {...st.nav} onBack={st.back} onAdded={(added) => st.swap({ at: "added", added })} onSet={(id) => st.swap({ at: "first", id })} />;
+      return <AddExampleScreen {...st.nav} onBack={st.back} onAdded={(added) => st.swap({ at: "added", added })} onSet={setWay(st)} />;
     case "first":
       return <HostTeach key={top.id} modelId={top.id} onDone={st.toList} />;
     case "added":
       return <AnswerAdded added={top.added} onBack={st.back} onClose={st.onClose} onDone={st.toQueue} />;
+    case "addedSet": {
+      const [first, ...rest] = top.set;
+      return (
+        <AnswerAdded
+          key={first.example.id}
+          added={first}
+          onBack={st.back}
+          onClose={st.onClose}
+          onDone={() => (rest.length ? st.swap({ at: "addedSet", set: rest }) : st.toQueue())}
+        />
+      );
+    }
     case "blocks":
       return <ModelBlocks onBack={st.back} onDone={st.toList} />;
     case "setup":

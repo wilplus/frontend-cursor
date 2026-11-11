@@ -251,10 +251,13 @@ export async function addModelExample(
     : null;
 }
 
-/** A set of written cases (N645 item 4): {added, skipped}; null on failure. */
-export async function addExampleSet(modelId: string, texts: string[]): Promise<{ added: number; skipped: number } | null> {
+/** A set of written cases (N645 item 4): {added, skipped, ids}, the new
+ *  cases' ids in order when the backend gives them; null on failure. */
+export async function addExampleSet(modelId: string, texts: string[]): Promise<{ added: number; skipped: number; ids: string[] | null } | null> {
   const body = await call(`/api/v2/models/${id(modelId)}/examples/set`, { method: "POST", json: { texts, may_use: true } });
-  return typeof body?.added === "number" ? { added: body.added, skipped: typeof body.skipped === "number" ? body.skipped : 0 } : null;
+  if (typeof body?.added !== "number") return null;
+  const ids = Array.isArray(body.example_ids) ? body.example_ids.filter((x): x is string => typeof x === "string") : null;
+  return { added: body.added, skipped: typeof body.skipped === "number" ? body.skipped : 0, ids };
 }
 
 /** A kind of set that is coming (N645 item 3). */

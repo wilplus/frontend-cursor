@@ -643,6 +643,28 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     expect(container.querySelector("[data-model-answer]")).not.toBeNull();
   });
 
+  it("N645 a contributor's set: with the new cases' ids, each one opens in turn to answer", async () => {
+    await toTexts({
+      "GET /api/v2/models/rasp/setup/first-ten": { status: 404, body: { code: "NOT_FOUND" } },
+      "POST /api/v2/models/rasp/examples/set": { added: 2, skipped: 0, example_ids: ["s1", "s2"] },
+      "GET /api/v2/models/rasp": F.pageRasp,
+      "POST /api/v2/models/rasp/examples/s1/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
+      "POST /api/v2/models/rasp/examples/s2/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
+    });
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.includes("I may use these.")) ?? null);
+    await choose(container.querySelector("[data-model-add-files]")!, new File(["The first case.\nThe second case."], "cases.txt", { type: "text/plain" }));
+    for (const [n, words] of [["s1", "The first case."], ["s2", "The second case."]] as const) {
+      expectWords([words]);
+      for (let i = 0; i < 4 && !text().includes("Keep teaching"); i += 1) {
+        const next = container.querySelector("[data-model-answer]");
+        if (next) await tapEl(next);
+        else await tap("Skip");
+      }
+      expect(posted(`/examples/${n}/answer`).length).toBeGreaterThan(0);
+      await tap("Keep teaching");
+    }
+  });
+
   it("N645 several files are one case per file, and one call takes the first 200", async () => {
     const { casesOf } = await import("./ModelAdd");
     expect(casesOf(["First case\nstill the first", " ", "Second case"])).toEqual(["First case\nstill the first", "Second case"]);

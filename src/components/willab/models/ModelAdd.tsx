@@ -143,8 +143,9 @@ function SetTexts({ busy, onCases }: { busy: boolean; onCases: (cases: string[])
 
 export function AddExampleScreen({ onBack, onClose, onAdded, onSet, only = null }: Nav & {
   onAdded?: (added: Added) => void;
-  /** A set was taken for this model: its answering opens. */
-  onSet?: (modelId: string) => void;
+  /** A set was taken for this model: its answering opens. `added` are the
+   *  new cases in order, when the backend gave their ids. */
+  onSet?: (modelId: string, added: Added[] | null) => void;
   /** One model alone (a host's new model, from the blank setup): no choice. */
   only?: string | null;
 }) {
@@ -166,7 +167,11 @@ export function AddExampleScreen({ onBack, onClose, onAdded, onSet, only = null 
     setBusy(true);
     const got = await addExampleSet(modelId, cases);
     setBusy(false);
-    if (got && got.added > 0) onSet?.(modelId);
+    if (!got || got.added <= 0) return;
+    // The ids come in the order of the texts; with any left out, which
+    // text is which cannot be told, so none is opened by id.
+    const ids = got.ids && got.ids.length === cases.length ? got.ids : null;
+    onSet?.(modelId, ids ? ids.map((exampleId, i) => ({ modelId, example: { id: exampleId, model_id: modelId, content: { text: cases[i] } } })) : null);
   };
   if (view === "write") {
     // The case is typed in Will's chat; his ask is the screen's own line.
