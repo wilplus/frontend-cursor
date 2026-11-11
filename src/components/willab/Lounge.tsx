@@ -1832,6 +1832,9 @@ export default function Lounge({
           question: q,
           history,
           historySource: thread.signedIn ? "screen" : undefined,
+          // The chat it was typed in, for the ring: the backend files both
+          // rows of the turn there (backend #1933).
+          place,
           // #2 — let the BE own persistence for signed-in turns. It writes the
           // user turn with our client_id (dedup) and the bot turn with the chip
           // in its metadata; the FE then shows the bot turn optimistically only.
