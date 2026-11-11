@@ -576,6 +576,29 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Add one and your chat gets a key to it.");
   });
 
+  it("N636-6 a card saved again from its blocks always carries its model_id back, even with a changed question", async () => {
+    await begun();
+    bff.routes["PUT /api/v2/chats/setup/models"] = (c: Call) => {
+      recipe = { ...recipe, models: ((c.json as R).value as R[]).map((m) => ({ ...m, model_id: m.model_id ?? "m-own" })) };
+      return { recipe, cost: FREE };
+    };
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Train my own");
+    await makeOwn();
+    expect(puts("models")).toHaveLength(1);
+    // Back from "Add another model?" goes through its teaching to the blocks.
+    await tap("‹ Back");
+    expect(text()).toContain("Your model. Tap a block to change it.");
+    await tapBlock(SUGGEST.models[0].q);
+    await tap("Change");
+    await tap("Keep");
+    await tap("Teach it");
+    expect(puts("models")).toHaveLength(2);
+    expect((puts("models")[1] as R[])).toEqual([{ ...SUGGEST.models[1], own: true, base: "gpt", gives: "pick", model_id: "m-own" }]);
+  });
+
   it("FIRST-19 N636-6 your own model, in two lines: what it does and what it takes; Not now or Train my own", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");

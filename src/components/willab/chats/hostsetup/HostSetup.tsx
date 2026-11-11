@@ -458,7 +458,7 @@ function TeachSteps(c: Ctx): ReactNode {
     }
     case "teach": {
       const made = models.at(-1);
-      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={() => c.go("check")} /> : null;
+      return made?.model_id ? <HostTeach key={made.model_id} modelId={made.model_id} onDone={S.backward ? c.back : () => c.go("check")} /> : null;
     }
     default:
       return null;
@@ -611,9 +611,10 @@ function teachIt(c: Ctx, m: RecipeModel) {
   if (at !== null && models[at]) {
     const was = models[at];
     // A card read before the backend kept `gives` reads without it.
-    const sameModel = was.q === m.q && same(was.opts, m.opts);
-    if (sameModel && was.base === m.base && (was.gives ?? m.gives) === m.gives) return onFrom(c, was);
-    const list = models.map((x, k) => (k === at ? { ...m, ...(sameModel && was.model_id ? { model_id: was.model_id } : {}) } : x));
+    if (was.q === m.q && same(was.opts, m.opts) && was.base === m.base && (was.gives ?? m.gives) === m.gives) return onFrom(c, was);
+    // The card saved again always carries its model_id back, even with a
+    // changed question: without it the backend makes a second model.
+    const list = models.map((x, k) => (k === at ? { ...m, ...(was.model_id ? { model_id: was.model_id } : {}) } : x));
     return c.keep("models", list, () => onFrom(c, (S.recipe?.models ?? [])[at]));
   }
   c.keep("models", [...models, m], () => {
