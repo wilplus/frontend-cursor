@@ -111,7 +111,10 @@ export async function withOwnBubble<T>(
  *  and at once when the network or the app comes back. */
 export const BOOT_RETRY_MS = [2_000, 5_000, 15_000, 30_000] as const;
 
-export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
+/** `chat`: a host's chat that takes Takes is open (backend N648 item 8):
+ *  the thread is that chat's rows alone, read with ?chat=; null: the
+ *  Lounge's own thread, as it was. */
+export function useLoungeThread(signedIn: boolean, chat: string | null = null): UseLoungeThreadReturn {
   const [messages, setMessages] = useState<LoungeMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [unanswered, setUnanswered] = useState(false);
@@ -119,6 +122,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
   const [hasMore, setHasMore] = useState(false);
   const [writing, setWriting] = useState(false);
   const oldestCursorRef = useRef<string | null>(null);
+  const chatRef = useRef(chat);
+  chatRef.current = chat;
   // What is on screen now: a new message is stamped under its newest bubble.
   const messagesRef = useRef<LoungeMessage[]>(messages);
   messagesRef.current = messages;
@@ -141,10 +146,19 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     return out;
   }, []);
 
-  // Rehydrate on mount / auth change.
+  // Rehydrate on mount / auth change, and when a host's chat with Takes
+  // opens or closes: its rows are read for it alone (N648 item 8).
+  const switched = useRef(chat);
   useEffect(() => {
     setLoading(true);
     setUnanswered(false);
+    if (switched.current !== chat) {
+      switched.current = chat;
+      keptRef.current.clear();
+      setMessages([]);
+      setHasMore(false);
+      oldestCursorRef.current = null;
+    }
     if (!signedIn) {
       setMessages(loadLocalLoungeThread());
       setHasMore(false);
@@ -169,7 +183,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       clearTimeout(timer);
       const at = startRead();
       // Usually already in flight since mount (bootPrefetch.ts).
-      const page = await takeLoungeHistory();
+      const page = chat ? await fetchLoungeHistory({ chat }) : await takeLoungeHistory();
       reading = false;
       if (cancelled) return;
       // The first read has come back, answered or not: the reads that
@@ -201,7 +215,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     document.addEventListener("visibilitychange", again);
     void read();
     return stop;
-  }, [signedIn, withKept]);
+  }, [signedIn, chat, withKept]);
 
   const append = useCallback(
     async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
@@ -252,7 +266,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     if (!cursor) return;
     setLoadingOlder(true);
     try {
-      const page = await fetchLoungeHistory({ before: cursor });
+      const page = await fetchLoungeHistory({ before: cursor, chat: chatRef.current });
       // No answer says nothing about what is older: the button stays, and
       // a tap asks again.
       if (page.failed) return;
@@ -280,7 +294,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
     const at = startRead();
-    const page = await fetchLoungeHistory();
+    const page = await fetchLoungeHistory({ chat: chatRef.current });
     // A failed read never wipes the chat: what is on screen stays.
     if (page.failed) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
