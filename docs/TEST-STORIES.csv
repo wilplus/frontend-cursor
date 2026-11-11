@@ -2386,15 +2386,17 @@ one, and goes.
 O6  Past 7 days it is deleted, not sent.
 O7  A save the device refuses never stops or delays the upload.
 O8  A Take recorded in a host's chat that takes Takes is tagged with that
-chat once the server has it, once per Take; a failed tag stops
-nothing; a Take made in the speaking chat posts no tag (N648 item 8).","O1 -> ""a Take whose answer never came is sent again at the next open, with the same key, and shows as processing""
+chat once the server has it, once per Take, after a reload too; a
+failed tag stops nothing; a Take made in the speaking chat posts no
+tag (N648 item 8).","O1 -> ""a Take whose answer never came is sent again at the next open, with the same key, and shows as processing""
 O2 -> ""an accepted or duplicate answer deletes the copy, and a dropped connection keeps it""
 O3 -> ""a discard and a refusal for good delete it""
 O4 -> ""another signed-in person never sends it""
 O5 -> ""a newer Take of the same project on the server deletes the old copy, unsent""
 O6 -> ""past 7 days it is deleted""
 O7 -> ""a failed save never stops or delays the upload""
-O8 -> ""N648-8 a Take made in a host's chat is tagged with it once; a failed tag stops nothing; the speaking chat posts none""","Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2, N556): ""Ship B; line in next version"", ""At Finish only, for now"", ""Yes, all of them"". Never 3 (record, process, Ideal Text, next Take) and Never 5 (an older Take never becomes the Ideal Text)."
+O8 -> ""N648-8 a Take made in a host's chat is tagged with it once; a failed tag stops nothing; the speaking chat posts none""
+O8 -> ""N648-8 a Take sent again after a reload is still tagged with the chat it was made in""","Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2, N556): ""Ship B; line in next version"", ""At Finish only, for now"", ""Yes, all of them"". Never 3 (record, process, Ideal Text, next Take) and Never 5 (an older Take never becomes the Ideal Text)."
 src/lib/willab/tempoStep.test.ts,Story,"As a speaker in a pace week, I want the walk to give me a tempo game right after my practise moment, read each try from where the ball stayed, let me move on once a try really lands and push me for one more when it only came closer, so that I feel my pace change without a score and never have to decide whether to go again.","O1  The tempo step sits right after the practise moments and before other speakers; without it the walk is unchanged (N166).
 O2  It never appears in the coach-only walk or for a guest (N162).
 O3  A try that stays mostly in the green reads as better; otherwise the side the ball leaned to.

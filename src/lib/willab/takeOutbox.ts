@@ -59,6 +59,9 @@ export interface KeptTake {
   mimeType: string;
   /** The Take number this device expected it to be. */
   takeIndex: number | null;
+  /** The host's chat it was recorded in (backend N648 item 8), so a send
+   *  again, after a reload too, is still tagged with it; absent elsewhere. */
+  chat?: string | null;
 }
 
 interface KeptDocument {
@@ -233,6 +236,10 @@ export interface FinishedTake {
  *  awaited; the upload goes at once beside it. A signed-in speaker's Lab
  *  Take only. */
 export function keepTakeAtFinish(take: FinishedTake): void {
+  // The host's chat it was recorded in, for its tag (N648 item 8); an answer
+  // to someone's question is not a Take of the chat.
+  const chat = take.answer ? null : openChatNow();
+  if (chat) madeIn.set(take.key, chat);
   if (!take.ownerId || take.answer || take.picked || keptBlobs.has(take.blob)) return;
   keptBlobs.add(take.blob);
   try {
@@ -265,6 +272,7 @@ function keptTakeOf(take: FinishedTake, ownerId: string): KeptTake {
     },
     mimeType: take.blob.type,
     takeIndex: take.takeIndex,
+    chat: madeIn.get(take.key) ?? null,
   };
 }
 
@@ -396,9 +404,8 @@ export async function sendTake(
   opts?: { signal?: AbortSignal },
 ): Promise<LabUploadResult> {
   const key = input.uploadIdempotencyKey;
-  // The host's chat it was recorded in, as it first went up (N648 item 8).
-  const chat = madeIn.get(key) ?? openChatNow();
-  if (chat) madeIn.set(key, chat);
+  // Read before the copy can go: the host's chat it was recorded in.
+  const chat = chatOf(key).catch(() => null);
   live.add(key);
   let result: LabUploadResult;
   try {
@@ -410,23 +417,40 @@ export async function sendTake(
   void settleTake(key, result)
     .catch(() => undefined)
     .finally(() => live.delete(key));
-  tagMadeIn(key, chat, result);
+  void tagMadeIn(key, chat, result).catch(() => undefined);
   return result;
 }
 
-/** The host's chat each Take went up in, by its upload key, for this page
- *  (backend N648 item 8); a Take sent again after a reload has none. */
+/** The host's chat each Take was recorded in, by its upload key (N648 item
+ *  8): set at Finish, and kept with the Take's copy so a send again after
+ *  a reload knows it too. */
 const madeIn = new Map<string, string>();
 const tagged = new Set<string>();
+
+/** The host's chat a Take was recorded in: this page's, else its copy's. */
+async function chatOf(key: string): Promise<string | null> {
+  const here = madeIn.get(key) ?? memory.get(key)?.meta.chat;
+  if (here) return here;
+  return (await waitingTakes()).find((t) => t.key === key)?.chat ?? null;
+}
 
 /** Once the server has the Take, it is tagged with the host's chat it was
  *  made in: once per Take, best effort. A failed tag stops nothing, since
  *  the Take goes through the one loop all the same. A Take made anywhere
  *  else (the speaking chat) has no chat and posts nothing. */
-function tagMadeIn(key: string, chat: string | null, result: LabUploadResult): void {
-  if (!chat || tagged.has(key) || takeOutcome(result) !== "server_has_it" || !("sessionId" in result) || !result.sessionId) return;
+async function tagMadeIn(key: string, asked: Promise<string | null>, result: LabUploadResult): Promise<void> {
+  if (tagged.has(key) || takeOutcome(result) !== "server_has_it" || !("sessionId" in result) || !result.sessionId) return;
+  const session = result.sessionId;
+  const chat = await asked;
+  if (!chat || tagged.has(key)) return;
   tagged.add(key);
-  void tagTakeMadeIn(chat, result.sessionId).catch(() => false);
+  await tagTakeMadeIn(chat, session);
+}
+
+/** For tests: the page reloads; only the Takes' copies stay. */
+export function __reloadPageForTests(): void {
+  madeIn.clear();
+  tagged.clear();
 }
 
 /** A person's Takes kept on this device go (their account is being deleted). */

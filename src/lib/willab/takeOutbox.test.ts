@@ -24,8 +24,9 @@ OUTCOME
   O6  Past 7 days it is deleted, not sent.
   O7  A save the device refuses never stops or delays the upload.
   O8  A Take recorded in a host's chat that takes Takes is tagged with that
-      chat once the server has it, once per Take; a failed tag stops
-      nothing; a Take made in the speaking chat posts no tag (N648 item 8).
+      chat once the server has it, once per Take, after a reload too; a
+      failed tag stops nothing; a Take made in the speaking chat posts no
+      tag (N648 item 8).
 PROVES   O1 -> "a Take whose answer never came is sent again at the next open, with the same key, and shows as processing"
          O2 -> "an accepted or duplicate answer deletes the copy, and a dropped connection keeps it"
          O3 -> "a discard and a refusal for good delete it"
@@ -34,6 +35,7 @@ PROVES   O1 -> "a Take whose answer never came is sent again at the next open, w
          O6 -> "past 7 days it is deleted"
          O7 -> "a failed save never stops or delays the upload"
          O8 -> "N648-8 a Take made in a host's chat is tagged with it once; a failed tag stops nothing; the speaking chat posts none"
+         O8 -> "N648-8 a Take sent again after a reload is still tagged with the chat it was made in"
 WHY      Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2,
          N556): "Ship B; line in next version", "At Finish only, for now",
          "Yes, all of them". Never 3 (record, process, Ideal Text, next Take)
@@ -50,6 +52,7 @@ vi.mock("@/lib/api/auth-client", () => ({
 import type { LabUploadInput } from "@/services/api/labRecording";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import {
+  __reloadPageForTests,
   __resetTakeOutboxForTests,
   isLive,
   keepTakeAtFinish,
@@ -371,6 +374,7 @@ describe("a Take kept on the device until the server has it (backend N556)", () 
     // Recorded in Artur's chat, which takes Takes.
     setOpenChat("c-artur");
     const take = finished();
+    keepTakeAtFinish(take);
     uploadAnswer = accepted("s-1");
     expect((await sendTake(firstTry(take))).kind).toBe("processing");
     await vi.waitFor(() => expect(tags).toHaveLength(1));
@@ -383,7 +387,8 @@ describe("a Take kept on the device until the server has it (backend N556)", () 
 
     // The tag refused: the Take is the server's all the same.
     tagStatus = 404;
-    const second = finished({ key: "key-2" });
+    const second = finished({ key: "key-2", blob: new Blob(["two"], { type: "audio/webm" }) });
+    keepTakeAtFinish(second);
     uploadAnswer = accepted("s-2", 4);
     expect((await sendTake(firstTry(second))).kind).toBe("processing");
     await vi.waitFor(() => expect(tags).toHaveLength(2));
@@ -392,10 +397,27 @@ describe("a Take kept on the device until the server has it (backend N556)", () 
 
     // In the speaking chat no chat is open: nothing is tagged.
     setOpenChat(null);
-    const third = finished({ key: "key-3" });
+    const third = finished({ key: "key-3", blob: new Blob(["three"], { type: "audio/webm" }) });
+    keepTakeAtFinish(third);
     uploadAnswer = accepted("s-3", 5);
     await sendTake(firstTry(third));
     await settled(third.key);
     expect(tags).toHaveLength(2);
+  });
+
+  it("N648-8 a Take sent again after a reload is still tagged with the chat it was made in", async () => {
+    setOpenChat("c-artur");
+    const take = finished();
+    keepTakeAtFinish(take);
+    await sendTake(firstTry(take)); // the connection dropped: kept
+    await settled(take.key);
+    expect(tags).toEqual([]);
+    // The page reloads in the speaking chat; the copy goes up again.
+    __reloadPageForTests();
+    setOpenChat(null);
+    uploadAnswer = accepted("s-1");
+    await sendTake(firstTry(take));
+    await vi.waitFor(() => expect(tags).toHaveLength(1));
+    expect(tags[0]).toEqual({ path: "/api/v2/chats/c-artur/take", body: { take: "s-1" } });
   });
 });
