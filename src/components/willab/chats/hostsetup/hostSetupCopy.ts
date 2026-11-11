@@ -181,6 +181,8 @@ export const W = {
   goAhead: "Go ahead. Send it to me.",
   message: (name: string) => `Message ${name}`,
   useful: "Was this useful?",
+  /** Under a walk line (backend N647 items 1, 6 and 8). */
+  didThisHelp: "Did this help?",
   skip: "Skip",
   nextOne: "Send the next one when you're ready.",
   record: "Record",

@@ -47,8 +47,8 @@ export function ReplyBy({ message, chatId, children }: { message: ChatMessage; c
   );
 }
 
-/** "Was this useful?" for one message: Yes, No or Skip, answered once, then
- *  gone; one already answered (meta.useful) does not ask again. */
+/** "Did this help?" for one walk line (N647): Yes, No or Skip, answered
+ *  once, then gone; one already answered (meta.useful) does not ask again. */
 function UsefulTaps({ chatId, message }: { chatId: string; message: ChatMessage }) {
   const [answered, setAnswered] = useState(false);
   if (answered || message.meta?.useful_ask !== true || message.meta?.useful != null) return null;
@@ -59,7 +59,7 @@ function UsefulTaps({ chatId, message }: { chatId: string; message: ChatMessage 
   };
   return (
     <div data-useful-ask="" data-useful-for={message.id} className="flex flex-col gap-2 pt-2">
-      <Line>{W.useful}</Line>
+      <Line>{W.didThisHelp}</Line>
       <TapRow even labels={[W.yes, W.no, W.skip]} dataAttr={{ "data-useful-taps": "" }} onTap={pick} />
     </div>
   );
@@ -113,7 +113,8 @@ function Line({ children }: { children: ReactNode }) {
 export function UsefulAsk({ chatId, messages }: { chatId: string; messages: readonly ChatMessage[] | null }) {
   const [answered, setAnswered] = useState<string[]>([]);
   const last = messages?.[messages.length - 1];
-  if (!last || last.mine || walkLine(last) || last.meta?.useful_ask !== true || answered.includes(last.id)) return null;
+  // One already answered (meta.useful) does not ask again after a reload.
+  if (!last || last.mine || walkLine(last) || last.meta?.useful_ask !== true || last.meta?.useful != null || answered.includes(last.id)) return null;
   const pick = (label: string) => {
     setAnswered((was) => [...was, last.id]);
     const answer = label === W.yes ? "yes" : label === W.no ? "no" : "skip";
