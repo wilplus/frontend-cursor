@@ -190,6 +190,44 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     expectWords(["Now answer the first 10 yourself"]);
   });
 
+  it("N638 a model made in blocks has no cases: \"Write one\" takes a case typed in Will's chat, and the answering opens; \"Record one\" cannot be tapped", async () => {
+    let added = false;
+    serve({
+      ...LIST,
+      "POST /api/v2/models/setup/blocks": { ...S.begin, model_id: "blocky" },
+      "GET /api/v2/models/blocky/setup/first-ten": () => ({ ...(added ? S.first10Teach : S.first10None), model_id: "blocky" }),
+      "POST /api/v2/models/blocky/examples": () => {
+        added = true;
+        return { example_id: "w1", note: S.words.add_counts_once };
+      },
+    });
+    await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
+    await tap("Start your own");
+    await tap("Train my own");
+    await tap("A pick from a list");
+    await tap("GPT");
+    await type(container.querySelector("textarea")!, "Does the pitch rush?");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    await tap("Keep");
+    await tap("Teach it");
+    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself."]);
+    const ways = [...container.querySelectorAll("[data-testid=models-add] button")].map((b) => [b.textContent, (b as HTMLButtonElement).disabled]);
+    expect(ways.slice(-3)).toEqual([
+      ["Write oneType the case in your own words.", false],
+      ["Record oneSay the case in your own voice", true],
+      ["Upload a fileA written case", false],
+    ]);
+    const write = [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Write one"))!;
+    await tapEl(write);
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Type here");
+    await type(container.querySelector("textarea")!, "A founder reads every slide aloud, fast.");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expect(posted("/blocky/examples")).toEqual([{ text: "A founder reads every slide aloud, fast." }]);
+    expect(container.querySelector("[data-model-answer]")).not.toBeNull();
+  });
+
   it("N636-7 a draft begun in the three chapters still continues there, with the blocks", async () => {
     serve({ ...LIST, [`GET ${SETUP}`]: S.scale });
     await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
@@ -561,6 +599,22 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     expect(container.querySelector("[data-model-invite]")).toBeNull();
   });
 
+  it("MOD-21 N638: a teacher writes a case in Will's chat, answers it, and is told \"It counts once another teacher agrees with your answer.\"", async () => {
+    serve({
+      "GET /api/v2/models/queue": F.queue,
+      "POST /api/v2/models/rasp/examples": { example_id: "new1", note: S.words.add_counts_once },
+      "GET /api/v2/models/rasp": F.pageRasp,
+    });
+    await render(createElement(ModelsOverlay, { start: { at: "add" }, queueTitle: "Your queue", onClose: () => {} }));
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Write one")) ?? null);
+    await type(container.querySelector("textarea")!, "A client asks for a discount twice.");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expect(posted("/rasp/examples")).toEqual([{ text: "A client asks for a discount twice." }]);
+    expectWords(["A client asks for a discount twice."]);
+    expect(container.querySelector("[data-model-answer]")).not.toBeNull();
+  });
+
   it("MOD-21: a teacher adds a written case, answers it, and is told \"It counts once another teacher agrees with your answer.\"", async () => {
     serve({
       "GET /api/v2/models/queue": F.queue,
@@ -569,7 +623,7 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
       "POST /api/v2/models/rasp/examples/new1/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
     });
     await render(createElement(ModelsOverlay, { start: { at: "add" }, queueTitle: "Your queue", onClose: () => {} }));
-    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself.", "For which model?", "Record one", "Upload a file"]);
+    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself.", "For which model?", "Write one", "Record one", "Upload a file", "A written case"]);
     const record = [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Record one"))!;
     expect(record.disabled).toBe(true);
     await choose(container.querySelector("[data-model-add-file]")!, new File(["A client asks for a discount twice."], "case.txt", { type: "text/plain" }));
