@@ -699,6 +699,20 @@ describe("the blank setup (FIRST-)", () => {
     expect(puts("taps")).toEqual([SUGGEST.taps[0]]);
   });
 
+  it("N649-1 a part that cannot be kept says \"That didn't save. Try again.\" and the screen stays; kept on the next tap, it goes on", async () => {
+    await begun();
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    const kept = bff.routes["PUT /api/v2/chats/setup/smart"];
+    bff.routes["PUT /api/v2/chats/setup/smart"] = { status: 500, body: { code: "V2_ERROR" } };
+    await tap("Yes");
+    expect(container.querySelector("[data-setup-failed]")?.textContent).toBe("That didn't save. Try again.");
+    expect(text()).toContain("Right now your chat isn't a specialist in anything.");
+    bff.routes["PUT /api/v2/chats/setup/smart"] = kept;
+    await tap("Yes");
+    expect(container.querySelector("[data-setup-failed]")).toBeNull();
+    expect(text()).toContain("Two ways to make it smart. Pick one.");
+  });
+
   it("FIRST-17 Want to make it trichologist-smart? Not now leaves it without models and goes to who answers", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");

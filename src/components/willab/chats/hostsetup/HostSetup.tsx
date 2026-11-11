@@ -26,7 +26,7 @@ import {
   wantWalk,
 } from "@/services/api/hostSetup";
 import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
-import { Box, Btn, Cap, Card, Chips, Dots, Frame, FrameHistory, Link, Mine, Opt, Say, Two } from "./SetupBits";
+import { Box, Btn, Cap, Card, Chips, Dots, Frame, FrameHistory, FrameNote, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
@@ -116,6 +116,8 @@ type State = {
   busy: boolean;
   /** The backend refused the host's own words on this screen (N622 item 3). */
   refused: boolean;
+  /** A part could not be kept: Will says so under the screen (N649 item 1). */
+  failed: boolean;
   ownChat: OwnChat | null;
   /** Opened at one part from Build's "Your chat": kept or Back, Build again
    *  (backend N642 item 3). */
@@ -189,6 +191,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   testing: false,
   busy: false,
   refused: false,
+  failed: false,
   ownChat: null,
   onePart: false,
   backward: false,
@@ -266,6 +269,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   const go = (to: Step) => {
     S.refused = false;
+    S.failed = false;
     S.backward = false;
     S.history.push(S.at);
     // The answer to the step left stays above (N647 item 9).
@@ -338,6 +342,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       return paint();
     }
     S.refused = false;
+    S.failed = false;
     S.backward = true;
     const was = S.history.pop();
     if (!was) return onClose();
@@ -352,10 +357,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   const keep = (part: string, value: unknown, then: () => void = next) => {
     if (S.busy) return;
     S.busy = true;
+    S.failed = false;
     void keepPart(part, value).then((got) => {
       S.busy = false;
       if (!got || "refused" in got) {
         S.refused = got?.refused === "RECIPE_WORDS";
+        // Any other failure says so, never a dead button (N649 item 1).
+        S.failed = !S.refused;
         return paint();
       }
       S.recipe = got.recipe;
@@ -423,9 +431,11 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   const history = S.edit ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
   return (
     <FrameHistory.Provider value={history}>
+      <FrameNote.Provider value={S.failed ? <div role="alert" data-setup-failed="" className="max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">{W.notSaved}</div> : null}>
       <div className="contents" onClickCapture={heard}>
         <SetupScreen S={S} R={R} name={name} guess={guess} back={back} typeIn={typeIn} begin={begin} ctx={{ S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) }} />
       </div>
+      </FrameNote.Provider>
     </FrameHistory.Provider>
   );
 }
