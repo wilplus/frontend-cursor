@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { beginFromBlocks } from "@/services/api/modelSetup";
-import { OPTS, W } from "./hostSetupCopy";
-import { Box, Btn, Card, Chips, Frame, Link, Say, Two } from "./SetupBits";
-import { BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen, type BlockKey } from "./ModelBlockScreens";
+import { answerSets, beginFromBlocks } from "@/services/api/modelSetup";
+import { W } from "./hostSetupCopy";
+import { Box, Dots, Frame, Say } from "./SetupBits";
+import { AnswersScreen, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen, answersOf, type BlockKey } from "./ModelBlockScreens";
 import HostTeach from "./HostTeach";
 
 /* -------------------------------------------------------------------------- */
@@ -32,8 +32,12 @@ export default function ModelBlocks({ onBack, onDone }: {
   const [gives, setGives] = useState<string | null>(null);
   const [base, setBase] = useState<string | null>(null);
   const [q, setQ] = useState<string | null>(null);
-  const [opts, setOpts] = useState(0);
-  const [typing, setTyping] = useState(false);
+  /** The answers the question suggests (N646), which is shown, one's own. */
+  const [sets, setSets] = useState<string[][] | null>(null);
+  const [setI, setSetI] = useState(0);
+  const [own, setOwn] = useState<string[] | null>(null);
+  /** Typing in Will's chat: the question, or one's own answers. */
+  const [typing, setTyping] = useState<"question" | "answers" | null>(null);
   const [toStack, setToStack] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modelId, setModelId] = useState<string | null>(null);
@@ -42,11 +46,11 @@ export default function ModelBlocks({ onBack, onDone }: {
     setTrail((t) => [...t, at]);
     setAt(to);
     // "What should it notice?" with no question yet: straight to typing it.
-    if (to === "model" && !q) setTyping(true);
+    if (to === "model" && !q) setTyping("question");
   };
   const back = () => {
     if (typing) {
-      setTyping(false);
+      setTyping(null);
       if (q) return;
     }
     const was = trail.at(-1);
@@ -55,6 +59,16 @@ export default function ModelBlocks({ onBack, onDone }: {
     setAt(was);
   };
   const next = () => (at === "teach" ? undefined : go(NEXT[at]));
+  const answers = () => own ?? (sets ? sets[setI % sets.length] : []);
+  /** A question typed: the answers it suggests are read (N646). */
+  const asked = (question: string) => {
+    setQ(question);
+    setSets(null);
+    setSetI(0);
+    setOwn(null);
+    setTyping(null);
+    void answerSets(question).then(setSets);
+  };
   const chosen = () => {
     if (!toStack) return next();
     setToStack(false);
@@ -64,7 +78,7 @@ export default function ModelBlocks({ onBack, onDone }: {
     if (busy || !q) return;
     if (modelId) return go("teach");
     setBusy(true);
-    void beginFromBlocks({ question: q, answers: OPTS[opts % OPTS.length], gives: gives ?? "pick", base: base ?? "gpt" }).then((got) => {
+    void beginFromBlocks({ question: q, answers: answers(), gives: gives ?? "pick", base: base ?? "gpt" }).then((got) => {
       setBusy(false);
       if (got && "model_id" in got) {
         setModelId(got.model_id);
@@ -74,16 +88,20 @@ export default function ModelBlocks({ onBack, onDone }: {
   };
 
   if (typing) {
+    const forAnswers = typing === "answers";
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <Frame onBack={back}>
-          <Say>{W.modelAsk}</Say>
+          <Say>{forAnswers ? W.answersAsk : W.modelAsk}</Say>
         </Frame>
         <Box
-          placeholder={W.modelPlaceholder}
+          placeholder={forAnswers ? W.writeHere : W.modelPlaceholder}
+          lines={forAnswers}
           onSend={(v) => {
-            setQ(/\?$/.test(v) ? v : `${v}?`);
-            setTyping(false);
+            if (!forAnswers) return asked(/\?$/.test(v) ? v : `${v}?`);
+            const mine = answersOf(v);
+            if (mine.length) setOwn(mine);
+            setTyping(null);
           }}
         />
       </div>
@@ -97,20 +115,25 @@ export default function ModelBlocks({ onBack, onDone }: {
     case "base":
       return <BaseScreen onBack={back} on={base} onPick={(id) => { setBase(id); chosen(); }} />;
     case "model":
+      // Back is the question again; until the answers are read, the dots.
+      if (!sets && !own) {
+        return (
+          <Frame onBack={() => setTyping("question")}>
+            <Dots />
+          </Frame>
+        );
+      }
       return (
-        <Frame
-          onBack={back}
-          foot={
-            <>
-              <Two left={<Btn out label={W.change} onClick={() => setOpts((n) => n + 1)} />} right={<Btn label={W.keep} onClick={next} />} />
-              <Link label={W.typeOwn} onClick={() => setTyping(true)} />
-            </>
-          }
-        >
-          <Say>{W.firstModel}</Say>
-          <Card b={q ?? ""} />
-          <Chips items={OPTS[opts % OPTS.length]} />
-        </Frame>
+        <AnswersScreen
+          onBack={() => setTyping("question")}
+          answers={answers()}
+          onKeep={next}
+          onChange={() => {
+            setOwn(null);
+            setSetI((n) => n + 1);
+          }}
+          onType={() => setTyping("answers")}
+        />
       );
     case "stack":
       return (

@@ -686,6 +686,31 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).not.toContain("What should it give back?");
   });
 
+  it("N646 a typed question: its answers come from it; Change shows the next set; one's own, one on each line, at most three", async () => {
+    await begun();
+    bff.routes["POST /api/v2/models/setup/answers"] = { sets: [["Cracked", "Broken", "Not sure"], ["Split", "Whole", "Not sure"]] };
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Yes");
+    await tap("Train your own");
+    await tap("Train my own");
+    await tap("A pick from a list");
+    await tap("GPT");
+    await tap("Type my own");
+    await type("Is the wood cracked or broken");
+    expect(bff.calls.filter((c) => c.path === "/api/v2/models/setup/answers").map((c) => c.json)).toEqual([{ question: "Is the wood cracked or broken?" }]);
+    expect(text()).toContain("People answer with:");
+    expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Cracked · Broken · Not sure");
+    await tap("Change");
+    expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Split · Whole · Not sure");
+    await tap("Type my own");
+    expect(text()).toContain("Type up to three answers, one on each line.");
+    await type("Cracked\nBroken\n\nNot sure\nRotten");
+    expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Cracked · Broken · Not sure");
+    await tap("Keep");
+    await tap("Teach it");
+    expect(puts("models")).toEqual([[{ q: "Is the wood cracked or broken?", opts: ["Cracked", "Broken", "Not sure"], says: "Is the wood cracked or broken? Cracked.", own: true, base: "gpt", gives: "pick" }]]);
+  });
+
   it("N636-6 a tapped block changes that one choice and comes back to the stack; the card is saved only on Teach it", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");

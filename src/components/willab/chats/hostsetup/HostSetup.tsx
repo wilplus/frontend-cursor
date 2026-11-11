@@ -17,12 +17,13 @@ import {
   type WalkStepId,
   wantWalk,
 } from "@/services/api/hostSetup";
-import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
+import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
 import HostCheck from "./HostCheck";
-import { BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBlockScreens";
+import { AnswersScreen, BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen, answersOf } from "./ModelBlockScreens";
+import { answerSets } from "@/services/api/modelSetup";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -59,15 +60,19 @@ type State = {
   cost: ChatCost | null;
   /** Will's chat while words are asked for: his question, then one's own. */
   thread: { w: boolean; t: string }[];
-  typing: { ask: string; ph: string; done: (v: string) => void; initial?: string } | null;
+  typing: { ask: string; ph: string; done: (v: string) => void; initial?: string; lines?: boolean } | null;
   thinking: string | null;
   i: Record<string, number>;
   own: Record<string, string | null>;
   qs: string[];
   sendSet: SendKind[] | null;
   mi: number;
-  mopts: number;
   ownQ: string | null;
+  /** The answers the typed question suggests (N646), and which is shown;
+   *  `ownOpts` once the host typed their own. */
+  ownSets: string[][] | null;
+  setI: number;
+  ownOpts: string[] | null;
   ownSeen: boolean;
   /** What the host's own models are built on, once chosen (N634 item 1). */
   base: string | null;
@@ -131,8 +136,10 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   qs: recipe ? recipe.questions.map((q) => q.q) : [],
   sendSet: null,
   mi: 0,
-  mopts: 0,
   ownQ: null,
+  ownSets: null,
+  setI: 0,
+  ownOpts: null,
   ownSeen: false,
   base: recipe?.models?.find((m) => m.own && m.base)?.base ?? null,
   gives: recipe?.models?.find((m) => m.own && m.gives)?.gives ?? null,
@@ -281,12 +288,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       then();
     });
   };
-  const typeIn = (ask: string, done: (v: string) => void, ph: string = W.typeHere, initial?: string) => {
+  const typeIn = (ask: string, done: (v: string) => void, ph: string = W.typeHere, initial?: string, lines = false) => {
     S.thread.push({ w: true, t: ask });
     S.typing = {
       ask,
       ph,
       initial,
+      lines,
       done: (v) => {
         S.thread.push({ w: false, t: v });
         S.typing = null;
@@ -306,7 +314,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
+        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, ownQ: null, ownSets: null, setI: 0, ownOpts: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
         go("care");
       } else paint();
     });
@@ -340,7 +348,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
         <Frame onBack={back}>
           {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
         </Frame>
-        <Box placeholder={t.ph} onSend={t.done} initial={t.initial} />
+        <Box placeholder={t.ph} onSend={t.done} initial={t.initial} lines={t.lines} />
       </div>
     );
   }
@@ -366,7 +374,7 @@ type Ctx = {
   next: () => void;
   back: () => void;
   keep: (part: string, value: unknown, then?: () => void) => void;
-  typeIn: (ask: string, done: (v: string) => void, ph?: string) => void;
+  typeIn: (ask: string, done: (v: string) => void, ph?: string, initial?: string, lines?: boolean) => void;
   onClose: () => void;
   /** Where a "Not now" that ends the models, or the last step, goes. */
   done: () => void;
@@ -782,19 +790,18 @@ function ModelStep({ c }: { c: Ctx }) {
       </Frame>
     );
   }
-  const base: ModelDraft = R.suggest.models[S.mi % Math.max(1, R.suggest.models.length)];
-  const opts = OPTS[S.mopts % OPTS.length];
-  const d: ModelDraft = S.ownQ ? { q: S.ownQ, opts, says: `${S.ownQ} ${opts[0]}.` } : base;
+  if (S.ownQ) return <OwnAnswers c={c} q={S.ownQ} />;
+  const d: ModelDraft = R.suggest.models[S.mi % Math.max(1, R.suggest.models.length)];
   return (
     <Frame
       onBack={c.back}
       foot={
         <>
           <Two
-            left={<Btn out label={W.change} onClick={() => { if (S.ownQ) S.mopts += 1; else S.mi += 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => { S.draft = { ...d, own: true, base: S.base ?? "gpt", gives: S.gives ?? "pick" }; c.next(); }} />}
+            left={<Btn out label={W.change} onClick={() => { S.mi += 1; c.paint(); }} />}
+            right={<Btn label={W.keep} onClick={() => keepDraft(c, d)} />}
           />
-          <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => { S.ownQ = /\?$/.test(v) ? v : `${v}?`; }, W.modelPlaceholder)} />
+          <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => askedQuestion(c, /\?$/.test(v) ? v : `${v}?`), W.modelPlaceholder)} />
         </>
       }
     >
@@ -802,6 +809,57 @@ function ModelStep({ c }: { c: Ctx }) {
       <Card b={d.q} />
       <Chips items={d.opts} />
     </Frame>
+  );
+}
+
+const keepDraft = (c: Ctx, d: ModelDraft) => {
+  c.S.draft = { ...d, own: true, base: c.S.base ?? "gpt", gives: c.S.gives ?? "pick" };
+  c.next();
+};
+
+/** A typed question: the answers it suggests are read (N646). */
+function askedQuestion(c: Ctx, q: string) {
+  const { S } = c;
+  Object.assign(S, { ownQ: q, ownSets: null, setI: 0, ownOpts: null });
+  void answerSets(q).then((sets) => {
+    if (S.ownQ !== q) return;
+    S.ownSets = sets;
+    c.paint();
+  });
+}
+
+/** "People answer with:" for the typed question (N646): the suggested
+ *  sets, or the host's own; Back is the question again. */
+function OwnAnswers({ c, q }: { c: Ctx; q: string }) {
+  const { S } = c;
+  const back = () => {
+    Object.assign(S, { ownQ: null, ownSets: null, setI: 0, ownOpts: null });
+    c.paint();
+  };
+  if (!S.ownSets && !S.ownOpts) {
+    return (
+      <Frame onBack={back}>
+        <Dots />
+      </Frame>
+    );
+  }
+  const sets = S.ownSets ?? [];
+  const opts = S.ownOpts ?? sets[S.setI % Math.max(1, sets.length)] ?? [];
+  return (
+    <AnswersScreen
+      onBack={back}
+      answers={opts}
+      onKeep={() => keepDraft(c, { q, opts, says: `${q} ${opts[0]}.` })}
+      onChange={() => {
+        S.ownOpts = null;
+        S.setI += 1;
+        c.paint();
+      }}
+      onType={() => c.typeIn(W.answersAsk, (v) => {
+        const own = answersOf(v);
+        if (own.length) S.ownOpts = own;
+      }, W.writeHere, undefined, true)}
+    />
   );
 }
 

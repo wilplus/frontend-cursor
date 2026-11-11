@@ -1,7 +1,7 @@
 "use client";
 
 import { W } from "./hostSetupCopy";
-import { Btn, Frame, Opt, Say, Two } from "./SetupBits";
+import { Btn, Card, Frame, Link, Opt, Say, Two } from "./SetupBits";
 
 /* -------------------------------------------------------------------------- */
 /*  A model made in blocks, one choice per screen (backend N636 item 6,       */
@@ -11,6 +11,39 @@ import { Btn, Frame, Opt, Say, Two } from "./SetupBits";
 /* -------------------------------------------------------------------------- */
 
 export type BlockKey = "model" | "gives" | "base";
+
+/** One's own answers as typed (N646): one on each line, empty lines left
+ *  out, at most three, each as long as a card's answer may be. Pure. */
+export function answersOf(typed: string): string[] {
+  return typed.split(/\r?\n/).map((l) => l.trim().slice(0, 22)).filter(Boolean).slice(0, 3);
+}
+
+/** "People answer with:" (N646): the answers as one card; Change shows the
+ *  next set, "Type my own" asks for one's own. */
+export function AnswersScreen({ onBack, answers, onKeep, onChange, onType }: {
+  onBack: () => void;
+  answers: string[];
+  onKeep: () => void;
+  onChange: () => void;
+  onType: () => void;
+}) {
+  return (
+    <Frame
+      onBack={onBack}
+      foot={
+        <>
+          <Two left={<Btn out label={W.change} onClick={onChange} />} right={<Btn label={W.keep} onClick={onKeep} />} />
+          <Link label={W.typeOwn} onClick={onType} />
+        </>
+      }
+    >
+      <Say>{W.answersSay}</Say>
+      <div data-model-answers="">
+        <Card b={answers.join(" · ")} />
+      </div>
+    </Frame>
+  );
+}
 
 /** Why one's own model: two lines, then "Not now" or "Train my own". */
 export function OwnWhyScreen({ onBack, onNo, onYes }: { onBack: () => void; onNo: () => void; onYes: () => void }) {
