@@ -929,7 +929,12 @@ field and none of them; Principles its own rows and the text field.
 O2  What I type or tap in a chat says which chat it is, so it lands there.
 O3  ""Copy my link ›"" and ""Your questions for people who join ›"" leave the
 way in's ""You're set."" row in the speaking chat and show in Will's.
-O4  A typed turn tells the backend its chat, so both its rows stay there.","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""",
+O4  A typed turn tells the backend its chat, so both its rows stay there.
+O5  A plan row's ""See your plan"", ""Change"" or a call to book, tapped in
+Will's chat or Principles, opens the speaking chat first, where its
+sheet is drawn, so the tap never looks dead; in the speaking chat, and
+without the ring, it only opens the sheet. (The door's side, that it
+opens the chat asked for: chats.test.tsx ""N636-1"".)","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""; O5 -> ""N636-5""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.

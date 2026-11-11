@@ -13,7 +13,12 @@ OUTCOME
   O3  "Copy my link ›" and "Your questions for people who join ›" leave the
       way in's "You're set." row in the speaking chat and show in Will's.
   O4  A typed turn tells the backend its chat, so both its rows stay there.
-PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"; O4 -> "N636-4"
+  O5  A plan row's "See your plan", "Change" or a call to book, tapped in
+      Will's chat or Principles, opens the speaking chat first, where its
+      sheet is drawn, so the tap never looks dead; in the speaking chat, and
+      without the ring, it only opens the sheet. (The door's side, that it
+      opens the chat asked for: chats.test.tsx "N636-1".)
+PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"; O4 -> "N636-4"; O5 -> "N636-5"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -25,7 +30,7 @@ import { wayInRowFor } from "../plan/WayIn";
 import OwnChatLinks from "./OwnChatLinks";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { PlaceOnly, placeOf, rememberPlace, shownIn, typedHint, wordsShow, type LoungePlace } from "./loungePlace";
+import { PlaceOnly, onAskedPlace, placeOf, rememberPlace, shownIn, speakingFirst, typedHint, wordsShow, type LoungePlace } from "./loungePlace";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -153,6 +158,34 @@ describe("three chats over the one Lounge (N636)", () => {
       expect("place" in JSON.parse(String(none))).toBe(false);
     } finally {
       vi.unstubAllGlobals();
+    }
+  });
+
+  it("N636-5: a plan row's sheet, tapped outside the speaking chat, opens the speaking chat first", () => {
+    const seen: string[] = [];
+    const stop = onAskedPlace((place) => seen.push(`open ${place}`));
+    const rows = {
+      onSeePlan: () => seen.push("see"),
+      onChangePlan: () => seen.push("change"),
+      onBook: (which: string) => seen.push(`book ${which}`),
+    };
+    try {
+      for (const place of ["will", "principles"] as const) {
+        const tapped = speakingFirst(rows, place)!;
+        tapped.onSeePlan();
+        tapped.onChangePlan();
+        tapped.onBook("kickoff");
+      }
+      expect(seen).toEqual([
+        "open speaking", "see", "open speaking", "change", "open speaking", "book kickoff",
+        "open speaking", "see", "open speaking", "change", "open speaking", "book kickoff",
+      ]);
+      seen.length = 0;
+      expect(speakingFirst(rows, "speaking")).toBe(rows);
+      expect(speakingFirst(rows, null)).toBe(rows);
+      expect(speakingFirst(undefined, "will")).toBeUndefined();
+    } finally {
+      stop();
     }
   });
 });

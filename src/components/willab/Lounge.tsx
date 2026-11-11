@@ -169,7 +169,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -2030,7 +2030,8 @@ export default function Lounge({
         }
         onOpenIdealText={openIdealText}
         onOpenPastIdealText={openPastIdealText}
-        planRows={plan.rows}
+        // A plan row's sheet is the speaking chat's: its tap opens that chat first.
+        planRows={speakingFirst(plan.rows, place)}
         latestForArc={latestIdealIds.has(item.message.client_id)}
         onRetryIdealText={retryIdealTextFromCard}
         onOpenConfidencePractice={setConfidencePracticeId}

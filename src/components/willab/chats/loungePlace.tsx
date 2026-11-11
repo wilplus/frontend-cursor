@@ -142,3 +142,31 @@ export function placeholderIn(place: LoungePlace | null): string {
   if (place === "principles") return "Write here";
   return TYPE_YOUR_ANSWER;
 }
+
+const asked = new Set<(place: LoungePlace) => void>();
+
+/** Open this chat now: the door listens (useChatsDoor). */
+export function askForPlace(place: LoungePlace): void {
+  asked.forEach((open) => open(place));
+}
+
+/** The door's ear for askForPlace; returns the unsubscribe. */
+export function onAskedPlace(open: (place: LoungePlace) => void): () => void {
+  asked.add(open);
+  return () => asked.delete(open);
+}
+
+/** The plan rows' taps whose sheets are the speaking chat's (plan.sheets,
+ *  the booking dock): from Will's chat or Principles they open the speaking
+ *  chat first, so the tap never looks dead (N636 item 2). */
+export function speakingFirst<T extends { onSeePlan: () => void; onChangePlan: () => void; onBook: (...a: never[]) => void }>(
+  rows: T | undefined,
+  place: LoungePlace | null,
+): T | undefined {
+  if (!rows || !place || place === "speaking") return rows;
+  const first = <A extends unknown[]>(tap: (...a: A) => void) => (...a: A) => {
+    askForPlace("speaking");
+    tap(...a);
+  };
+  return { ...rows, onSeePlan: first(rows.onSeePlan), onChangePlan: first(rows.onChangePlan), onBook: first(rows.onBook) };
+}
