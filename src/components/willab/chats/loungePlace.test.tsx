@@ -110,7 +110,7 @@ describe("three chats over the one Lounge (N636)", () => {
 
     // What is typed or tapped says its chat; drawn there until the backend's copy.
     expect(typedHint("speaking", "a1")).toEqual({ place: "speaking", arc_id: "a1" });
-    expect(typedHint("principles", null)).toEqual({ place: "principles", offer: "voice_notebook" });
+    expect(typedHint("principles", null)).toEqual({ place: "principles" });
     expect(typedHint("will", "a1")).toEqual({ place: "will" });
     expect(typedHint(null, "a1")).toBeNull();
     rememberPlace("u1", "principles");

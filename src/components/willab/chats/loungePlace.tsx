@@ -83,14 +83,13 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
   return hint ? { ...draft, metadata: { ...(draft.metadata ?? {}), ...hint } } : draft;
 }
 
-/** What a row typed in this chat carries, so the backend files it here:
- *  the speaking chat's Take, or a note of Principles (the "#" notebook). */
+/** What a row typed in this chat carries, so the backend files it here
+ *  (it reads metadata.place before anything else, backend #1933); in the
+ *  speaking chat, the Take it is about. Never an `offer`: a row with one is
+ *  drawn as Will's offer, never as one's own words. */
 export function typedHint(place: LoungePlace | null, arcId: string | null | undefined): Record<string, unknown> | null {
   if (!place) return null;
-  // `place` first: the backend reads metadata.place before anything else
-  // (backend #1933); the rest keeps the row's sense for the earlier rule.
   if (place === "speaking" && arcId) return { place, arc_id: arcId };
-  if (place === "principles") return { place, offer: "voice_notebook" };
   return { place };
 }
 
