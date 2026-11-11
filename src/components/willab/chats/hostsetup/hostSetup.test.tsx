@@ -551,6 +551,20 @@ describe("the blank setup (FIRST-)", () => {
     expect(value("say")).toBe("1 line");
   });
 
+  it("N647-1 See it run: the walk's own lines on a sample message, then Did this help?; an answer ends with Thanks. and nothing is sent", async () => {
+    await walkHome(WALK_READ);
+    const before = bff.calls.length;
+    await tap("See it run");
+    expect(text()).toContain("▶ 0:42");
+    expect(text()).toContain("Your scalp looks dry here.");
+    expect(text()).toContain("The crown is thinner.");
+    expect(text()).toContain("Did this help?");
+    await tap("Yes");
+    expect(text()).toContain("Thanks.");
+    expect(text()).not.toContain("Did this help?");
+    expect(bff.calls.length).toBe(before);
+  });
+
   it("N647-2 What I notice: each of one's own models, Ready or Still learning; one turned off is sent as {on:false}; Something else tells Artur", async () => {
     bff.routes["POST /api/v2/chats/setup/walk/want"] = { wanted: true };
     bff.routes["PUT /api/v2/chats/setup/walk/items/m-dry"] = { ...WALK_READ, notice: [{ ...WALK_READ.notice[0], on: false }, WALK_READ.notice[1]] };
@@ -697,6 +711,20 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Something else");
     await tap("Keep");
     expect(puts("taps")).toEqual([SUGGEST.taps[0]]);
+  });
+
+  it("N649-1 a part that cannot be kept says \"That didn't save. Try again.\" and the screen stays; kept on the next tap, it goes on", async () => {
+    await begun();
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    const kept = bff.routes["PUT /api/v2/chats/setup/smart"];
+    bff.routes["PUT /api/v2/chats/setup/smart"] = { status: 500, body: { code: "V2_ERROR" } };
+    await tap("Yes");
+    expect(container.querySelector("[data-setup-failed]")?.textContent).toBe("That didn't save. Try again.");
+    expect(text()).toContain("Right now your chat isn't a specialist in anything.");
+    bff.routes["PUT /api/v2/chats/setup/smart"] = kept;
+    await tap("Yes");
+    expect(container.querySelector("[data-setup-failed]")).toBeNull();
+    expect(text()).toContain("Two ways to make it smart. Pick one.");
   });
 
   it("FIRST-17 Want to make it trichologist-smart? Not now leaves it without models and goes to who answers", async () => {

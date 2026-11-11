@@ -58,6 +58,8 @@ export const W = {
   careSay: "Is your work about health, law or money?",
   careCap: "If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.",
   careWho: "Your work is about health, law or money, so nothing goes out until you send it.",
+  // A part that could not be kept (backend N649 item 1).
+  notSaved: "That didn't save. Try again.",
   refusedWords: "Try other words. Your chat can't show a score or a number about someone.",
   lineCap: "New people read this before they join your chat.",
   lineSay: "People come to you for this:",
@@ -79,6 +81,10 @@ export const W = {
   // The walk, part by part (N647 items 1, 2, 6, 7).
   walkHome: "Your walk, part by part. Tap one to change it.",
   walkParts: { steps: "Its steps", notice: "What I notice", say: "What I say", out: "What they get" } as const,
+  /** "See it run" (N647 item 1; the pinned prototype's run screen). */
+  seeItRun: "See it run",
+  sampleTake: "▶ 0:42",
+  thanks: "Thanks.",
   noticeSay: "This is what I notice in a message. Tap one.",
   readyNow: "Ready",
   off: "Off",
