@@ -6,6 +6,8 @@ import {
 import type { LabSessionContext } from "@/components/willab/LabOverlay";
 import type { PresentationSlide } from "@/components/willab/presentation";
 import type { Feeling } from "@/components/willab/willabFeelings";
+import { openChatNow } from "@/components/willab/chats/loungePlace";
+import { tagTakeMadeIn } from "@/services/api/chats";
 
 /* -------------------------------------------------------------------------- */
 /*  takeOutbox — a Take kept on the device until the server has it             */
@@ -394,6 +396,9 @@ export async function sendTake(
   opts?: { signal?: AbortSignal },
 ): Promise<LabUploadResult> {
   const key = input.uploadIdempotencyKey;
+  // The host's chat it was recorded in, as it first went up (N648 item 8).
+  const chat = madeIn.get(key) ?? openChatNow();
+  if (chat) madeIn.set(key, chat);
   live.add(key);
   let result: LabUploadResult;
   try {
@@ -405,7 +410,23 @@ export async function sendTake(
   void settleTake(key, result)
     .catch(() => undefined)
     .finally(() => live.delete(key));
+  tagMadeIn(key, chat, result);
   return result;
+}
+
+/** The host's chat each Take went up in, by its upload key, for this page
+ *  (backend N648 item 8); a Take sent again after a reload has none. */
+const madeIn = new Map<string, string>();
+const tagged = new Set<string>();
+
+/** Once the server has the Take, it is tagged with the host's chat it was
+ *  made in: once per Take, best effort. A failed tag stops nothing, since
+ *  the Take goes through the one loop all the same. A Take made anywhere
+ *  else (the speaking chat) has no chat and posts nothing. */
+function tagMadeIn(key: string, chat: string | null, result: LabUploadResult): void {
+  if (!chat || tagged.has(key) || takeOutcome(result) !== "server_has_it" || !("sessionId" in result) || !result.sessionId) return;
+  tagged.add(key);
+  void tagTakeMadeIn(chat, result.sessionId).catch(() => false);
 }
 
 /** A person's Takes kept on this device go (their account is being deleted). */
@@ -430,5 +451,7 @@ export function __resetTakeOutboxForTests(): void {
   memory.clear();
   saving.clear();
   live.clear();
+  madeIn.clear();
+  tagged.clear();
   dbPromise = null;
 }

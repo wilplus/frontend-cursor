@@ -83,6 +83,13 @@ export async function getChats(): Promise<Chat[] | null> {
 }
 
 
+/** A Take recorded in this chat, through the one loop (backend N648 item 8):
+ *  the person's own Take, tagged with the chat it was made in, once. True
+ *  once the backend kept the tag; never throws. */
+export async function tagTakeMadeIn(chatId: string, take: string): Promise<boolean> {
+  return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/take`, { method: "POST", json: { take } })) !== null;
+}
+
 export async function getChatMessages(chatId: string): Promise<ChatMessage[] | null> {
   return (await getChatThread(chatId))?.messages ?? null;
 }

@@ -23,6 +23,9 @@ OUTCOME
       one, and goes.
   O6  Past 7 days it is deleted, not sent.
   O7  A save the device refuses never stops or delays the upload.
+  O8  A Take recorded in a host's chat that takes Takes is tagged with that
+      chat once the server has it, once per Take; a failed tag stops
+      nothing; a Take made in the speaking chat posts no tag (N648 item 8).
 PROVES   O1 -> "a Take whose answer never came is sent again at the next open, with the same key, and shows as processing"
          O2 -> "an accepted or duplicate answer deletes the copy, and a dropped connection keeps it"
          O3 -> "a discard and a refusal for good delete it"
@@ -30,6 +33,7 @@ PROVES   O1 -> "a Take whose answer never came is sent again at the next open, w
          O5 -> "a newer Take of the same project on the server deletes the old copy, unsent"
          O6 -> "past 7 days it is deleted"
          O7 -> "a failed save never stops or delays the upload"
+         O8 -> "N648-8 a Take made in a host's chat is tagged with it once; a failed tag stops nothing; the speaking chat posts none"
 WHY      Founder, the Claude Code chat, 9 November 2026 (backend N553 item 2,
          N556): "Ship B; line in next version", "At Finish only, for now",
          "Yes, all of them". Never 3 (record, process, Ideal Text, next Take)
@@ -56,6 +60,7 @@ import {
 } from "./takeOutbox";
 import { resendKeptTakes, type ResendDeps } from "./takeResend";
 import { readProcessingTake } from "./processingTake";
+import { setOpenChat } from "@/components/willab/chats/loungePlace";
 
 const ANA = "user-ana";
 const HOUR = 60 * 60 * 1000;
@@ -65,6 +70,8 @@ let uploads: FormData[];
 let uploadAnswer: Answer;
 let arcs: unknown[];
 let consent: Record<string, unknown>;
+let tags: { path: string; body: unknown }[];
+let tagStatus: number;
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -73,6 +80,8 @@ function json(status: number, body: unknown): Response {
 beforeEach(() => {
   session.sub = ANA;
   uploads = [];
+  tags = [];
+  tagStatus = 200;
   uploadAnswer = "offline";
   arcs = [];
   consent = { has_receipt: true, personalised_practice: true, sensitive_information: true };
@@ -85,6 +94,10 @@ beforeEach(() => {
         if (uploadAnswer === "offline") throw new TypeError("Failed to fetch");
         return json(uploadAnswer.status, uploadAnswer.body ?? {});
       }
+      if (path.includes("/api/v2/chats/") && path.endsWith("/take")) {
+        tags.push({ path, body: JSON.parse(String(init?.body ?? "null")) });
+        return json(tagStatus, tagStatus === 200 ? { message_id: "m-1", take: "s-1" } : { code: "NOT_FOUND" });
+      }
       if (path.includes("/user/trainings")) return json(200, { trainings: arcs });
       if (path.includes("/processing-authorization/choices")) return json(200, consent);
       if (path.endsWith("/api/v2/projects")) return json(201, { project_id: "p-new" });
@@ -94,6 +107,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setOpenChat(null);
   vi.useRealTimers();
   vi.unstubAllGlobals();
   __resetTakeOutboxForTests();
@@ -351,5 +365,37 @@ describe("a Take kept on the device until the server has it (backend N556)", () 
     expect(result.kind).toBe("processing");
     expect(uploads).toHaveLength(1);
     expect(uploads[0].get("upload_idempotency_key")).toBe("key-1");
+  });
+
+  it("N648-8 a Take made in a host's chat is tagged with it once; a failed tag stops nothing; the speaking chat posts none", async () => {
+    // Recorded in Artur's chat, which takes Takes.
+    setOpenChat("c-artur");
+    const take = finished();
+    uploadAnswer = accepted("s-1");
+    expect((await sendTake(firstTry(take))).kind).toBe("processing");
+    await vi.waitFor(() => expect(tags).toHaveLength(1));
+    expect(tags[0]).toEqual({ path: "/api/v2/chats/c-artur/take", body: { take: "s-1" } });
+    // Sent again (the server answers duplicate): no second tag.
+    uploadAnswer = { status: 200, body: { state: "duplicate", session_id: "s-1", project_id: "p-1" } };
+    await sendTake(firstTry(take));
+    await settled(take.key);
+    expect(tags).toHaveLength(1);
+
+    // The tag refused: the Take is the server's all the same.
+    tagStatus = 404;
+    const second = finished({ key: "key-2" });
+    uploadAnswer = accepted("s-2", 4);
+    expect((await sendTake(firstTry(second))).kind).toBe("processing");
+    await vi.waitFor(() => expect(tags).toHaveLength(2));
+    await settled(second.key);
+    expect(await keys()).not.toContain("key-2");
+
+    // In the speaking chat no chat is open: nothing is tagged.
+    setOpenChat(null);
+    const third = finished({ key: "key-3" });
+    uploadAnswer = accepted("s-3", 5);
+    await sendTake(firstTry(third));
+    await settled(third.key);
+    expect(tags).toHaveLength(2);
   });
 });
