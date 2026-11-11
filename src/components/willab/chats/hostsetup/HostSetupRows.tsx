@@ -16,7 +16,7 @@ import { refreshHostWork } from "./hostWork";
 import { W } from "./hostSetupCopy";
 import { OPEN_EVENT, knowSetup, type OpenDetail } from "./hostSetupDoor";
 import { CoverSiteBar } from "../siteBarCover";
-import { BarBackContext, EdgeBack, OneBarBack } from "../../OneTopBar";
+import { BarBackContext, EdgeBack, OneBarBack, OneBarContext } from "../../OneTopBar";
 import { FrameTitle } from "./SetupBits";
 
 /* -------------------------------------------------------------------------- */
@@ -106,7 +106,9 @@ export default function HostSetupRows() {
   if (kind === "models" || kind === "teach") {
     const models = (
       <>
-        <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
+        <OneBarContext.Provider value>
+          <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
+        </OneBarContext.Provider>
         <EdgeBack />
       </>
     );
@@ -151,10 +153,20 @@ export default function HostSetupRows() {
 function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead | null; name: string; onClose: () => void }) {
   const recipe = read?.recipe ?? null;
   const detail = open.at === "setup" ? open.detail : {};
-  if (detail.open === "drafts") return <HostDrafts onClose={onClose} />;
+  if (detail.open === "drafts") {
+    return (
+      <FrameTitle.Provider value={W.answersToSendTitle}>
+        <HostDrafts onClose={onClose} />
+      </FrameTitle.Provider>
+    );
+  }
   if (detail.open === "check" && detail.modelId) {
     const checked = (recipe?.models ?? []).find((m) => m.model_id === detail.modelId);
-    return <HostCheck modelId={detail.modelId} question={checked?.q ?? ""} onBack={onClose} onDone={onClose} />;
+    return (
+      <FrameTitle.Provider value={W.modelsToCheckTitle}>
+        <HostCheck modelId={detail.modelId} question={checked?.q ?? ""} onBack={onClose} onDone={onClose} />
+      </FrameTitle.Provider>
+    );
   }
   if (open.at === "own" && recipe) return <HostOwnChat name={read?.own_chat?.title ?? name} recipe={recipe} onBack={onClose} />;
   return (

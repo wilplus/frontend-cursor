@@ -27,6 +27,12 @@ export function useOneBar(): boolean {
   return useContext(OneBarContext);
 }
 
+/** The one bar's row: the chats' top bars' height (60 px) and their line
+ *  under it, so every bar in the app lines up (N639). */
+export const ONE_BAR_ROW = "flex h-[60px] shrink-0 items-center border-b border-border px-2.5";
+/** A walk screen's own top row, as it was. */
+const WALK_ROW = "flex min-h-[44px] items-center justify-between px-2.5 pt-2";
+
 /** A walk screen's bar controls: as given, or, opened from Will's lines,
  *  the back arrow as the only control (a screen with only a close goes back
  *  with the arrow instead, its caption beside it), and a moment's ‹ never
@@ -37,10 +43,11 @@ export function useOneBarControls<N extends { backDisabled?: boolean }>({ nav, o
   onClose?: () => void;
   backLabel?: string | null;
   caption?: string | null;
-}): { nav: N | null | undefined; back?: () => void; close?: () => void; label?: string | null } {
+}): { nav: N | null | undefined; back?: () => void; close?: () => void; label?: string | null; row: string } {
   const oneBar = useOneBar();
-  if (!oneBar) return { nav, back: onBack, close: onClose, label: backLabel };
+  if (!oneBar) return { nav, back: onBack, close: onClose, label: backLabel, row: WALK_ROW };
   return {
+    row: ONE_BAR_ROW,
     nav: nav ? { ...nav, backDisabled: false } : nav,
     back: nav ? onBack : onBack ?? onClose,
     label: backLabel ?? caption,
@@ -70,7 +77,7 @@ export function BackRow({ onBack, label }: { onBack: () => void; label?: ReactNo
 export default function OneTopBar({ onBack, title = null }: { onBack?: () => void; title?: ReactNode }) {
   return (
     <div data-one-top-bar="" className="walk-ovtop shrink-0 pt-[env(safe-area-inset-top)]">
-      <div className="flex min-h-[44px] items-center px-2.5 pt-2">
+      <div className={ONE_BAR_ROW}>
         {onBack ? (
           <BackRow onBack={onBack} label={title} />
         ) : title ? (

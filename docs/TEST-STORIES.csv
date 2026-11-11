@@ -928,7 +928,10 @@ src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with t
 bar: the arrow and ""Your chat"", no ""Back"" word, no circle, no close
 (a new account: its first screen, ""What do you do?"");
 the arrow on its first screen brings me back to Will's chat, and so
-does the phone's Back.","O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
+does the phone's Back.
+O2  The drafted answers say ""Answers to send"" in that bar, and Back
+returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
+O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",

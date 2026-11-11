@@ -181,6 +181,10 @@ export const W = {
   momentsLine: "From your speakers. Nobody shows you my guess first.",
   examplesToTeach: (n: number) => (n === 1 ? "1 example to teach" : `${n} examples to teach`),
   examplesLine: "For the models you teach.",
+  /** The one bar's title over the drafted answers and a model's check:
+   *  the line's own words without the count (N639). */
+  answersToSendTitle: "Answers to send",
+  modelsToCheckTitle: "Models to check",
   modelsToCheck: (n: number) => (n === 1 ? "1 model to check" : `${n} models to check`),
   modelsLine: "Its guesses, on examples it has not seen.",
   nothingNeedsYou: "Nothing needs you now.",

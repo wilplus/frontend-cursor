@@ -204,7 +204,7 @@ export default function WalkOverlay({
       data-testid={testId}
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
+      <div className={`walk-ovtop ${bar.row}`}>
         {nav ? (
           <NavBar nav={bar.nav ?? nav} />
         ) : bar.back ? (

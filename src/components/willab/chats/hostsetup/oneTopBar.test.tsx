@@ -9,7 +9,10 @@ OUTCOME
       (a new account: its first screen, "What do you do?");
       the arrow on its first screen brings me back to Will's chat, and so
       does the phone's Back.
-PROVES   O1 -> "N639 Your chat opened from Will has the one bar, and Back returns to Will's chat"
+  O2  The drafted answers say "Answers to send" in that bar, and Back
+      returns to Will's chat.
+PROVES   O2 -> "N639 Your chat opened from Will has the one bar, and Back returns to Will's chat"
+         O1 -> "N639 Your chat opened from Will has the one bar, and Back returns to Will's chat"
 WHY      Backend N639 items 1 and 2. Not a style check: which control there
          is, what it says, and where Back goes.
 */
@@ -87,6 +90,17 @@ describe("one top bar for what opens from Will's lines (backend N639)", () => {
     await flush();
     expect(bar()?.textContent).toBe("Your chat");
     await act(async () => window.dispatchEvent(new PopStateEvent("popstate")));
+    await flush();
+    expect(overWill()).toBeNull();
+
+    // The drafted answers: the line's own words, without the count.
+    bff.routes["GET /api/v2/chats/setup/drafts"] = {
+      drafts: [{ message_id: "d1", thread_id: "t1", from: "Kasia", said: "Hi?", answer: "Hello.", lines: [], sensitive: false }],
+    };
+    act(() => openOverList({ open: "drafts" }));
+    await flush();
+    expect(bar()?.textContent).toBe("Answers to send");
+    await act(async () => bar()!.querySelector<HTMLButtonElement>("button")!.click());
     await flush();
     expect(overWill()).toBeNull();
   });
