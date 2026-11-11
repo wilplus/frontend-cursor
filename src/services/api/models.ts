@@ -271,13 +271,15 @@ export async function addExampleSet(modelId: string, texts: string[]): Promise<{
 
 /** A kind of set that is coming (N645 item 3). */
 export type ComingKind = "recordings" | "images";
-/** The kinds coming and whether the caller asked for each; null when the
- *  read is not there (then no coming row is drawn). */
+const COMING_ORDER: ComingKind[] = ["recordings", "images"];
+/** The kinds coming that this screen draws, in N645's order (recordings,
+ *  then images; others such as "video" are not drawn here), and whether the
+ *  caller asked for each; null when the read is not there (no coming row). */
 export async function readComing(): Promise<{ kind: ComingKind; wanted: boolean }[] | null> {
   const body = await call("/api/v2/models/coming", { method: "GET" });
   const list = Array.isArray(body?.coming) ? (body.coming as { kind?: unknown; wanted?: unknown }[]) : null;
   return list
-    ? list.filter((c) => c.kind === "recordings" || c.kind === "images").map((c) => ({ kind: c.kind as ComingKind, wanted: c.wanted === true }))
+    ? COMING_ORDER.flatMap((kind) => list.filter((c) => c.kind === kind).slice(0, 1).map((c) => ({ kind, wanted: c.wanted === true })))
     : null;
 }
 

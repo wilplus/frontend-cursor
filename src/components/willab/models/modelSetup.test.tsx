@@ -686,14 +686,17 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
   it("N645 \"Recordings, coming\" and \"Images, coming\": \"I want this\" tells Artur once, then the thanks; no row without the read", async () => {
     let n = 0;
     await toTexts({
-      "GET /api/v2/models/coming": { coming: [{ kind: "recordings", title: "", wanted: false }, { kind: "images", title: "", wanted: true }] },
+      // As the backend lists them (#1947): images, video, recordings.
+      "GET /api/v2/models/coming": { coming: [{ kind: "images", title: "Images", wanted: true }, { kind: "video", title: "Video", wanted: false }, { kind: "recordings", title: "Recordings", wanted: false }] },
       "POST /api/v2/models/coming/recordings/want": () => {
         n += 1;
         return { wanted: true };
       },
     });
     await tapEl(container.querySelector("[data-walk-back], button[aria-label]"));
-    expectWords(["Texts", "Recordings, coming. I want this", "Images, coming. Thanks. I've told Artur."]);
+    const rows = [...container.querySelectorAll("[data-testid=models-add-set] button")].map((b) => b.textContent).filter((t) => t && t !== "Add an example");
+    expect(rows.slice(-3)).toEqual(["Texts", "Recordings, coming. I want this", "Images, coming. Thanks. I've told Artur."]);
+    expect(text()).not.toContain("Video");
     await tap("Recordings, coming. I want this");
     expect(n).toBe(1);
     expectWords(["Recordings, coming. Thanks. I've told Artur."]);
