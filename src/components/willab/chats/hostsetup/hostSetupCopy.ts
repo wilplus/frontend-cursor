@@ -246,6 +246,8 @@ export const W = {
   waiting: (n: number) => `${n} waiting`,
   startYourOwn: "Start your own",
   modelBy: (by: string) => `${by}'s model`,
+  // Models that learn from images and from video, coming (N642 item 6, N643 item 4).
+  coming: (what: "images" | "video", told: boolean) => `${what === "images" ? "Images" : "Video"}, coming. ${told ? "Thanks. I've told Artur." : "I want this"}`,
   // Drafted answers, one per screen (N629 item 3).
   asked: (name: string) => `${name} asked:`,
   wouldAnswer: "I'd answer:",
