@@ -169,6 +169,8 @@ import BundleQueue from "./chats/BundleQueue";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
+import OwnChatLinks from "./chats/OwnChatLinks";
+import { PlaceOnly, ownChatLinksIn, rememberPlace, shownIn, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -375,6 +377,12 @@ function firstHear<T>(plan: T | null, keyLine: T | null): T | null {
   return plan ?? keyLine;
 }
 
+/** The slides' line once they are ready: about the project's deck, so the
+ *  speaking chat's (N636 item 1). */
+function slidesReadyDraft(line: string, arcId: string | null | undefined) {
+  return { role: "bot" as const, kind: "text" as const, body: line, ...(arcId ? { metadata: { arc_id: arcId } } : {}) };
+}
+
 export default function Lounge({
   state,
   onStart,
@@ -500,6 +508,9 @@ export default function Lounge({
   // take-review overlay and the arc-level delivery that once hung off this
   // hub are gone (founder 2026-09-30, B3 to B6; P2-19).
 
+  // Which of the three chats the Lounge is drawn as, for the chat builder's
+  // ring (N635, N636 items 1 to 5); null for everyone else: as it was.
+  const place = useOpenPlace();
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
     // idempotent client_ids are the identity. A double-insert (retry, optimistic
@@ -549,9 +560,9 @@ export default function Lounge({
     const hidden = versionBubblesWithReviewCard(threadItems);
     const closing = closingTakesOf(drawnOf(threadItems));
     return threadItems.filter(
-      (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing),
+      (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing) && shownIn(item.message, place),
     );
-  }, [threadItems, walkAt]);
+  }, [threadItems, walkAt, place]);
   // Each Take's Ideal Text card right under its Feedback walk, one pair
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
@@ -1242,6 +1253,8 @@ export default function Lounge({
     recordHeld: takeInFlight,
     onOpenFeedback: () => openFirstTakeFeedback(),
     onJoinQuestions: () => void joinSetup.again().then(followAnswer),
+    // In the ring's speaking chat these two go to Will's chat (N636 item 3).
+    ownChatLinks: ownChatLinksIn(place),
     onSetUpChat: assistant.builder ? () => void chatSetup.begin().then(followAnswer) : undefined,
     onWords: () => words.start(),
   });
@@ -1612,10 +1625,12 @@ export default function Lounge({
       followAnswer();
     },
   });
-  const barDisplay = (base: string) => (keyLine.recording ? "hidden" : plan.composerDisplay(base));
+  // Will's chat and Principles: the bar is the text field, never the plan's
+  // footer in its place (N635 item 2).
+  const barDisplay = (base: string) => (keyLine.recording ? "hidden" : wordsAlways(place) ? base : plan.composerDisplay(base));
   const words = useWordsBox(
     shownMessages,
-    plan.typingOff || keyLine.asks,
+    typingOffIn(place, plan.typingOff || keyLine.asks),
     draftText,
     composerRef,
     wordsWaitFor(feedbackCheckTarget([...shownMessages], "missing"), setupWaits, plan.wordsWait),
@@ -1730,7 +1745,11 @@ export default function Lounge({
   }
 
   function postAnswerBubble(label: string) {
-    void thread.append({ role: "user", kind: "text", body: label });
+    // An answer to the speaking chat's own question stays there (N636 item 1).
+    const hint = typedHint(place, readExploreArc(userId)?.arcId);
+    void thread.append(withHint({ role: "user", kind: "text", body: label } as LoungeMessageDraft, hint)).then((m) => {
+      if (m) rememberPlace(m.client_id, place);
+    });
   }
 
   // What a reply did to the asks (founder 2026-10-20). A number typed under
@@ -1798,8 +1817,12 @@ export default function Lounge({
       // BE also writes it from the client_id we pass below, and the server dedups
       // on (user_id, client_id) so it collapses to one row (#2). So the write
       // and the question go out together, and the dots show at once.
-      const userDraft = { role: "user" as const, kind: "text" as const, body: q };
+      // Typed in the speaking chat or Principles, it says so, and it is drawn
+      // there until the backend's copy is read (N636 items 1 and 2).
+      const hint = typedHint(place, readExploreArc(userId)?.arcId);
+      const userDraft = withHint({ role: "user" as const, kind: "text" as const, body: q } as LoungeMessageDraft, hint);
       const userMsg = stampLoungeMessage(userDraft, newestStamp(messages));
+      rememberPlace(userMsg.client_id, place);
       const appended = thread.append({ ...userDraft, clientId: userMsg.client_id });
 
       setBotThinking(true);
@@ -1857,6 +1880,7 @@ export default function Lounge({
         };
         if (thread.signedIn) {
           const botMessage = thread.appendLocalOnly(botDraft);
+          rememberPlace(botMessage.client_id, place);
           if (resp.persisted) {
             announceDiscoveriesFromPersistedMessages([botMessage]);
           }
@@ -1885,7 +1909,8 @@ export default function Lounge({
           await thread.append(botDraft);
         }
       } catch (err) {
-        await thread.append(chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null));
+        // Will's reply that could not come stays in the chat it was asked in.
+        await thread.append(withHint(chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null), hint));
       } finally {
         setBotThinking(false);
         followAnswer();
@@ -2131,12 +2156,15 @@ export default function Lounge({
 
         {/* What needs you, for the chat builder's ring (backend N629 item 1);
             nothing without it, where the setup's read is 404. */}
-        {thread.signedIn ? <WillNeedsYou /> : null}
+        <PlaceOnly place={place} in={["will"]}>{thread.signedIn ? <WillNeedsYou /> : null}</PlaceOnly>
+        <OwnChatLinks place={place} messages={messages} onJoinQuestions={() => void joinSetup.again().then(followAnswer)} />
 
         {/* The plan's answers under Will's question, the after-walk way
             (N319 item 1): tap answers on the right, or the 1 to 10 scale. */}
-        {plan.asks}
-        {keyLine.notNow}
+        <PlaceOnly place={place} in={["speaking"]}>
+          {plan.asks}
+          {keyLine.notNow}
+        </PlaceOnly>
 
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
@@ -2222,7 +2250,7 @@ export default function Lounge({
           black record button; resolving it returns the record button (U2). The
           offer's prompt + outcome live in the thread as durable bubbles. */}
       <NewProjectAskSlot ask={newProjectAsk}>
-      <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append({ role: "bot", kind: "text", body: line })}>
+      <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append(slidesReadyDraft(line, readExploreArc(userId)?.arcId))}>
       <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
       {activeOffer ? (
@@ -2312,9 +2340,12 @@ export default function Lounge({
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {plan.dock}
-      {plan.sheets}
-      {keyLine.bar}
+      {/* The plan and the key line belong to the speaking chat (N635 item 2). */}
+      <PlaceOnly place={place} in={["speaking"]}>
+        {plan.dock}
+        {plan.sheets}
+        {keyLine.bar}
+      </PlaceOnly>
       {/* Hidden whole while the plan's footer stands in for it, so its empty
           wrapper adds no gap under it (founder 2026-10-30). */}
       <div className={barDisplay("contents")}>
@@ -2332,6 +2363,8 @@ export default function Lounge({
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
             reason that button was (the spoken take count is the version). */}
+        {/* The projects are the speaking chat's (N635 item 3). */}
+        <PlaceOnly place={place} in={["speaking"]}>
         <button
           type="button"
           onClick={onStart}
@@ -2346,7 +2379,8 @@ export default function Lounge({
               (backend N460 item 5). */}
           <Layers className="h-5 w-5" aria-hidden />
         </button>
-        {words.show ? (
+        </PlaceOnly>
+        {wordsShow(place, words.show) ? (
         <div className="relative flex-1">
           <textarea
             ref={composerRef}

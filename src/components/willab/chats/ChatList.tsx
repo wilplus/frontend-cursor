@@ -9,6 +9,7 @@ import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
 import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
 import { thingsNeedingYou, useHostWork } from "./hostsetup/hostWork";
+import { PLACE_TITLES, inPlace, type LoungePlace } from "./loungePlace";
 import { W as HOST_WORDS } from "./hostsetup/hostSetupCopy";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { AddSomeoneSheet } from "./AddSomeoneSheet";
@@ -318,17 +319,20 @@ export function willNewest(messages: readonly LoungeMessage[]): LoungeMessage | 
  *  Lounge's thread underneath, and new while it is his and came after his
  *  chat was last open on this device. Open, or just come back from, it is
  *  seen. Outside the Lounge's thread the row is as it was: no line. */
-function useWillRow(willOpen: boolean, back: boolean): { preview: string; isNew: boolean } {
+function useWillRow(willOpen: boolean, back: boolean, place: LoungePlace | null = null): { preview: string; isNew: boolean } {
   const thread = useLoungeThreadMaybe();
-  const newest = willNewest(thread?.messages ?? []);
+  // One of the three chats (N636 item 1): its own rows, seen on its own.
+  const messages = thread?.messages ?? [];
+  const newest = willNewest(place ? messages.filter((m) => inPlace(m, place)) : messages);
   const at = newest?.client_created_at ?? null;
   const seeing = willOpen || back;
+  const key = place && place !== "will" ? place : WILL_CHAT;
   useEffect(() => {
-    if (seeing) markChatOpened(WILL_CHAT, at);
-  }, [seeing, at]);
+    if (seeing) markChatOpened(key, at);
+  }, [seeing, at, key]);
   return {
     preview: newest?.body.trim() ?? "",
-    isNew: !seeing && newest?.role === "bot" && isNewSince(WILL_CHAT, at),
+    isNew: !seeing && newest?.role === "bot" && isNewSince(key, at),
   };
 }
 
@@ -347,6 +351,8 @@ export default function ChatList({
   modelsRows = null,
   setupRows = null,
   onOpenWill,
+  onOpenPlace,
+  onRing,
   onOpen,
 }: {
   chats: readonly Chat[];
@@ -359,27 +365,48 @@ export default function ChatList({
   /** The host's own chat from the blank setup (backend N618 item 8):
    *  nothing below the ring `chat_builder`. */
   setupRows?: ReactNode;
-  /** Will's chat is open over the list (its row's line is then seen). */
-  willOpen?: boolean;
+  /** Which of Will's chats is open over the list (its row's line is then
+   *  seen): "will", or for the ring the speaking chat or Principles. */
+  willOpen?: LoungePlace | null | boolean;
   /** The row you just came back from, lit for a moment ("will" for Will's). */
   cameFrom?: string | null;
   /** The chat just joined through someone's link: the row right under
    *  Will's, marked new until it is opened (backend N357, N360). */
   joined?: string | null;
   onOpenWill: () => void;
+  /** The ring's speaking chat and Principles (N636 item 1). */
+  onOpenPlace?: (place: LoungePlace) => void;
+  /** Whether the chat builder's ring answers, for the door. */
+  onRing?: (ring: boolean) => void;
   onOpen: (chat: Chat) => void;
 }) {
   const now = new Date();
   const [adding, setAdding] = useState<boolean | "note">(false);
   const openAdd = useAddSomeone(setAdding);
   const first = joined ? chats.find((chat) => chat.id === joined) ?? null : null;
-  const will = useWillRow(willOpen, cameFrom === WILL_CHAT);
+  const opened = willOpen === true ? "will" : willOpen || null;
+  const will = useWillRow(opened === "will", cameFrom === WILL_CHAT);
   // The chat builder's ring (backend N629 items 2 and 5): the list holds Will
   // and people only, and Will's line says how much needs you. Everyone else:
   // as it was.
   // Read here without the coach's moments; Will's chat, mounted under the
   // list, reads them again as a coach (hostWork.ts).
   const work = useHostWork(false);
+  useEffect(() => onRing?.(work.ring), [onRing, work.ring]);
+  const speaking = useWillRow(opened === "speaking", cameFrom === "speaking", work.ring ? "speaking" : null);
+  const principles = useWillRow(opened === "principles", cameFrom === "principles", work.ring ? "principles" : null);
+  const placeRow = (place: "speaking" | "principles", seen: { preview: string; isNew: boolean }) => (
+    <ChatListRow
+      id={place}
+      circle={<WillMark />}
+      title={PLACE_TITLES[place]}
+      preview={seen.preview}
+      isNew={seen.isNew}
+      pinned
+      cameFrom={cameFrom === place}
+      onOpen={() => onOpenPlace?.(place)}
+    />
+  );
   const willPreview = work.ring
     ? thingsNeedingYou(work) ? HOST_WORDS.thingsNeedYou(thingsNeedingYou(work)) : HOST_WORDS.nothingNeedsYouRow
     : will.preview;
@@ -418,6 +445,9 @@ export default function ChatList({
         cameFrom={cameFrom === WILL_CHAT}
         onOpen={onOpenWill}
       />
+      {/* The speaking chat and Principles, pinned under Will (N636 item 1). */}
+      {work.ring && onOpenPlace ? placeRow("speaking", speaking) : null}
+      {work.ring && onOpenPlace ? placeRow("principles", principles) : null}
       {work.ring ? null : coachRow}
       {setupRows}
       {chats.filter((chat) => chat.inquiry).map((chat) => row(chat))}

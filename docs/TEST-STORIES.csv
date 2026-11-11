@@ -922,6 +922,12 @@ O3 -> ""N629-2 the list holds Will and people only, Will's line counts what need
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
+src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the record button; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has ""Start your first recording"", then ""Record
+Take 2"", its Take rows and the plan's dock; Will's chat has the text
+field and none of them; Principles its own rows and the text field.
+O2  What I type or tap in a chat says which chat it is, so it lands there.
+O3  ""Copy my link ›"" and ""Your questions for people who join ›"" leave the
+way in's ""You're set."" row in the speaking chat and show in Will's.","O1, O2 -> ""N636-2""; O3 -> ""N636-3""",
 src/components/willab/chats/takeAnswers.test.tsx,Story,"As a speaker who sent a Take to my coach and to others, I want their answers gathered under my Take, so that I see my coach's answer and the best of the others in one place, and only I see the gathering (backend N587 items 3 to 5, N588 item 4; behind the ring row chat_builder, N579 item 2).","O1  HOST-N587-1: under my own Take, one bubble with the faces of everyone
 who answered and the names the backend shows (my coach's and the best
 other); a tap opens all of them under ""On your speaking"" and ""On the

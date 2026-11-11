@@ -16,6 +16,7 @@ import { afterChatBoot } from "@/lib/chatBoot";
 import { setWillChatCovered } from "./willChatInView";
 import { OPEN_EVENT, openSetupFromWill } from "./hostsetup/hostSetupDoor";
 import { useSiteBarCovered } from "./siteBarCover";
+import { setOpenPlace, type LoungePlace } from "./loungePlace";
 
 // A person's chat opens on a tap, and only a coach has the queue's row: off
 // the boot bundle. A chat's code is fetched once Will's thread has painted
@@ -54,9 +55,11 @@ function warmChats(): void {
 /*  nothing is drawn and /chat is the Lounge as it is.                        */
 /* -------------------------------------------------------------------------- */
 
-type View = { at: "list" } | { at: "will" } | { at: "chat"; chat: Chat };
+/** "will": the Lounge, drawn as one of its three chats for the chat
+ *  builder's ring (N636 item 1); as Will's one chat for everyone else. */
+type View = { at: "list" } | { at: "will"; place: LoungePlace } | { at: "chat"; chat: Chat };
 /** Where Forward goes from the list: the chat you last came back from. */
-type Ahead = { at: "will" } | { at: "chat"; chat: Chat };
+type Ahead = { at: "will"; place: LoungePlace } | { at: "chat"; chat: Chat };
 
 export type ChatsDoor = {
   /** Above the Lounge while it is open as Will's chat: his top bar, back to the list. */
@@ -157,6 +160,23 @@ function listCovered(): boolean {
   return backDismissDepth() > 0 || !!document.querySelector(`[data-add-sheet], ${MENU_OPEN}`);
 }
 
+/** A link that opens a Take opens the speaking chat (N636 item 5). */
+function firstView(willFirst: boolean): View {
+  return willFirst ? { at: "will", place: "speaking" } : { at: "list" };
+}
+
+/** Which of the Lounge's chats is open: none on the list or in a person's
+ *  chat, and none without the ring (one chat, as it was). */
+function placeOf(view: View, ring: boolean): LoungePlace | null {
+  return ring && view.at === "will" ? view.place : null;
+}
+
+/** The Lounge's top bar while it is open: its chat's name for the ring. */
+function willBar(view: View, ring: boolean, onBack: () => void): ReactNode {
+  if (view.at !== "will") return null;
+  return <WillTopBar onBack={onBack} place={ring ? view.place : "will"} />;
+}
+
 /** `willFirst`: a link that opens something in the Lounge (the coach's
  *  feedback) opens on Will's chat, not the list. `onRecordAnswer`: a chat's
  *  "Record an answer" (backend N363), handed to the recording screens. */
@@ -170,7 +190,13 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const { isCoach } = useUserProfile();
   useForgetChatsSignedOut(decided);
   useEffect(() => afterChatBoot(warmChats), []);
-  const [view, setView] = useState<View>(() => ({ at: willFirst ? "will" : "list" }));
+  // A link that opens a Take opens the speaking chat (N636 item 5).
+  const [view, setView] = useState<View>(() => firstView(willFirst));
+  // The chat builder's ring: three chats over the Lounge (N636 item 1).
+  // Told by the list, which reads it only once the chats are on.
+  const [ring, setRing] = useState(false);
+  const placeOpen = placeOf(view, ring);
+  useEffect(() => setOpenPlace(placeOpen), [placeOpen]);
   const [joined, setJoined] = useState<string | null>(chatJustJoined);
   // Just joined: the address is clean again; the list keeps that chat on top
   // until it is opened.
@@ -214,8 +240,8 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const toList = () => {
     setDrag(null);
     if (view.at === "chat") setLeaving(view.chat);
-    if (view.at !== "list") setCameFrom(view.at === "chat" ? view.chat.id : "will");
-    if (view.at !== "list") setAhead(view.at === "chat" ? { at: "chat", chat: view.chat } : { at: "will" });
+    if (view.at !== "list") setCameFrom(view.at === "chat" ? view.chat.id : view.place);
+    if (view.at !== "list") setAhead(view);
     setView({ at: "list" });
     reload();
   };
@@ -235,7 +261,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
     if (!aheadNow) return;
     setPull(null);
     setCameFrom(null);
-    setView(aheadNow.at === "chat" ? { at: "chat", chat: aheadNow.chat } : { at: "will" });
+    setView(aheadNow);
   };
   const forwardRef = useRef(forward);
   forwardRef.current = forward;
@@ -297,7 +323,7 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   if (closed || !chats) return CLOSED;
   const atWill = view.at === "will";
   return {
-    back: atWill ? <WillTopBar onBack={toList} /> : null,
+    back: willBar(view, ring, toList),
     navbar: view.at === "list" && !barCovered,
     front: (
       <ChatsFront
@@ -312,14 +338,16 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
             chats={chats}
             joined={joined}
             cameFrom={cameFrom}
-            willOpen={atWill}
+            willOpen={placeOf(view, true)}
             coachRow={isCoach ? <CoachChatRow /> : null}
             modelsRows={<ModelsChatRows />}
             setupRows={<HostSetupRows />}
             onOpenWill={() => {
               // The first person ever meets Will's "What do you do?" (FIRST-02).
-              if (!openSetupFromWill(chats.length)) setView({ at: "will" });
+              if (!openSetupFromWill(chats.length)) setView({ at: "will", place: "will" });
             }}
+            onOpenPlace={(place) => setView({ at: "will", place })}
+            onRing={setRing}
             onOpen={(chat) => {
               if (chat.id === joined) setJoined(null);
               setCameFrom(null);

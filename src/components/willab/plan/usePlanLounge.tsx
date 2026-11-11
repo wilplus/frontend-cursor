@@ -151,6 +151,7 @@ export function usePlanLounge({
   onOpenFeedback,
   onJoinQuestions,
   onSetUpChat,
+  ownChatLinks,
   onWords,
 }: {
   signedIn: boolean;
@@ -165,6 +166,8 @@ export function usePlanLounge({
   onJoinQuestions?: () => void;
   /** "Set up my chat ›" after the walk, for sharers (N578 item 4). */
   onSetUpChat?: () => void;
+  /** False in the ring's speaking chat (N636 item 3; WayIn.tsx). */
+  ownChatLinks?: boolean;
   /** "Something else" opens the box for one's own words (N573 item 1). */
   onWords?: () => void;
 }): PlanLounge {
@@ -357,6 +360,7 @@ export function usePlanLounge({
         onOpenFeedback,
         onJoinQuestions,
         onSetUpChat,
+        ownChatLinks,
       }
     : undefined;
 

@@ -178,6 +178,8 @@ import { getAuthToken } from "@/lib/api/auth-client";
 import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import { useWillChatInView } from "./willChatInView";
+import { forgetHostWork } from "./hostsetup/hostWork";
+import { useOpenPlace } from "./loungePlace";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -228,14 +230,17 @@ function Lounge() {
   }
   // What his cards' slide previews wait for (IdealTextCard).
   const inView = useWillChatInView();
-  return createElement("div", { "data-testid": "lounge", "data-will-in-view": String(inView) }, "The Lounge");
+  // Which of the ring's three chats it is drawn as (N636 item 1).
+  const place = useOpenPlace();
+  return createElement("div", { "data-testid": "lounge", "data-will-in-view": String(inView), "data-place": place ?? "" }, "The Lounge");
 }
 
 /** As WillabSurface draws it: the WillpowerLab bar (hidden as the door
  *  says), then back, the Lounge, the front. */
 const recordedAnswers: AnswerFor[] = [];
+const door = { willFirst: false };
 function Surface() {
-  const chats = useChatsDoor(false, (answer) => recordedAnswers.push(answer));
+  const chats = useChatsDoor(door.willFirst, (answer) => recordedAnswers.push(answer));
   return createElement(
     "div",
     null,
@@ -261,6 +266,8 @@ beforeEach(async () => {
   fetchMock.mockReset();
   loungeMounts = 0;
   loungeThread.messages = [];
+  door.willFirst = false;
+  forgetHostWork();
   vi.stubGlobal("fetch", fetchMock);
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -365,6 +372,55 @@ describe("the chats in front of the Lounge", () => {
     expect(lastLineOf("c-ariel")).toBe("🙏 Thanks");
     // The Lounge was never mounted twice.
     expect(loungeMounts).toBe(1);
+  });
+
+  it("N636-1: for the ring, three pinned chats over the one Lounge, each with its own line and new dot; a Take's link opens the speaking chat", async () => {
+    backend(["chats"]);
+    // Someone to chat with already: Will's row opens his chat, not the first setup.
+    routes.set("GET /api/v2/chats", () => ({ chats: [SARAH] }));
+    routes.set("GET /api/v2/chats/setup", () => ({ recipe: null, parts: [], own_chat: null, cost: null }));
+    const msg = (id: string, place: string, body: string, at: string) =>
+      ({ client_id: id, role: "bot", kind: "text", body, metadata: null, place, client_created_at: at });
+    loungeThread.messages = [
+      msg("w1", "will", "Your chat is saved.", "2026-11-10T09:00:00Z"),
+      msg("s1", "speaking", "Your feedback is ready.", "2026-11-10T10:00:00Z"),
+      msg("p1", "principles", "We spotted a strength!", "2026-11-10T11:00:00Z"),
+    ];
+    await render();
+    expect(rows().map((r) => r.getAttribute("data-chat-row"))).toEqual(["will", "speaking", "principles", "c-sarah"]);
+    expect(lastLineOf("speaking")).toBe("Your feedback is ready.");
+    expect(lastLineOf("principles")).toBe("We spotted a strength!");
+    const isNew = (id: string) => row(id)?.hasAttribute("data-chat-new") === true;
+    expect([isNew("speaking"), isNew("principles")]).toEqual([true, true]);
+    // Opening the speaking chat: its name on top, the one Lounge drawn as it.
+    await tap(row("speaking"));
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Speaking coach");
+    expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("speaking");
+    await tap(container.querySelector("[data-chat-header] button"));
+    // Seen: its dot goes, Principles' stays.
+    expect([isNew("speaking"), isNew("principles")]).toEqual([false, true]);
+    await tap(row("principles"));
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Principles");
+    expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("principles");
+    await tap(container.querySelector("[data-chat-header] button"));
+    await tap(row("will"));
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("will");
+    expect(loungeMounts).toBe(1);
+
+    // A link that opens a Take (the coach's feedback, the Ideal Text) opens the speaking chat.
+    act(() => root.unmount());
+    root = createRoot(container);
+    door.willFirst = true;
+    await render();
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Speaking coach");
+    expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("speaking");
+    // Every read of the ring and every Back settled here, none left to land
+    // in the next test.
+    await tap(container.querySelector("[data-chat-header] button"));
+    await act(async () => new Promise((done) => setTimeout(done, 50)));
+    for (let i = 0; i < 4; i += 1) await flush();
+    forgetHostWork();
   });
 
   it("the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left", async () => {
