@@ -190,7 +190,7 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     expectWords(["Now answer the first 10 yourself"]);
   });
 
-  it("N638 a model made in blocks has no cases: \"Write one\" takes a case typed in Will's chat, and the answering opens; \"Record one\" cannot be tapped", async () => {
+  it("N638 N645 a model made in blocks has no cases: the guide, then \"Write one\" takes a case typed in Will's chat, and the answering opens; \"Record one\" cannot be tapped", async () => {
     let added = false;
     serve({
       ...LIST,
@@ -211,16 +211,19 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await flush();
     await tap("Keep");
     await tap("Teach it");
-    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself."]);
+    expectWords(["A case is one real thing someone sent you.", "Add ten that differ from each other. Easy ones teach little."]);
+    expect(text()).not.toContain("Do you know a case this model should learn from?");
     const ways = [...container.querySelectorAll("[data-testid=models-add] button")].map((b) => [b.textContent, (b as HTMLButtonElement).disabled]);
     expect(ways.slice(-3)).toEqual([
       ["Write oneType the case in your own words.", false],
+      ["Upload a set", false],
       ["Record oneSay the case in your own voice", true],
-      ["Upload a fileA written case", false],
     ]);
     const write = [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Write one"))!;
     await tapEl(write);
     expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Type here");
+    // "Write one" keeps its own ask.
+    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself."]);
     await type(container.querySelector("textarea")!, "A founder reads every slide aloud, fast.");
     await act(async () => container.querySelector("form")!.requestSubmit());
     await flush();
@@ -615,31 +618,93 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     expect(container.querySelector("[data-model-answer]")).not.toBeNull();
   });
 
-  it("MOD-21: a teacher adds a written case, answers it, and is told \"It counts once another teacher agrees with your answer.\"", async () => {
+  /** On to "Texts" on "Upload a set", from the queue's "Add an example". */
+  async function toTexts(routes: Record<string, Answer> = {}) {
     serve({
       "GET /api/v2/models/queue": F.queue,
-      "POST /api/v2/models/rasp/examples": { example_id: "new1", note: S.words.add_counts_once },
-      "GET /api/v2/models/rasp": F.pageRasp,
-      "POST /api/v2/models/rasp/examples/new1/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
+      "GET /api/v2/models/rasp/setup/first-ten": { ...S.first10Teach, model_id: "rasp" },
+      "POST /api/v2/models/rasp/examples/set": (c: Call) => ({ added: ((c.json as { texts: string[] }).texts).length, skipped: 0 }),
+      ...routes,
     });
     await render(createElement(ModelsOverlay, { start: { at: "add" }, queueTitle: "Your queue", onClose: () => {} }));
-    expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself.", "For which model?", "Write one", "Record one", "Upload a file", "A written case"]);
-    const record = [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Record one"))!;
-    expect(record.disabled).toBe(true);
-    await choose(container.querySelector("[data-model-add-file]")!, new File(["A client asks for a discount twice."], "case.txt", { type: "text/plain" }));
-    expect(posted("/rasp/examples")).toEqual([{ text: "A client asks for a discount twice." }]);
-    expectWords(["A client asks for a discount twice."]);
-    const first = container.querySelector("[data-model-answer]")!;
-    await tapEl(first);
-    expect(posted("/rasp/examples/new1/answer")[0]).toMatchObject({ answer: first.getAttribute("data-model-answer") });
-    // The recipe's next steps: a pick, then the words (Skip until a spoken
-    // answer has its route).
-    for (let i = 0; i < 3 && !text().includes("Keep teaching"); i += 1) {
-      const next = container.querySelector("[data-model-answer]");
-      if (next) await tapEl(next);
-      else await tap("Skip");
+    await tap("Upload a set");
+    await tap("Texts");
+  }
+  const setButton = () => [...container.querySelectorAll("[data-testid=models-add-set] button")].find((b) => b.textContent === "Upload a set") as HTMLButtonElement;
+
+  it("MOD-21 N645: a set of texts: one file is one case per line; the tick gates it; the POST carries the texts; the answering opens", async () => {
+    await toTexts();
+    expectWords(["One case per line, or one file per case.", "I may use these."]);
+    expect(setButton().disabled).toBe(true);
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.includes("I may use these.")) ?? null);
+    expect(setButton().disabled).toBe(false);
+    await choose(container.querySelector("[data-model-add-files]")!, new File(["A client asks for a discount twice.\n\n  The order came late.  \n"], "cases.txt", { type: "text/plain" }));
+    expect(posted("/rasp/examples/set")).toEqual([{ texts: ["A client asks for a discount twice.", "The order came late."], may_use: true }]);
+    expect(container.querySelector("[data-model-answer]")).not.toBeNull();
+  });
+
+  it("N645 a contributor's set: with the new cases' ids, each one opens in turn to answer", async () => {
+    await toTexts({
+      "GET /api/v2/models/rasp/setup/first-ten": { status: 404, body: { code: "NOT_FOUND" } },
+      "POST /api/v2/models/rasp/examples/set": { added: 2, skipped: 0, example_ids: ["s1", "s2"] },
+      "GET /api/v2/models/rasp": F.pageRasp,
+      "POST /api/v2/models/rasp/examples/s1/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
+      "POST /api/v2/models/rasp/examples/s2/answer": { saved: true, note: S.words.add_counts_once, follow: [], trust: null },
+    });
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.includes("I may use these.")) ?? null);
+    await choose(container.querySelector("[data-model-add-files]")!, new File(["The first case.\nThe second case."], "cases.txt", { type: "text/plain" }));
+    for (const [n, words] of [["s1", "The first case."], ["s2", "The second case."]] as const) {
+      expectWords([words]);
+      for (let i = 0; i < 4 && !text().includes("Keep teaching"); i += 1) {
+        const next = container.querySelector("[data-model-answer]");
+        if (next) await tapEl(next);
+        else await tap("Skip");
+      }
+      expect(posted(`/examples/${n}/answer`).length).toBeGreaterThan(0);
+      await tap("Keep teaching");
     }
-    expectWords(["It counts once another teacher agrees with your answer.", "Keep teaching"]);
+  });
+
+  it("N645 a contributor's set with a line left out opens the cases the backend kept, each with its text as stored", async () => {
+    await toTexts({
+      "GET /api/v2/models/rasp/setup/first-ten": { status: 404, body: { code: "NOT_FOUND" } },
+      "POST /api/v2/models/rasp/examples/set": { added: 1, skipped: 1, example_ids: ["k2"], added_cases: [{ id: "k2", text: "The kept case." }] },
+      "GET /api/v2/models/rasp": F.pageRasp,
+    });
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.includes("I may use these.")) ?? null);
+    await choose(container.querySelector("[data-model-add-files]")!, new File(["A repeat.\nThe kept case."], "cases.txt", { type: "text/plain" }));
+    expectWords(["The kept case."]);
+    expect(text()).not.toContain("A repeat.");
+  });
+
+  it("N645 several files are one case per file, and one call takes the first 200", async () => {
+    const { casesOf } = await import("./ModelAdd");
+    expect(casesOf(["First case\nstill the first", " ", "Second case"])).toEqual(["First case\nstill the first", "Second case"]);
+    expect(casesOf([Array.from({ length: 250 }, (_, i) => `Case ${i}`).join("\n")])).toHaveLength(200);
+  });
+
+  it("N645 \"Recordings, coming\" and \"Images, coming\": \"I want this\" tells Artur once, then the thanks; no row without the read", async () => {
+    let n = 0;
+    await toTexts({
+      "GET /api/v2/models/coming": { coming: [{ kind: "recordings", title: "", wanted: false }, { kind: "images", title: "", wanted: true }] },
+      "POST /api/v2/models/coming/recordings/want": () => {
+        n += 1;
+        return { wanted: true };
+      },
+    });
+    await tapEl(container.querySelector("[data-walk-back], button[aria-label]"));
+    expectWords(["Texts", "Recordings, coming. I want this", "Images, coming. Thanks. I've told Artur."]);
+    await tap("Recordings, coming. I want this");
+    expect(n).toBe(1);
+    expectWords(["Recordings, coming. Thanks. I've told Artur."]);
+    expect(button("Recordings, coming. Thanks. I've told Artur.").disabled).toBe(true);
+    // Without the read, only "Texts".
+    act(() => root.unmount());
+    root = createRoot(container);
+    await toTexts();
+    await tapEl(container.querySelector("[data-walk-back], button[aria-label]"));
+    expect(text()).toContain("Texts");
+    expect(text()).not.toContain("coming");
   });
 
   it("MOD-20: a spoken answer reaches /answer as its transcript, on the \"words\" step", async () => {

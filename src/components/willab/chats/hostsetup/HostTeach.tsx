@@ -42,9 +42,13 @@ export default function HostTeach({ modelId, onDone: done }: { modelId: string; 
       alive = false;
     };
   }, [modelId, onDone, reads]);
+  const again = () => {
+    setState(undefined);
+    setReads((n) => n + 1);
+  };
   if (!state) return null;
   if (empty(state)) {
-    return <AddExampleScreen only={modelId} onBack={onDone} onClose={onDone} onAdded={() => { setState(undefined); setReads((n) => n + 1); }} />;
+    return <AddExampleScreen only={modelId} onBack={onDone} onClose={onDone} onAdded={again} onSet={again} />;
   }
   return (
     <ModelSetup

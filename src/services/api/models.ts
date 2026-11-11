@@ -251,6 +251,42 @@ export async function addModelExample(
     : null;
 }
 
+/** A set of written cases (N645 item 4): {added, skipped}, with the new
+ *  cases when the backend gives them: `cases` (each id with its text as
+ *  stored), or else `ids` in order; null on failure. */
+export async function addExampleSet(modelId: string, texts: string[]): Promise<{
+  added: number;
+  skipped: number;
+  ids: string[] | null;
+  cases: { id: string; text: string }[] | null;
+} | null> {
+  const body = await call(`/api/v2/models/${id(modelId)}/examples/set`, { method: "POST", json: { texts, may_use: true } });
+  if (typeof body?.added !== "number") return null;
+  const ids = Array.isArray(body.example_ids) ? body.example_ids.filter((x): x is string => typeof x === "string") : null;
+  const cases = Array.isArray(body.added_cases)
+    ? (body.added_cases as { id?: unknown; text?: unknown }[]).filter((c) => typeof c?.id === "string" && typeof c?.text === "string").map((c) => ({ id: c.id as string, text: c.text as string }))
+    : null;
+  return { added: body.added, skipped: typeof body.skipped === "number" ? body.skipped : 0, ids, cases };
+}
+
+/** A kind of set that is coming (N645 item 3). */
+export type ComingKind = "recordings" | "images";
+/** The kinds coming and whether the caller asked for each; null when the
+ *  read is not there (then no coming row is drawn). */
+export async function readComing(): Promise<{ kind: ComingKind; wanted: boolean }[] | null> {
+  const body = await call("/api/v2/models/coming", { method: "GET" });
+  const list = Array.isArray(body?.coming) ? (body.coming as { kind?: unknown; wanted?: unknown }[]) : null;
+  return list
+    ? list.filter((c) => c.kind === "recordings" || c.kind === "images").map((c) => ({ kind: c.kind as ComingKind, wanted: c.wanted === true }))
+    : null;
+}
+
+/** "I want this" for a kind coming: true once the founder was told. */
+export async function wantComing(kind: ComingKind): Promise<boolean> {
+  const body = await call(`/api/v2/models/coming/${id(kind)}/want`, { method: "POST", json: {} });
+  return body?.wanted === true;
+}
+
 /** A spoken answer, as its words (MOD-20): the transcript of the recording
  *  made through the recording path, sent to /answer as the "words" step. */
 export async function answerSpoken(modelId: string, exampleId: string, transcript: string): Promise<Answered | null> {
