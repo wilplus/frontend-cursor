@@ -652,13 +652,14 @@ O4 -> ""WID-17, WID-18, WID-29: after asking, the sign-up step in N595's words, 
 O5 -> ""WID-29: Sign up opens the join page with my chat""
 O6 -> ""WID-28: signed up, the line says where the notice goes, and the host's voice answer opens its words behind Read it""
 O7 -> ""WID-25: every call carries my secret, and a chat the backend forgot is forgotten here""","The founder, 9 November 2026 (N591): ""There's really no difference between the widget and the normal chat. It's just that the chat is placed on the public side.""; 10 November (N595): the consent card, ""drop!""."
-src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3; behind the ring row chat_builder, N579 item 2). The join page is three lines (N601; its own story is JoinPage.test.tsx).","O1  HOST-N578-1: with the ring, a chat with a person in my list says
-""Tomek's assistant"" under the name, with the assistant's mark on the
-circle; without the ring (no `assistant` from the backend) the row is
-as it was, with no mark.
+src/components/willab/chats/assistantLabel.test.tsx,Story,"As someone who invites people, I want each chat with a person to say whose assistant answers there, so that whoever joins knows an AI answers for me (backend N578 item 1, N580 items 1 and 3; behind the ring row chat_builder, N579 item 2). The join page is three lines (N601; its own story is JoinPage.test.tsx).","O1  HOST-N578-1: with the ring, a chat with a person in my list has the
+assistant's mark on the circle, named ""Tomek's assistant"" for a
+screen reader, and no ""Tomek's assistant"" beside the name (the
+founder's walk-through, 11 November 2026); without the ring (no
+`assistant` from the backend) the row is as it was, with no mark.
 O2  HOST-N601-1: the join page's read keeps only the name and the host's
 `about` words, and the page draws them as one line of what you'll
-learn, only when the backend sends them.","O1 -> ""HOST-N578-1: the list says whose assistant answers, only with the ring""
+learn, only when the backend sends them.","O1 -> ""HOST-N578-1: the list marks whose assistant answers, only with the ring, with no words by the name""
 O2 -> ""HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent""","Every inviter has a chat of their own, answered by ""{name}'s assistant"" (founder, 9 November 2026, N578 to N580, N586)."
 src/components/willab/chats/bundles.test.tsx,Story,"As a host, I want the questions people ask me gathered by meaning in Will's chat, so that one recording answers everyone who asked the same thing, each in their own chat with me under their own question (backend N584, N602; behind the ring row chat_builder, N579 item 2).","O1  HOST-N602-1: in Will's chat, each bundle still waiting is one card,
 in the backend's words: ""2 people asked"", the question large, the

@@ -6,14 +6,15 @@ STORY    As someone who invites people, I want each chat with a person to say
          ring row chat_builder, N579 item 2). The join page is three lines
          (N601; its own story is JoinPage.test.tsx).
 OUTCOME
-  O1  HOST-N578-1: with the ring, a chat with a person in my list says
-      "Tomek's assistant" under the name, with the assistant's mark on the
-      circle; without the ring (no `assistant` from the backend) the row is
-      as it was, with no mark.
+  O1  HOST-N578-1: with the ring, a chat with a person in my list has the
+      assistant's mark on the circle, named "Tomek's assistant" for a
+      screen reader, and no "Tomek's assistant" beside the name (the
+      founder's walk-through, 11 November 2026); without the ring (no
+      `assistant` from the backend) the row is as it was, with no mark.
   O2  HOST-N601-1: the join page's read keeps only the name and the host's
       `about` words, and the page draws them as one line of what you'll
       learn, only when the backend sends them.
-PROVES   O1 -> "HOST-N578-1: the list says whose assistant answers, only with the ring"
+PROVES   O1 -> "HOST-N578-1: the list marks whose assistant answers, only with the ring, with no words by the name"
          O2 -> "HOST-N601-1: the join page says what you'll learn with the host, in their words, when sent"
 WHY      Every inviter has a chat of their own, answered by "{name}'s
          assistant" (founder, 9 November 2026, N578 to N580, N586).
@@ -62,10 +63,12 @@ async function list(chats: Chat[]) {
 }
 
 describe("{name}'s assistant", () => {
-  it("HOST-N578-1: the list says whose assistant answers, only with the ring", async () => {
-    await list([tomek("Tomek's assistant")]);
+  it("HOST-N578-1: the list marks whose assistant answers, only with the ring, with no words by the name", async () => {
+    await list([{ ...tomek("Tomek's assistant"), subtitle: "Coach" }]);
     const row = container.querySelector('[data-chat-row="c-1"]')!;
-    expect(row.textContent).toContain("Tomek's assistant");
+    expect(row.textContent).not.toContain("assistant");
+    expect(row.textContent).toContain("Coach");
+    expect(row.textContent).not.toContain("·");
     expect(row.querySelector("[data-assistant-mark]")?.getAttribute("aria-label")).toBe("Tomek's assistant");
 
     for (const off of [undefined, null]) {

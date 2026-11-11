@@ -147,11 +147,11 @@ export function PersonCircle({ id, name, size, assistant = null }: { id: string;
   );
 }
 
-/** Who the row says the person is: their own line, then, with the chat
- *  builder's ring, whose assistant answers there (N580 item 1). */
-export function subtitleOf(chat: Pick<Chat, "subtitle" | "assistant">): string | null {
-  const parts = [chat.subtitle, chat.assistant].filter((part): part is string => typeof part === "string" && part.trim() !== "");
-  return parts.length ? parts.join(" · ") : null;
+/** Who the row says the person is: their own line. Whose assistant answers
+ *  there is the mark on their circle, never words beside the name (the
+ *  founder's walk-through, 11 November 2026; was N580 item 1). */
+export function subtitleOf(chat: Pick<Chat, "subtitle">): string | null {
+  return typeof chat.subtitle === "string" && chat.subtitle.trim() !== "" ? chat.subtitle : null;
 }
 
 /** The last message on one line: its words, the emoji with its meaning, or
