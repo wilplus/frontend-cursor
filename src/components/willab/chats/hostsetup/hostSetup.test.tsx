@@ -848,19 +848,25 @@ describe("the blank setup (FIRST-)", () => {
     bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
     bff.routes["GET /api/v2/models/queue"] = { models: [{ id: "other", name: "Someone's model" }], examples: [] };
     await madeModel();
-    expect(text()).toContain("Do you know a case this model should learn from? Add it, then answer it yourself.");
-    expect(text()).toContain("Upload a file");
+    expect(text()).toContain("A case is one real thing someone sent you.");
+    expect(text()).toContain("Upload a set");
     expect(text()).not.toContain("Someone's model");
-    // A written case of their own, with no answer; then answered as one of the first 10.
-    bff.routes["POST /api/v2/models/m-own/examples"] = { example_id: "ex1", note: null };
-    const file = container.querySelector<HTMLInputElement>("[data-model-add-file]")!;
+    // A set of their own cases (N645), with no answer; then answered as the first 10.
+    bff.routes["POST /api/v2/models/m-own/examples/set"] = { added: 2, skipped: 0 };
+    await tap("Upload a set");
+    await tap("Texts");
+    await tap("I may use these.");
+    const file = container.querySelector<HTMLInputElement>("[data-model-add-files]")!;
     bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10Teach);
     await act(async () => {
-      Object.defineProperty(file, "files", { value: [new File(["My scalp itches after I wash it."], "case.txt", { type: "text/plain" })], configurable: true });
+      Object.defineProperty(file, "files", {
+        value: [new File(["My scalp itches after I wash it."], "a.txt", { type: "text/plain" }), new File(["It flakes in winter."], "b.txt", { type: "text/plain" })],
+        configurable: true,
+      });
       file.dispatchEvent(new Event("change", { bubbles: true }));
     });
     await flush();
-    expect(bff.calls.find((c) => c.path === "/api/v2/models/m-own/examples")?.json).toEqual({ text: "My scalp itches after I wash it." });
+    expect(bff.calls.find((c) => c.path === "/api/v2/models/m-own/examples/set")?.json).toEqual({ texts: ["My scalp itches after I wash it.", "It flakes in winter."], may_use: true });
     expect(text()).toContain("How rushed does it sound?");
     bff.routes["GET /api/v2/models/m-own/setup/first-ten"] = own(MS.first10None);
     act(() => root.unmount());

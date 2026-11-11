@@ -12,6 +12,7 @@ import ModelApiStack, { type ApiScreen } from "./ModelApiStack";
 import ModelSetup, { openSetup } from "./ModelSetup";
 import { AddExampleScreen, AnswerAdded, type Added } from "./ModelAdd";
 import ModelBlocks from "../chats/hostsetup/ModelBlocks";
+import HostTeach from "../chats/hostsetup/HostTeach";
 
 /* -------------------------------------------------------------------------- */
 /*  The AI models over the list of chats: one stack of screens, ‹ back one,   */
@@ -45,6 +46,8 @@ export type ModelsScreen =
   | { at: "add" }
   | { at: "added"; added: Added }
   | { at: "setup"; first: SetupState }
+  /** A model's first 10, after a set of cases (N645 item 4). */
+  | { at: "first"; id: string }
   /** A model started in blocks (N636 item 7). */
   | { at: "blocks" }
   | ApiScreen;
@@ -192,7 +195,10 @@ function Top({ st, queueTitle, setup }: { st: Stack; queueTitle: string; setup: 
         />
       );
     case "add":
-      return <AddExampleScreen {...st.nav} onBack={st.back} onAdded={(added) => st.swap({ at: "added", added })} />;
+      // A set opens the owner's first 10 on it (N645 item 4).
+      return <AddExampleScreen {...st.nav} onBack={st.back} onAdded={(added) => st.swap({ at: "added", added })} onSet={(id) => st.swap({ at: "first", id })} />;
+    case "first":
+      return <HostTeach key={top.id} modelId={top.id} onDone={st.toList} />;
     case "added":
       return <AnswerAdded added={top.added} onBack={st.back} onClose={st.onClose} onDone={st.toQueue} />;
     case "blocks":
