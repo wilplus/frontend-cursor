@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Clock, X } from "lucide-react";
+import { Check, Clock, Send, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { TapRow } from "./WillQuestion";
 import {
@@ -413,7 +413,7 @@ export function VoiceNoteFixBar({ notebook }: { notebook: VoiceNotebook }) {
         aria-label="Send"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40"
       >
-        <ArrowUp className="h-5 w-5" aria-hidden />
+        <Send className="h-5 w-5" aria-hidden />
       </button>
     </div>
   );

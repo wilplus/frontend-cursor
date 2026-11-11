@@ -203,7 +203,7 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     await tap("Answer");
     // Typing is the app's bottom bar, its send on the right once there are words.
-    expect(container.querySelector("[data-chat-bar] [data-chat-box] input")).not.toBeNull();
+    expect(container.querySelector("[data-chat-bar] [data-chat-box] textarea")).not.toBeNull();
     await type("trichologist");
     await tap("No");
     const mine = () => [...container.querySelectorAll("[data-setup-history] [data-my-line]")].map((b) => b.textContent);

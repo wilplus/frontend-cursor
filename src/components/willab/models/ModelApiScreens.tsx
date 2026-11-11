@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Send } from "lucide-react";
 import WalkOverlay from "../walk/WalkOverlay";
 import WalkFooter from "../walk/WalkFooter";
 import WalkMessage from "../walk/WalkMessage";
@@ -143,7 +144,7 @@ export function ModelTryScreen({ modelId, name, onBack, onClose }: Nav & { model
         className="min-h-[44px] flex-1 resize-none rounded-[22px] border border-border bg-background px-4 py-2.5 text-[16px] leading-snug outline-none focus:border-primary"
       />
       <button type="submit" aria-label="Send" disabled={busy || !typed.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30">
-        ↑
+        <Send className="h-5 w-5" aria-hidden />
       </button>
     </form>
   );

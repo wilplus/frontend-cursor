@@ -193,8 +193,9 @@ export function Dots() {
 }
 
 /** Where the person types: the app's own bottom bar (backend N647 item 9;
- *  was a box of its own with a "Send" word, N618 item 4): the chats' box,
- *  its send icon on the right once there are words. */
+ *  was a box of its own with a "Send" word): the chats' box, its send icon
+ *  on the right once there are words, growing with its text up to seven
+ *  lines (N618 item 4). */
 export function Box({ placeholder, onSend, before, after, initial = "" }: {
   placeholder: string;
   onSend: (text: string) => void;
@@ -209,7 +210,7 @@ export function Box({ placeholder, onSend, before, after, initial = "" }: {
       <BarBox
         hint={placeholder}
         open
-        sendButton
+        grow
         initial={initial}
         onSend={async (words) => {
           onSend(words.trim());
