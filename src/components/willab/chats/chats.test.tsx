@@ -123,9 +123,9 @@ OUTCOME
   O26 A website visitor's answers carry the visitor's name, "Visitor 7's
       answers", on their row and on the card, never "Widget's answers"
       (N569 item 6).
-  O28 What opens from Will's chat (his lines, "Your chat") opens over his
-      chat, which stays open under it, so Back comes back to Will; opened
-      from the list, it opens over the list as before (N639 item 2).
+  O28 What opens from Will's chat opens over it; Back comes back to Will
+      (N639 item 2).
+  O29 A chat that takes Takes opens as its speaking chat (N648 item 8).
   O27 A website visitor is a chat like any other, "Widget / Visitor 7",
       "From {site}"; the bar is the chat's two places (N610): "+", and
       "Record your answer" for their typed question, which the backend
@@ -157,6 +157,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O26 -> "a website visitor's answers carry the visitor's name, not the word Widget"
          O27 -> "WID-19, WID-22: a website visitor is a chat like any other"
          O28 -> "N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list"
+         O29 -> "N648-8 a chat that takes Takes opens as its speaking chat"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -184,7 +185,7 @@ import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import { useWillChatInView } from "./willChatInView";
 import { forgetHostWork } from "./hostsetup/hostWork";
 import { OPEN_EVENT } from "./hostsetup/hostSetupDoor";
-import { askForPlace, useOpenPlace } from "./loungePlace";
+import { askForPlace, useOpenChat, useOpenPlace } from "./loungePlace";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -237,7 +238,9 @@ function Lounge() {
   const inView = useWillChatInView();
   // Which of the ring's three chats it is drawn as (N636 item 1).
   const place = useOpenPlace();
-  return createElement("div", { "data-testid": "lounge", "data-will-in-view": String(inView), "data-place": place ?? "" }, "The Lounge");
+  // The host's chat whose Takes it draws (N648 item 8).
+  const chat = useOpenChat();
+  return createElement("div", { "data-testid": "lounge", "data-will-in-view": String(inView), "data-place": place ?? "", "data-chat": chat ?? "" }, "The Lounge");
 }
 
 /** As WillabSurface draws it: the WillpowerLab bar (hidden as the door
@@ -1445,5 +1448,35 @@ describe("the chats in front of the Lounge", () => {
     await act(async () => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: "parts" } })));
     await flush();
     expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(false);
+  });
+
+  it("N648-8 a chat that takes Takes opens as its speaking chat", async () => {
+    backend(["chats"]);
+    const ARTUR = { id: "c-artur", kind: "team", title: "Artur", subtitle: "Speaking coach", takes: true, last: { kind: "text", body: "Hi.", created_at: "2026-11-01T11:00:00Z" } };
+    routes.set("GET /api/v2/chats", () => ({ chats: [ARTUR, SARAH] }));
+    await render();
+    const lounge = () => container.querySelector("[data-testid=lounge]")!;
+    await tap(row("c-artur"));
+    // The Lounge, drawn as the speaking chat for Artur's chat.
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
+    expect(lounge().getAttribute("data-place")).toBe("speaking");
+    expect(lounge().getAttribute("data-chat")).toBe("c-artur");
+    // Its own top bar: the circle and the name, not "Speaking coach" or Will's.
+    expect(container.querySelector("[data-takes-chat] [data-chat-name]")?.textContent).toBe("Artur");
+    expect(container.querySelector("[data-chat-slide]")).toBeNull();
+    // The circle and the name: the chat as it is today; Back, its Takes again.
+    await tap(container.querySelector("[data-takes-chat] [data-chat-who]"));
+    expect(container.querySelector("[data-chat-slide]")).not.toBeNull();
+    await tap(container.querySelector("[data-chat-slide] [data-chat-header] button"));
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
+    expect(lounge().getAttribute("data-chat")).toBe("c-artur");
+    // Back: the list, and the Lounge is its own again.
+    await tap(container.querySelector("[data-takes-chat] [data-chat-header] > button"));
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(false);
+    expect(lounge().getAttribute("data-chat")).toBe("");
+    // A chat that takes no Takes: the person's chat, as before.
+    await tap(row("c-sarah"));
+    expect(container.querySelector("[data-chat-slide]")).not.toBeNull();
+    expect(lounge().getAttribute("data-chat")).toBe("");
   });
 });

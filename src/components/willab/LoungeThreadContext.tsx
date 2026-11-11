@@ -6,6 +6,7 @@ import {
   type UseLoungeThreadReturn,
 } from "./useLoungeThread";
 import LoadingState from "./LoadingState";
+import { useOpenChat } from "./chats/loungePlace";
 import { useSignedIn } from "./useSignedIn";
 
 /* -------------------------------------------------------------------------- */
@@ -60,7 +61,8 @@ function LoungeThreadInner({
   signedIn: boolean;
   children: React.ReactNode;
 }) {
-  const thread = useLoungeThread(signedIn);
+  // A host's chat that takes Takes reads its own rows (N648 item 8).
+  const thread = useLoungeThread(signedIn, useOpenChat());
   return (
     <LoungeThreadCtx.Provider value={thread}>{children}</LoungeThreadCtx.Provider>
   );
