@@ -179,7 +179,7 @@ import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type A
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import { useWillChatInView } from "./willChatInView";
 import { forgetHostWork } from "./hostsetup/hostWork";
-import { useOpenPlace } from "./loungePlace";
+import { askForPlace, useOpenPlace } from "./loungePlace";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -406,6 +406,10 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("will"));
     expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
     expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("will");
+    // A tap there whose sheet is the speaking chat's opens that chat (N636 item 2).
+    await act(async () => askForPlace("speaking"));
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Speaking coach");
+    expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("speaking");
     expect(loungeMounts).toBe(1);
 
     // A link that opens a Take (the coach's feedback, the Ideal Text) opens the speaking chat.

@@ -16,7 +16,7 @@ import { afterChatBoot } from "@/lib/chatBoot";
 import { setWillChatCovered } from "./willChatInView";
 import { OPEN_EVENT, openSetupFromWill } from "./hostsetup/hostSetupDoor";
 import { useSiteBarCovered } from "./siteBarCover";
-import { setOpenPlace, type LoungePlace } from "./loungePlace";
+import { onAskedPlace, setOpenPlace, type LoungePlace } from "./loungePlace";
 
 // A person's chat opens on a tap, and only a coach has the queue's row: off
 // the boot bundle. A chat's code is fetched once Will's thread has painted
@@ -197,6 +197,9 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
   const [ring, setRing] = useState(false);
   const placeOpen = placeOf(view, ring);
   useEffect(() => setOpenPlace(placeOpen), [placeOpen]);
+  // A tap in one of the Lounge's chats that opens another chat's sheet opens
+  // that chat (N636 item 2); only while the Lounge is open.
+  useEffect(() => onAskedPlace((place) => setView((was) => (was.at === "will" ? { at: "will", place } : was))), []);
   const [joined, setJoined] = useState<string | null>(chatJustJoined);
   // Just joined: the address is clean again; the list keeps that chat on top
   // until it is opened.
