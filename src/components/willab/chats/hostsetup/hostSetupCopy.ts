@@ -134,7 +134,7 @@ export const W = {
   modelPlaceholder: "Is this a dry scalp?",
   /** The answers a typed question suggests, and one's own (N646). */
   answersSay: "People answer with:",
-  answersAsk: "Type up to three answers, one on each line.",
+  answersAsk: "Type two or three answers, one on each line.",
   writeHere: "Write here",
   checkSay: "Now it guesses. You check.",
   itsGuess: (g: string) => `Its guess: ${g}`,

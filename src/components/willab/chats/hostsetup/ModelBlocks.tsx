@@ -100,7 +100,8 @@ export default function ModelBlocks({ onBack, onDone }: {
           onSend={(v) => {
             if (!forAnswers) return asked(/\?$/.test(v) ? v : `${v}?`);
             const mine = answersOf(v);
-            if (mine.length) setOwn(mine);
+            if (!mine.length) return false;
+            setOwn(mine);
             setTyping(null);
           }}
         />

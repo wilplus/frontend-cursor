@@ -235,7 +235,7 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     expect(container.querySelector("[data-model-answer]")).not.toBeNull();
   });
 
-  it("N646 one's own answers: one on each line, empty lines left out, at most three; none keeps the screen; no read gives Yes, No, Not sure", async () => {
+  it("N646 one's own answers: one on each line, empty lines and repeats left out, two or three; fewer keeps the words; no read gives Yes, No, Not sure", async () => {
     serve({ ...LIST, "POST /api/v2/models/setup/blocks": { ...S.begin, model_id: "blocky" } });
     await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
     await tap("Start your own");
@@ -248,7 +248,7 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     // The answers route is not there: the plain set, said nothing about.
     expectWords(["People answer with:", "Yes · No · Not sure"]);
     await tap("Type my own");
-    expectWords(["Type up to three answers, one on each line."]);
+    expectWords(["Type two or three answers, one on each line."]);
     expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
     // Enter is a new line here, not Send.
     const ta = container.querySelector("textarea")!;
@@ -259,7 +259,13 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await type(ta, "  \n");
     await act(async () => container.querySelector("form")!.requestSubmit());
     await flush();
-    expectWords(["Type up to three answers, one on each line."]);
+    expectWords(["Type two or three answers, one on each line."]);
+    // One answer (a repeat is one): not taken, the words stay in the field.
+    await type(container.querySelector("textarea")!, "Cracked\ncracked");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expectWords(["Type two or three answers, one on each line."]);
+    expect(container.querySelector("textarea")!.value).toBe("Cracked\ncracked");
     await type(container.querySelector("textarea")!, "Cracked\n\nBroken\nNot sure\nSplit");
     await act(async () => container.querySelector("form")!.requestSubmit());
     await flush();

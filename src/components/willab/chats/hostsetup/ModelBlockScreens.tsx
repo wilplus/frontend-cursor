@@ -12,10 +12,26 @@ import { Btn, Card, Frame, Link, Opt, Say, Two } from "./SetupBits";
 
 export type BlockKey = "model" | "gives" | "base";
 
-/** One's own answers as typed (N646): one on each line, empty lines left
- *  out, at most three, each as long as a card's answer may be. Pure. */
+/** One's own answers as typed (N646): one on each line, empty lines and
+ *  repeats (any case) left out, the first three, each at most 24
+ *  characters; fewer than two is none. Pure. */
 export function answersOf(typed: string): string[] {
-  return typed.split(/\r?\n/).map((l) => l.trim().slice(0, 22)).filter(Boolean).slice(0, 3);
+  const seen = new Set<string>();
+  const lines = typed.split(/\r?\n/).map((l) => l.trim().slice(0, 24)).filter((l) => {
+    const k = l.toLowerCase();
+    if (!l || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return lines.length >= 2 ? lines.slice(0, 3) : [];
+}
+
+/** The sets for a question with a first one known (a suggested model's own
+ *  answers): it first, then the backend's others. Pure. */
+export function withFirst(first: string[] | null, sets: string[][]): string[][] {
+  if (!first) return sets;
+  const key = (s: string[]) => s.join("\n").toLowerCase();
+  return [first, ...sets.filter((s) => key(s) !== key(first))];
 }
 
 /** "People answer with:" (N646): the answers as one card; Change shows the
