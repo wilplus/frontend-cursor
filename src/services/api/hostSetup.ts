@@ -93,7 +93,9 @@ export type SharedModel = { model_id: string; q: string; opts: string[]; by: str
 /** Someone's model in the host's chat whose price is no longer the one the
  *  host agreed to (N630 item 3, N633 item 4); `was` 0: it was still learning. */
 export type PriceChange = { model_id: string; q: string; by: string; was: number; now: number };
-export type ReplyLine = { kind: "answer" | "model"; body: string; by: string };
+/** `walk`: a walk line of the host's saved walk (backend N647 item 8); in
+ *  "Test my chat" it shows as the chat shows it, and nothing is kept. */
+export type ReplyLine = { kind: "answer" | "model"; body: string; by: string; walk?: boolean };
 
 type Body = Record<string, unknown>;
 
@@ -155,6 +157,27 @@ export async function keepPart(part: string, value: unknown): Promise<Kept | nul
 export async function wantWalk(): Promise<boolean> {
   const body = await call("/api/v2/chats/setup/walk/want", { method: "POST", json: {} });
   return body?.wanted === true;
+}
+
+/** The walk, part by part (N647 items 1, 2, 6): what it notices (the host's
+ *  own models) and what it says for each, with how each is doing. */
+export type WalkNotice = { model_id: string; q: string; ready: boolean; learning: boolean; on: boolean };
+export type WalkSay = { model_id: string; q: string; says: string; on: boolean; helped: { a: number; b: number } | null };
+export type WalkRead = { runs_on_messages: boolean; notice: WalkNotice[]; say: WalkSay[] };
+
+const walkOf = (body: Body | null): WalkRead | null =>
+  body && Array.isArray(body.notice) && Array.isArray(body.say)
+    ? { runs_on_messages: body.runs_on_messages === true, notice: body.notice as WalkNotice[], say: body.say as WalkSay[] }
+    : null;
+
+export async function readWalk(): Promise<WalkRead | null> {
+  return walkOf(await call("/api/v2/chats/setup/walk", { method: "GET" }));
+}
+
+/** One item turned on or off, or its words changed; null when refused. */
+export async function setWalkItem(modelId: string, change: { on: boolean } | { says: string }): Promise<WalkRead | null> {
+  const body = await call(`/api/v2/chats/setup/walk/items/${encodeURIComponent(modelId)}`, { method: "PUT", json: change });
+  return walkOf(body) ?? (body ? await readWalk() : null);
 }
 
 export async function sharedModels(): Promise<SharedModel[]> {

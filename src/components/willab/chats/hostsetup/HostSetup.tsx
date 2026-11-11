@@ -15,6 +15,9 @@ import {
   type SetupPart,
   type SharedModel,
   type WalkStepId,
+  type WalkRead,
+  readWalk,
+  setWalkItem,
   wantWalk,
 } from "@/services/api/hostSetup";
 import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
@@ -41,7 +44,7 @@ import { answerSets } from "@/services/api/modelSetup";
 /* -------------------------------------------------------------------------- */
 
 type Step =
-  | "what" | "care" | "line" | "name" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
+  | "what" | "care" | "line" | "name" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "walkhome" | "walknotice" | "walksay" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
   | "gives" | "base" | "model" | "stack" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
 const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "walkorder", "walkout", "walkwant", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
@@ -94,6 +97,9 @@ type State = {
   walkTicks: WalkStepId[] | null;
   /** The host asked for the walk ("I want this"): never asked again. */
   wanted: boolean;
+  /** The walk part by part, as read (N647); the item open on its screen. */
+  walkRead: WalkRead | null;
+  walkItem: string | null;
   shared: SharedModel[] | null;
   picked: SharedModel | null;
   edit: boolean;
@@ -165,6 +171,8 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   walk: null,
   walkTicks: null,
   wanted: !!recipe?.walk?.wanted,
+  walkRead: null,
+  walkItem: null,
   shared: null,
   picked: null,
   edit: !!parts && !!recipe,
@@ -184,6 +192,8 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
 
 /** The step a part's row opens. */
 function stepOfPart(part: string, recipe: HostRecipe): Step {
+  // A walk already kept opens part by part (N647 item 1).
+  if (part === "walk" && recipe.walk) return "walkhome";
   return PART_STEP[part] ?? (part === "models" ? ((recipe.models ?? []).length ? "more" : "smart") : "line");
 }
 
@@ -255,6 +265,13 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.log.push(S.pending);
     S.pending = null;
     S.at = to;
+    S.walkItem = null;
+    if ((to === "walkhome" || to === "walkwant") && !S.walkRead) {
+      void readWalk().then((read) => {
+        S.walkRead = read;
+        paint();
+      });
+    }
     // What a newcomer reads is the line as kept now (N622 item 2).
     if (to === "live") {
       void readSetup().then((read) => {
@@ -691,7 +708,7 @@ function WalkStep(c: Ctx): ReactNode {
             {walkSteps(S, R).map((k) => <div key={k} className={BLOCK}>{W.walkSteps[k]}</div>)}
             <div className={BLOCK}>{W.walkOuts[walkOut(R)]}</div>
           </div>
-          <Say>{wanted ? W.walkTold : W.walkNotYet}</Say>
+          <Say>{wanted ? W.walkTold : S.walkRead?.runs_on_messages ? W.walkOnMessages : W.walkNotYet}</Say>
         </Frame>
       );
     }
@@ -700,13 +717,135 @@ function WalkStep(c: Ctx): ReactNode {
   }
 }
 
+/** The walk, part by part (N647 items 1, 2, 6, 7): its home, what it
+ *  notices, what it says. Each change is sent as it is made; a refused one
+ *  keeps the screen. Counts are the host's only. */
+function WalkParts(c: Ctx): ReactNode {
+  const { S } = c;
+  switch (S.at) {
+    case "walkhome": {
+      const notices = (S.walkRead?.notice ?? []).filter((n) => n.on).map((n) => n.q);
+      const lines = (S.walkRead?.say ?? []).filter((l) => l.on).length;
+      return (
+        <Frame onBack={c.back}>
+          <Say>{W.walkHome}</Say>
+          <PartRow part="steps" title={W.walkParts.steps} onClick={() => c.go("walk")}>
+            {value(walkSteps(S, c.R).map((id) => W.walkSteps[id]).join(" · "))}
+          </PartRow>
+          <PartRow part="notice" title={W.walkParts.notice} onClick={() => c.go("walknotice")}>
+            {S.walkRead ? value(notices.length ? notices.join(" · ") : W.nothingYet) : null}
+          </PartRow>
+          <PartRow part="say" title={W.walkParts.say} onClick={() => c.go("walksay")}>
+            {S.walkRead ? value(W.lineCount(lines)) : null}
+          </PartRow>
+          <PartRow part="out" title={W.walkParts.out} onClick={() => c.go("walkout")}>
+            {value(W.walkOuts[walkOut(c.R)])}
+          </PartRow>
+        </Frame>
+      );
+    }
+    case "walknotice":
+      return <WalkNoticeStep c={c} />;
+    case "walksay":
+      return <WalkSayStep c={c} />;
+    default:
+      return null;
+  }
+}
+
+/** One change to an item of the walk: the walk read again, or the screen kept. */
+function changeItem(c: Ctx, modelId: string, change: { on: boolean } | { says: string }, then: () => void) {
+  const { S } = c;
+  if (S.busy) return;
+  S.busy = true;
+  void setWalkItem(modelId, change).then((read) => {
+    S.busy = false;
+    if (!read) return c.paint();
+    S.walkRead = read;
+    then();
+    c.paint();
+  });
+}
+
+function WalkNoticeStep({ c }: { c: Ctx }) {
+  const { S } = c;
+  const notice = S.walkRead?.notice ?? [];
+  const open = notice.find((n) => n.model_id === S.walkItem);
+  const close = () => { S.walkItem = null; c.paint(); };
+  if (open) {
+    return (
+      <Frame
+        onBack={close}
+        foot={<Two left={<Btn out label={W.keepIt} onClick={close} />} right={<Btn label={open.on ? W.turnOff : W.turnOn} onClick={() => changeItem(c, open.model_id, { on: !open.on }, close)} />} />}
+      >
+        <Say>{open.q}</Say>
+      </Frame>
+    );
+  }
+  const want = () => {
+    if (S.busy || S.wanted) return;
+    S.busy = true;
+    void wantWalk().then((told) => {
+      S.busy = false;
+      if (told) S.wanted = true;
+      c.paint();
+    });
+  };
+  return (
+    <Frame onBack={c.back}>
+      <Say>{W.noticeSay}</Say>
+      {notice.map((n) => (
+        <Opt key={n.model_id} title={n.q} sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning} onClick={() => { S.walkItem = n.model_id; c.paint(); }} />
+      ))}
+      <Opt title={S.wanted || c.R.walk?.wanted ? W.walkTold : W.somethingElseWant} onClick={want} />
+    </Frame>
+  );
+}
+
+function WalkSayStep({ c }: { c: Ctx }) {
+  const { S } = c;
+  const say = S.walkRead?.say ?? [];
+  const open = say.find((x) => x.model_id === S.walkItem);
+  const close = () => { S.walkItem = null; c.paint(); };
+  if (open) {
+    const words = () => c.typeIn(W.whatShouldISay, (v) => {
+      changeItem(c, open.model_id, { says: v }, () => { S.typing = null; S.thread.pop(); });
+      // Kept in the box until the words are taken.
+      return false;
+    }, W.writeHere);
+    return (
+      <Frame
+        onBack={close}
+        foot={open.on ? (
+          <>
+            <Two left={<Btn out label={W.keepIt} onClick={close} />} right={<Btn label={W.changeWords} onClick={words} />} />
+            <Btn out label={W.turnOff} onClick={() => changeItem(c, open.model_id, { on: false }, () => undefined)} />
+          </>
+        ) : <Btn label={W.turnOn} onClick={() => changeItem(c, open.model_id, { on: true }, () => undefined)} />}
+      >
+        <Say>{W.whenINotice(open.q)}</Say>
+        <Card b={open.says} />
+        <Say>{!open.on ? W.off : open.helped ? W.helped(open.helped.a, open.helped.b) : W.itsNew}</Say>
+      </Frame>
+    );
+  }
+  return (
+    <Frame onBack={c.back}>
+      <Say>{W.saySay}</Say>
+      {say.map((x) => (
+        <Opt key={x.model_id} title={x.says} sub={x.on ? undefined : W.off} onClick={() => { S.walkItem = x.model_id; c.paint(); }} />
+      ))}
+    </Frame>
+  );
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
-  const asked = WordSteps(c) ?? YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c);
+  const asked = WordSteps(c) ?? YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c) ?? WalkParts(c);
   if (asked) return asked;
   switch (c.S.at) {
     case "send": {
@@ -1055,6 +1194,18 @@ function PartValue({ part, models }: { part: SetupPart; models: RecipeModel[] })
   return part.value ? <span className="text-[16px] font-semibold text-foreground">{part.value}</span> : null;
 }
 
+/** One row of a list of parts: its name over its value (the parts, the walk's parts). */
+function PartRow({ part, title, onClick, children }: { part: string; title: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" data-part={part} onClick={onClick} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
+      <span className="text-[16px] text-foreground">{title}</span>
+      {children}
+    </button>
+  );
+}
+
+const value = (v: string) => <span className="text-[16px] font-semibold text-foreground">{v}</span>;
+
 function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
@@ -1066,10 +1217,9 @@ function PartsStep({ c }: { c: Ctx }) {
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
-        <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
-          <span className="text-[16px] text-foreground">{p.title}</span>
+        <PartRow key={p.part} part={p.part} title={p.title} onClick={() => open(p.part)}>
           <PartValue part={p} models={R.models ?? []} />
-        </button>
+        </PartRow>
       ))}
       {/* Quiet, under the parts, never beside "Back to my chats" (N632 item 4). */}
       <Link label={W.startAgain} onClick={() => c.go("what")} />
