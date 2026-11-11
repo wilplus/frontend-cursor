@@ -248,12 +248,18 @@ export function useChatsDoor(willFirst: boolean, onRecordAnswer?: (answer: Answe
     setView({ at: "list" });
     reload();
   };
-  // The blank setup opens over the list: from Will's chat ("I want to edit
-  // my chat"), the list comes back under it (backend N618 item 8).
+  // The blank setup opens over the list; from Will's chat (his lines, "I
+  // want to edit my chat") it opens over his chat instead, and Back comes
+  // back to it (backend N639 item 2; was N618 item 8: the list came back
+  // under it).
   const toListRef = useRef(toList);
   toListRef.current = toList;
+  const atWillRef = useRef(false);
+  atWillRef.current = view.at === "will";
   useEffect(() => {
-    const on = () => toListRef.current();
+    const on = () => {
+      if (!atWillRef.current) toListRef.current();
+    };
     window.addEventListener(OPEN_EVENT, on);
     return () => window.removeEventListener(OPEN_EVENT, on);
   }, []);

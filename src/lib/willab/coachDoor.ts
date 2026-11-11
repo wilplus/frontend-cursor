@@ -35,6 +35,13 @@ export function useCoachWaiting(): number | null {
   return useSyncExternalStore(subscribe, () => waiting, () => null);
 }
 
-export function openCoachQueue(): void {
-  window.dispatchEvent(new Event(OPEN_QUEUE_EVENT));
+/** How the queue was opened: from one of Will's lines ("N moments to
+ *  answer"), it wears the one top bar and Back comes back to his chat
+ *  (backend N639). */
+export type OpenQueueDetail = { fromWill?: boolean };
+
+/** `how` is ignored unless it says `fromWill` (a row's tap passes its click). */
+export function openCoachQueue(how?: OpenQueueDetail): void {
+  const fromWill = how?.fromWill === true;
+  window.dispatchEvent(new CustomEvent<OpenQueueDetail>(OPEN_QUEUE_EVENT, { detail: { fromWill } }));
 }

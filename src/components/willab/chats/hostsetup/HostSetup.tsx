@@ -917,7 +917,7 @@ function PartsStep({ c }: { c: Ctx }) {
     c.go(to);
   };
   return (
-    <Frame title={R.spec} onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>
+    <Frame onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (

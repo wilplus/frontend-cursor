@@ -123,6 +123,9 @@ OUTCOME
   O26 A website visitor's answers carry the visitor's name, "Visitor 7's
       answers", on their row and on the card, never "Widget's answers"
       (N569 item 6).
+  O28 What opens from Will's chat (his lines, "Your chat") opens over his
+      chat, which stays open under it, so Back comes back to Will; opened
+      from the list, it opens over the list as before (N639 item 2).
   O27 A website visitor is a chat like any other, "Widget / Visitor 7",
       "From {site}"; the bar is the chat's two places (N610): "+", and
       "Record your answer" for their typed question, which the backend
@@ -153,6 +156,7 @@ PROVES   O1 -> "as a visitor who is not signed in, /chat is the Lounge as it is 
          O25 -> "the slides on Will's cards wait while the list covers his chat, and draw once it is open"
          O26 -> "a website visitor's answers carry the visitor's name, not the word Widget"
          O27 -> "WID-19, WID-22: a website visitor is a chat like any other"
+         O28 -> "N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list"
 */
 import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -179,6 +183,7 @@ import { UNDO_MS, answerRecorded, answerTake, forgetAnswers, startAnswer, type A
 import { JoinSetupBubble, joinSetupOf, useJoinSetup } from "./JoinSetup";
 import { useWillChatInView } from "./willChatInView";
 import { forgetHostWork } from "./hostsetup/hostWork";
+import { OPEN_EVENT } from "./hostsetup/hostSetupDoor";
 import { askForPlace, useOpenPlace } from "./loungePlace";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
@@ -1406,5 +1411,23 @@ describe("the chats in front of the Lounge", () => {
 
     await draw(said("q-set", "You're set. Each question that comes to your chats, and each answer you give, builds a knowledge base you share.", { step: "set" }));
     expect([...container.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Copy my link›", "Your questions for people who join›"]);
+  });
+
+  it("N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list", async () => {
+    backend(["chats"]);
+    routes.set("GET /api/v2/chats", () => ({ chats: [] }));
+    await render();
+    await tap(rows()[0]);
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
+    await act(async () => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: "parts" } })));
+    await flush();
+    // Will's chat stays open under it, with his bar.
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
+    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    // From the list, the list stays.
+    await tap(container.querySelector("[data-chat-header] button"));
+    await act(async () => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: "parts" } })));
+    await flush();
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(false);
   });
 });

@@ -29,6 +29,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Users } from "lucide-react";
 import { TopBar } from "../chats/ChatThread";
+import OneTopBar, { useOneBar } from "../OneTopBar";
 import WalkOverlay, { walkNavText, type WalkNav } from "../walk/WalkOverlay";
 import WalkPlayer from "../walk/WalkPlayer";
 import WalkFaces, { WalkUnclear } from "../walk/WalkFaces";
@@ -248,11 +249,16 @@ export function QueueScreen({ speakers, loading, ready = true, blind, will = nul
   onClose: () => void;
 }) {
   const waiting = queueOrder(speakers);
+  const oneBar = useOneBar();
   // A chat's own top bar (N525): ‹ back to the list, the row's round icon,
-  // "Your queue". Still while the body moves (.walk-ovtop).
+  // "Your queue". Still while the body moves (.walk-ovtop). Opened from
+  // Will's line, the one top bar: ‹ back to his chat and "Your queue" (N639).
   return (
     <div role="dialog" aria-modal="true" aria-label={COPY.queueTitle} data-testid="coach-panel-queue"
       className="walk-ov flex h-full w-full flex-col bg-background text-[17px] leading-[1.55] text-foreground">
+      {oneBar ? (
+        <OneTopBar onBack={onClose} title={COPY.queueTitle} />
+      ) : (
       <div className="walk-ovtop">
         <TopBar
           circle={
@@ -264,6 +270,7 @@ export function QueueScreen({ speakers, loading, ready = true, blind, will = nul
           onBack={onClose}
         />
       </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-3.5">
       {!ready ? (
         <WalkLoading />
@@ -319,15 +326,17 @@ export function allSpeakersChoice(speaker: PanelSpeaker, index: number): WalkCho
   return { value, label: speaker.pseudonym, subtitle: COPY.allAnsweredTakes(answeredTakes) };
 }
 
-export function SpeakersScreen({ speakers, loading, onSpeaker, onClose }: {
+export function SpeakersScreen({ speakers, loading, onSpeaker, onBack, onClose }: {
   /** null while it loads or when it could not be read. */
   speakers: readonly PanelSpeaker[] | null;
   loading: boolean;
   onSpeaker: (speaker: PanelSpeaker) => void;
+  /** Opened from Will's line (N639): one step back, to the queue. */
+  onBack?: () => void;
   onClose: () => void;
 }) {
   return (
-    <WalkOverlay title={COPY.yourSpeakers} onClose={onClose} testId="coach-panel-all-speakers">
+    <WalkOverlay title={COPY.yourSpeakers} onBack={onBack} onClose={onClose} testId="coach-panel-all-speakers">
       {speakers && speakers.length > 0 ? (
         <WalkChoices
           label={COPY.yourSpeakers}

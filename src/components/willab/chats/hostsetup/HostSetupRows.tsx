@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { readSetup, type SetupRead } from "@/services/api/hostSetup";
 import { useUserProfile } from "../../useUserProfile";
@@ -16,6 +16,8 @@ import { refreshHostWork } from "./hostWork";
 import { W } from "./hostSetupCopy";
 import { OPEN_EVENT, knowSetup, type OpenDetail } from "./hostSetupDoor";
 import { CoverSiteBar } from "../siteBarCover";
+import { BarBackContext, EdgeBack, OneBarBack, OneBarContext } from "../../OneTopBar";
+import { FrameTitle } from "./SetupBits";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup in the list of chats (backend N616, N618 item 8): the     */
@@ -26,7 +28,14 @@ import { CoverSiteBar } from "../siteBarCover";
 /*  no way in opens anything.                                                 */
 /* -------------------------------------------------------------------------- */
 
-type Open = { at: "setup"; detail: OpenDetail } | { at: "own" };
+/** `overWill`: opened from Will's chat (his lines, "I want to edit my
+ *  chat"), so it opens over his chat and Back comes back to it (N639). */
+type Open = { at: "setup"; detail: OpenDetail; overWill?: boolean } | { at: "own" };
+
+/** Over Will's chat: the column his chat fills, over all of it (as the coach
+ *  panel, backend N627); the chats' front is put away while he is open. */
+const OVER_WILL = "fixed inset-0 z-50 bg-background";
+const WILL_COLUMN = "relative flex h-full w-full flex-col md:mx-auto md:max-w-3xl";
 
 function useWillColumn() {
   const mark = useRef<HTMLSpanElement | null>(null);
@@ -62,13 +71,23 @@ export default function HostSetupRows() {
     };
   }, [version]);
   useEffect(() => () => knowSetup(null), []);
+  const columnRef = useRef(column);
+  columnRef.current = column;
+  // Closed by its own arrow or by the phone's Back: once (OneBarBack).
+  const closing = useRef(false);
   useEffect(() => {
-    const on = (e: Event) => setOpen({ at: "setup", detail: (e as CustomEvent<OpenDetail>).detail ?? {} });
+    const on = (e: Event) => {
+      closing.current = false;
+      // Will's chat open: the chats' front stands put away (data-chats-away).
+      const overWill = !!columnRef.current?.hasAttribute("data-chats-away");
+      setOpen({ at: "setup", detail: (e as CustomEvent<OpenDetail>).detail ?? {}, overWill });
+    };
     window.addEventListener(OPEN_EVENT, on);
     return () => window.removeEventListener(OPEN_EVENT, on);
   }, []);
   const name = profile?.first_name ?? read?.own_chat?.title ?? "";
   const close = () => {
+    closing.current = true;
     setOpen(null);
     setVersion((v) => v + 1);
     // What needs the person is read again once their work is done (N629).
@@ -76,21 +95,39 @@ export default function HostSetupRows() {
   };
   const recipe = read?.recipe ?? null;
   const kind = open?.at === "setup" ? open.detail.open : undefined;
-  // The AI models draw their own overlay, in the same column (N629 item 1).
+  const overWill = open?.at === "setup" && open.overWill === true;
+  // Over Will's chat, drawn over the whole of it; else over the list, in the
+  // column the list fills.
+  const place = (node: ReactNode) =>
+    overWill ? createPortal(<div data-over-will="" className={OVER_WILL}><div className={WILL_COLUMN}>{node}</div></div>, document.body)
+      : column !== undefined ? (column ? createPortal(node, column) : node) : null;
+  // The AI models draw their own overlay, in the same column (N629 item 1),
+  // and their own Back; the edge swipe in the iPhone app is that Back.
   if (kind === "models" || kind === "teach") {
+    const models = (
+      <>
+        <OneBarContext.Provider value>
+          <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
+        </OneBarContext.Provider>
+        <EdgeBack />
+      </>
+    );
     return (
       <>
         <span ref={mark} hidden />
-        <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
+        {overWill ? place(models) : models}
       </>
     );
   }
-  // Everything that opens over the list opens like a chat: its own header
-  // with Back, and no site bar above it (as the AI models, N632 item 6).
+  // Everything that opens over the list opens like a chat: the one bar with
+  // its back arrow, and no site bar above it (N632 item 6, N639). The
+  // phone's Back is the arrow of the screen on show (OneBarBack).
   const frame = open ? (
     <div data-host-setup="" className="absolute inset-0 z-40 flex flex-col bg-background">
       <CoverSiteBar />
-      <OverList open={open} read={read} name={name} onClose={close} />
+      <SurfaceBack closing={closing} onClose={close}>
+        <OverList open={open} read={read} name={name} onClose={close} />
+      </SurfaceBack>
     </div>
   ) : null;
   return (
@@ -106,7 +143,7 @@ export default function HostSetupRows() {
           onOpen={() => setOpen({ at: "own" })}
         />
       ) : null}
-      {frame && column !== undefined ? (column ? createPortal(frame, column) : frame) : null}
+      {frame ? place(frame) : null}
     </>
   );
 }
@@ -116,13 +153,24 @@ export default function HostSetupRows() {
 function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead | null; name: string; onClose: () => void }) {
   const recipe = read?.recipe ?? null;
   const detail = open.at === "setup" ? open.detail : {};
-  if (detail.open === "drafts") return <HostDrafts onClose={onClose} />;
+  if (detail.open === "drafts") {
+    return (
+      <FrameTitle.Provider value={W.answersToSendTitle}>
+        <HostDrafts onClose={onClose} />
+      </FrameTitle.Provider>
+    );
+  }
   if (detail.open === "check" && detail.modelId) {
     const checked = (recipe?.models ?? []).find((m) => m.model_id === detail.modelId);
-    return <HostCheck modelId={detail.modelId} question={checked?.q ?? ""} onBack={onClose} onDone={onClose} />;
+    return (
+      <FrameTitle.Provider value={W.modelsToCheckTitle}>
+        <HostCheck modelId={detail.modelId} question={checked?.q ?? ""} onBack={onClose} onDone={onClose} />
+      </FrameTitle.Provider>
+    );
   }
   if (open.at === "own" && recipe) return <HostOwnChat name={read?.own_chat?.title ?? name} recipe={recipe} onBack={onClose} />;
   return (
+    <FrameTitle.Provider value={W.yourChatTitle}>
     <HostSetup
       name={name}
       recipe={recipe}
@@ -132,5 +180,25 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       guess={read?.spec_guess ?? null}
       onClose={onClose}
     />
+    </FrameTitle.Provider>
+  );
+}
+
+/** The phone's Back over what is open: the arrow of the screen on show, one
+ *  step; on the first screen it closes, once. */
+function SurfaceBack({ closing, onClose, children }: { closing: { current: boolean }; onClose: () => void; children: ReactNode }) {
+  const slot = useRef<(() => boolean) | null>(null);
+  const step = () => {
+    closing.current = false;
+    const went = slot.current?.() ?? false;
+    return went && !closing.current;
+  };
+  return (
+    <BarBackContext.Provider value={slot}>
+      <OneBarBack step={step} onClose={() => {
+        if (!closing.current) onClose();
+      }} />
+      {children}
+    </BarBackContext.Provider>
   );
 }

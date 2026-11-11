@@ -17,13 +17,13 @@
 /*                                                                            */
 /* -------------------------------------------------------------------------- */
 
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import CoachPanel from "./CoachPanel";
 import { useMomentsQueue } from "../coachwalk/useMomentsQueue";
 import { PANEL_START, panelReducer, type PanelState } from "@/lib/willab/coachPanel";
 import { OPEN_SPEAKER_EVENT, type OpenSpeakerDetail } from "@/lib/willab/openSpeaker";
 import { fetchCoachSpeakers, queueSpeakerFor } from "@/services/api/coachSpeakers";
-import { OPEN_QUEUE_EVENT, publishWaiting } from "@/lib/willab/coachDoor";
+import { OPEN_QUEUE_EVENT, publishWaiting, type OpenQueueDetail } from "@/lib/willab/coachDoor";
 
 export default function CoachPanelDoor({
   initial = PANEL_START,
@@ -39,9 +39,17 @@ export default function CoachPanelDoor({
   useEffect(() => publishWaiting(waiting), [waiting]);
   useEffect(() => () => publishWaiting(null), []);
 
-  // The row in the list of chats opens Your queue (N521).
+  // Opened from one of Will's lines: the one top bar, and Back to his chat
+  // (backend N639); from anywhere else, as it was.
+  const [fromWill, setFromWill] = useState(false);
+
+  // The row in the list of chats opens Your queue (N521), and so does Will's
+  // line "N moments to answer" (N629).
   useEffect(() => {
-    const onOpen = () => dispatch({ type: "open" });
+    const onOpen = (event: Event) => {
+      setFromWill((event as CustomEvent<OpenQueueDetail>).detail?.fromWill === true);
+      dispatch({ type: "open" });
+    };
     window.addEventListener(OPEN_QUEUE_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_QUEUE_EVENT, onOpen);
   }, []);
@@ -63,6 +71,7 @@ export default function CoachPanelDoor({
       const { pseudonym } = (event as CustomEvent<OpenSpeakerDetail>).detail ?? {};
       if (!pseudonym) return;
       void fetchCoachSpeakers().then((all) => {
+        setFromWill(false);
         const found = all?.find((s) => s.pseudonym === pseudonym);
         dispatch(found ? { type: "speaker", speaker: queueSpeakerFor(found, queueSpeakers) } : { type: "speakers" });
       });
@@ -73,6 +82,6 @@ export default function CoachPanelDoor({
 
   return (
     <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
-      settled={queue.settled} refresh={queue.refresh} />
+      settled={queue.settled} refresh={queue.refresh} oneBar={fromWill} />
   );
 }

@@ -62,7 +62,7 @@ export default function WillNeedsYou() {
   const over = (detail: OpenDetail) => () => openOverList(detail);
   const kinds: Record<WorkKind, { title: (n: number) => string; line: string; open: () => void }> = {
     answers: { title: W.answersToSend, line: W.answersLine, open: over({ open: "drafts" }) },
-    moments: { title: W.momentsToAnswer, line: W.momentsLine, open: openCoachQueue },
+    moments: { title: W.momentsToAnswer, line: W.momentsLine, open: () => openCoachQueue({ fromWill: true }) },
     examples: { title: W.examplesToTeach, line: W.examplesLine, open: over({ open: "teach" }) },
     check: { title: W.modelsToCheck, line: W.modelsLine, open: over({ open: "check", modelId: work.checkModel ?? undefined }) },
   };

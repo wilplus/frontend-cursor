@@ -123,6 +123,14 @@ async function tap(label: string) {
   await act(async () => button(label).click());
   await flush();
 }
+/** The one top bar's back arrow (backend N639). */
+const backArrow = () => container.querySelector<HTMLButtonElement>('[data-one-top-bar] button[aria-label="Back"]');
+async function back() {
+  const arrow = backArrow();
+  if (!arrow) throw new Error(`no back arrow in: ${text()}`);
+  await act(async () => arrow.click());
+  await flush();
+}
 const chips = () => [...container.querySelectorAll("[data-chip]")].map((c) => c.textContent);
 const blocks = () => [...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent);
 async function tapBlock(label: string) {
@@ -307,7 +315,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Keep");
     expect(puts("line")).toEqual(["People come to me when their hair worries them."]);
     expect(text()).toContain("What do people send you? Tick all that apply.");
-    await tap("‹ Back");
+    await back();
     expect(text()).toContain("People come to me when their hair worries them.");
   });
 
@@ -414,7 +422,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(posts("/api/v2/chats/setup/walk/want")).toHaveLength(1);
     expect(text()).toContain("Thanks. I've told Artur.");
     expect(text()).not.toContain("Want it?");
-    await tap("‹ Back");
+    await back();
     await tap("An Ideal Text");
     expect(text()).toContain("Thanks. I've told Artur.");
     expect(() => button("I want this")).toThrow();
@@ -486,9 +494,12 @@ describe("the blank setup (FIRST-)", () => {
     for (let k = 0; k < steps.length; k += 1) {
       await steps[k].go();
       expect(text()).toContain(steps[k].see);
-      expect(container.querySelector("[data-host-back]")?.textContent).toBe("‹ Back");
+      // The one top bar (N639): the arrow and "Your chat"; no "Back" word, no circle.
+      expect(backArrow()).not.toBeNull();
+      expect(container.querySelector("[data-one-top-bar]")?.textContent).toBe("Your chat");
+      expect(container.querySelector("[data-host-back]")).toBeNull();
       if (k === 0) continue;
-      await tap("‹ Back");
+      await back();
       expect(text()).toContain(steps[k - 1].see);
       await steps[k].go();
       expect(text()).toContain(steps[k].see);
@@ -669,7 +680,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).not.toContain("What should it give back?");
     expect(text()).not.toContain("What should it be built on?");
     // Someone else's model: never asked.
-    await tap("‹ Back");
+    await back();
     await tap("Use a model that exists");
     expect(text()).toContain("Models you can use.");
     expect(text()).not.toContain("What should it give back?");
@@ -735,7 +746,7 @@ describe("the blank setup (FIRST-)", () => {
     await makeOwn();
     expect(puts("models")).toHaveLength(1);
     // Back from "Add another model?" goes through its teaching to the blocks.
-    await tap("‹ Back");
+    await back();
     expect(text()).toContain("Your model. Tap a block to change it.");
     await tapBlock(SUGGEST.models[0].q);
     await tap("Change");
@@ -831,7 +842,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).not.toMatch(/\d/);
     await tap("Keep");
     expect(text()).toContain("My hair feels soft and my scalp is calm.");
-    await tap("‹ Back");
+    await back();
     expect(text()).toContain("My scalp is tight and flaky after washing.");
     await tap("Keep");
     await tap("Change");
@@ -1091,7 +1102,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(button("Start again").closest("[data-host-foot]")).toBeNull();
     await tap("Start again");
     expect(text()).toContain("What do you do?");
-    await tap("‹ Back");
+    await back();
     expect(text()).toContain("Why people come");
     await tap("Start again");
     await tap("Answer");
@@ -1127,7 +1138,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Your modelsNone yet");
     await tap("Your models");
     expect(text()).toContain("Want to make it trichologist-smart?");
-    await tap("‹ Back");
+    await back();
     expect(text()).toContain("Your modelsNone yet");
     await tap("Your models");
     await tap("Yes");

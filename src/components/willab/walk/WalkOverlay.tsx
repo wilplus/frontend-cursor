@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
+import { BackRow, useOneBarControls } from "../OneTopBar";
 import { useWalkSwipe } from "./useWalkSwipe";
 import { LandingNestContext, WalkLanding, useWalkHeld, useWalkPart } from "./WalkThread";
 
@@ -76,22 +77,8 @@ function NavBar({ nav }: { nav: WalkNav }) {
 
 /** ‹ alone, for a screen with somewhere to go back to but no moments to walk
  *  (the coach panel's speaker screen), with where it goes when the screen
- *  says so ("‹ Library", "‹ Speaking errors"). */
-function BackOnly({ onBack, label }: { onBack: () => void; label?: string | null }) {
-  return (
-    <span className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label={COPY.pagerBack}
-        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-      >
-        <ChevronLeft className="h-5 w-5" aria-hidden />
-      </button>
-      {label ? <span data-walk-back-label className="min-w-0 truncate">{label}</span> : null}
-    </span>
-  );
-}
+ *  says so ("‹ Library", "‹ Speaking errors"): the one bar's ‹ (N639). */
+const BackOnly = BackRow;
 
 export default function WalkOverlay({
   nav,
@@ -151,6 +138,8 @@ export default function WalkOverlay({
   children?: ReactNode;
 }) {
   const part = useWalkPart();
+  // Opened from Will's lines (N639): the back arrow is the only control.
+  const bar = useOneBarControls({ nav, onBack, onClose, backLabel, caption });
   const ov = useRef<HTMLDivElement | null>(null);
   useWalkSwipe(ov, part ? null : nav);
   // Drawn first as the newest part, the step the walk stands on: its
@@ -215,11 +204,11 @@ export default function WalkOverlay({
       data-testid={testId}
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
+      <div className={`walk-ovtop ${bar.row}`}>
         {nav ? (
-          <NavBar nav={nav} />
-        ) : onBack ? (
-          <BackOnly onBack={onBack} label={backLabel} />
+          <NavBar nav={bar.nav ?? nav} />
+        ) : bar.back ? (
+          <BackOnly onBack={bar.back} label={bar.label} />
         ) : caption ? (
           <span data-walk-caption className="min-w-0 truncate px-2 text-[13.5px] font-semibold">
             {caption}
@@ -231,11 +220,11 @@ export default function WalkOverlay({
         ) : (
           <span />
         )}
-        {onClose ? (
+        {bar.close ? (
           // The app's one small grey X, unchanged (founder 2026-10-07,
           // Q-B14 A (1); D-RC-6): only its place and the walk's press are
           // the overlay's.
-          <OverlayCloseButton onClick={onClose} className="walk-press-sm mr-2.5" />
+          <OverlayCloseButton onClick={bar.close} className="walk-press-sm mr-2.5" />
         ) : (
           <span />
         )}

@@ -122,7 +122,8 @@ describe("what needs you is in Will (backend N629)", () => {
     await tap("Send");
     expect(text()).toContain("All sent.");
     expect(text()).toContain("Each one you changed teaches me to answer like you.");
-    await tap("‹ Back");
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-one-top-bar] button[aria-label="Back"]')!.click());
+    await flush();
     expect(text()).toContain("Tomek asked:");
     await tap("Send");
     expect(posts().map((c) => [c.path, c.json])).toEqual([
@@ -153,7 +154,7 @@ describe("what needs you is in Will (backend N629)", () => {
     ]);
     expect(text()).toContain("And yours to open any time:");
     const opened: unknown[] = [];
-    const onOpen = (e: Event) => opened.push((e as CustomEvent).detail ?? "queue");
+    const onOpen = (e: Event) => opened.push(e.type === OPEN_QUEUE_EVENT ? "queue" : (e as CustomEvent).detail);
     window.addEventListener(OPEN_EVENT, onOpen);
     window.addEventListener(OPEN_QUEUE_EVENT, onOpen);
     for (const kind of ["answers", "moments", "examples", "check", "models", "chat"]) {

@@ -60,6 +60,7 @@ import { MAX_BATCH_FILES, batchFailLine, importBatch, inNameOrder } from "./corp
 import { WillBankScreen } from "./WillBankScreen";
 import { fetchWillBank, saveWillBank, type WillBank, type WillBankItem } from "@/services/api/willBank";
 import CoachCorpusJudge from "./CoachCorpusJudge";
+import { OneBarBack, OneBarContext } from "../OneTopBar";
 import {
   isMomentScreen, isPlanScreen, momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
 } from "@/lib/willab/coachPanel";
@@ -363,6 +364,10 @@ export type CoachPanelProps = {
   settled?: boolean;
   /** Read the queue again (after the founder's Delete of a speaker's row). */
   refresh?: () => void;
+  /** Opened from one of Will's lines (backend N639): every screen wears the
+   *  one top bar, the back arrow its only control, and the phone's Back goes
+   *  one step, from the queue to Will's chat. */
+  oneBar?: boolean;
 };
 
 function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker): QueueSpeaker {
@@ -377,7 +382,7 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
  *  phone it is the window's width. */
 export const WILL_COLUMN = "md:mx-auto md:max-w-3xl";
 
-export default function CoachPanel({ state, dispatch, speakers, loading, settled = true, refresh }: CoachPanelProps) {
+export default function CoachPanel({ state, dispatch, speakers, loading, settled = true, refresh, oneBar = false }: CoachPanelProps) {
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = momentOf(screen) && "take" in screen ? screen.take.sessionId : null;
@@ -579,6 +584,9 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
     );
   }
 
+  // Your speakers, opened from Will's line: the arrow back to the queue (N639).
+  const speakersBack = oneBar ? () => dispatch({ type: "back" }) : undefined;
+
   // Every read the queue draws has come in once: it draws whole (N525).
   const queueReady = settled && blind.done && (!founder || will.done);
 
@@ -603,6 +611,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
       return (
         <SpeakersScreen speakers={all.speakers ?? speakersFromQueue(speakers)}
           loading={all.speakers === null && (all.loading || loading)} onClose={close}
+          onBack={speakersBack}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker: queueSpeakerFor(speaker, speakers) })} />
       );
     }
@@ -668,7 +677,21 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
     return answer.renderMoment(panel, live);
   }
 
+  // The phone's Back, as the arrow: a blind sheet closes, else one screen
+  // back, and from the queue to Will's chat.
+  const stepBack = () => {
+    if (blindOpen !== null) {
+      setBlindOpen(null);
+      return true;
+    }
+    if (state.history.length === 0) return false;
+    dispatch({ type: "back" });
+    return true;
+  };
+
   return (
+    <OneBarContext.Provider value={oneBar}>
+    {oneBar && screen.key !== "lounge" ? <OneBarBack step={stepBack} onClose={close} /> : null}
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
       {/* On a computer, the column Will's chat fills (backend N627). */}
       <WalkStage screen={stage} dir={state.dir} render={screenFor} className={`walk-stage-column ${WILL_COLUMN}`}
@@ -709,5 +732,6 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
         </div>
       ) : null}
     </MediaRefreshProvider>
+    </OneBarContext.Provider>
   );
 }
