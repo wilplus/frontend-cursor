@@ -723,16 +723,27 @@ function WalkStep(c: Ctx): ReactNode {
 function WalkParts(c: Ctx): ReactNode {
   const { S } = c;
   switch (S.at) {
-    case "walkhome":
+    case "walkhome": {
+      const notices = (S.walkRead?.notice ?? []).filter((n) => n.on).map((n) => n.q);
+      const lines = (S.walkRead?.say ?? []).filter((l) => l.on).length;
       return (
         <Frame onBack={c.back}>
           <Say>{W.walkHome}</Say>
-          <Opt title={W.walkParts.steps} onClick={() => c.go("walk")} />
-          <Opt title={W.walkParts.notice} onClick={() => c.go("walknotice")} />
-          <Opt title={W.walkParts.say} onClick={() => c.go("walksay")} />
-          <Opt title={W.walkParts.out} onClick={() => c.go("walkout")} />
+          <PartRow part="steps" title={W.walkParts.steps} onClick={() => c.go("walk")}>
+            {value(walkSteps(S, c.R).map((id) => W.walkSteps[id]).join(" · "))}
+          </PartRow>
+          <PartRow part="notice" title={W.walkParts.notice} onClick={() => c.go("walknotice")}>
+            {S.walkRead ? value(notices.length ? notices.join(" · ") : W.nothingYet) : null}
+          </PartRow>
+          <PartRow part="say" title={W.walkParts.say} onClick={() => c.go("walksay")}>
+            {S.walkRead ? value(W.lineCount(lines)) : null}
+          </PartRow>
+          <PartRow part="out" title={W.walkParts.out} onClick={() => c.go("walkout")}>
+            {value(W.walkOuts[walkOut(c.R)])}
+          </PartRow>
         </Frame>
       );
+    }
     case "walknotice":
       return <WalkNoticeStep c={c} />;
     case "walksay":
@@ -1183,6 +1194,18 @@ function PartValue({ part, models }: { part: SetupPart; models: RecipeModel[] })
   return part.value ? <span className="text-[16px] font-semibold text-foreground">{part.value}</span> : null;
 }
 
+/** One row of a list of parts: its name over its value (the parts, the walk's parts). */
+function PartRow({ part, title, onClick, children }: { part: string; title: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" data-part={part} onClick={onClick} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
+      <span className="text-[16px] text-foreground">{title}</span>
+      {children}
+    </button>
+  );
+}
+
+const value = (v: string) => <span className="text-[16px] font-semibold text-foreground">{v}</span>;
+
 function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
@@ -1194,10 +1217,9 @@ function PartsStep({ c }: { c: Ctx }) {
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
-        <button key={p.part} type="button" data-part={p.part} onClick={() => open(p.part)} className="flex flex-col gap-0.5 rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left">
-          <span className="text-[16px] text-foreground">{p.title}</span>
+        <PartRow key={p.part} part={p.part} title={p.title} onClick={() => open(p.part)}>
           <PartValue part={p} models={R.models ?? []} />
-        </button>
+        </PartRow>
       ))}
       {/* Quiet, under the parts, never beside "Back to my chats" (N632 item 4). */}
       <Link label={W.startAgain} onClick={() => c.go("what")} />
