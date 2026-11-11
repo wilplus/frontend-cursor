@@ -68,7 +68,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
       ) : (
         <OneTopBar onBack={onBack} title={title ?? named} />
       )}
-      <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+      <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
         {history}
         {children}
       </div>

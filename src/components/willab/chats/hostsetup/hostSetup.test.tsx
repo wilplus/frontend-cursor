@@ -1241,6 +1241,22 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Open your chat to people?");
   });
 
+  it("N650 Test my chat: while the answer is coming, the three dots are the lowest line, after the last bubble", async () => {
+    await begun();
+    let release: (v: unknown) => void = () => {};
+    bff.routes["POST /api/v2/chats/setup/try"] = () => new Promise((r) => { release = r; });
+    await keepTo("Right now your chat isn't a specialist in anything.");
+    await tap("Not now");
+    await tap("I draft, you send");
+    await tap("Test my chat");
+    await tap("Look at my scalp");
+    await type("My scalp itches.");
+    const dots = container.querySelector("[data-host-own-chat] [data-will-thinking]");
+    expect(dots).not.toBeNull();
+    expect(dots?.parentElement?.lastElementChild).toBe(dots);
+    await act(async () => release({ messages: [], useful: false }));
+  });
+
   it("FIRST-11 open it to people: Yes makes it live, and the setup closes", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");

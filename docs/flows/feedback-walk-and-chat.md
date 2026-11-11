@@ -1792,7 +1792,11 @@ October (backend N111).
   Will's chat starts at the bottom, by the bar, as the chats with people
   do (N321 item 3); once it fills the screen nothing changes, and there is
   no extra room above the first message (`Lounge.tsx`, the thread's first
-  child `mt-auto`). Four rules, one component each (`WillQuestion.tsx`):
+  child `mt-auto`). **Every chat in the app keeps it** (N650, founder
+  2026-11-11): bubbles that do not fill the screen sit at the bottom, right
+  above the bar, the newest lowest; the three dots of an answer coming are the
+  lowest line, never at the top; a longer chat scrolls, opened at its newest.
+  Four rules, one component each (`WillQuestion.tsx`):
   your answers sit on your side, on the right, right under the question;
   one answer look, N371's orange pill with the likely answer filled,
   whoever asks (`TapRow`, `AnswerPair`); saying no is a grey word, "Not
@@ -2375,6 +2379,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-11 · N650 · every chat starts at the bottom and its three dots are its lowest line: "Test my chat" and the setup that reads as a chat (`Frame` in `hostsetup/SetupBits.tsx`, first child `mt-auto`) were three bubbles at the top of an empty screen. Already right and unchanged: a person's chat (`ChatThread.tsx`), Will's and the speaking chat (`Lounge.tsx`), a host's chat that takes Takes, the widget chat (`WidgetChat.tsx`). Layout only · FE (this PR)
 - 2026-11-11 · N648 item 8 · a host's chat that takes Takes shows the chat's own messages too (the host's answers and questions, one's own words to them, voice with "Read it", photos and files, Take cards), each in its place by time among the Takes, drawn as the chat draws them (`ChatRow`; `chats/hostChatMessages.ts`, `chats/HostChatRow.tsx`). The tag of a Take made there is not drawn: the Take shows through its own rows. Everything else of the chat stays one tap away: the circle and the name open the chat as it is today (its bar, its answers, its "+", the profile), and Back comes back to the Takes; a message that asks something (answers to tap, "Record your answer", a photo, their Take) opens it in one tap; opened, the chat no longer reads as new in the list (`HostChatRow.tsx`, `askForChatThread`) · FE (this PR)
 - 2026-11-11 · N648 item 8 · for the chat builder's ring, a host's chat that takes Takes (`takes: true` on the chat, backend #1961) opens as the speaking chat for that chat: the Lounge, under the chat's own top bar (circle, name), with the speaking chat's record bar, plan and rows, its rows read for that chat alone (GET /v2/user/lounge/messages?chat=<id>; `useOpenChat` in `chats/loungePlace.tsx`, `useLoungeThread.ts`, `useChatsDoor.tsx`). A chat with no takes, the speaking chat and everyone off the ring: as before. Needs the backend's ?chat= read before it ships; the host's own messages in that chat follow in the next PR · FE (this PR)
 - 2026-11-11 · N647 item 3 · for the founder only, in the chat builder's "What I notice": where GET /v2/build/notice/filler_cluster/try answers 200 (a 403 or 404 draws nothing), a row "Too many filler words" (second line "Trying: catch more" or "Trying: catch fewer" while a try is on) opens "Too many filler words." with "Catch more" and "Catch fewer"; one starts the silent try (POST same {direction}) and Will says "I'll try catching {more|fewer} on the next {n} recordings, silently. Nobody sees a change." and "Then I'll show you what it caught." with "Done". Once the try is ready: "I tried catching {more|fewer} on {n} recordings, silently.", "I caught {n} more. Coaches agreed with {a} of them." or "I caught {n} fewer. Coaches say {a} of them was real.", the backend's note when coaches have not answered enough, and "Go back" (POST .../try/<id>/drop) with "Use it" (POST .../use) drawn only when `can_use` is true. No threshold is ever shown. Only filler words have a row; hedging and restart_repair wait for their words (`hostsetup/HostSetup.tsx`, `api/v2/build/notice/[thing]/try/`) · BE N647 routes, FE (this PR)
