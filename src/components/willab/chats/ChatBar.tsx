@@ -170,21 +170,32 @@ export function BarButton({
 }
 
 /** The box in the middle: its words are the one thing to do ("Ask {name}",
- *  "Type your answer"); the keyboard's own key sends. Nothing beside it:
- *  the bar has two places. Typed words are never lost: a send the backend
- *  refuses, or one that fails, puts them back in the box as typed, the
- *  caret in it. */
+ *  "Type your answer"); the keyboard's own key sends, and so does the send
+ *  icon inside its right edge once there are words: in every chat, the
+ *  founder's "every text field in the app has its send button on the right"
+ *  (backend N647 item 9; was the chat builder's ring only). Typed words are
+ *  never lost: a send the backend refuses, or one that fails, puts them back
+ *  in the box as typed, the caret in it. */
 export function BarBox({
   hint,
   open = false,
-  sendButton = false,
+  initial = "",
+  grow = false,
+  newlines = false,
   onSend,
   onLeave,
 }: {
   hint: string;
-  /** Will's own Send inside the box once there are words (the chat
-   *  builder's ring, the founder's trial of 10 November 2026). */
-  sendButton?: boolean;
+  /** Already in the box, to send as it is or change (the setup's "What do
+   *  you do?" with the first Take's guess, N632 item 2). */
+  initial?: string;
+  /** The setup's box: it grows with its text up to seven lines, Enter
+   *  sends and Shift+Enter is a new line (N618 item 4). Every chat's box
+   *  stays one line. */
+  grow?: boolean;
+  /** With `grow`, one thing on each line: Enter is a new line and only the
+   *  send icon sends. */
+  newlines?: boolean;
   /** Opened from the "+": the caret is in it at once. */
   open?: boolean;
   /** True once the backend kept the words. */
@@ -192,8 +203,8 @@ export function BarBox({
   /** Left empty: the middle goes back to what it was. */
   onLeave?: () => void;
 }) {
-  const [words, setWords] = useState("");
-  const ref = useRef<HTMLInputElement>(null);
+  const [words, setWords] = useState(initial);
+  const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   // Words on their way: the box is empty, but not left.
   const going = useRef(false);
   const send = async (typed: string) => {
@@ -209,30 +220,54 @@ export function BarBox({
   useEffect(() => {
     if (open) ref.current?.focus();
   }, [open]);
-  const showSend = sendButton && words.trim() !== "";
+  useEffect(() => {
+    const el = ref.current;
+    if (!grow || !el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [grow, words]);
+  const showSend = words.trim() !== "";
+  const submit = () => {
+    if (words.trim() && !going.current) void send(words);
+  };
+  const field = {
+    value: words,
+    placeholder: hint,
+    "aria-label": hint,
+    autoComplete: "off",
+    onBlur: () => {
+      if (!words.trim() && !going.current) onLeave?.();
+    },
+    className: `w-full min-w-0 rounded-[22px] border border-[#E8E8E8] bg-background pl-3 text-[14px] text-[#121212] caret-primary outline-none placeholder:text-[#A3A3A3] focus:border-primary ${showSend ? "pr-11" : "pr-3"}`,
+  };
   return (
     <form
       data-chat-box=""
       className="relative flex min-w-0 flex-1"
       onSubmit={(e) => {
         e.preventDefault();
-        if (words.trim() && !going.current) void send(words);
+        submit();
       }}
     >
-      <input
-        ref={ref}
-        type="text"
-        value={words}
-        onChange={(e) => setWords(e.target.value)}
-        onBlur={() => {
-          if (!words.trim() && !going.current) onLeave?.();
-        }}
-        placeholder={hint}
-        aria-label={hint}
-        enterKeyHint="send"
-        autoComplete="off"
-        className={`h-10 w-full min-w-0 rounded-[22px] border border-[#E8E8E8] bg-background pl-3 text-[14px] text-[#121212] caret-primary outline-none placeholder:text-[#A3A3A3] focus:border-primary ${showSend ? "pr-11" : "pr-3"}`}
-      />
+      {grow ? (
+        <textarea
+          {...field}
+          ref={ref}
+          rows={1}
+          maxLength={400}
+          enterKeyHint="send"
+          onChange={(e) => setWords(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !newlines) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          className={`${field.className} block min-h-10 resize-none py-[9px] leading-snug`}
+        />
+      ) : (
+        <input {...field} ref={ref} type="text" enterKeyHint="send" onChange={(e) => setWords(e.target.value)} className={`${field.className} h-10`} />
+      )}
       {showSend ? (
         // Will's chat's Send, as it is there (Lounge): 44px to tap, 32px to
         // see, inside the box's right edge.
@@ -278,7 +313,6 @@ export function BarMiddle({
   middle,
   name,
   typing,
-  sendButton = false,
   onAsk,
   onRecordAnswer,
   onPhoto,
@@ -287,8 +321,6 @@ export function BarMiddle({
 }: {
   middle: Middle;
   name: string;
-  /** Will's Send in the box (the chat builder's ring). */
-  sendButton?: boolean;
   /** "Type your answer" was picked behind the "+": the box, for now. */
   typing: boolean;
   onAsk: () => void;
@@ -302,7 +334,6 @@ export function BarMiddle({
       <BarBox
         hint={TYPE_YOUR_ANSWER}
         open
-        sendButton={sendButton}
         onSend={async (words) => {
           // Sent: the button comes back. Refused: the box stays, with the words.
           const kept = await onType(words);
@@ -317,7 +348,7 @@ export function BarMiddle({
   if (middle === "record-answer") {
     return <BarButton label={RECORD_YOUR_ANSWER} mark="dot" onClick={onRecordAnswer} dataAttr={{ "data-chat-record-answer": "" }} />;
   }
-  if (middle === "answer-box") return <BarBox hint={TYPE_YOUR_ANSWER} sendButton={sendButton} onSend={onType} />;
-  if (middle === "ask-box") return <BarBox hint={askName(name)} sendButton={sendButton} onSend={onType} />;
+  if (middle === "answer-box") return <BarBox hint={TYPE_YOUR_ANSWER} onSend={onType} />;
+  if (middle === "ask-box") return <BarBox hint={askName(name)} onSend={onType} />;
   return <BarButton label={askName(name)} onClick={onAsk} dataAttr={{ "data-chat-ask": "" }} />;
 }

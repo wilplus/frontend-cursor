@@ -175,8 +175,8 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await tap("GPT");
     // Outside a chat there is no suggested question: typed in Will's chat first.
     expectWords(["What should it spot? Write it as a question."]);
-    await type(container.querySelector("textarea")!, "Does the pitch rush");
-    await act(async () => container.querySelector("form")!.requestSubmit());
+    await type(container.querySelector<HTMLTextAreaElement>("[data-chat-box] textarea")!, "Does the pitch rush");
+    await act(async () => container.querySelector<HTMLFormElement>("[data-chat-box]")!.requestSubmit());
     await flush();
     // N646: the answers come from the question; Change shows the next set.
     expect(posted("/setup/answers")).toEqual([{ question: "Does the pitch rush?" }]);
@@ -210,8 +210,8 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await tap("Train my own");
     await tap("A pick from a list");
     await tap("GPT");
-    await type(container.querySelector("textarea")!, "Does the pitch rush?");
-    await act(async () => container.querySelector("form")!.requestSubmit());
+    await type(container.querySelector<HTMLTextAreaElement>("[data-chat-box] textarea")!, "Does the pitch rush?");
+    await act(async () => container.querySelector<HTMLFormElement>("[data-chat-box]")!.requestSubmit());
     await flush();
     await tap("Keep");
     await tap("Teach it");
@@ -225,11 +225,11 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     ]);
     const write = [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Write one"))!;
     await tapEl(write);
-    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Type here");
+    expect(container.querySelector("[data-chat-box] textarea")?.getAttribute("placeholder")).toBe("Type here");
     // "Write one" keeps its own ask.
     expectWords(["Do you know a case this model should learn from? Add it, then answer it yourself."]);
-    await type(container.querySelector("textarea")!, "A founder reads every slide aloud, fast.");
-    await act(async () => container.querySelector("form")!.requestSubmit());
+    await type(container.querySelector<HTMLTextAreaElement>("[data-chat-box] textarea")!, "A founder reads every slide aloud, fast.");
+    await act(async () => container.querySelector<HTMLFormElement>("[data-chat-box]")!.requestSubmit());
     await flush();
     expect(posted("/blocky/examples")).toEqual([{ text: "A founder reads every slide aloud, fast." }]);
     expect(container.querySelector("[data-model-answer]")).not.toBeNull();
@@ -654,8 +654,8 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     });
     await render(createElement(ModelsOverlay, { start: { at: "add" }, queueTitle: "Your queue", onClose: () => {} }));
     await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Write one")) ?? null);
-    await type(container.querySelector("textarea")!, "A client asks for a discount twice.");
-    await act(async () => container.querySelector("form")!.requestSubmit());
+    await type(container.querySelector<HTMLTextAreaElement>("[data-chat-box] textarea")!, "A client asks for a discount twice.");
+    await act(async () => container.querySelector<HTMLFormElement>("[data-chat-box]")!.requestSubmit());
     await flush();
     expect(posted("/rasp/examples")).toEqual([{ text: "A client asks for a discount twice." }]);
     expectWords(["A client asks for a discount twice."]);

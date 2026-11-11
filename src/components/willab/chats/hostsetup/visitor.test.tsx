@@ -181,8 +181,9 @@ describe("what a visitor meets (VIS-)", () => {
     expect(container.querySelector("[data-chat-send]")).toBeNull();
   });
 
-  it("TRIAL-1b not on the ring, in a ring host's chat (the founder's customers): Will's Send shows there too", async () => {
-    // No setup read (not on the ring); the host read answers: a ring host's chat.
+  it("TRIAL-1b N647-9 not on the ring, the box shows the send icon on its right once there are words", async () => {
+    // No setup read (not on the ring): every chat's box has it now (backend
+    // N647 item 9; was the ring and a ring host's chat only).
     await open([row("m-0", "Hi", null, true)], ["text"]);
     const input = box()!;
     await act(async () => {
