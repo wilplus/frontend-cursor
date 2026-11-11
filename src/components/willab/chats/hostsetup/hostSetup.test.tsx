@@ -1402,4 +1402,57 @@ describe("the blank setup (FIRST-)", () => {
     expect(container.textContent).toBe("");
     expect(bff.calls.map((c) => c.path)).toEqual(["/api/v2/chats/setup"]);
   });
+  const TRY = { id: "t1", state: "ready", direction: "more", seen: 20, needed: 20, changed: 6, settled: 5, agreed: 4, enough_answers: true };
+  const THING = "/api/v2/build/notice/filler_cluster/try";
+  const tryPosts = () => bff.calls.filter((c) => c.method === "POST" && c.path.startsWith(THING)).map((c) => [c.path.slice(THING.length) || "start", c.json]);
+
+  it("N647-3 Catch more starts a silent try and shows what it caught, with its counts", async () => {
+    let got: R | null = null;
+    bff.routes[`GET ${THING}`] = () => ({ thing: "filler_cluster", try: got, can_use: true });
+    bff.routes[`POST ${THING}`] = (c: Call) => { got = { ...TRY, state: "running", seen: 0, direction: (c.json as R).direction }; return { thing: "filler_cluster", try: got, can_use: true }; };
+    await walkHome(WALK_READ);
+    await tap("What I notice");
+    await tap("Too many filler words");
+    expect(text()).toContain("Catch fewer");
+    await tap("Catch more");
+    expect(tryPosts()).toEqual([["start", { direction: "more" }]]);
+    expect(text()).toContain("I'll try catching more on the next 20 recordings, silently. Nobody sees a change.");
+    expect(text()).not.toContain("Use it");
+    got = TRY;
+    await tap("Done");
+    expect(button("Too many filler words").textContent).toBe("Too many filler wordsTrying: catch more");
+    await tap("Too many filler words");
+    expect(text()).toContain("I tried catching more on 20 recordings, silently.");
+    expect(text()).toContain("I caught 6 more. Coaches agreed with 4 of them.");
+  });
+
+  it("N647-3 Use it is absent while can_use is false; Go back drops the try", async () => {
+    bff.routes[`GET ${THING}`] = { thing: "filler_cluster", try: { ...TRY, direction: "fewer", changed: 5, agreed: 1 }, can_use: false };
+    bff.routes[`POST ${THING}/t1/drop`] = { thing: "filler_cluster", try: null };
+    await walkHome(WALK_READ);
+    await tap("What I notice");
+    await tap("Too many filler words");
+    expect(text()).toContain("I caught 5 fewer. Coaches say 1 of them was real.");
+    expect(text()).not.toContain("Use it");
+    await tap("Go back");
+    expect(tryPosts()).toEqual([["/t1/drop", {}]]);
+    expect(button("Too many filler words").textContent).toBe("Too many filler words");
+  });
+
+  it("N647-3 Use it, when can_use is true, makes it live; where the route is refused nothing is drawn", async () => {
+    bff.routes[`GET ${THING}`] = { thing: "filler_cluster", try: TRY, can_use: true };
+    bff.routes[`POST ${THING}/t1/use`] = { thing: "filler_cluster", try: null, used: true };
+    await walkHome(WALK_READ);
+    await tap("What I notice");
+    await tap("Too many filler words");
+    await tap("Use it");
+    expect(tryPosts()).toEqual([["/t1/use", {}]]);
+  });
+
+  it("N647-3 a 403 or 404 on the try draws no dials", async () => {
+    bff.routes[`GET ${THING}`] = { status: 403, body: { code: "FORBIDDEN" } };
+    await walkHome(WALK_READ);
+    await tap("What I notice");
+    expect(text()).not.toContain("Too many filler words");
+  });
 });
