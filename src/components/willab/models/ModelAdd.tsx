@@ -9,15 +9,18 @@ import { TeachStep } from "./ModelTeach";
 import { MODELS_WORDS as W, TO_SIGN } from "./modelsCopy";
 import { Choice, Muted, Said } from "./SetupParts";
 import { recipeSteps, teachScreen } from "./teachSteps";
+import { Box, Frame, Say } from "../chats/hostsetup/SetupBits";
+import { W as WILL } from "../chats/hostsetup/hostSetupCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  "Add an example you know well" (backend N563 item 4, N566 item 6; App     */
 /*  Model MOD-21; the locked prototype's q:7): which model, then the case in  */
 /*  words, then the adder answers it on the teachers' own screen. It counts   */
 /*  once another teacher agrees (the backend's note says so after the last    */
-/*  answer). A written case comes from a file's text; "Record one" waits for */
-/*  a recording path that hands a model a transcript (no route yet), so it   */
-/*  is drawn and does nothing, as before.                                    */
+/*  answer). A case is written in Will's chat ("Write one", N638) or comes    */
+/*  from a text file's words; "Record one" waits for a recording path that   */
+/*  hands a model a transcript (no route yet), so it is drawn lighter and     */
+/*  cannot be tapped (N638 item 2, N637 item 1).                              */
 /* -------------------------------------------------------------------------- */
 
 type Nav = { onBack?: () => void; onClose: () => void };
@@ -43,17 +46,31 @@ export function AddExampleScreen({ onBack, onClose, onAdded, only = null }: Nav 
   const modelId = only ?? chosen ?? models[0]?.id ?? null;
   const pick = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const add = async (file: File) => {
-    const text = await wordsOf(file);
+  const [writing, setWriting] = useState(false);
+  const send = async (text: string) => {
     if (!text || !modelId || busy) return;
     setBusy(true);
     const made = await addModelExample(modelId, { text });
     setBusy(false);
     if (made) onAdded?.({ modelId, example: { id: made.exampleId, model_id: modelId, content: { text } } });
   };
+  const add = async (file: File) => send(await wordsOf(file));
+  const can = Boolean(onAdded && modelId);
+  if (writing) {
+    // The case is typed in Will's chat; his ask is the screen's own line.
+    return (
+      <div data-testid="models-add-write" className="absolute inset-0 z-10 flex flex-col bg-background">
+        <Frame onBack={() => setWriting(false)}>
+          <Say>{W.add_intro}</Say>
+        </Frame>
+        <Box placeholder={WILL.typeHere} onSend={(text) => void send(text.slice(0, 4000))} />
+      </div>
+    );
+  }
   const ways = [
+    { title: W.add_write, line: W.add_write_line, onClick: can ? () => setWriting(true) : undefined },
     { title: W.add_record, line: W.add_record_line, onClick: undefined },
-    { title: W.add_upload, line: W.add_upload_line, onClick: onAdded && modelId ? () => pick.current?.click() : undefined },
+    { title: W.add_upload, line: W.add_upload_line, onClick: can ? () => pick.current?.click() : undefined },
   ];
   return (
     <WalkOverlay onBack={onBack} backLabel={W.add_title} onClose={onClose} testId="models-add">
@@ -72,10 +89,10 @@ export function AddExampleScreen({ onBack, onClose, onAdded, only = null }: Nav 
           type="button"
           disabled={!c.onClick || busy}
           onClick={c.onClick}
-          className="flex flex-col rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left disabled:cursor-default"
+          className="flex flex-col rounded-2xl border-[1.5px] border-border px-3.5 py-3 text-left disabled:cursor-default disabled:opacity-45"
         >
           <b className="text-[16px]">{c.title}</b>
-          <span className="text-[14px] text-muted-foreground">{c.line}</span>
+          <span className="text-[16px] text-foreground">{c.line}</span>
         </button>
       ))}
       <input

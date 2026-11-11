@@ -384,8 +384,10 @@ describe("the AI models: the queue and release (MOD-14, MOD-15, MOD-21 to MOD-23
     for (const w of [
       "Add an example",
       "Do you know a case this model should learn from? Add it, then answer it yourself.",
+      "Write one",
       "Record one",
       "Upload a file",
+      "A written case",
       "It counts once another teacher agrees with your answer.",
     ])
       expect(text()).toContain(w);

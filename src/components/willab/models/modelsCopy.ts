@@ -40,10 +40,14 @@ export const MODELS_WORDS = {
   queue_empty_back: "Back to your chats",
   add_title: "Add an example",
   add_intro: "Do you know a case this model should learn from? Add it, then answer it yourself.",
+  /** A case typed in Will's chat (N638 item 1). */
+  add_write: "Write one",
+  add_write_line: "Type the case in your own words.",
   add_record: "Record one",
   add_record_line: "Say the case in your own voice",
   add_upload: "Upload a file",
-  add_upload_line: "A recording, a photo or a written case",
+  /** What it takes, only a text file (N638 item 3). */
+  add_upload_line: "A written case",
   add_counts_once: "It counts once another teacher agrees with your answer.",
   release_not_yet: "Not yet",
   profile_section: "AI models",
