@@ -103,8 +103,9 @@ export function useWhatsAppOffer(inputs: {
       setDraft(null);
       // The confirmation the speaker asked for (founder 2026-10-15): a
       // bubble in the thread, so it survives reload like every other turn.
-      // Its offer's own mark: the WhatsApp ask is the speaking chat's (N636).
-      void append({ role: "bot", kind: "text", body: WHATSAPP_COPY.saved(saved), metadata: { offer: "whatsapp" } });
+      // The speaking chat's, as the WhatsApp ask is (N636). Not the offer's
+      // mark: that would draw it as the ask again, to be tapped open.
+      void append({ role: "bot", kind: "text", body: WHATSAPP_COPY.saved(saved), metadata: { place: "speaking" } });
     },
     [append],
   );

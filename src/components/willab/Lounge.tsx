@@ -2938,7 +2938,9 @@ function askBubble(
       />
     );
   }
-  const offerType = readOfferType(message.metadata);
+  // Only Will offers: one's own words are never drawn as his offer, whatever
+  // mark their row carries (an earlier Principles row carried one).
+  const offerType = message.role === "bot" ? readOfferType(message.metadata) : null;
   if (!offerType) return null;
   return (
     <OfferBubble
