@@ -19,6 +19,8 @@ export type Suggest = {
   /** The feedback walk Will suggests (N641): all three steps, an Ideal Text. */
   walk?: { steps: WalkStepId[]; out: "ideal_text" | "none" };
   line: string[];
+  /** The chat's names to keep or change (backend N642 item 1, N643 item 1). */
+  name?: string[];
   send: SendKind[];
   out: OutKind[];
   hello: string[];
@@ -32,6 +34,8 @@ export type HostRecipe = {
   spec: string;
   suggest: Suggest;
   line: string;
+  /** The chat's name; null until one is kept (the first name stands in). */
+  name?: string | null;
   send: SendKind[];
   out: OutKind;
   hello: string;
