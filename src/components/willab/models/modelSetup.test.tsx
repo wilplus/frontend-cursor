@@ -163,6 +163,7 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     serve({
       ...LIST,
       "POST /api/v2/models/setup/blocks": { ...S.begin, model_id: "blocky" },
+      "POST /api/v2/models/setup/answers": { sets: [["Rushed", "Calm", "Not sure"], ["Too fast", "Fine", "Not sure"]] },
       [`GET ${MADE}/setup/first-ten`]: { ...S.first10, model_id: "blocky" },
       [`GET ${SETUP}`]: S.scale,
     });
@@ -177,15 +178,18 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await type(container.querySelector<HTMLTextAreaElement>("[data-chat-box] textarea")!, "Does the pitch rush");
     await act(async () => container.querySelector<HTMLFormElement>("[data-chat-box]")!.requestSubmit());
     await flush();
-    expectWords(["What should it notice?", "Does the pitch rush?"]);
+    // N646: the answers come from the question; Change shows the next set.
+    expect(posted("/setup/answers")).toEqual([{ question: "Does the pitch rush?" }]);
+    expectWords(["People answer with:", "Rushed · Calm · Not sure"]);
     await tap("Change");
+    expectWords(["Too fast · Fine · Not sure"]);
     await tap("Keep");
     expect([...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent)).toEqual([
       "Does the pitch rush?", "It gives back a pick from a list", "Built on GPT", "Taught by you",
     ]);
     expect(posted("/setup/blocks")).toEqual([]);
     await tap("Teach it");
-    expect(posted("/setup/blocks")).toEqual([{ question: "Does the pitch rush?", answers: ["Yes", "Not sure", "No"], gives: "pick", base: "gpt" }]);
+    expect(posted("/setup/blocks")).toEqual([{ question: "Does the pitch rush?", answers: ["Too fast", "Fine", "Not sure"], gives: "pick", base: "gpt" }]);
     expect(posted("/api/v2/models/setup")).toEqual([]);
     expectWords(["Now answer the first 10 yourself"]);
   });
@@ -229,6 +233,46 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await flush();
     expect(posted("/blocky/examples")).toEqual([{ text: "A founder reads every slide aloud, fast." }]);
     expect(container.querySelector("[data-model-answer]")).not.toBeNull();
+  });
+
+  it("N646 one's own answers: one on each line, empty lines and repeats left out, two or three; fewer keeps the words; no read gives Yes, No, Not sure", async () => {
+    serve({ ...LIST, "POST /api/v2/models/setup/blocks": { ...S.begin, model_id: "blocky" } });
+    await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
+    await tap("Start your own");
+    await tap("Train my own");
+    await tap("A pick from a list");
+    await tap("GPT");
+    await type(container.querySelector("textarea")!, "Is the wood cracked or broken?");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    // The answers route is not there: the plain set, said nothing about.
+    expectWords(["People answer with:", "Yes · No · Not sure"]);
+    await tap("Type my own");
+    expectWords(["Type two or three answers, one on each line."]);
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
+    // Enter is a new line here, not Send.
+    const ta = container.querySelector("textarea")!;
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    await act(async () => void ta.dispatchEvent(enter));
+    expect(enter.defaultPrevented).toBe(false);
+    // Nothing typed: nothing is saved, the field stays.
+    await type(ta, "  \n");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expectWords(["Type two or three answers, one on each line."]);
+    // One answer (a repeat is one): not taken, the words stay in the field.
+    await type(container.querySelector("textarea")!, "Cracked\ncracked");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expectWords(["Type two or three answers, one on each line."]);
+    expect(container.querySelector("textarea")!.value).toBe("Cracked\ncracked");
+    await type(container.querySelector("textarea")!, "Cracked\n\nBroken\nNot sure\nSplit");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expectWords(["People answer with:", "Cracked · Broken · Not sure"]);
+    await tap("Keep");
+    await tap("Teach it");
+    expect((posted("/setup/blocks")[0] as { answers: string[] }).answers).toEqual(["Cracked", "Broken", "Not sure"]);
   });
 
   it("N636-7 a draft begun in the three chapters still continues there, with the blocks", async () => {

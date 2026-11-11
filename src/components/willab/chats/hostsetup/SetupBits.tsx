@@ -34,7 +34,9 @@ export const FrameHistory = createContext<ReactNode>(null);
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
  *  the name), as a chat keeps. */
-export function Frame({ title, onBack, circle, foot, children }: {
+export function Frame({ title, onBack, circle, foot, bar = null, children }: {
+  /** A bar of its own in place of the header (Live's, backend N642 item 3). */
+  bar?: ReactNode;
   title?: ReactNode;
   onBack?: () => void;
   circle?: ReactNode;
@@ -51,7 +53,9 @@ export function Frame({ title, onBack, circle, foot, children }: {
   });
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {circle ? (
+      {bar ? (
+        bar
+      ) : circle ? (
         <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
           {onBack ? (
             <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">
@@ -195,14 +199,17 @@ export function Dots() {
 /** Where the person types: the app's own bottom bar (backend N647 item 9;
  *  was a box of its own with a "Send" word): the chats' box, its send icon
  *  on the right once there are words, growing with its text up to seven
- *  lines (N618 item 4). */
-export function Box({ placeholder, onSend, before, after, initial = "" }: {
+ *  lines (N618 item 4); Enter sends, Shift+Enter is a new line. */
+export function Box({ placeholder, onSend, before, after, initial = "", lines = false }: {
   placeholder: string;
-  onSend: (text: string) => void;
+  /** False: not taken, the words stay in the box. */
+  onSend: (text: string) => void | boolean;
   before?: ReactNode;
   after?: ReactNode;
   /** Already in the box, to send as it is or change. */
   initial?: string;
+  /** One thing on each line: Enter is a new line, only Send sends. */
+  lines?: boolean;
 }) {
   return (
     <div data-host-box="" data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
@@ -211,11 +218,10 @@ export function Box({ placeholder, onSend, before, after, initial = "" }: {
         hint={placeholder}
         open
         grow
+        newlines={lines}
         initial={initial}
-        onSend={async (words) => {
-          onSend(words.trim());
-          return true;
-        }}
+        // A send its screen does not take keeps the words in the box.
+        onSend={async (words) => onSend(words.trim()) !== false}
       />
       {after}
     </div>

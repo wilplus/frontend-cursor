@@ -302,6 +302,7 @@ async function tap(el: Element | null | undefined) {
   await flush();
 }
 
+const BUILD_NAME = "Your chat";
 describe("the chats in front of the Lounge", () => {
   it("as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read", async () => {
     session.signedIn = false;
@@ -409,7 +410,10 @@ describe("the chats in front of the Lounge", () => {
     expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("principles");
     await tap(container.querySelector("[data-chat-header] button"));
     await tap(row("will"));
-    expect(container.querySelector("[data-chat-header]")?.textContent).toBe("Will");
+    // Will's chat is Build's "Your chat" (backend N642 item 3): the arrow,
+    // the chat's name, and the two tabs over the Lounge drawn as Will's.
+    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe(BUILD_NAME);
+    expect([...container.querySelectorAll("[data-build-tab]")].map((t) => t.textContent)).toEqual(["Your chat", "AI models"]);
     expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("will");
     // A tap there whose sheet is the speaking chat's opens that chat (N636 item 2).
     await act(async () => askForPlace("speaking"));

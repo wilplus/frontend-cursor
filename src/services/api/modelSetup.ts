@@ -97,6 +97,23 @@ async function read(path: string, init: Parameters<typeof bffFetch>[1] = { metho
   return out && "screen" in out ? out : null;
 }
 
+/** The answers a typed question suggests (N646): the backend's sets, the
+ *  first inferred from the question, each of one to three words; with no
+ *  answer from it, "Yes", "No", "Not sure". */
+export async function answerSets(question: string): Promise<string[][]> {
+  const fallback = [["Yes", "No", "Not sure"]];
+  try {
+    const result = await bffFetch("/api/v2/models/setup/answers", { cache: "no-store", method: "POST", json: { question } });
+    const sets = result.kind === "response" && result.ok ? (result.body as { sets?: unknown } | null)?.sets : null;
+    const ok = Array.isArray(sets)
+      ? sets.filter((s): s is string[] => Array.isArray(s) && s.length >= 1 && s.length <= 3 && s.every((a) => typeof a === "string" && a.trim() !== ""))
+      : [];
+    return ok.length ? ok : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /** "Start your own": a new draft; null below the ring. */
 export async function beginSetup(): Promise<SetupState | null> {
   return read("/api/v2/models/setup", { method: "POST", json: {} });

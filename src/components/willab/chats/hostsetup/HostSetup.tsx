@@ -17,13 +17,14 @@ import {
   type WalkStepId,
   wantWalk,
 } from "@/services/api/hostSetup";
-import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
+import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, FrameHistory, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
 import HostCheck from "./HostCheck";
-import { BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBlockScreens";
+import { AnswersScreen, BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen, answersOf, withFirst } from "./ModelBlockScreens";
+import { answerSets } from "@/services/api/modelSetup";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -60,15 +61,21 @@ type State = {
   cost: ChatCost | null;
   /** Will's chat while words are asked for: his question, then one's own. */
   thread: { w: boolean; t: string }[];
-  typing: { ask: string; ph: string; done: (v: string) => void; initial?: string } | null;
+  typing: { ask: string; ph: string; done: (v: string) => boolean; initial?: string; lines?: boolean } | null;
   thinking: string | null;
   i: Record<string, number>;
   own: Record<string, string | null>;
   qs: string[];
   sendSet: SendKind[] | null;
   mi: number;
-  mopts: number;
   ownQ: string | null;
+  /** The answers the typed question suggests (N646), and which is shown;
+   *  `ownOpts` once the host typed their own. */
+  ownSets: string[][] | null;
+  setI: number;
+  ownOpts: string[] | null;
+  /** A suggested model's own line, kept while its own answers are kept. */
+  ownSays: string | null;
   ownSeen: boolean;
   /** What the host's own models are built on, once chosen (N634 item 1). */
   base: string | null;
@@ -97,6 +104,9 @@ type State = {
   /** The backend refused the host's own words on this screen (N622 item 3). */
   refused: boolean;
   ownChat: OwnChat | null;
+  /** Opened at one part from Build's "Your chat": kept or Back, Build again
+   *  (backend N642 item 3). */
+  onePart: boolean;
   /** The last move was Back: a step with nothing to show passes on backwards. */
   backward: boolean;
   /** The steps answered, one per step in `history` (null: moved on with no
@@ -141,8 +151,11 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   qs: recipe ? recipe.questions.map((q) => q.q) : [],
   sendSet: null,
   mi: 0,
-  mopts: 0,
   ownQ: null,
+  ownSets: null,
+  setI: 0,
+  ownOpts: null,
+  ownSays: null,
   ownSeen: false,
   base: recipe?.models?.find((m) => m.own && m.base)?.base ?? null,
   gives: recipe?.models?.find((m) => m.own && m.gives)?.gives ?? null,
@@ -161,12 +174,25 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   busy: false,
   refused: false,
   ownChat: null,
+  onePart: false,
   backward: false,
   log: [],
   pending: null,
   lastWill: [],
   seed: [],
 });
+
+/** The step a part's row opens. */
+function stepOfPart(part: string, recipe: HostRecipe): Step {
+  return PART_STEP[part] ?? (part === "models" ? ((recipe.models ?? []).length ? "more" : "smart") : "line");
+}
+
+/** Opened at one part (Build's "Your chat"): that step, as an edit, with
+ *  nothing before it, so Back and the end of the edit both close. */
+function atPart(state: State, part: string | null): State {
+  if (!part || !state.recipe || !state.edit) return state;
+  return { ...state, at: stepOfPart(part, state.recipe), onePart: true, qs: part === "questions" ? [] : state.qs };
+}
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -178,7 +204,7 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
@@ -189,9 +215,11 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   ownChat?: OwnChat | null;
   /** What the first Take said the person does (N632 item 2). */
   guess?: string | null;
+  /** Opened at this part from Build's "Your chat" (N642 item 3). */
+  part?: string | null;
   onClose: () => void;
 }) {
-  const { S, paint } = useSetup(() => seeded({ ...fresh(recipe, parts, cost), ownChat }, name));
+  const { S, paint } = useSetup(() => atPart(seeded({ ...fresh(recipe, parts, cost), ownChat }, name), part));
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -243,6 +271,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     paint();
   };
   const toParts = () => {
+    if (S.onePart) return onClose();
     void readSetup().then((read) => {
       if (read) {
         S.parts = read.parts;
@@ -303,19 +332,22 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       then();
     });
   };
-  const typeIn = (ask: string, done: (v: string) => void, ph: string = W.typeHere, initial?: string) => {
+  /** `done` returning false does not take the words: the box keeps them. */
+  const typeIn = (ask: string, done: (v: string) => void | boolean, ph: string = W.typeHere, initial?: string, lines = false) => {
     S.thread.push({ w: true, t: ask });
     S.typing = {
       ask,
       ph,
       initial,
+      lines,
       done: (v) => {
+        if (done(v) === false) return false;
         S.thread.push({ w: false, t: v });
         S.pending = { will: S.lastWill, me: v };
         S.typing = null;
         S.refused = false;
-        done(v);
         paint();
+        return true;
       },
     };
     paint();
@@ -329,7 +361,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { seed: [], recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
+        Object.assign(S, { seed: [], recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, ownQ: null, ownSets: null, setI: 0, ownOpts: null, ownSays: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
         go("care");
       } else paint();
     });
@@ -401,7 +433,7 @@ function SetupScreen({ S, R, name, guess, back, typeIn, begin, ctx }: {
         <Frame onBack={back}>
           {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
         </Frame>
-        <Box key={t.ask} placeholder={t.ph} initial={t.initial} onSend={t.done} />
+        <Box key={t.ask} placeholder={t.ph} onSend={t.done} initial={t.initial} lines={t.lines} />
       </div>
     );
   }
@@ -426,7 +458,7 @@ type Ctx = {
   next: () => void;
   back: () => void;
   keep: (part: string, value: unknown, then?: () => void) => void;
-  typeIn: (ask: string, done: (v: string) => void, ph?: string) => void;
+  typeIn: (ask: string, done: (v: string) => void | boolean, ph?: string, initial?: string, lines?: boolean) => void;
   onClose: () => void;
   /** Where a "Not now" that ends the models, or the last step, goes. */
   done: () => void;
@@ -842,19 +874,18 @@ function ModelStep({ c }: { c: Ctx }) {
       </Frame>
     );
   }
-  const base: ModelDraft = R.suggest.models[S.mi % Math.max(1, R.suggest.models.length)];
-  const opts = OPTS[S.mopts % OPTS.length];
-  const d: ModelDraft = S.ownQ ? { q: S.ownQ, opts, says: `${S.ownQ} ${opts[0]}.` } : base;
+  if (S.ownQ) return <OwnAnswers c={c} q={S.ownQ} />;
+  const d: ModelDraft = R.suggest.models[S.mi % Math.max(1, R.suggest.models.length)];
   return (
     <Frame
       onBack={c.back}
       foot={
         <>
           <Two
-            left={<Btn out label={W.change} onClick={() => { if (S.ownQ) S.mopts += 1; else S.mi += 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => { S.draft = { ...d, own: true, base: S.base ?? "gpt", gives: S.gives ?? "pick" }; c.next(); }} />}
+            left={<Btn out label={W.change} onClick={() => { S.mi += 1; c.paint(); }} />}
+            right={<Btn label={W.keep} onClick={() => askedQuestion(c, d.q, d)} />}
           />
-          <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => { S.ownQ = /\?$/.test(v) ? v : `${v}?`; }, W.modelPlaceholder)} />
+          <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => askedQuestion(c, /\?$/.test(v) ? v : `${v}?`), W.modelPlaceholder)} />
         </>
       }
     >
@@ -862,6 +893,59 @@ function ModelStep({ c }: { c: Ctx }) {
       <Card b={d.q} />
       <Chips items={d.opts} />
     </Frame>
+  );
+}
+
+const keepDraft = (c: Ctx, d: ModelDraft) => {
+  c.S.draft = { ...d, own: true, base: c.S.base ?? "gpt", gives: c.S.gives ?? "pick" };
+  c.next();
+};
+
+/** A question, typed or Will's: then the answers it suggests (N646); a
+ *  suggested model's own answers come first, and show at once. */
+function askedQuestion(c: Ctx, q: string, suggested: ModelDraft | null = null) {
+  const { S } = c;
+  Object.assign(S, { ownQ: q, ownSets: suggested ? [suggested.opts] : null, setI: 0, ownOpts: null, ownSays: suggested?.says ?? null });
+  void answerSets(q).then((sets) => {
+    if (S.ownQ !== q) return;
+    S.ownSets = withFirst(suggested?.opts ?? null, sets);
+    c.paint();
+  });
+}
+
+/** "People answer with:" for the typed question (N646): the suggested
+ *  sets, or the host's own; Back is the question again. */
+function OwnAnswers({ c, q }: { c: Ctx; q: string }) {
+  const { S } = c;
+  const back = () => {
+    Object.assign(S, { ownQ: null, ownSets: null, setI: 0, ownOpts: null, ownSays: null });
+    c.paint();
+  };
+  if (!S.ownSets && !S.ownOpts) {
+    return (
+      <Frame onBack={back}>
+        <Dots />
+      </Frame>
+    );
+  }
+  const sets = S.ownSets ?? [];
+  const opts = S.ownOpts ?? sets[S.setI % Math.max(1, sets.length)] ?? [];
+  return (
+    <AnswersScreen
+      onBack={back}
+      answers={opts}
+      onKeep={() => keepDraft(c, { q, opts, says: S.ownSays && opts === S.ownSets?.[0] ? S.ownSays : `${q} ${opts[0]}.` })}
+      onChange={() => {
+        S.ownOpts = null;
+        S.setI += 1;
+        c.paint();
+      }}
+      onType={() => c.typeIn(W.answersAsk, (v) => {
+        const own = answersOf(v);
+        if (!own.length) return false;
+        S.ownOpts = own;
+      }, W.writeHere, undefined, true)}
+    />
   );
 }
 
@@ -886,6 +970,8 @@ function StackStep({ c }: { c: Ctx }) {
       gives={S.gives}
       onOpen={(to) => {
         S.toStack = to !== "model";
+        // The question block opens the question, then its answers again.
+        if (to === "model") Object.assign(S, { ownQ: null, ownSets: null, setI: 0, ownOpts: null, ownSays: null });
         c.go(to);
       }}
       onTeach={() => teachIt(c, { ...d, base: S.base ?? "gpt", gives: S.gives ?? "pick" })}
@@ -973,8 +1059,7 @@ function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
     if (part === "questions") S.qs = [];
-    const to: Step = PART_STEP[part] ?? (part === "models" ? ((R.models ?? []).length ? "more" : "smart") : "line");
-    c.go(to);
+    c.go(stepOfPart(part, R));
   };
   return (
     <Frame onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>

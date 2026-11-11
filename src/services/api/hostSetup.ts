@@ -70,11 +70,25 @@ export type SetupRead = {
    *  do you do?" (N632 item 2); null when it said nothing. */
   spec_guess: string | null;
   price_changes: PriceChange[];
+  /** Something to try in Live (backend #1945): false until "What do you do?". */
+  can_try: boolean;
 };
 export type SkippedModel = { model_id: string; q: string; by: string; on: string };
 /** The host's own chat: its row, the share link (`/c/<token>`), and the line
  *  a newcomer reads before joining ("People come to {name} ..."). */
-export type OwnChat = { title: string; line: string; link?: { token: string; path: string } | null; join_line?: string | null };
+export type OwnChat = {
+  title: string;
+  line: string;
+  link?: { token: string; path: string } | null;
+  join_line?: string | null;
+  /** The chat as people meet it (backend #1945): who the host is, the hello
+   *  and the taps ("Something else" last). */
+  about?: string[];
+  hello?: string;
+  taps?: string[];
+  /** Whether the host gave the chat a name (N642 item 1). */
+  named?: boolean;
+};
 export type SharedModel = { model_id: string; q: string; opts: string[]; by: string; price: number; fits: boolean; needs: string; learning?: boolean };
 /** Someone's model in the host's chat whose price is no longer the one the
  *  host agreed to (N630 item 3, N633 item 4); `was` 0: it was still learning. */
@@ -110,6 +124,7 @@ export async function readSetup(): Promise<SetupRead | null> {
     skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
     price_changes: list<PriceChange>(body.price_changes).filter((c) => c && typeof c.model_id === "string" && typeof c.by === "string" && typeof c.now === "number"),
     spec_guess: typeof body.spec_guess === "string" && body.spec_guess.trim() ? body.spec_guess.trim() : null,
+    can_try: body.can_try === true,
   };
 }
 

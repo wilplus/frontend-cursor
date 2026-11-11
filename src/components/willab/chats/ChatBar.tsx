@@ -181,6 +181,7 @@ export function BarBox({
   open = false,
   initial = "",
   grow = false,
+  newlines = false,
   onSend,
   onLeave,
 }: {
@@ -192,6 +193,9 @@ export function BarBox({
    *  sends and Shift+Enter is a new line (N618 item 4). Every chat's box
    *  stays one line. */
   grow?: boolean;
+  /** With `grow`, one thing on each line: Enter is a new line and only the
+   *  send icon sends. */
+  newlines?: boolean;
   /** Opened from the "+": the caret is in it at once. */
   open?: boolean;
   /** True once the backend kept the words. */
@@ -254,7 +258,7 @@ export function BarBox({
           enterKeyHint="send"
           onChange={(e) => setWords(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !newlines) {
               e.preventDefault();
               submit();
             }
