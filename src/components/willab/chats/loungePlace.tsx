@@ -86,9 +86,12 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
 /** What a row typed in this chat carries, so the backend files it here:
  *  the speaking chat's Take, or a note of Principles (the "#" notebook). */
 export function typedHint(place: LoungePlace | null, arcId: string | null | undefined): Record<string, unknown> | null {
-  if (place === "speaking" && arcId) return { arc_id: arcId };
-  if (place === "principles") return { offer: "voice_notebook" };
-  return null;
+  if (!place) return null;
+  // `place` first: the backend reads metadata.place before anything else
+  // (backend #1933); the rest keeps the row's sense for the earlier rule.
+  if (place === "speaking" && arcId) return { place, arc_id: arcId };
+  if (place === "principles") return { place, offer: "voice_notebook" };
+  return { place };
 }
 
 let open: LoungePlace | null = null;

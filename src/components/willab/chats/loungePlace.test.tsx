@@ -12,15 +12,19 @@ OUTCOME
   O2  What I type or tap in a chat says which chat it is, so it lands there.
   O3  "Copy my link ›" and "Your questions for people who join ›" leave the
       way in's "You're set." row in the speaking chat and show in Will's.
-PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"
+  O4  A typed turn tells the backend its chat, so both its rows stay there.
+PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"; O4 -> "N636-4"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => null) }));
 import { WillBarMiddle } from "../plan/PlanDock";
 import { wayInRowFor } from "../plan/WayIn";
 import OwnChatLinks from "./OwnChatLinks";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { postChatQuery } from "@/services/api/chatQuery";
 import { PlaceOnly, placeOf, rememberPlace, shownIn, typedHint, wordsShow, type LoungePlace } from "./loungePlace";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -105,9 +109,10 @@ describe("three chats over the one Lounge (N636)", () => {
     expect(host.querySelector("[data-plan-dock]")).not.toBeNull();
 
     // What is typed or tapped says its chat; drawn there until the backend's copy.
-    expect(typedHint("speaking", "a1")).toEqual({ arc_id: "a1" });
-    expect(typedHint("principles", null)).toEqual({ offer: "voice_notebook" });
-    expect(typedHint("will", "a1")).toBeNull();
+    expect(typedHint("speaking", "a1")).toEqual({ place: "speaking", arc_id: "a1" });
+    expect(typedHint("principles", null)).toEqual({ place: "principles", offer: "voice_notebook" });
+    expect(typedHint("will", "a1")).toEqual({ place: "will" });
+    expect(typedHint(null, "a1")).toBeNull();
     rememberPlace("u1", "principles");
     expect(placeOf({ client_id: "u1", metadata: null })).toBe("principles");
     expect(placeOf({ client_id: "u1", metadata: null, place: "will" })).toBe("will");
@@ -133,5 +138,21 @@ describe("three chats over the one Lounge (N636)", () => {
     expect(links()).toEqual([]);
     act(() => root.render(<OwnChatLinks place="will" messages={[]} onJoinQuestions={() => undefined} />));
     expect(links()).toEqual([]);
+  });
+
+  it("N636-4: a turn typed in one of the three chats tells the chat query which, typed or spoken; without a place, nothing", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ answer: "Noted." }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await postChatQuery({ question: "# a note", place: "principles" });
+      await postChatQuery({ question: "How was it?", place: "speaking", audioBlob: new Blob(["x"]) });
+      await postChatQuery({ question: "Hi" });
+      const [json, form, none] = (fetchMock.mock.calls as unknown as [string, RequestInit][]).map(([, init]) => init.body);
+      expect(JSON.parse(String(json)).place).toBe("principles");
+      expect((form as FormData).get("place")).toBe("speaking");
+      expect("place" in JSON.parse(String(none))).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

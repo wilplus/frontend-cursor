@@ -31,6 +31,9 @@ export interface ChatHistoryEntry {
 
 export interface ChatQueryArgs {
   question: string;
+  /** Which of the ring's three chats the turn was typed in (backend #1933):
+   *  both rows of the turn are stamped with it. Absent: as before. */
+  place?: string | null;
   history?: ChatHistoryEntry[];
   /** "screen": `history` is every bubble the Lounge draws, in its order,
    *  cards and asks included (founder 2026-10-20); the backend reads it in
@@ -182,6 +185,7 @@ export async function postChatQuery(
       );
     }
     if (args.sessionId) form.append("session_id", args.sessionId);
+    if (args.place) form.append("place", args.place);
     form.append("audio_file", args.audioBlob, "casual.webm");
     form.append("transcript_source", "web_speech");
     if (args.durationSec != null) {
@@ -213,6 +217,7 @@ export async function postChatQuery(
         history_source: args.historySource,
         session_id: args.sessionId,
         presentation_context: args.presentationContext,
+        place: args.place || undefined,
         // #2 — server-owned persistence (signed-in only). The BE dedups the
         // user turn on client_id; absent → BE does not persist this turn.
         persist: args.persist ? true : undefined,
