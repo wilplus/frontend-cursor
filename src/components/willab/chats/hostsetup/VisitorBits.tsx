@@ -23,17 +23,44 @@ const field = (meta: Meta, key: string, sub: string): string => {
   return typeof v === "string" ? v : "";
 };
 
-/** Who a line of what came back is from, under it (VIS-03, VIS-04). */
-export function ReplyBy({ message, children }: { message: ChatMessage; children: ReactNode }) {
+/** A walk line: one of the host's own models noticing its thing in what
+ *  the person sent, as the host's saved walk has it (backend N647 item 8). */
+const walkLine = (m: ChatMessage) => !m.mine && Boolean(m.meta?.walk_line && typeof m.meta.walk_line === "object");
+
+/** Who a line of what came back is from, under it (VIS-03, VIS-04); under
+ *  a walk line, its own "Was this useful?" (N647 item 8). */
+export function ReplyBy({ message, chatId, children }: { message: ChatMessage; chatId?: string; children: ReactNode }) {
   const by = message.mine ? "" : field(message.meta, "model_line", "by") || field(message.meta, "reply", "name");
-  if (!by) return <>{children}</>;
+  const ask = chatId && walkLine(message) ? <UsefulTaps chatId={chatId} message={message} /> : null;
+  if (!by && !ask) return <>{children}</>;
   return (
     <div data-reply-by="" className="flex flex-col gap-1">
       {children}
-      <span className="mr-auto flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
-        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#2F9E6E]" />
-        {by}
-      </span>
+      {by ? (
+        <span className="mr-auto flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#2F9E6E]" />
+          {by}
+        </span>
+      ) : null}
+      {ask}
+    </div>
+  );
+}
+
+/** "Did this help?" for one walk line (N647): Yes, No or Skip, answered
+ *  once, then gone; one already answered (meta.useful) does not ask again. */
+function UsefulTaps({ chatId, message }: { chatId: string; message: ChatMessage }) {
+  const [answered, setAnswered] = useState(false);
+  if (answered || message.meta?.useful_ask !== true || message.meta?.useful != null) return null;
+  const pick = (label: string) => {
+    setAnswered(true);
+    const answer = label === W.yes ? "yes" : label === W.no ? "no" : "skip";
+    void answerUseful(chatId, message.id, answer);
+  };
+  return (
+    <div data-useful-ask="" data-useful-for={message.id} className="flex flex-col gap-2 pt-2">
+      <Line>{W.didThisHelp}</Line>
+      <TapRow even labels={[W.yes, W.no, W.skip]} dataAttr={{ "data-useful-taps": "" }} onTap={pick} />
     </div>
   );
 }
@@ -81,11 +108,13 @@ function Line({ children }: { children: ReactNode }) {
 }
 
 /** "Was this useful?" under the newest line that asks it (VIS-05): Yes, No
- *  or Skip, or nothing at all; the bar is ready for the next one meanwhile. */
+ *  or Skip, or nothing at all; the bar is ready for the next one meanwhile.
+ *  A walk line asks under itself instead (ReplyBy). */
 export function UsefulAsk({ chatId, messages }: { chatId: string; messages: readonly ChatMessage[] | null }) {
   const [answered, setAnswered] = useState<string[]>([]);
   const last = messages?.[messages.length - 1];
-  if (!last || last.mine || last.meta?.useful_ask !== true || answered.includes(last.id)) return null;
+  // One already answered (meta.useful) does not ask again after a reload.
+  if (!last || last.mine || walkLine(last) || last.meta?.useful_ask !== true || last.meta?.useful != null || answered.includes(last.id)) return null;
   const pick = (label: string) => {
     setAnswered((was) => [...was, last.id]);
     const answer = label === W.yes ? "yes" : label === W.no ? "no" : "skip";
