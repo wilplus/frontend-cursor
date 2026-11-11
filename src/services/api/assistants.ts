@@ -26,6 +26,9 @@ export type Builder = { assistant: string; recipe: Recipe | null; startingQuesti
 /** What someone in a host's chat reads of it (GET /v2/chats/<id>/host). */
 export type Host = {
   assistant: string;
+  /** What the host's chat is called (backend N642 item 1); null on a backend
+   *  without it, where the chat keeps its row's title. */
+  name: string | null;
   about: string[];
   questions: RecipeQuestion[];
   answerWith: AnswerWith;
@@ -156,6 +159,7 @@ export async function getHost(chatId: string): Promise<Host | null> {
   const send = Array.isArray(host.send) ? strings(host.send) : null;
   return {
     assistant: host.assistant,
+    name: typeof host.name === "string" && host.name.trim() ? host.name.trim() : null,
     about: strings(host.about),
     questions: questionsOf(host.questions),
     answerWith: send
