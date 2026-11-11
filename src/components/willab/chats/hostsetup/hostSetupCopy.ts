@@ -81,6 +81,10 @@ export const W = {
   // The walk, part by part (N647 items 1, 2, 6, 7).
   walkHome: "Your walk, part by part. Tap one to change it.",
   walkParts: { steps: "Its steps", notice: "What I notice", say: "What I say", out: "What they get" } as const,
+  /** "See it run" (N647 item 1; the pinned prototype's run screen). */
+  seeItRun: "See it run",
+  sampleTake: "▶ 0:42",
+  thanks: "Thanks.",
   noticeSay: "This is what I notice in a message. Tap one.",
   readyNow: "Ready",
   off: "Off",

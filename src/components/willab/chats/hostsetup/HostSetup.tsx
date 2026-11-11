@@ -49,7 +49,7 @@ import { answerSets } from "@/services/api/modelSetup";
 /* -------------------------------------------------------------------------- */
 
 type Step =
-  | "what" | "care" | "line" | "name" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "walkhome" | "walknotice" | "walksay" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
+  | "what" | "care" | "line" | "name" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "walkhome" | "walknotice" | "walksay" | "walkrun" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
   | "gives" | "base" | "model" | "stack" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
 const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "walkorder", "walkout", "walkwant", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
@@ -105,6 +105,8 @@ type State = {
   /** The walk part by part, as read (N647); the item open on its screen. */
   walkRead: WalkRead | null;
   walkItem: string | null;
+  /** "See it run": the host answered "Did this help?" (N647 item 1). */
+  runHelped: boolean;
   /** The silent try on filler words; null: the route does not answer (N647 item 3). */
   filler: TryRead | null;
   shared: SharedModel[] | null;
@@ -182,6 +184,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   wanted: !!recipe?.walk?.wanted,
   walkRead: null,
   walkItem: null,
+  runHelped: false,
   filler: null,
   shared: null,
   picked: null,
@@ -278,6 +281,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.pending = null;
     S.at = to;
     S.walkItem = null;
+    S.runHelped = false;
     if ((to === "walkhome" || to === "walkwant") && !S.walkRead) {
       void readWalk().then((read) => {
         S.walkRead = read;
@@ -765,6 +769,7 @@ function WalkParts(c: Ctx): ReactNode {
           <PartRow part="out" title={W.walkParts.out} onClick={() => c.go("walkout")}>
             {value(W.walkOuts[walkOut(c.R)])}
           </PartRow>
+          <Opt title={W.seeItRun} onClick={() => c.go("walkrun")} />
         </Frame>
       );
     }
@@ -772,6 +777,23 @@ function WalkParts(c: Ctx): ReactNode {
       return <WalkNoticeStep c={c} />;
     case "walksay":
       return <WalkSayStep c={c} />;
+    case "walkrun": {
+      // The walk on a sample message, as their people meet it; nothing is kept.
+      const lines = (S.walkRead?.say ?? []).filter((l) => l.on).slice(0, walkSteps(S, c.R).length);
+      return (
+        <Frame onBack={c.back}>
+          <Card b={W.sampleTake} />
+          {lines.map((l) => <Say key={l.model_id}>{l.says}</Say>)}
+          <Say>{S.runHelped ? W.thanks : W.didThisHelp}</Say>
+          {S.runHelped ? null : (
+            <>
+              <Opt title={W.yes} onClick={() => { S.runHelped = true; c.paint(); }} />
+              <Opt title={W.no} onClick={() => { S.runHelped = true; c.paint(); }} />
+            </>
+          )}
+        </Frame>
+      );
+    }
     default:
       return null;
   }

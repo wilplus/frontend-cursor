@@ -551,6 +551,20 @@ describe("the blank setup (FIRST-)", () => {
     expect(value("say")).toBe("1 line");
   });
 
+  it("N647-1 See it run: the walk's own lines on a sample message, then Did this help?; an answer ends with Thanks. and nothing is sent", async () => {
+    await walkHome(WALK_READ);
+    const before = bff.calls.length;
+    await tap("See it run");
+    expect(text()).toContain("▶ 0:42");
+    expect(text()).toContain("Your scalp looks dry here.");
+    expect(text()).toContain("The crown is thinner.");
+    expect(text()).toContain("Did this help?");
+    await tap("Yes");
+    expect(text()).toContain("Thanks.");
+    expect(text()).not.toContain("Did this help?");
+    expect(bff.calls.length).toBe(before);
+  });
+
   it("N647-2 What I notice: each of one's own models, Ready or Still learning; one turned off is sent as {on:false}; Something else tells Artur", async () => {
     bff.routes["POST /api/v2/chats/setup/walk/want"] = { wanted: true };
     bff.routes["PUT /api/v2/chats/setup/walk/items/m-dry"] = { ...WALK_READ, notice: [{ ...WALK_READ.notice[0], on: false }, WALK_READ.notice[1]] };
