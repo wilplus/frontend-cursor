@@ -9,16 +9,21 @@ OUTCOME
       Take rows by time: those before a row right before it, the newer ones
       after the last.
   O2  The tag of a Take made in the chat is not drawn as a message: the
-      Take shows through its own rows.
+      Take shows through its own rows; opened, the chat no longer reads as
+      new in the list.
+  O3  A message that asks something of me opens the chat as it is today in
+      one tap; one that asks nothing is only read.
 PROVES   O1 -> "N648-8 the host's messages lie among the Takes by time"
          O2 -> "N648-8 the chat is read for the chat open, without a Take's tag"
+         O3 -> "N648-8 a message that asks something opens the chat as it is today"
 */
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const reads = vi.hoisted(() => ({ calls: [] as string[] }));
-vi.mock("@/services/api/chats", () => ({
+vi.mock("@/services/api/chats", async (orig) => ({
+  ...(await orig<typeof import("@/services/api/chats")>()),
   getChatThread: vi.fn(async (chatId: string) => {
     reads.calls.push(chatId);
     return {
@@ -33,6 +38,8 @@ vi.mock("@/services/api/chats", () => ({
 }));
 
 import { hostRowsAround, useHostMessages } from "./hostChatMessages";
+import HostChatRow from "./HostChatRow";
+import { isNewSince } from "./chatOpened";
 import type { ChatMessage } from "@/services/api/chats";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -67,9 +74,33 @@ describe("a host's chat's own messages among its Takes (N648 item 8)", () => {
     await act(async () => root.render(createElement(Probe, { chat: "c-artur" })));
     expect(reads.calls).toEqual(["c-artur"]);
     expect(box.got.map((m) => m.id)).toEqual(["h1", "h2"]);
+    // Opened: its newest message no longer reads as new in the list.
+    expect(isNewSince("c-artur", "2026-11-11T09:30:00Z")).toBe(false);
     // Left: nothing of the chat stays.
     await act(async () => root.render(createElement(Probe, { chat: null })));
     expect(box.got).toEqual([]);
+    await act(async () => root.unmount());
+  });
+
+  it("N648-8 a message that asks something opens the chat as it is today", async () => {
+    const said = msg("h1", "2026-11-11T09:00:00Z");
+    const asks = { ...msg("h2", "2026-11-11T09:30:00Z"), body: "Record your answer: what is your goal?", meta: { record_answer: true } } as ChatMessage;
+    const all = [said, asks];
+    const opened: string[] = [];
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        createElement("div", null,
+          createElement(HostChatRow, { chatId: "c-artur", name: "Artur", message: said, all, onOpen: () => opened.push("h1") }),
+          createElement(HostChatRow, { chatId: "c-artur", name: "Artur", message: asks, all, onOpen: () => opened.push("h2") }),
+        ),
+      ),
+    );
+    expect(host.textContent).toContain("Record your answer: what is your goal?");
+    expect(host.querySelector('[data-host-asks="h1"]')).toBeNull();
+    await act(async () => (host.querySelector('[data-host-asks="h2"]') as HTMLElement).click());
+    expect(opened).toEqual(["h2"]);
     await act(async () => root.unmount());
   });
 });

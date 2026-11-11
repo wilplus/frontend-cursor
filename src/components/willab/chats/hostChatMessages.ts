@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getChatThread, type ChatMessage } from "@/services/api/chats";
+import { markChatOpened } from "./chatOpened";
 
 /* -------------------------------------------------------------------------- */
 /*  A host's chat that takes Takes (backend N648 item 8) is drawn as the      */
@@ -20,11 +21,17 @@ export function useHostMessages(chatId: string | null): ChatMessage[] {
   useEffect(() => {
     if (!chatId) return;
     let alive = true;
+    // Opened: the list no longer shows it as new, as the chat itself does (N322).
+    markChatOpened(chatId);
     void getChatThread(chatId).then((thread) => {
-      if (alive) setMessages({ chat: chatId, list: (thread?.messages ?? []).filter((m) => !madeHere(m)) });
+      if (!alive) return;
+      const list = thread?.messages ?? [];
+      markChatOpened(chatId, list.at(-1)?.created_at ?? null);
+      setMessages({ chat: chatId, list: list.filter((m) => !madeHere(m)) });
     });
     return () => {
       alive = false;
+      markChatOpened(chatId);
     };
   }, [chatId]);
   return chatId && messages?.chat === chatId ? messages.list : [];

@@ -95,12 +95,13 @@ export function WillTopBar({ onBack, place = "will", build = null }: {
 /** A host's chat that takes Takes, drawn over the Lounge as the speaking
  *  chat for that chat (backend N648 item 8): its own top bar, as in the
  *  chat itself (the letter circle, the name, who they are). The phone's
- *  Back is this bar's back, one step to the list. */
-export function TakesChatBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+ *  Back is this bar's back, one step to the list. The circle and the name
+ *  open the chat as it is today (`onOpen`). */
+export function TakesChatBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
   useBackDismiss(onBack);
   return (
     <div className="-mx-4" data-takes-chat={chat.id}>
-      <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} />
+      <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} onOpen={onOpen} />
     </div>
   );
 }

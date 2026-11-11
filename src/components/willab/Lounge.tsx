@@ -169,7 +169,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, askForChatThread, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -1973,7 +1973,7 @@ export default function Lounge({
   // else the row as drawn.
   /** A host's chat's own messages newer than its newest row (N648 item 8). */
   const hostRowsAfter = () =>
-    openChat ? hostRows.after.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat} name={openChatName} message={m} />) : null;
+    openChat ? hostRows.after.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat} name={openChatName} message={m} all={hostMessages} onOpen={askForChatThread} />) : null;
   /** A host's chat's own messages that came before row i, drawn right
    *  before it (N648 item 8); the row alone everywhere else. */
   const withHostRows = (i: number, node: ReactNode) => {
@@ -1981,7 +1981,7 @@ export default function Lounge({
     if (!before?.length) return node;
     return (
       <Fragment key={`host-before:${shownItems[i].reactKey}`}>
-        {before.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat as string} name={openChatName} message={m} />)}
+        {before.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat as string} name={openChatName} message={m} all={hostMessages} onOpen={askForChatThread} />)}
         {node}
       </Fragment>
     );

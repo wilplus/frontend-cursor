@@ -1452,8 +1452,14 @@ describe("the chats in front of the Lounge", () => {
     // Its own top bar: the circle and the name, not "Speaking coach" or Will's.
     expect(container.querySelector("[data-takes-chat] [data-chat-name]")?.textContent).toBe("Artur");
     expect(container.querySelector("[data-chat-slide]")).toBeNull();
+    // The circle and the name: the chat as it is today; Back, its Takes again.
+    await tap(container.querySelector("[data-takes-chat] [data-chat-who]"));
+    expect(container.querySelector("[data-chat-slide]")).not.toBeNull();
+    await tap(container.querySelector("[data-chat-slide] [data-chat-header] button"));
+    expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(true);
+    expect(lounge().getAttribute("data-chat")).toBe("c-artur");
     // Back: the list, and the Lounge is its own again.
-    await tap(container.querySelector("[data-chat-header] button"));
+    await tap(container.querySelector("[data-takes-chat] [data-chat-header] > button"));
     expect(container.querySelector("[data-chats-front]")?.hasAttribute("data-chats-away")).toBe(false);
     expect(lounge().getAttribute("data-chat")).toBe("");
     // A chat that takes no Takes: the person's chat, as before.

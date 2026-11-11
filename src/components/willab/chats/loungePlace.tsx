@@ -164,6 +164,20 @@ export function useOpenChat(): string | null {
   return useSyncExternalStore(subscribeChat, () => openChat, () => null);
 }
 
+const askedThread = new Set<() => void>();
+
+/** From a host's chat that takes Takes: open the chat as it is today, with
+ *  its bar, its answers and its "+" (N648 item 8); Back comes back here. */
+export function askForChatThread(): void {
+  askedThread.forEach((open) => open());
+}
+
+/** The door's ear for askForChatThread; returns the unsubscribe. */
+export function onAskedChatThread(open: () => void): () => void {
+  askedThread.add(open);
+  return () => askedThread.delete(open);
+}
+
 /** The same, read once (a recording just made, N648 item 8). */
 export function openChatNow(): string | null {
   return openChat;

@@ -911,8 +911,12 @@ src/components/willab/chats/hostChatMessages.test.tsx,Story,"As a person on the 
 Take rows by time: those before a row right before it, the newer ones
 after the last.
 O2  The tag of a Take made in the chat is not drawn as a message: the
-Take shows through its own rows.","O1 -> ""N648-8 the host's messages lie among the Takes by time""
-O2 -> ""N648-8 the chat is read for the chat open, without a Take's tag""",
+Take shows through its own rows; opened, the chat no longer reads as
+new in the list.
+O3  A message that asks something of me opens the chat as it is today in
+one tap; one that asks nothing is only read.","O1 -> ""N648-8 the host's messages lie among the Takes by time""
+O2 -> ""N648-8 the chat is read for the chat open, without a Take's tag""
+O3 -> ""N648-8 a message that asks something opens the chat as it is today""",
 src/components/willab/chats/hostsetup/hostSetup.test.tsx,Story,"As the first person ever on WillpowerLab, nobody's invitee, I set up a chat with Will one decision per screen, Keep or Change, typing in Will's chat when words are needed; I test it as my people will, open it, and change it later by telling Will (backend N612, N616 to N618; the blank setup's stories FIRST-02 to FIRST-22).","O1  Each screen shows the locked prototype's words, and each Keep reaches
 the backend as one part in the recipe v2 shape (backend #1893).
 O2  Change cycles Will's suggestions with no call; Back keeps the answer.
