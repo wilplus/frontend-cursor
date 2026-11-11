@@ -179,6 +179,21 @@ describe("a host's own chat", () => {
     expect([...container.querySelectorAll("[data-chat-deadline]")].map((d) => d.textContent)).toEqual(["Your deadline: Fri 4 Dec", "Your deadline: Sat 5 Dec"]);
   });
 
+  it("N642-1: a host's chat shows the name it was given at the top; without one, the row's title as before", async () => {
+    const chat: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
+    routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages: [] });
+    const read = (name?: string) => () =>
+      json({ host: { assistant: "Tomek's assistant", about: [], questions: [], answer_with: { tap: true, type: true, record: true }, ...(name ? { name } : {}) } });
+    routes["GET /api/v2/chats/c-1/host"] = read("Handstands with Tomek");
+    await render(createElement(ChatThread, { chat, onBack: () => undefined }));
+    expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Handstands with Tomek");
+    routes["GET /api/v2/chats/c-1/host"] = read();
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(createElement(ChatThread, { chat, onBack: () => undefined }));
+    expect(container.querySelector("[data-chat-name]")?.textContent).toBe("Tomek");
+  });
+
   it("HOST-N590-8: the joiner meets the host's welcome first, as the assistant's", async () => {
     const chat: Chat = { id: "c-1", kind: "team", title: "Tomek", subtitle: "", last: null };
     const welcome = {

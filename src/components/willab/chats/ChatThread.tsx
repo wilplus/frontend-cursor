@@ -1072,7 +1072,8 @@ export default function ChatThread({
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
       {open ? <BackIsThisChats onBack={onBack} /> : null}
-      <ChatTopBar chat={chat} onBack={onBack} onOpen={() => setProfile(true)} />
+      {/* A host's chat under the name it was given (backend N642 item 1). */}
+      <ChatTopBar chat={host?.name ? { ...chat, title: host.name } : chat} onBack={onBack} onOpen={() => setProfile(true)} />
       {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} safety={safety} /> : null}
       <div
         ref={scrollRef}
