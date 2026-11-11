@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { LetterCircle } from "./ChatList";
 import { TopBar } from "./TopBar";
 import BuildModels from "./BuildModels";
+import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
 import { W } from "./hostsetup/hostSetupCopy";
-import { useKnownSetup } from "./hostsetup/hostSetupDoor";
+import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -50,6 +51,14 @@ function Switch({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) 
   );
 }
 
+/** The chat as people meet it: its hello and taps as the backend reads them
+ *  for its people (own_chat, backend #1945), "Something else" added by the
+ *  chat itself; the recipe's where the read has none. */
+function live(recipe: HostRecipe, own: OwnChat | null): HostRecipe {
+  const taps = (own?.taps ?? recipe.taps).filter((t) => t !== W.somethingElse);
+  return { ...recipe, hello: own?.hello || recipe.hello, taps };
+}
+
 function Tabs({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
   const one = (t: Tab, label: string) => (
     <button
@@ -78,11 +87,22 @@ function Cover({ children }: { children: ReactNode }) {
 
 export default function WillBuild({ onBack }: { onBack: () => void }) {
   const setup = useKnownSetup();
-  const [mode, setMode] = useState<Mode>("build");
+  // Opened, one's chat is Live when there is something to try, else Build
+  // (backend N642 item 3).
+  const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
-  const name = setup?.own_chat?.title ?? W.yourChatTitle;
+  const own = setup?.own_chat ?? null;
+  const name = own?.title ?? W.yourChatTitle;
   const recipe = setup?.recipe ?? null;
   const canTry = setup?.can_try === true && recipe !== null;
+  const mode: Mode = chosen ?? (canTry ? "live" : "build");
+  // Before a chat exists, Build opens at "What do you do?", once (N642 item 3).
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current || !setup || setup.recipe) return;
+    asked.current = true;
+    openOverList({});
+  }, [setup]);
   const swap = canTry ? <Switch mode={mode} onMode={setMode} /> : null;
   if (mode === "live" && canTry) {
     const bar = (
@@ -96,7 +116,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     );
     return (
       <Cover>
-        <HostOwnChat name={name} recipe={recipe} onBack={onBack} bar={bar} />
+        <HostOwnChat key={name} name={name} recipe={live(recipe, own)} about={own?.about ?? []} onBack={onBack} bar={bar} />
       </Cover>
     );
   }
