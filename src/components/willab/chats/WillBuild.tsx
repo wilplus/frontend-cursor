@@ -5,6 +5,7 @@ import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { LetterCircle } from "./ChatList";
 import { TopBar } from "./TopBar";
 import BuildModels from "./BuildModels";
+import { DevParts, DevSwitch, useDev } from "./DevMode";
 import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
 import { W } from "./hostsetup/hostSetupCopy";
@@ -91,6 +92,9 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // (backend N642 item 3).
   const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
+  // Developer mode (backend N648): the switch under the tabs, only where its read answers.
+  const dev = useDev();
+  const [devOn, setDevOn] = useState(false);
   const own = setup?.own_chat ?? null;
   const name = own?.title ?? W.yourChatTitle;
   const recipe = setup?.recipe ?? null;
@@ -126,9 +130,18 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
         <BackRow onBack={onBack} label={name} />
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
-      <Tabs tab={tab} onTab={setTab} />
+      <Tabs tab={tab} onTab={(t) => { setTab(t); setDevOn(false); }} />
+      {dev ? <DevSwitch on={devOn} onToggle={() => setDevOn((on) => !on)} /> : null}
     </div>
   );
+  if (dev && devOn) {
+    return (
+      <Cover>
+        {top}
+        <div className="min-h-0 flex-1 overflow-y-auto"><DevParts read={dev} /></div>
+      </Cover>
+    );
+  }
   if (tab === "models") {
     return (
       <Cover>
