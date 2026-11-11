@@ -846,9 +846,9 @@ downloaded behind the list; they draw once his chat is open.
 O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
 answers"", on their row and on the card, never ""Widget's answers""
 (N569 item 6).
-O28 What opens from Will's chat (his lines, ""Your chat"") opens over his
-chat, which stays open under it, so Back comes back to Will; opened
-from the list, it opens over the list as before (N639 item 2).
+O28 What opens from Will's chat opens over it; Back comes back to Will
+(N639 item 2).
+O29 A chat that takes Takes opens as its speaking chat (N648 item 8).
 O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
 ""From {site}""; the bar is the chat's two places (N610): ""+"", and
 ""Record your answer"" for their typed question, which the backend
@@ -878,7 +878,8 @@ O24 -> ""the first time I add someone, Will's chat opens on his setup, answered 
 O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
 O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
 O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
-O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""",
+O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""
+O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -1831,7 +1832,11 @@ O2  Opening the app with no answer from the server shows the wait, never
 an empty chat (a new speaker's hello), and my chat once a read again
 answers; the record bar is not held past that first read.
 O3  ""Load earlier messages"" with no answer keeps the button, so a tap
-asks again; answered, the older messages come in above.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+asks again; answered, the older messages come in above.
+O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
+that chat's rows alone, read with ?chat=; back in the Lounge, its own
+thread again, with nothing of the other kept.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
 O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
 src/components/willab/useReadoutPartHandlers.test.ts,Story,"As a speaker, I want Delete on the landing text to lift the paragraph's lock, and words from an earlier Take to save there too, so that the landing copy acts like the main page.","O1  Delete lifts the lock on that paragraph and the text is read again.

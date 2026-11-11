@@ -32,6 +32,11 @@ export type Chat = {
   /** An asking chat: a matched Take that reached you, not yet a chat of its
    *  own (backend N485, #1712). Drawn by InquiryThread. */
   inquiry?: Inquiry;
+  /** A Take can be recorded here, through the one loop (backend N648 item
+   *  8, #1961): the chat builder's ring, in one's chat with the speaking
+   *  host, whose chat takes recordings and whose walk ends in an Ideal
+   *  Text. Absent everywhere else. */
+  takes?: boolean;
 };
 export type ChatMessage = {
   id: string;

@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
-import { WILL_ROW_TITLE, WillMark } from "./ChatList";
+import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
+import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
 
 /* -------------------------------------------------------------------------- */
@@ -87,6 +88,19 @@ export function WillTopBar({ onBack, place = "will", build = null }: {
   return (
     <div className="-mx-4">
       <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
+    </div>
+  );
+}
+
+/** A host's chat that takes Takes, drawn over the Lounge as the speaking
+ *  chat for that chat (backend N648 item 8): its own top bar, as in the
+ *  chat itself (the letter circle, the name, who they are). The phone's
+ *  Back is this bar's back, one step to the list. */
+export function TakesChatBar({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+  useBackDismiss(onBack);
+  return (
+    <div className="-mx-4" data-takes-chat={chat.id}>
+      <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} />
     </div>
   );
 }

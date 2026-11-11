@@ -169,7 +169,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -510,6 +510,8 @@ export default function Lounge({
   // Which of the three chats the Lounge is drawn as, for the chat builder's
   // ring (N635, N636 items 1 to 5); null for everyone else: as it was.
   const place = useOpenPlace();
+  // A host's chat that takes Takes: the speaking chat's rows for it (N648 item 8).
+  const openChat = useOpenChat();
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
     // idempotent client_ids are the identity. A double-insert (retry, optimistic
@@ -559,9 +561,9 @@ export default function Lounge({
     const hidden = versionBubblesWithReviewCard(threadItems);
     const closing = closingTakesOf(drawnOf(threadItems));
     return threadItems.filter(
-      (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing) && shownIn(item.message, place),
+      (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing) && shownIn(item.message, place, openChat),
     );
-  }, [threadItems, walkAt, place]);
+  }, [threadItems, walkAt, place, openChat]);
   // Each Take's Ideal Text card right under its Feedback walk, one pair
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
@@ -1745,7 +1747,7 @@ export default function Lounge({
 
   function postAnswerBubble(label: string) {
     // An answer to the speaking chat's own question stays there (N636 item 1).
-    const hint = typedHint(place, readExploreArc(userId)?.arcId);
+    const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
     void thread.append(withHint({ role: "user", kind: "text", body: label } as LoungeMessageDraft, hint)).then((m) => {
       if (m) rememberPlace(m.client_id, place);
     });
@@ -1818,7 +1820,7 @@ export default function Lounge({
       // and the question go out together, and the dots show at once.
       // Typed in the speaking chat or Principles, it says so, and it is drawn
       // there until the backend's copy is read (N636 items 1 and 2).
-      const hint = typedHint(place, readExploreArc(userId)?.arcId);
+      const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
       const userDraft = withHint({ role: "user" as const, kind: "text" as const, body: q } as LoungeMessageDraft, hint);
       const userMsg = stampLoungeMessage(userDraft, newestStamp(messages));
       rememberPlace(userMsg.client_id, place);

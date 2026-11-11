@@ -45,9 +45,11 @@ export function inPlace(message: Placed, place: LoungePlace): boolean {
   return (placeOf(message) ?? "speaking") === place;
 }
 
-/** Drawn in the chat open now: every row without the ring (no place). */
-export function shownIn(message: Placed, place: LoungePlace | null): boolean {
-  return !place || inPlace(message, place);
+/** Drawn in the chat open now: every row without the ring (no place); in
+ *  a host's chat that takes Takes (`chat`), every row read for it, since
+ *  the read itself is that chat's (?chat=, N648 item 8). */
+export function shownIn(message: Placed, place: LoungePlace | null, chat: string | null = null): boolean {
+  return !!chat || !place || inPlace(message, place);
 }
 
 /** Children only in these chats; without the ring (no place), always. */
@@ -88,10 +90,11 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
  *  (it reads metadata.place before anything else, backend #1933); in the
  *  speaking chat, the Take it is about. Never an `offer`: a row with one is
  *  drawn as Will's offer, never as one's own words. */
-export function typedHint(place: LoungePlace | null, arcId: string | null | undefined): Record<string, unknown> | null {
+export function typedHint(place: LoungePlace | null, arcId: string | null | undefined, chat: string | null = null): Record<string, unknown> | null {
   if (!place) return null;
-  if (place === "speaking" && arcId) return { place, arc_id: arcId };
-  return { place };
+  const here = chat ? { chat } : {};
+  if (place === "speaking" && arcId) return { place, arc_id: arcId, ...here };
+  return { place, ...here };
 }
 
 let open: LoungePlace | null = null;
@@ -112,6 +115,33 @@ function subscribe(listen: () => void): () => void {
 /** The chat the Lounge is drawn as now; null: as it was. */
 export function useOpenPlace(): LoungePlace | null {
   return useSyncExternalStore(subscribe, () => open, () => null);
+}
+
+/* A host's chat that takes Takes (backend N648 item 8): the Lounge is drawn
+ * as the speaking chat, its rows read for that chat alone (?chat=). */
+let openChat: string | null = null;
+const chatListeners = new Set<() => void>();
+
+/** The door: the host's chat the Lounge is drawn for (null: none). */
+export function setOpenChat(chat: string | null): void {
+  if (openChat === chat) return;
+  openChat = chat;
+  chatListeners.forEach((listen) => listen());
+}
+
+function subscribeChat(listen: () => void): () => void {
+  chatListeners.add(listen);
+  return () => chatListeners.delete(listen);
+}
+
+/** The host's chat whose Takes the Lounge draws now; null: none. */
+export function useOpenChat(): string | null {
+  return useSyncExternalStore(subscribeChat, () => openChat, () => null);
+}
+
+/** The same, read once (a recording just made, N648 item 8). */
+export function openChatNow(): string | null {
+  return openChat;
 }
 
 /** Principles' opening line, above everything in that chat, and its line
