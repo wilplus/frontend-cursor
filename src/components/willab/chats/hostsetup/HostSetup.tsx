@@ -96,6 +96,9 @@ type State = {
   /** The backend refused the host's own words on this screen (N622 item 3). */
   refused: boolean;
   ownChat: OwnChat | null;
+  /** Opened at one part from Build's "Your chat": kept or Back, Build again
+   *  (backend N642 item 3). */
+  onePart: boolean;
   /** The last move was Back: a step with nothing to show passes on backwards. */
   backward: boolean;
 };
@@ -151,8 +154,21 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   busy: false,
   refused: false,
   ownChat: null,
+  onePart: false,
   backward: false,
 });
+
+/** The step a part's row opens. */
+function stepOfPart(part: string, recipe: HostRecipe): Step {
+  return PART_STEP[part] ?? (part === "models" ? ((recipe.models ?? []).length ? "more" : "smart") : "line");
+}
+
+/** Opened at one part (Build's "Your chat"): that step, as an edit, with
+ *  nothing before it, so Back and the end of the edit both close. */
+function atPart(state: State, part: string | null): State {
+  if (!part || !state.recipe || !state.edit) return state;
+  return { ...state, at: stepOfPart(part, state.recipe), onePart: true, qs: part === "questions" ? [] : state.qs };
+}
 
 const capital = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -164,7 +180,7 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
@@ -175,9 +191,11 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   ownChat?: OwnChat | null;
   /** What the first Take said the person does (N632 item 2). */
   guess?: string | null;
+  /** Opened at this part from Build's "Your chat" (N642 item 3). */
+  part?: string | null;
   onClose: () => void;
 }) {
-  const { S, paint } = useSetup(() => ({ ...fresh(recipe, parts, cost), ownChat }));
+  const { S, paint } = useSetup(() => atPart({ ...fresh(recipe, parts, cost), ownChat }, part));
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -225,6 +243,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     paint();
   };
   const toParts = () => {
+    if (S.onePart) return onClose();
     void readSetup().then((read) => {
       if (read) {
         S.parts = read.parts;
@@ -913,8 +932,7 @@ function PartsStep({ c }: { c: Ctx }) {
   const { S, R } = c;
   const open = (part: string) => {
     if (part === "questions") S.qs = [];
-    const to: Step = PART_STEP[part] ?? (part === "models" ? ((R.models ?? []).length ? "more" : "smart") : "line");
-    c.go(to);
+    c.go(stepOfPart(part, R));
   };
   return (
     <Frame onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>

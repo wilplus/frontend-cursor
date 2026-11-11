@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { editSaid, type SetupPart, type SetupRead } from "@/services/api/hostSetup";
 
 /* -------------------------------------------------------------------------- */
@@ -15,14 +16,32 @@ export const OPEN_EVENT = "willab:host-setup-open";
  *  model's check (Will's lines, backend N629). */
 export type OpenDetail = {
   parts?: { line: string; parts: SetupPart[] };
-  open?: "drafts" | "models" | "teach" | "check" | "parts";
+  /** "models" with `modelId`: that model's page; "start": a model of one's
+   *  own, in blocks (Build's AI models, backend N642 item 3). */
+  open?: "drafts" | "models" | "teach" | "check" | "parts" | "start";
   modelId?: string;
+  /** One part of the chat, opened from Build's "Your chat": its step, and
+   *  back to Build when it is kept (N642 item 3). */
+  part?: string;
 };
 
 let known: SetupRead | null = null;
+const listeners = new Set<() => void>();
 
 export function knowSetup(read: SetupRead | null): void {
   known = read;
+  listeners.forEach((listen) => listen());
+}
+
+function subscribe(listen: () => void): () => void {
+  listeners.add(listen);
+  return () => listeners.delete(listen);
+}
+
+/** The setup as the list's rows last read it; null until then, and below
+ *  the ring (Build's bar and tabs read it, N642 item 3). */
+export function useKnownSetup(): SetupRead | null {
+  return useSyncExternalStore(subscribe, () => known, () => null);
 }
 
 export function openOverList(detail: OpenDetail): void {
@@ -69,5 +88,5 @@ export async function sayToWill(said: string): Promise<boolean> {
 
 /** For tests: forget the read. */
 export function forgetSetup(): void {
-  known = null;
+  knowSetup(null);
 }

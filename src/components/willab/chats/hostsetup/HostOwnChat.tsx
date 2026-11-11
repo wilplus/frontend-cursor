@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { TapRow } from "../../WillQuestion";
 import { LetterCircle } from "../ChatList";
 import { tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
@@ -18,7 +18,13 @@ import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
 
 type Line = { w?: string; by?: string; me?: string };
 
-export default function HostOwnChat({ name, recipe, onBack }: { name: string; recipe: HostRecipe; onBack: () => void }) {
+export default function HostOwnChat({ name, recipe, onBack, bar = null }: {
+  name: string;
+  recipe: HostRecipe;
+  onBack: () => void;
+  /** Live's bar, in place of the chat's own (backend N642 item 3). */
+  bar?: ReactNode;
+}) {
   const [log, setLog] = useState<Line[]>(() => [{ w: recipe.hello }, ...(recipe.taps.length ? [{ w: W.tellMe }] : [])]);
   const [asking, setAsking] = useState(() => recipe.taps.length > 0);
   const [waiting, setWaiting] = useState(false);
@@ -38,6 +44,7 @@ export default function HostOwnChat({ name, recipe, onBack }: { name: string; re
   return (
     <div data-host-own-chat="" className="flex min-h-0 flex-1 flex-col">
       <Frame
+        bar={bar}
         onBack={onBack}
         circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
         title={
