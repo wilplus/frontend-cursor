@@ -18,7 +18,9 @@ OUTCOME
       sheet is drawn, so the tap never looks dead; in the speaking chat, and
       without the ring, it only opens the sheet. (The door's side, that it
       opens the chat asked for: chats.test.tsx "N636-1".)
-PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"; O4 -> "N636-4"; O5 -> "N636-5"
+  O6  A row of a host's chat that takes Takes (place "chat", N648 item 8)
+      shows only in that chat, never in Will, Speaking coach or Principles.
+PROVES   O1, O2 -> "N636-2"; O3 -> "N636-3"; O4 -> "N636-4"; O5 -> "N636-5"; O6 -> "N648-8"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -187,5 +189,18 @@ describe("three chats over the one Lounge (N636)", () => {
     } finally {
       stop();
     }
+  });
+
+  it("N648-8: a host's chat's row shows in that chat alone, never in Will, Speaking coach or Principles", () => {
+    const artur = { client_id: "r1", place: "chat", chat_id: "c-artur", metadata: {} };
+    const plain = { client_id: "r2", metadata: {} };
+    for (const place of ["will", "speaking", "principles", null] as (LoungePlace | null)[]) {
+      expect(shownIn(artur, place)).toBe(false);
+    }
+    expect(shownIn(artur, "speaking", "c-artur")).toBe(true);
+    expect(shownIn(artur, "speaking", "c-other")).toBe(false);
+    // A row with no chat (the plan, the feelings check) stays where it was.
+    expect(shownIn(plain, "speaking")).toBe(true);
+    expect(shownIn(plain, "speaking", "c-artur")).toBe(true);
   });
 });

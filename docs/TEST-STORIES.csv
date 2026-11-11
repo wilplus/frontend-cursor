@@ -963,7 +963,9 @@ O5  A plan row's ""See your plan"", ""Change"" or a call to book, tapped in
 Will's chat or Principles, opens the speaking chat first, where its
 sheet is drawn, so the tap never looks dead; in the speaking chat, and
 without the ring, it only opens the sheet. (The door's side, that it
-opens the chat asked for: chats.test.tsx ""N636-1"".)","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""; O5 -> ""N636-5""",
+opens the chat asked for: chats.test.tsx ""N636-1"".)
+O6  A row of a host's chat that takes Takes (place ""chat"", N648 item 8)
+shows only in that chat, never in Will, Speaking coach or Principles.","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""; O5 -> ""N636-5""; O6 -> ""N648-8""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.
