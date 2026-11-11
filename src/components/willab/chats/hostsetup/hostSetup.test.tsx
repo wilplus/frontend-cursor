@@ -532,10 +532,23 @@ describe("the blank setup (FIRST-)", () => {
   it("N647-1 a kept walk opens part by part: Its steps, What I notice, What I say, What they get", async () => {
     await walkHome(WALK_READ);
     expect(text()).toContain("Your walk, part by part. Tap one to change it.");
-    const rows = [...container.querySelectorAll("button")].map((b) => b.textContent).filter((t) => ["Its steps", "What I notice", "What I say", "What they get"].includes(t ?? ""));
-    expect(rows).toEqual(["Its steps", "What I notice", "What I say", "What they get"]);
+    // Each row is the part's name over its value, as the parts list draws them.
+    const rows = [...container.querySelectorAll("[data-part]")].map((b) => [...b.children].map((x) => x.textContent));
+    expect(rows).toEqual([
+      ["Its steps", "Their best moment · One moment to try another way · The helper words"],
+      ["What I notice", "Is this a dry scalp? · Is the hair thinning here?"],
+      ["What I say", "2 lines"],
+      ["What they get", "An Ideal Text"],
+    ]);
     await tap("What they get");
     expect(text()).toContain("What do they get at the end?");
+  });
+
+  it("N647-1 the walk's home counts only what is on: Nothing yet, 1 line", async () => {
+    await walkHome({ ...WALK_READ, notice: WALK_READ.notice.map((n) => ({ ...n, on: false })), say: [WALK_READ.say[0], { ...WALK_READ.say[1], on: false }] });
+    const value = (part: string) => container.querySelector(`[data-part="${part}"]`)?.children[1]?.textContent;
+    expect(value("notice")).toBe("Nothing yet");
+    expect(value("say")).toBe("1 line");
   });
 
   it("N647-2 What I notice: each of one's own models, Ready or Still learning; one turned off is sent as {on:false}; Something else tells Artur", async () => {

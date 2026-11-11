@@ -92,6 +92,9 @@ export const W = {
   itsNew: "It's new. I'll tell you how it does.",
   changeWords: "Change the words",
   whatShouldISay: "What should I say?",
+  /** The walk's home, each part's value (backend N647 item 1). */
+  nothingYet: "Nothing yet",
+  lineCount: (n: number) => (n === 1 ? "1 line" : `${n} lines`),
   walkOnMessages: "Your walk runs on messages. Recordings are not ready yet. Want them?",
   helloSay: "Your chat opens with:",
   helloAsk: "What should your chat say first?",
