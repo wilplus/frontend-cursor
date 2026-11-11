@@ -4,9 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { createPortal } from "react-dom";
 import { readSetup, type SetupRead } from "@/services/api/hostSetup";
 import { useUserProfile } from "../../useUserProfile";
-import { ChatListRow, LetterCircle } from "../ChatList";
 import HostSetup from "./HostSetup";
-import HostOwnChat from "./HostOwnChat";
 import HostDrafts from "./HostDrafts";
 import HostCheck from "./HostCheck";
 import ModelsOverlay, { type ModelsScreen } from "../../models/ModelsOverlay";
@@ -30,7 +28,7 @@ import { FrameTitle } from "./SetupBits";
 
 /** `overWill`: opened from Will's chat (his lines, "I want to edit my
  *  chat"), so it opens over his chat and Back comes back to it (N639). */
-type Open = { at: "setup"; detail: OpenDetail; overWill?: boolean } | { at: "own" };
+type Open = { at: "setup"; detail: OpenDetail; overWill?: boolean };
 
 /** Over Will's chat: the column his chat fills, over all of it (as the coach
  *  panel, backend N627); the chats' front is put away while he is open. */
@@ -136,17 +134,9 @@ export default function HostSetupRows() {
   ) : null;
   return (
     <>
+      {/* One's own chat is the pinned row now, not a row of its own here
+          (backend N642 item 2; ChatList). */}
       <span ref={mark} hidden />
-      {read?.own_chat && recipe ? (
-        <ChatListRow
-          id="host-own-chat"
-          circle={<LetterCircle id={`own-${read.own_chat.title}`} name={read.own_chat.title} size={48} />}
-          title={read.own_chat.title}
-          subtitle={W.yourChat}
-          preview={read.own_chat.line}
-          onOpen={() => setOpen({ at: "own" })}
-        />
-      ) : null}
       {frame ? place(frame) : null}
     </>
   );
@@ -172,7 +162,6 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       </FrameTitle.Provider>
     );
   }
-  if (open.at === "own" && recipe) return <HostOwnChat name={read?.own_chat?.title ?? name} recipe={recipe} onBack={onClose} />;
   return (
     <FrameTitle.Provider value={W.yourChatTitle}>
     <HostSetup

@@ -18,8 +18,9 @@ OUTCOME
       one of the things that need me (backend N630 item 1).
   O5  A model whose price changed is a line in Will with Keep and Drop; one
       tap saves the chat's models and the line goes (backend N633 item 4).
-  O3  With the ring the list has no "Your queue" and no "AI models" rows and
-      Will's line says how many things need me; without it, as it was.
+  O3  With the ring the list has no "Your queue" and no "AI models" rows,
+      and its pinned row is my own chat under its name with its hello
+      ("Your chat" before there is one); without it, as it was.
   O6  A ring coach reaches the moments from Build's AI models in every state
       (no chat, Live, Build); someone who is not a coach has no such line.
   O7  AI models: the models and what is taught, each opening where it is
@@ -27,12 +28,12 @@ OUTCOME
       chat's name with "You run this chat.", the switch only once there is
       something to try.
 PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice"
-         O4 -> "N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list"
+         O4 -> "N630-1 a model left out today because the host is out of tokens gets its line in Will"
          O5 -> "N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes"
          O2 -> "N642-3 Build's Your chat: Will's line, the chat's parts, each opening its step, then the answers to send; what is taught is not here"
          O2 -> "N642-3 a part opened from Build opens its step, and Keep comes back to Build, not to the parts"
          O2 -> "N629-1 without a chat of the new setup, Your chat opens the setup at What do you do?"
-         O3 -> "N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was"
+         O3 -> "N642-2 for the ring the pinned row is one's own chat, its circle, name and hello; Your chat before there is one; without the ring as it was"
          O6 -> "N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too"
          O6 -> "N642-5 someone who is not a coach has no moments line in AI models"
          O7 -> "N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own"
@@ -216,46 +217,53 @@ describe("what needs you is in Will (backend N629)", () => {
     expect(container.querySelector("[data-host-setup]")?.textContent).toContain("What do you do?");
   });
 
-  it("N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was", async () => {
+  it("N642-2 for the ring the pinned row is one's own chat, its circle, name and hello; Your chat before there is one; without the ring as it was", async () => {
     const list = () =>
       createElement(ChatList, {
         chats: [],
         coachRow: createElement("div", { "data-coach-row-marker": "" }),
         modelsRows: createElement("div", { "data-models-rows-marker": "" }),
+        setupRows: createElement(HostSetupRows),
         onOpenWill: () => undefined,
         onOpen: () => undefined,
       });
-    // Without the ring: the rows as they are, and no word of what needs you.
+    const pinned = () => container.querySelector('[data-chat-row="will"]')?.textContent ?? "";
+    // Without the ring: the rows as they are, Will as he was.
     act(() => root.render(list()));
     await flush();
     expect(container.querySelector("[data-coach-row-marker]")).not.toBeNull();
     expect(container.querySelector("[data-models-rows-marker]")).not.toBeNull();
+    expect(pinned()).toContain("Will");
     expect(text()).not.toMatch(/need you|needs you/);
 
-    // With it: Will and people only; Will's line counts the lines that show.
+    // With it and a chat: one row, the chat's name and its hello; no
+    // second row for one's own chat, no coach or models rows.
     forgetHostWork();
-    bff.routes["GET /api/v2/chats/setup"] = SETUP;
-    bff.routes["GET /api/v2/chats/setup/drafts"] = { drafts: DRAFTS };
-    bff.routes["GET /api/v2/models/queue"] = { models: [], examples: [{ id: "e1", model_id: "m1" }] };
+    forgetSetup();
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, own_chat: { title: "Ask Lena", line: "Hi.", hello: "Hi. Show me your scalp." } };
     act(() => root.unmount());
     root = createRoot(container);
     act(() => root.render(list()));
     await flush();
     expect(container.querySelector("[data-coach-row-marker]")).toBeNull();
     expect(container.querySelector("[data-models-rows-marker]")).toBeNull();
-    expect(text()).toContain("2 things need you");
+    expect(pinned()).toContain("Ask Lena");
+    expect(pinned()).toContain("Hi. Show me your scalp.");
+    expect(pinned()).not.toContain("Will");
+    expect(text().match(/Ask Lena/g)?.length).toBe(1);
 
+    // No chat yet: "Your chat".
     forgetHostWork();
-    bff.routes["GET /api/v2/chats/setup/drafts"] = { drafts: [] };
-    bff.routes["GET /api/v2/models/queue"] = { models: [], examples: [] };
+    forgetSetup();
+    bff.routes["GET /api/v2/chats/setup"] = { recipe: null, parts: [], own_chat: null, cost: null };
     act(() => root.unmount());
     root = createRoot(container);
     act(() => root.render(list()));
     await flush();
-    expect(text()).toContain("Nothing needs you now");
+    expect(pinned()).toContain("Your chat");
   });
 
-  it("N630-1 a model left out today because the host is out of tokens gets its line in Will and counts in the list", async () => {
+  it("N630-1 a model left out today because the host is out of tokens gets its line in Will", async () => {
     const d = new Date();
     const two = (n: number) => String(n).padStart(2, "0");
     const on = `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
@@ -272,13 +280,6 @@ describe("what needs you is in Will (backend N629)", () => {
     const left = [...container.querySelectorAll("[data-left-out]")].map((p) => p.textContent);
     expect(left).toEqual(["I left out Kasia's model today. You're out of tokens."]);
     expect(container.querySelector("[data-left-out] button, button[data-left-out]")).toBeNull();
-    act(() => root.unmount());
-    root = createRoot(container);
-    act(() =>
-      root.render(createElement(ChatList, { chats: [], onOpenWill: () => undefined, onOpen: () => undefined })),
-    );
-    await flush();
-    expect(text()).toContain("1 thing needs you");
   });
 
   it("N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes", async () => {
@@ -358,7 +359,7 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetSetup();
     forgetHostWork();
     await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] }, own_chat: { title: "Ask Lena", line: "Hi." }, can_try: true });
-    await toggle("live");
+    // Opened, a chat with something to try is Live.
     expect(container.querySelector("[data-build-tab]")).toBeNull();
     await toggle("build");
     await tab("models");
@@ -369,14 +370,15 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetSetup();
     forgetHostWork();
     moments.speakers = [];
-    await build({ ...SETUP, can_try: true });
+    await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] }, can_try: true });
+    await toggle("build");
     await tab("models");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer0 waiting›");
   });
 
   it("N642-5 someone who is not a coach has no moments line in AI models", async () => {
     who.coach = false;
-    await build({ ...SETUP, can_try: true });
+    await build({ ...SETUP, can_try: false });
     await tab("models");
     expect(container.querySelector("[data-build-models]")).not.toBeNull();
     expect(container.querySelector('[data-needs-you="moments"]')).toBeNull();
@@ -386,7 +388,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/models/queue"] = { models: [], examples: [{ id: "e1", model_id: "m1" }] };
     bff.routes["GET /api/v2/models/m1/check"] = { version: "v1", answers: ["Yes"], items: [{ example_id: "c1", example: {}, guess: "Yes", kept: null, answer: null }], done: false };
     const kasia = { q: "Is the skin red?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "k1", by: "Kasia" };
-    await build({ ...SETUP, recipe: { ...RECIPE, models: [...RECIPE.models, kasia] }, can_try: true });
+    await build({ ...SETUP, recipe: { ...RECIPE, models: [...RECIPE.models, kasia] }, can_try: false });
     await tab("models");
     const models = container.querySelector("[data-build-models]")!;
     expect(models.textContent?.startsWith("Your models, and everything you teach.")).toBe(true);
@@ -416,12 +418,21 @@ describe("what needs you is in Will (backend N629)", () => {
 
   it("N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try", async () => {
     bff.routes["POST /api/v2/chats/setup/try"] = { messages: [{ kind: "answer", body: "Try a milder shampoo.", by: "Lena" }] };
-    await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi. Show me your scalp.", taps: [], questions: [] }, own_chat: { title: "Ask Lena", line: "Hi." }, can_try: true });
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Ask Lena");
+    await build({
+      ...SETUP,
+      recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] },
+      own_chat: { title: "Ask Lena", line: "Hi.", about: ["Lena is a trichologist."], hello: "Hi. Show me your scalp.", taps: ["Look at my scalp", "Something else"] },
+      can_try: true,
+    });
+    // Opened: Live, the chat as people meet it, its about lines, hello and taps.
     expect([...container.querySelectorAll("[data-switch]")].map((b) => b.textContent)).toEqual(["Live", "Build"]);
-    await toggle("live");
     expect(container.querySelector("[data-chat-header]")?.textContent).toContain("Ask LenaYou run this chat.");
-    expect(container.querySelector("[data-host-own-chat]")?.textContent).toContain("Hi. Show me your scalp.");
+    const live = container.querySelector("[data-host-own-chat]")?.textContent ?? "";
+    expect(live).toContain("Lena is a trichologist.");
+    expect(live).toContain("Hi. Show me your scalp.");
+    expect([...container.querySelectorAll("[data-host-taps] button")].map((b) => b.textContent)).toEqual(["Look at my scalp", "Something else"]);
+    await toggle("build");
+    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Ask Lena");
     act(() => root.unmount());
     root = createRoot(container);
     forgetSetup();

@@ -1228,7 +1228,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Open your chat to people?");
   });
 
-  it("FIRST-11 open it to people: Yes makes it live, and the list then holds that chat", async () => {
+  it("FIRST-11 open it to people: Yes makes it live, and the setup closes", async () => {
     await begun();
     await keepTo("Right now your chat isn't a specialist in anything.");
     await tap("Not now");
@@ -1242,8 +1242,6 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Yes");
     expect(puts("live")).toEqual([true]);
     expect(container.querySelector("[data-host-setup]")).toBeNull();
-    expect(text()).toContain("your chat");
-    expect(text()).toContain(SUGGEST.hello[0]);
   });
 
   it("FIRST-21 'I want to edit my chat' said to Will opens the parts again, each one tap to change", async () => {

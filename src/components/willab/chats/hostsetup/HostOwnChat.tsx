@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { TapRow } from "../../WillQuestion";
 import { LetterCircle } from "../ChatList";
+import { HostAboutLines } from "../HostChat";
 import { tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
 import { W } from "./hostSetupCopy";
 import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
@@ -18,12 +19,14 @@ import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
 
 type Line = { w?: string; by?: string; me?: string };
 
-export default function HostOwnChat({ name, recipe, onBack, bar = null }: {
+export default function HostOwnChat({ name, recipe, onBack, bar = null, about = [] }: {
   name: string;
   recipe: HostRecipe;
   onBack: () => void;
   /** Live's bar, in place of the chat's own (backend N642 item 3). */
   bar?: ReactNode;
+  /** Who the host is, on top, as people meet the chat (own_chat.about). */
+  about?: readonly string[];
 }) {
   const [log, setLog] = useState<Line[]>(() => [{ w: recipe.hello }, ...(recipe.taps.length ? [{ w: W.tellMe }] : [])]);
   const [asking, setAsking] = useState(() => recipe.taps.length > 0);
@@ -54,6 +57,7 @@ export default function HostOwnChat({ name, recipe, onBack, bar = null }: {
           </span>
         }
       >
+        <HostAboutLines lines={about} />
         {log.map((m, k) => (m.me ? <Mine key={k}>{m.me}</Mine> : <Say key={k} by={m.by}>{m.w}</Say>))}
         {asking ? (
           <TapRow
