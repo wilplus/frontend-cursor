@@ -17,6 +17,11 @@ import {
   type WalkStepId,
   type WalkRead,
   readWalk,
+  readTry,
+  startTry,
+  endTry,
+  type TryRead,
+  type TryDirection,
   setWalkItem,
   wantWalk,
 } from "@/services/api/hostSetup";
@@ -100,6 +105,8 @@ type State = {
   /** The walk part by part, as read (N647); the item open on its screen. */
   walkRead: WalkRead | null;
   walkItem: string | null;
+  /** The silent try on filler words; null: the route does not answer (N647 item 3). */
+  filler: TryRead | null;
   shared: SharedModel[] | null;
   picked: SharedModel | null;
   edit: boolean;
@@ -173,6 +180,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   wanted: !!recipe?.walk?.wanted,
   walkRead: null,
   walkItem: null,
+  filler: null,
   shared: null,
   picked: null,
   edit: !!parts && !!recipe,
@@ -273,6 +281,12 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       });
     }
     // What a newcomer reads is the line as kept now (N622 item 2).
+    if (to === "walknotice") {
+      void readTry("filler_cluster").then((read) => {
+        S.filler = read;
+        paint();
+      });
+    }
     if (to === "live") {
       void readSetup().then((read) => {
         if (read?.own_chat) S.ownChat = read.own_chat;
@@ -767,9 +781,58 @@ function changeItem(c: Ctx, modelId: string, change: { on: boolean } | { says: s
   });
 }
 
+/** One thing the walk notices, with Catch more / Catch fewer and the silent
+ *  try's result (N647 item 3, the prototype's walkParts). */
+function FillerStep({ c, back }: { c: Ctx; back: () => void }) {
+  const { S } = c;
+  const read = S.filler;
+  const t = read?.try ?? null;
+  const run = (job: Promise<TryRead | null | boolean>, then: (r: unknown) => void) => {
+    if (S.busy) return;
+    S.busy = true;
+    void job.then((r) => { S.busy = false; then(r); c.paint(); });
+  };
+  const start = (d: TryDirection) => run(startTry("filler_cluster", d), (r) => { if (r) S.filler = r as TryRead; });
+  const end = (how: "drop" | "use") => t && run(endTry("filler_cluster", t.id, how), (ok) => { if (ok) { S.filler = read && { ...read, try: null }; back(); } });
+  if (!read) return null;
+  if (!t) {
+    return (
+      <Frame onBack={back}>
+        <Say>{W.fillerTitle + "."}</Say>
+        <Opt title={W.catchMore} onClick={() => start("more")} />
+        <Opt title={W.catchFewer} onClick={() => start("fewer")} />
+      </Frame>
+    );
+  }
+  const d = t.direction;
+  if (t.state !== "ready") {
+    return (
+      <Frame onBack={back} foot={<Btn label={W.tryDone} onClick={back} />}>
+        <Say>{W.tryTold(d, t.needed)}</Say>
+        <Say>{W.tryThen}</Say>
+      </Frame>
+    );
+  }
+  return (
+    <Frame
+      onBack={back}
+      foot={read.can_use
+        ? <Two left={<Btn out label={W.goBack} onClick={() => end("drop")} />} right={<Btn label={W.useIt} onClick={() => end("use")} />} />
+        : <Btn label={W.goBack} onClick={() => end("drop")} />}
+    >
+      <Say>{W.tried(d, t.needed)}</Say>
+      <Say>{d === "more" ? W.caughtMore(t.changed, t.agreed) : W.caughtFewer(t.changed, t.agreed)}</Say>
+      {t.note ? <Say>{t.note}</Say> : null}
+    </Frame>
+  );
+}
+
 function WalkNoticeStep({ c }: { c: Ctx }) {
   const { S } = c;
   const notice = S.walkRead?.notice ?? [];
+  if (S.walkItem === "filler_cluster" && S.filler) {
+    return <FillerStep c={c} back={() => { S.walkItem = null; c.paint(); }} />;
+  }
   const open = notice.find((n) => n.model_id === S.walkItem);
   const close = () => { S.walkItem = null; c.paint(); };
   if (open) {
@@ -797,6 +860,17 @@ function WalkNoticeStep({ c }: { c: Ctx }) {
       {notice.map((n) => (
         <Opt key={n.model_id} title={n.q} sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning} onClick={() => { S.walkItem = n.model_id; c.paint(); }} />
       ))}
+      {S.filler ? (
+        <Opt
+          title={W.fillerTitle}
+          sub={S.filler.try ? W.trying(S.filler.try.direction) : undefined}
+          onClick={() => {
+            S.walkItem = "filler_cluster";
+            c.paint();
+            void readTry("filler_cluster").then((read) => { if (read) S.filler = read; c.paint(); });
+          }}
+        />
+      ) : null}
       <Opt title={S.wanted || c.R.walk?.wanted ? W.walkTold : W.somethingElseWant} onClick={want} />
     </Frame>
   );

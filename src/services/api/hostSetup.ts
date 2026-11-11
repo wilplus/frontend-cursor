@@ -180,6 +180,37 @@ export async function setWalkItem(modelId: string, change: { on: boolean } | { s
   return walkOf(body) ?? (body ? await readWalk() : null);
 }
 
+/** A silent try on one thing the walk notices (N647 item 3, founder only).
+ *  The host never sees a threshold: direction, counts and a line. */
+export type TryThing = "filler_cluster" | "hedging" | "restart_repair";
+export type TryDirection = "more" | "fewer";
+export type SilentTry = {
+  id: string; state: string; direction: TryDirection; seen: number; needed: number;
+  changed: number; settled: number; agreed: number; enough_answers: boolean; note?: string;
+};
+export type TryRead = { thing: TryThing; try: SilentTry | null; can_use: boolean };
+
+const tryOf = (thing: TryThing, body: Body | null): TryRead | null =>
+  body && body.thing === thing && "try" in body
+    ? { thing, try: (body.try as SilentTry | null) ?? null, can_use: body.can_use === true }
+    : null;
+
+const tryPath = (thing: TryThing) => `/api/v2/build/notice/${thing}/try`;
+
+/** null when the route does not answer 200 (a 403 or 404): nothing is drawn. */
+export async function readTry(thing: TryThing): Promise<TryRead | null> {
+  return tryOf(thing, await call(tryPath(thing), { method: "GET" }));
+}
+
+export async function startTry(thing: TryThing, direction: TryDirection): Promise<TryRead | null> {
+  return tryOf(thing, await call(tryPath(thing), { method: "POST", json: { direction } }));
+}
+
+/** "Go back" (drop) or "Use it" (use); true once it was done. */
+export async function endTry(thing: TryThing, tryId: string, how: "drop" | "use"): Promise<boolean> {
+  return (await call(`${tryPath(thing)}/${encodeURIComponent(tryId)}/${how}`, { method: "POST", json: {} })) !== null;
+}
+
 export async function sharedModels(): Promise<SharedModel[]> {
   const body = await call("/api/v2/chats/setup/models", { method: "GET" });
   return list<SharedModel>(body?.models);
