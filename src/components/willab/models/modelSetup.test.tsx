@@ -665,6 +665,18 @@ describe("the launchpad's actions (MOD-20, MOD-21, MOD-49, MOD-50, MOD-51)", () 
     }
   });
 
+  it("N645 a contributor's set with a line left out opens the cases the backend kept, each with its text as stored", async () => {
+    await toTexts({
+      "GET /api/v2/models/rasp/setup/first-ten": { status: 404, body: { code: "NOT_FOUND" } },
+      "POST /api/v2/models/rasp/examples/set": { added: 1, skipped: 1, example_ids: ["k2"], added_cases: [{ id: "k2", text: "The kept case." }] },
+      "GET /api/v2/models/rasp": F.pageRasp,
+    });
+    await tapEl([...container.querySelectorAll("button")].find((b) => b.textContent?.includes("I may use these.")) ?? null);
+    await choose(container.querySelector("[data-model-add-files]")!, new File(["A repeat.\nThe kept case."], "cases.txt", { type: "text/plain" }));
+    expectWords(["The kept case."]);
+    expect(text()).not.toContain("A repeat.");
+  });
+
   it("N645 several files are one case per file, and one call takes the first 200", async () => {
     const { casesOf } = await import("./ModelAdd");
     expect(casesOf(["First case\nstill the first", " ", "Second case"])).toEqual(["First case\nstill the first", "Second case"]);

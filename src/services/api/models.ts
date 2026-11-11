@@ -251,13 +251,22 @@ export async function addModelExample(
     : null;
 }
 
-/** A set of written cases (N645 item 4): {added, skipped, ids}, the new
- *  cases' ids in order when the backend gives them; null on failure. */
-export async function addExampleSet(modelId: string, texts: string[]): Promise<{ added: number; skipped: number; ids: string[] | null } | null> {
+/** A set of written cases (N645 item 4): {added, skipped}, with the new
+ *  cases when the backend gives them: `cases` (each id with its text as
+ *  stored), or else `ids` in order; null on failure. */
+export async function addExampleSet(modelId: string, texts: string[]): Promise<{
+  added: number;
+  skipped: number;
+  ids: string[] | null;
+  cases: { id: string; text: string }[] | null;
+} | null> {
   const body = await call(`/api/v2/models/${id(modelId)}/examples/set`, { method: "POST", json: { texts, may_use: true } });
   if (typeof body?.added !== "number") return null;
   const ids = Array.isArray(body.example_ids) ? body.example_ids.filter((x): x is string => typeof x === "string") : null;
-  return { added: body.added, skipped: typeof body.skipped === "number" ? body.skipped : 0, ids };
+  const cases = Array.isArray(body.added_cases)
+    ? (body.added_cases as { id?: unknown; text?: unknown }[]).filter((c) => typeof c?.id === "string" && typeof c?.text === "string").map((c) => ({ id: c.id as string, text: c.text as string }))
+    : null;
+  return { added: body.added, skipped: typeof body.skipped === "number" ? body.skipped : 0, ids, cases };
 }
 
 /** A kind of set that is coming (N645 item 3). */

@@ -168,10 +168,14 @@ export function AddExampleScreen({ onBack, onClose, onAdded, onSet, only = null 
     const got = await addExampleSet(modelId, cases);
     setBusy(false);
     if (!got || got.added <= 0) return;
-    // The ids come in the order of the texts; with any left out, which
-    // text is which cannot be told, so none is opened by id.
-    const ids = got.ids && got.ids.length === cases.length ? got.ids : null;
-    onSet?.(modelId, ids ? ids.map((exampleId, i) => ({ modelId, example: { id: exampleId, model_id: modelId, content: { text: cases[i] } } })) : null);
+    // The new cases with their texts as stored; else the ids in the order of
+    // the texts, when none was left out (else which is which cannot be told).
+    const pairs = got.cases?.length
+      ? got.cases
+      : got.ids && got.ids.length === cases.length
+        ? got.ids.map((exampleId, i) => ({ id: exampleId, text: cases[i] }))
+        : null;
+    onSet?.(modelId, pairs ? pairs.map((c) => ({ modelId, example: { id: c.id, model_id: modelId, content: { text: c.text } } })) : null);
   };
   if (view === "write") {
     // The case is typed in Will's chat; his ask is the screen's own line.
