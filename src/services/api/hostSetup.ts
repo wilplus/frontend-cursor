@@ -16,6 +16,8 @@ export type ModelDraft = { q: string; opts: string[]; says: string };
  *  no line, and the host's answers teach it. */
 export type RecipeModel = ModelDraft & { own: boolean; model_id?: string; by?: string; price?: number; learning?: boolean; base?: string; gives?: string };
 export type Suggest = {
+  /** The feedback walk Will suggests (N641): all three steps, an Ideal Text. */
+  walk?: { steps: WalkStepId[]; out: "ideal_text" | "none" };
   line: string[];
   send: SendKind[];
   out: OutKind[];
@@ -45,7 +47,12 @@ export type HostRecipe = {
   live: boolean;
   /** About health, law or money (N622 item 1): only suggestions to the host. */
   care?: boolean;
+  /** What the feedback walk holds, in order, and what comes at the end
+   *  (N641); `wanted` once the host asked for it. Kept, not run yet. */
+  walk?: HostWalk;
 };
+export type WalkStepId = "best" | "fix" | "words";
+export type HostWalk = { steps: WalkStepId[]; out: "ideal_text" | "none"; wanted?: boolean };
 export type SetupPart = { part: string; title: string; value: string };
 export type ChatCost = { lines: { q: string; by: string; price: number }[]; per_send: number; month: number; nothing?: boolean };
 export type SetupRead = {
@@ -123,6 +130,12 @@ export async function keepPart(part: string, value: unknown): Promise<Kept | nul
   } catch {
     return null;
   }
+}
+
+/** "I want this" for the feedback walk (N641 item 3): true once told. */
+export async function wantWalk(): Promise<boolean> {
+  const body = await call("/api/v2/chats/setup/walk/want", { method: "POST", json: {} });
+  return body?.wanted === true;
 }
 
 export async function sharedModels(): Promise<SharedModel[]> {
