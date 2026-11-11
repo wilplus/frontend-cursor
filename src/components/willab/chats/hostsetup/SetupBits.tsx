@@ -29,7 +29,9 @@ export const FrameTitle = createContext<ReactNode>(null);
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
  *  the name), as a chat keeps. */
-export function Frame({ title, onBack, circle, foot, children }: {
+export function Frame({ title, onBack, circle, foot, bar = null, children }: {
+  /** A bar of its own in place of the header (Live's, backend N642 item 3). */
+  bar?: ReactNode;
   title?: ReactNode;
   onBack?: () => void;
   circle?: ReactNode;
@@ -45,7 +47,9 @@ export function Frame({ title, onBack, circle, foot, children }: {
   });
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {circle ? (
+      {bar ? (
+        bar
+      ) : circle ? (
         <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
           {onBack ? (
             <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">

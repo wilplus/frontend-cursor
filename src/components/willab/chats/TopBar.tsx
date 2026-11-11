@@ -23,11 +23,14 @@ export function TopBar({
   subtitle = null,
   onBack,
   onOpen = null,
+  right = null,
 }: {
   circle: ReactNode;
   title: string;
   subtitle?: string | null;
   onBack: () => void;
+  /** On the right: one's own chat's Live · Build switch (backend N642 item 3). */
+  right?: ReactNode;
   /** A person's chat: their circle and name open their profile (N366). */
   onOpen?: (() => void) | null;
 }) {
@@ -62,6 +65,7 @@ export function TopBar({
       ) : (
         <span className="flex min-w-0 items-center gap-2.5">{who}</span>
       )}
+      {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
     </div>
   );
 }
@@ -69,10 +73,17 @@ export function TopBar({
 /** Will's chat's top bar, over the Lounge: his mark and his name; the
  *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
  *  Lounge's column, across its side padding. */
-export function WillTopBar({ onBack, place = "will" }: { onBack: () => void; place?: LoungePlace }) {
+export function WillTopBar({ onBack, place = "will", build = null }: {
+  onBack: () => void;
+  place?: LoungePlace;
+  /** The ring's own chat: Build and Live in this bar's place (backend N642
+   *  item 3). The phone's Back stays this bar's across the three chats. */
+  build?: ReactNode;
+}) {
   // The device's Back (the iPhone's swipe) is this bar's back: one step, to
   // the list, as in a person's chat (N378).
   useBackDismiss(onBack);
+  if (build) return <>{build}</>;
   return (
     <div className="-mx-4">
       <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />

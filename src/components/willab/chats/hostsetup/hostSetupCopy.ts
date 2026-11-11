@@ -212,6 +212,18 @@ export const W = {
   aiModelsLine: "Teach one, or start your own.",
   yourChatTitle: "Your chat",
   yourChatLine: "See it, test it, change it.",
+  // Build and Live (backend N642 item 3, N643 items 3 and 4).
+  live: "Live",
+  build: "Build",
+  aiModelsTab: "AI models",
+  youRunIt: "You run this chat.",
+  partsOpen: "Your chat is open. Tap a part to change it.",
+  partsSaved: "Your chat is saved. Nobody can see it yet. Tap a part to change it.",
+  yourModels: "Your models, and everything you teach.",
+  momentsTask: "Moments to answer",
+  waiting: (n: number) => `${n} waiting`,
+  startYourOwn: "Start your own",
+  modelBy: (by: string) => `${by}'s model`,
   // Drafted answers, one per screen (N629 item 3).
   asked: (name: string) => `${name} asked:`,
   wouldAnswer: "I'd answer:",
