@@ -1792,7 +1792,11 @@ October (backend N111).
   Will's chat starts at the bottom, by the bar, as the chats with people
   do (N321 item 3); once it fills the screen nothing changes, and there is
   no extra room above the first message (`Lounge.tsx`, the thread's first
-  child `mt-auto`). Four rules, one component each (`WillQuestion.tsx`):
+  child `mt-auto`). **Every chat in the app keeps it** (N650, founder
+  2026-11-11): bubbles that do not fill the screen sit at the bottom, right
+  above the bar, the newest lowest; the three dots of an answer coming are the
+  lowest line, never at the top; a longer chat scrolls, opened at its newest.
+  Four rules, one component each (`WillQuestion.tsx`):
   your answers sit on your side, on the right, right under the question;
   one answer look, N371's orange pill with the likely answer filled,
   whoever asks (`TapRow`, `AnswerPair`); saying no is a grey word, "Not
@@ -2375,6 +2379,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-11 · N650 · every chat starts at the bottom and its three dots are its lowest line: "Test my chat" and the setup that reads as a chat (`Frame` in `hostsetup/SetupBits.tsx`, first child `mt-auto`) were three bubbles at the top of an empty screen. Already right and unchanged: a person's chat (`ChatThread.tsx`), Will's and the speaking chat (`Lounge.tsx`), a host's chat that takes Takes, the widget chat (`WidgetChat.tsx`). Layout only · FE (this PR)
 - 2026-11-11 · N648 items 1 to 6 · for the chat builder's ring, Build has a switch "Developer mode" under its two tabs (drawn only where GET /v2/chats/setup/dev answers; a 404 draws nothing). On, five parts, each one screen, as the pinned prototype's `devPage()` draws them: "How close to the speaking coach", "What I notice", "What I say", "Charts" (a week of fewer than 5 reads "fewer than 5"; a chart with no weeks reads "Not counted right now.", never zero; each downloads its CSV) and "Your training data" (each model's JSONL and CSV, GET /v2/models/<id>/download?format=). The numbers are the host's own (`chats/DevMode.tsx`, `api/v2/chats/setup/dev/`). Open for the founder's OK: "Not counted right now.", "fewer than 5", "JSONL"/"CSV" and "thing"/"line" singulars are not in the prototype · FE (this PR)
 - 2026-11-11 · N649 item 1 · in a chat's setup, a part that cannot be kept (the backend does not answer, or refuses for a reason with no line of its own) gets Will's line "That didn't save. Try again." under the screen, which stays as it was; the line goes with the next tap that keeps, with Back and with the next step. Words the chat may not show keep their own line. Was: nothing happened, so "Yes" and "Teach it" looked dead (`hostsetup/HostSetup.tsx` `keep`, `SetupBits.tsx` `FrameNote`) · FE (this PR)
 - 2026-11-11 · N648 item 8 · a host's chat that takes Takes shows the chat's own messages too (the host's answers and questions, one's own words to them, voice with "Read it", photos and files, Take cards), each in its place by time among the Takes, drawn as the chat draws them (`ChatRow`; `chats/hostChatMessages.ts`, `chats/HostChatRow.tsx`). The tag of a Take made there is not drawn: the Take shows through its own rows. Everything else of the chat stays one tap away: the circle and the name open the chat as it is today (its bar, its answers, its "+", the profile), and Back comes back to the Takes; a message that asks something (answers to tap, "Record your answer", a photo, their Take) opens it in one tap; opened, the chat no longer reads as new in the list (`HostChatRow.tsx`, `askForChatThread`) · FE (this PR)
