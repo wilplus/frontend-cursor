@@ -45,7 +45,7 @@ export function BaseScreen({ onBack, on, onPick }: { onBack: () => void; on: str
   );
 }
 
-const BLOCK = "rounded-[10px] bg-foreground px-4 py-3.5 text-left text-[16px] font-semibold text-background";
+export const BLOCK = "rounded-[10px] bg-foreground px-4 py-3.5 text-left text-[16px] font-semibold text-background";
 
 /** "Your model. Tap a block to change it.": four dark blocks; the question,
  *  what it gives back and what it is built on each open their one choice. */
