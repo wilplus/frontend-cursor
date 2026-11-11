@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { TypingGlyph } from "../../TypingDots";
 import { W } from "./hostSetupCopy";
+import OneTopBar, { useBarBack } from "../../OneTopBar";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup's pieces, as the locked prototype draws them: Will's top  */
@@ -20,7 +21,15 @@ export function WillDots() {
   );
 }
 
-export function Frame({ title = W.will, onBack, circle = <WillDots />, foot, children }: {
+/** What the one bar says on every screen of this surface ("Your chat" for
+ *  the setup and its parts); null: the arrow alone (N639). */
+export const FrameTitle = createContext<ReactNode>(null);
+
+/** One screen: its top bar, Will's lines, and what to tap at the foot. The
+ *  bar is the one bar (N639): the back arrow and the surface's name. With a
+ *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
+ *  the name), as a chat keeps. */
+export function Frame({ title, onBack, circle, foot, children }: {
   title?: ReactNode;
   onBack?: () => void;
   circle?: ReactNode;
@@ -28,21 +37,27 @@ export function Frame({ title = W.will, onBack, circle = <WillDots />, foot, chi
   children: ReactNode;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
+  const named = useContext(FrameTitle);
+  useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
     if (el) el.scrollTop = el.scrollHeight;
   });
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
-        {onBack ? (
-          <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">
-            {W.back}
-          </button>
-        ) : null}
-        {circle}
-        <b className="text-[17px] font-semibold text-foreground">{title}</b>
-      </div>
+      {circle ? (
+        <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
+          {onBack ? (
+            <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">
+              {W.back}
+            </button>
+          ) : null}
+          {circle}
+          <b className="text-[17px] font-semibold text-foreground">{title ?? W.will}</b>
+        </div>
+      ) : (
+        <OneTopBar onBack={onBack} title={title ?? named} />
+      )}
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         {children}
       </div>

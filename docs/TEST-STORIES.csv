@@ -846,6 +846,9 @@ downloaded behind the list; they draw once his chat is open.
 O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
 answers"", on their row and on the card, never ""Widget's answers""
 (N569 item 6).
+O28 What opens from Will's chat (his lines, ""Your chat"") opens over his
+chat, which stays open under it, so Back comes back to Will; opened
+from the list, it opens over the list as before (N639 item 2).
 O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
 ""From {site}""; the bar is the chat's two places (N610): ""+"", and
 ""Record your answer"" for their typed question, which the backend
@@ -874,7 +877,8 @@ O23 -> ""the questions of the one who invited me are answered by tapping, and th
 O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
 O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
 O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
-O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""",
+O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
+O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -920,6 +924,11 @@ O4 -> ""N630-1 a model left out today because the host is out of tokens gets its
 O5 -> ""N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes""
 O2 -> ""N629-1 Will says what needs you, each line opening its work; nothing waiting says so""
 O3 -> ""N629-2 the list holds Will and people only, Will's line counts what needs you; without the ring as it was""",
+src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the one
+bar: the arrow and ""Your chat"", no ""Back"" word, no circle, no close
+(a new account: its first screen, ""What do you do?"");
+the arrow on its first screen brings me back to Will's chat, and so
+does the phone's Back.","O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
@@ -1060,6 +1069,14 @@ O9 -> ""the done imports sit at the bottom; judging starts from the opened one a
 O10 -> ""reaching the bottom of the list reads its next step""
 O11 -> ""the corpus opens from the admin menu's page, never from the coach's queue; ✕ goes back""
 O11 -> ""the admin menu's Training corpus row sits under Data, beside Project deletions""","Coach panel lock 2026-10-06 (training corpus, D-CP-20); several files in one Import, the list in steps and the corpus judged mixed, founder 2026-10-21. Moved to the CEO panel, founder 2026-11-03 (backend N416); to the admin menu, founder 2026-11-04 (N511)."
+src/components/willab/coachpanel/coachPanelOneBar.test.tsx,Story,"As a coach with the chat builder's ring, the queue I open from Will's line ""N moments to answer"" has the one top bar, and every screen after it has the back arrow and no close; Back goes one step and, from the queue, to Will's chat (backend N639).","O1  From Will's line, the queue's bar is the arrow and ""Your queue"", no
+icon; the arrow closes the panel, back to Will's chat.
+O2  A deeper screen (Your speakers) has the back arrow and no close; the
+arrow and the phone's Back go one step, to the queue, then out.
+O3  Opened from the list of chats, the queue keeps a chat's top bar, as
+before.","O1 -> ""N639 from Will's line the queue has the one bar and Back returns to Will's chat""
+O2 -> ""N639 a deeper screen has the back arrow and no close, one step at a time""
+O3 -> ""N639 opened from the list of chats, the queue keeps its bar""","Backend N639. The coach panel is locked: only its top bar and its way back change, and only when opened from Will's line."
 src/components/willab/coachpanel/coachPlan.test.tsx,Story,"As a coach, I want a speaker's plan in my queue when it needs me, so that I pick their level blind, or send my video for a level that hasn't moved, and their plan follows my answer.","O1  A plan that waits comes first in my queue, on its speaker's card (""New
 plan"", ""Asked about their level"", ""Three Takes without moving""), and
 as ""Their plan"" above their Takes; the Lounge bubble counts it.

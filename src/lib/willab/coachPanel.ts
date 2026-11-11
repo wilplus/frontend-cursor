@@ -358,7 +358,10 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case "open":
       return fresh(state, { key: "queue" });
     case "speakers":
-      return fresh(state, { key: "speakers" });
+      // From the queue's Speakers card, Back comes to the queue (N639).
+      return state.screen.key === "queue"
+        ? { ...fresh(state, { key: "speakers" }), history: [state.screen] }
+        : fresh(state, { key: "speakers" });
     case "willBank":
       return push(state, { key: "willbank" });
     case "close":

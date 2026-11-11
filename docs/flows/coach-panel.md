@@ -46,7 +46,15 @@ founder's rows are the founder's alone.
   you." when nobody does; empty until the queue is read, never "Nobody"
   before it knows (2026-10-18). It opens the queue over the list, under a
   chat's own top bar (N525): ‹, the row's round icon, "Your queue"; ‹ comes
-  back to the list. Was: ✕ and the large title. **Speakers** (every speaker, an orange dot on those waiting) is
+  back to the list. Was: ✕ and the large title. Opened from Will's line
+  "N moments to answer" (the ring `chat_builder`, N639), the queue and every
+  screen after it wear the one top bar instead: the back arrow, the only
+  control, and the bar's own words where it has them ("Your queue", "Their
+  plan", a moment's place); no icon and no ✕. A page's own heading
+  ("Brave Robin", "Your speakers") stays where it is. Back goes one step:
+  Your speakers back to the queue, the queue back to Will's chat; the
+  phone's Back the same, and in the iPhone app a swipe from the left edge.
+  **Speakers** (every speaker, an orange dot on those waiting) is
   the queue's last card. Nothing of the coach sits at the bottom of Will's
   chat; the panel stays mounted under the list, so a goal card's "Open
   speaker" still opens. One row per model a person teaches, when there is
@@ -435,6 +443,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-11 · N639 · B1: opened from Will's line "N moments to answer", the panel wears the one top bar on every screen: the back arrow and the bar's own words ("Your queue"; the arrow alone where the bar had no words), no round icon and no ✕; Your speakers gets the arrow, back to the queue; the phone's Back goes one step and from the queue to Will's chat. A moment's ‹ › bar stays, without its ✕. Opened from the list of chats, as before. No word, order or spacing in the page changes (`OneTopBar.tsx`; `oneBar` in `CoachPanel.tsx`) · FE (this PR)
 - 2026-11-10 · N627 · A3: on a computer the coach panel, every screen and sheet, fills the column Will's chat fills. Was: a 430 px column in the middle. No word, order, spacing or motion changes; on a phone, as before · FE (this PR)
 - 2026-11-09 · N511 · H0: the admin menu's Training corpus row is under Data, beside Project deletions, as N511 item 1 has it. Was: under Overview, in the Roadmap's place, with no decision logged · FE (this PR)
 - 2026-11-05 · N525 · B1, B2: Your queue wears a chat's top bar (‹, the Speakers icon, "Your queue"; ‹ back to the list) and draws once every read is in. Was: ✕ and the large title; the sections arrived one after another · BE #1769, FE (this PR)
