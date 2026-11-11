@@ -9,7 +9,7 @@ import { chatIsNew, isNewSince, markChatOpened } from "./chatOpened";
 import { listTime, timeOf } from "./chatTime";
 import { openSetupFromNote } from "./hostsetup/hostSetupDoor";
 import { thingsNeedingYou, useHostWork } from "./hostsetup/hostWork";
-import { PLACE_TITLES, inPlace, type LoungePlace } from "./loungePlace";
+import { PLACE_TITLES, PRINCIPLES_OPENING, inPlace, type LoungePlace } from "./loungePlace";
 import { W as HOST_WORDS } from "./hostsetup/hostSetupCopy";
 import { ADD_SHEET_TITLE, SETUP_NOTE, SET_THEM, answersOf, asksYouAbout, joinedThanks } from "./joinCopy";
 import { AddSomeoneSheet } from "./AddSomeoneSheet";
@@ -400,7 +400,8 @@ export default function ChatList({
       id={place}
       circle={<WillMark />}
       title={PLACE_TITLES[place]}
-      preview={seen.preview}
+      // Principles' opening line until something else is written there (N640).
+      preview={seen.preview || (place === "principles" ? PRINCIPLES_OPENING : "")}
       isNew={seen.isNew}
       pinned
       cameFrom={cameFrom === place}

@@ -157,7 +157,6 @@ import WillQuestionBubble, {
   ChatLinks,
   TapRow,
   SOMETHING_ELSE,
-  TYPE_YOUR_ANSWER,
   useWordsBox,
   willQuestionOf,
   type WillQuestionTarget,
@@ -170,7 +169,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, ownChatLinksIn, rememberPlace, shownIn, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, typedHint, typingOffIn, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -2131,9 +2130,11 @@ export default function Lounge({
 
         {/* The Lounge's one wait is the typing dots, as the lens's
             (founder 2026-10-20: "typing dots in the lounge too"). */}
+        {/* Principles opens with its own line, above everything (N640). */}
+        <PlaceOpening place={place} />
         {thread.loading ? (
           <TypingDots label="Loading" />
-        ) : threadItems.length === 0 ? (
+        ) : emptyHelloIn(place, threadItems.length === 0) ? (
           <LoungeEmptyState hidden={plan.holdsEmpty} />
         ) : (
           shownItems.map((item, i) => {
@@ -2402,7 +2403,8 @@ export default function Lounge({
             // Founder 2026-07-27. Short by design: it sits on one line at the
             // narrowest supported width, where the original copy wrapped to
             // two and made a chat field read as a text area.
-            placeholder={TYPE_YOUR_ANSWER}
+            // Each of the ring's chats has its own words (backend N640).
+            placeholder={placeholderIn(place)}
             // Empty, the box you opened closes when you tap away (N483).
             onBlur={() => {
               if (!draftText.trim()) words.close();

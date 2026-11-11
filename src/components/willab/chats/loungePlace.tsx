@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { TYPE_YOUR_ANSWER } from "../WillQuestion";
 
 /* -------------------------------------------------------------------------- */
 /*  Three chats over the one Lounge thread (backend N635, N636 items 1 to 5), */
@@ -111,4 +112,33 @@ function subscribe(listen: () => void): () => void {
 /** The chat the Lounge is drawn as now; null: as it was. */
 export function useOpenPlace(): LoungePlace | null {
   return useSyncExternalStore(subscribe, () => open, () => null);
+}
+
+/** Principles' opening line, above everything in that chat, and its line
+ *  in the list until something else is written there (backend N640). */
+export const PRINCIPLES_OPENING = "This is where your principles live. Write what's on your mind, and I'll keep it.";
+
+/** Will's line at the top of Principles; nothing in any other chat. */
+export function PlaceOpening({ place }: { place: LoungePlace | null }) {
+  if (place !== "principles") return null;
+  return (
+    <div data-row="app" data-place-opening="" className="mr-auto max-w-[88%] whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground">
+      {PRINCIPLES_OPENING}
+    </div>
+  );
+}
+
+/** The empty Lounge's hello is the speaking loop's: Principles opens with
+ *  its own line instead (backend N640). */
+export function emptyHelloIn(place: LoungePlace | null, threadEmpty: boolean): boolean {
+  return threadEmpty && place !== "principles";
+}
+
+/** The text field's words (backend N640): "Message Will" in Will's chat,
+ *  "Write here" in Principles; else the field's own, "Type your answer"
+ *  (the speaking chat's, and everyone's without the ring). */
+export function placeholderIn(place: LoungePlace | null): string {
+  if (place === "will") return "Message Will";
+  if (place === "principles") return "Write here";
+  return TYPE_YOUR_ANSWER;
 }
