@@ -84,7 +84,7 @@ function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null
   recipe = (read.recipe as R | null) ?? first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
-  for (const part of ["care", "line", "name", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live", "walk"]) {
+  for (const part of ["what", "care", "line", "name", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live", "walk"]) {
     bff.routes[`PUT /api/v2/chats/setup/${part}`] = (c: Call) => {
       recipe = { ...recipe, [part]: (c.json as R).value };
       return { recipe, cost: FREE };
@@ -1337,6 +1337,24 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "Trichologist" });
     expect(text()).toContain("Is your work about health, law or money?");
+  });
+
+  it("N649-2 What you do is a part of its own: a new answer is kept alone, the other answers stay, and the parts come back", async () => {
+    const parts = [
+      { part: "what", title: "What you do", value: "Trichologist" },
+      { part: "line", title: "Why people come", value: SUGGEST.line[0] },
+    ];
+    backend({ recipe: first({ live: true }), parts, own_chat: { title: "Lena", line: SUGGEST.hello[0] }, cost: FREE });
+    await mount();
+    act(() => void openSetupFromNote());
+    await flush();
+    await tap("What you do");
+    expect(text()).toContain("What do you do?");
+    await tap("Answer");
+    await type("barber");
+    expect(puts("what")).toEqual(["Barber"]);
+    expect(bff.calls.some((c) => c.path === "/api/v2/chats/setup/start")).toBe(false);
+    expect(text()).toContain("Why people come");
   });
 
   it("N632-4 Start again, quiet under the parts, begins again from What do you do? and the chat is not open until the end", async () => {
