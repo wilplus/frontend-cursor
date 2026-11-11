@@ -102,6 +102,12 @@ export async function beginSetup(): Promise<SetupState | null> {
   return read("/api/v2/models/setup", { method: "POST", json: {} });
 }
 
+/** A model started from its blocks (N636 item 7): its question, its three
+ *  answers, what it gives back and what it is built on; then its first 10. */
+export async function beginFromBlocks(blocks: { question: string; answers: string[]; gives: string; base: string }): Promise<SetupState | SetupRefusal | null> {
+  return call("/api/v2/models/setup/blocks", { method: "POST", json: blocks });
+}
+
 /** The draft where it stopped, or one step (a checklist item). */
 export async function getSetup(modelId: string, step: SetupStep | null = null): Promise<SetupState | null> {
   return read(`/api/v2/models/${id(modelId)}/setup${step ? `?step=${id(step)}` : ""}`);

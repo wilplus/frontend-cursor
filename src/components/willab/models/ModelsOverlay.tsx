@@ -11,6 +11,7 @@ import ModelTeach from "./ModelTeach";
 import ModelApiStack, { type ApiScreen } from "./ModelApiStack";
 import ModelSetup, { openSetup } from "./ModelSetup";
 import { AddExampleScreen, AnswerAdded, type Added } from "./ModelAdd";
+import ModelBlocks from "../chats/hostsetup/ModelBlocks";
 
 /* -------------------------------------------------------------------------- */
 /*  The AI models over the list of chats: one stack of screens, ‹ back one,   */
@@ -44,6 +45,8 @@ export type ModelsScreen =
   | { at: "add" }
   | { at: "added"; added: Added }
   | { at: "setup"; first: SetupState }
+  /** A model started in blocks (N636 item 7). */
+  | { at: "blocks" }
   | ApiScreen;
 
 type Stack = {
@@ -78,8 +81,11 @@ function useStack(start: ModelsScreen, onClose: () => void) {
 }
 
 /** The setup's ways in: each reads its first screen before it opens, and
- *  "Start your own" hides once the setup's routes answer 404. */
-function useSetupWays(st: Stack) {
+ *  "Start your own" hides once the setup's routes answer 404. With `blocks`
+ *  (the ring chat_builder), "Start your own" and "Start the first one" open
+ *  the blocks instead; a draft's "Continue" still opens the three chapters
+ *  (N636 item 7). */
+function useSetupWays(st: Stack, blocks: boolean) {
   const [noSetup, setNoSetup] = useState(false);
   const open = (modelId: string | null, step: SetupStep | null = null) => {
     void openSetup(modelId, step).then((first) => {
@@ -87,7 +93,7 @@ function useSetupWays(st: Stack) {
       else if (!modelId) setNoSetup(true);
     });
   };
-  return { open, start: noSetup ? null : () => open(null) };
+  return { open, start: noSetup ? null : blocks ? () => st.push({ at: "blocks" }) : () => open(null) };
 }
 
 function teachWay(st: Stack, how: "push" | "swap" = "push") {
@@ -189,6 +195,8 @@ function Top({ st, queueTitle, setup }: { st: Stack; queueTitle: string; setup: 
       return <AddExampleScreen {...st.nav} onBack={st.back} onAdded={(added) => st.swap({ at: "added", added })} />;
     case "added":
       return <AnswerAdded added={top.added} onBack={st.back} onClose={st.onClose} onDone={st.toQueue} />;
+    case "blocks":
+      return <ModelBlocks onBack={st.back} onDone={st.toList} />;
     case "setup":
       return (
         <ModelSetup
@@ -221,14 +229,16 @@ function useWillColumn() {
   return { mark, column };
 }
 
-export default function ModelsOverlay({ start, queueTitle, onClose }: {
+export default function ModelsOverlay({ start, queueTitle, blocks = false, onClose }: {
   start: ModelsScreen;
+  /** A model is started in blocks (the ring chat_builder, N636 item 7). */
+  blocks?: boolean;
   /** The queue row's own name ("Your queue"). */
   queueTitle: string;
   onClose: () => void;
 }) {
   const st = useStack(start, onClose);
-  const setup = useSetupWays(st);
+  const setup = useSetupWays(st, blocks);
   const { mark, column } = useWillColumn();
   useCoverSiteBar();
   // Opens like a chat (N632 item 6): no site bar above it, and Back on the

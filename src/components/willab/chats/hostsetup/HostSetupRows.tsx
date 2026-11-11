@@ -81,7 +81,7 @@ export default function HostSetupRows() {
     return (
       <>
         <span ref={mark} hidden />
-        <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} onClose={close} />
+        <ModelsOverlay start={kind === "teach" ? { at: "queue" } : { at: "list" }} queueTitle={queueTitle} blocks onClose={close} />
       </>
     );
   }

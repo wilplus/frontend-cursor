@@ -158,6 +158,45 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     expectWords(["Filled from your first Take. Change any word."]);
   });
 
+  it("N636-7 one way to start a model: with the blocks, \"Start your own\" opens them, \"Teach it\" starts the model once and opens its first 10; a draft's Continue keeps the three chapters", async () => {
+    const MADE = "/api/v2/models/blocky";
+    serve({
+      ...LIST,
+      "POST /api/v2/models/setup/blocks": { ...S.begin, model_id: "blocky" },
+      [`GET ${MADE}/setup/first-ten`]: { ...S.first10, model_id: "blocky" },
+      [`GET ${SETUP}`]: S.scale,
+    });
+    await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
+    await tap("Start your own");
+    expectWords(["Your own model answers one question the way you would."]);
+    await tap("Train my own");
+    await tap("A pick from a list");
+    await tap("GPT");
+    // Outside a chat there is no suggested question: typed in Will's chat first.
+    expectWords(["What should it spot? Write it as a question."]);
+    await type(container.querySelector("textarea")!, "Does the pitch rush");
+    await act(async () => container.querySelector("form")!.requestSubmit());
+    await flush();
+    expectWords(["What should it notice?", "Does the pitch rush?"]);
+    await tap("Change");
+    await tap("Keep");
+    expect([...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent)).toEqual([
+      "Does the pitch rush?", "It gives back a pick from a list", "Built on GPT", "Taught by you",
+    ]);
+    expect(posted("/setup/blocks")).toEqual([]);
+    await tap("Teach it");
+    expect(posted("/setup/blocks")).toEqual([{ question: "Does the pitch rush?", answers: ["Yes", "Not sure", "No"], gives: "pick", base: "gpt" }]);
+    expect(posted("/api/v2/models/setup")).toEqual([]);
+    expectWords(["Now answer the first 10 yourself"]);
+  });
+
+  it("N636-7 a draft begun in the three chapters still continues there, with the blocks", async () => {
+    serve({ ...LIST, [`GET ${SETUP}`]: S.scale });
+    await render(createElement(ModelsOverlay, { start: { at: "list" }, queueTitle: "Your queue", blocks: true, onClose: () => {} }));
+    await tap("Continue");
+    expectWords(["Shape · 2 of 11"]);
+  });
+
   it("MOD-24 (404): below the ring, or before the setup's routes, \"Start your own\" hides itself", async () => {
     await openList({});
     await tap("Start your own");

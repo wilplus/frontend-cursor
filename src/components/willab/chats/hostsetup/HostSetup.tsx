@@ -20,6 +20,7 @@ import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } fr
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
 import HostCheck from "./HostCheck";
+import { BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBlockScreens";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -468,37 +469,19 @@ function TeachSteps(c: Ctx): ReactNode {
 function OwnModelStep(c: Ctx): ReactNode {
   const { S } = c;
   const models = c.R.models ?? [];
-  const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void) => (
-    <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} />} />
-  );
   switch (S.at) {
     case "ownwhy":
       return (
-        <Frame
+        <OwnWhyScreen
           onBack={c.back}
-          foot={yesNo(W.notNow, W.trainMyOwn, () => (models.length ? c.go("more") : c.keep("smart", false, S.edit ? c.done : () => c.go("who"))), () => { S.ownSeen = true; c.next(); })}
-        >
-          {W.ownSay.map((line) => <Say key={line}>{line}</Say>)}
-        </Frame>
+          onNo={() => (models.length ? c.go("more") : c.keep("smart", false, S.edit ? c.done : () => c.go("who")))}
+          onYes={() => { S.ownSeen = true; c.next(); }}
+        />
       );
     case "gives":
-      return (
-        <Frame onBack={c.back}>
-          <Say>{W.givesSay}</Say>
-          {W.gives.map(([id, title]) => (
-            <Opt key={id} title={title} on={S.gives === id} disabled={id !== "pick"} onClick={() => { S.gives = id; chosen(c); }} />
-          ))}
-        </Frame>
-      );
+      return <GivesScreen onBack={c.back} on={S.gives} onPick={(id) => { S.gives = id; chosen(c); }} />;
     case "base":
-      return (
-        <Frame onBack={c.back}>
-          <Say>{W.baseSay}</Say>
-          {W.bases.map(([id, title]) => (
-            <Opt key={id} title={title} on={S.base === id} disabled={id !== "gpt"} onClick={() => { S.base = id; chosen(c); }} />
-          ))}
-        </Frame>
-      );
+      return <BaseScreen onBack={c.back} on={S.base} onPick={(id) => { S.base = id; chosen(c); }} />;
     case "model":
       return <ModelStep c={c} />;
     case "stack":
@@ -722,22 +705,17 @@ function StackStep({ c }: { c: Ctx }) {
   const { S } = c;
   const d = S.draft;
   if (!d) return null;
-  const gives = W.gives.find(([id]) => id === (S.gives ?? "pick"))?.[1] ?? W.gives[0][1];
-  const reopen = (to: Step) => () => {
-    S.toStack = to !== "model";
-    c.go(to);
-  };
-  const BLOCK = "rounded-[10px] bg-foreground px-4 py-3.5 text-left text-[16px] font-semibold text-background";
   return (
-    <Frame onBack={c.back} foot={<Btn label={W.teachIt} onClick={() => teachIt(c, { ...d, base: S.base ?? "gpt", gives: S.gives ?? "pick" })} />}>
-      <Say>{W.stackSay}</Say>
-      <div data-model-stack="" className="flex flex-col gap-[3px]">
-        <button type="button" className={BLOCK} onClick={reopen("model")}>{d.q}</button>
-        <button type="button" className={BLOCK} onClick={reopen("gives")}>{W.givesBlock(gives)}</button>
-        <button type="button" className={BLOCK} onClick={reopen("base")}>{W.builtOnGpt}</button>
-        <div className={BLOCK}>{W.taughtByYou}</div>
-      </div>
-    </Frame>
+    <BlocksScreen
+      onBack={c.back}
+      q={d.q}
+      gives={S.gives}
+      onOpen={(to) => {
+        S.toStack = to !== "model";
+        c.go(to);
+      }}
+      onTeach={() => teachIt(c, { ...d, base: S.base ?? "gpt", gives: S.gives ?? "pick" })}
+    />
   );
 }
 
