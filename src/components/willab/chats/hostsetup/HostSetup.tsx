@@ -14,13 +14,15 @@ import {
   type SendKind,
   type SetupPart,
   type SharedModel,
+  type WalkStepId,
+  wantWalk,
 } from "@/services/api/hostSetup";
 import { OPTS, OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { Box, Btn, Cap, Card, Chips, Dots, Frame, Link, Mine, Opt, Say, Two } from "./SetupBits";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
 import HostCheck from "./HostCheck";
-import { BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBlockScreens";
+import { BLOCK, BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBlockScreens";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup (backend N612, N616 to N618; the locked prototype         */
@@ -37,15 +39,15 @@ import { BaseScreen, BlocksScreen, GivesScreen, OwnWhyScreen } from "./ModelBloc
 /* -------------------------------------------------------------------------- */
 
 type Step =
-  | "what" | "care" | "line" | "send" | "out" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
+  | "what" | "care" | "line" | "send" | "out" | "walk" | "walkorder" | "walkout" | "walkwant" | "hello" | "q" | "qmore" | "taps" | "smart" | "way" | "ownwhy"
   | "gives" | "base" | "model" | "stack" | "teach" | "check" | "more" | "order" | "who" | "share" | "price" | "cost" | "try" | "live" | "done";
-const ORDER: Step[] = ["what", "care", "line", "send", "out", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
+const ORDER: Step[] = ["what", "care", "line", "send", "out", "walk", "walkorder", "walkout", "walkwant", "hello", "q", "qmore", "taps", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "more", "order", "who", "share", "price", "cost", "try", "live", "done"];
 /** The steps an edit goes through before the parts again (the prototype's
  *  `next`); "Your models" goes the whole way of a model, from "smart" to its
  *  check, as in the first run (N632 item 5). */
-const THROUGH: Step[] = ["q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
+const THROUGH: Step[] = ["walk", "walkorder", "walkout", "q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
-const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who" };
+const PART_STEP: Record<string, Step> = { line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
 
 /** The parts with Will's line over them; null: the line of where the chat is. */
 type Parts = { line: string | null; parts: SetupPart[] };
@@ -78,6 +80,12 @@ type State = {
   /** Where on the card the draft was saved: Back to the stack shows it, and
    *  "Teach it" again saves no second one. */
   savedAt: number | null;
+  /** The feedback walk's steps in order, once ticked (N641); null: as kept. */
+  walk: WalkStepId[] | null;
+  /** The ticks on "What should yours hold?" while it is open. */
+  walkTicks: WalkStepId[] | null;
+  /** The host asked for the walk ("I want this"): never asked again. */
+  wanted: boolean;
   shared: SharedModel[] | null;
   picked: SharedModel | null;
   edit: boolean;
@@ -131,6 +139,9 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   toStack: false,
   draft: null,
   savedAt: null,
+  walk: null,
+  walkTicks: null,
+  wanted: !!recipe?.walk?.wanted,
   shared: null,
   picked: null,
   edit: !!parts && !!recipe,
@@ -188,7 +199,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       case "price": return !R.share;
       case "cost": return !models().length;
       case "done": return !S.edit;
-      default: return false;
+      default: return skipWalk(id, S, R);
     }
   };
   const go = (to: Step) => {
@@ -293,7 +304,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       if (suggested(got)) {
         // A new start, also "Start again": every step from the first, and
         // the chat is not open until the last (N632 item 4).
-        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, picked: null });
+        Object.assign(S, { recipe: got, qs: [], edit: false, i: {}, own: {}, sendSet: null, mi: 0, mopts: 0, ownQ: null, ownSeen: false, base: null, gives: null, toStack: false, draft: null, savedAt: null, walk: null, walkTicks: null, wanted: false, picked: null });
         go("care");
       } else paint();
     });
@@ -491,13 +502,98 @@ function OwnModelStep(c: Ctx): ReactNode {
   }
 }
 
+/** The walk's three steps, in the order they are first suggested (N641). */
+const WALK_IDS: WalkStepId[] = ["best", "fix", "words"];
+/** The walk's steps in order: as ticked now, else as kept, else as Will
+ *  suggests, else all three. */
+const walkSteps = (S: State, R: HostRecipe): WalkStepId[] => S.walk ?? R.walk?.steps ?? R.suggest.walk?.steps ?? WALK_IDS;
+const walkOut = (R: HostRecipe) => R.walk?.out ?? R.suggest.walk?.out ?? "ideal_text";
+
+/** The feedback walk's steps, only in a chat that takes a recording (N641);
+ *  its order only when it holds more than one step. Any other step: no. */
+function skipWalk(id: Step, S: State, R: HostRecipe): boolean {
+  if (!id.startsWith("walk")) return false;
+  if (!R.send.includes("rec")) return true;
+  return id === "walkorder" && walkSteps(S, R).length < 2;
+}
+
+/** The feedback walk a host's chat holds (N641): what it holds, its order,
+ *  what comes at the end, then the walk in blocks; the chat cannot run it
+ *  yet, and "I want this" tells the founder once. */
+function WalkStep(c: Ctx): ReactNode {
+  const { S, R } = c;
+  switch (S.at) {
+    case "walk": {
+      const ticks = S.walkTicks ?? walkSteps(S, R);
+      S.walkTicks = ticks;
+      // Any number of ticks; the last one stays, as on "What do people send you?".
+      const tick = (k: WalkStepId) => {
+        if (ticks.includes(k) && ticks.length === 1) return;
+        S.walkTicks = ticks.includes(k) ? ticks.filter((y) => y !== k) : [...ticks, k];
+        c.paint();
+      };
+      return (
+        <Frame onBack={c.back} foot={<Btn label={W.done} onClick={() => { S.walk = ticks; S.walkTicks = null; c.next(); }} />}>
+          {W.walkSay.map((line) => <Say key={line}>{line}</Say>)}
+          {WALK_IDS.map((k) => <Opt key={k} title={W.walkSteps[k]} tick={ticks.includes(k)} onClick={() => tick(k)} />)}
+        </Frame>
+      );
+    }
+    case "walkorder": {
+      const steps = walkSteps(S, R);
+      return (
+        <Frame onBack={c.back} foot={<Two left={<Btn out label={W.change} onClick={() => { S.walk = [...steps.slice(1), steps[0]]; c.paint(); }} />} right={<Btn label={W.keep} onClick={c.next} />} />}>
+          <Say>{W.walkOrderSay}</Say>
+          {steps.map((k, n) => <Card key={k} b={`${n + 1}. ${W.walkSteps[k]}`} />)}
+        </Frame>
+      );
+    }
+    case "walkout":
+      return (
+        <Frame onBack={c.back}>
+          <Say>{W.walkOutSay}</Say>
+          {(["ideal_text", "none"] as const).map((k) => (
+            <Opt key={k} title={W.walkOuts[k]} on={R.walk?.out === k} onClick={() => c.keep("walk", { steps: walkSteps(S, R), out: k })} />
+          ))}
+        </Frame>
+      );
+    case "walkwant": {
+      const wanted = S.wanted || !!R.walk?.wanted;
+      const want = () => {
+        if (S.busy) return;
+        S.busy = true;
+        void wantWalk().then((told) => {
+          S.busy = false;
+          if (told) S.wanted = true;
+          c.paint();
+        });
+      };
+      return (
+        <Frame
+          onBack={c.back}
+          foot={wanted ? <Btn label={W.done} onClick={c.next} /> : <Two left={<Btn out label={W.notNow} onClick={c.next} />} right={<Btn label={W.iWantThis} onClick={want} />} />}
+        >
+          <Say>{W.walkYours}</Say>
+          <div data-walk-blocks="" className="flex flex-col gap-[3px]">
+            {walkSteps(S, R).map((k) => <div key={k} className={BLOCK}>{W.walkSteps[k]}</div>)}
+            <div className={BLOCK}>{W.walkOuts[walkOut(R)]}</div>
+          </div>
+          <Say>{wanted ? W.walkTold : W.walkNotYet}</Say>
+        </Frame>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
   const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
     <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
   );
-  const asked = YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c);
+  const asked = YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c);
   if (asked) return asked;
   switch (c.S.at) {
     case "line":

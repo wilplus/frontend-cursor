@@ -81,13 +81,17 @@ function backend(read: R = { recipe: null, parts: [], own_chat: null, cost: null
   recipe = (read.recipe as R | null) ?? first();
   bff.routes["GET /api/v2/chats/setup"] = () => read;
   bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
-  for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live"]) {
+  for (const part of ["care", "line", "send", "out", "hello", "questions", "taps", "smart", "way", "models", "who", "share", "price", "cost", "live", "walk"]) {
     bff.routes[`PUT /api/v2/chats/setup/${part}`] = (c: Call) => {
       recipe = { ...recipe, [part]: (c.json as R).value };
       return { recipe, cost: FREE };
     };
   }
   bff.routes["GET /api/v2/chats/setup/models"] = { models: [] };
+  bff.routes["POST /api/v2/chats/setup/walk/want"] = () => {
+    recipe = { ...recipe, walk: { ...((recipe.walk as R) ?? {}), wanted: true } };
+    return { wanted: true };
+  };
 }
 
 let container: HTMLDivElement;
@@ -313,6 +317,97 @@ describe("the blank setup (FIRST-)", () => {
     await press("A message");
     await tap("Done");
     expect(puts("send")).toEqual([["text", "file"]]);
+  });
+
+  /** On "What do people send you?", a recording ticked too, then Done. */
+  async function withRecording() {
+    await keepTo("What do people send you? Tick all that apply.");
+    await tap("A recording");
+    await tap("Done");
+  }
+  const posts = (path: string) => bff.calls.filter((c) => c.method === "POST" && c.path === path);
+
+  it("N641 a chat that takes a recording says what its feedback walk holds, its order and its end; the walk is kept as one part", async () => {
+    await begun();
+    await withRecording();
+    expect(puts("send")).toEqual([["photo", "rec"]]);
+    expect(text()).toContain("After a recording, people get a feedback walk.");
+    expect(text()).toContain("What should yours hold? Tick all that apply.");
+    const ticked = () => [...container.querySelectorAll('[role="checkbox"]')].filter((b) => b.getAttribute("aria-checked") === "true").map((b) => b.textContent);
+    expect(ticked()).toEqual(["Their best moment", "One moment to try another way", "The helper words"]);
+    await tap("Their best moment");
+    await tap("One moment to try another way");
+    // The last tick stays.
+    await tap("The helper words");
+    expect(ticked()).toEqual(["The helper words"]);
+    await tap("Their best moment");
+    await tap("Done");
+    expect(text()).toContain("Your walk goes in this order:");
+    expect(text()).toContain("1. The helper words");
+    expect(text()).toContain("2. Their best moment");
+    await tap("Change");
+    expect(text()).toContain("1. Their best moment");
+    await tap("Keep");
+    expect(text()).toContain("What do they get at the end?");
+    expect(puts("walk")).toEqual([]);
+    await tap("Nothing for now");
+    expect(puts("walk")).toEqual([{ steps: ["best", "words"], out: "none" }]);
+    expect([...container.querySelectorAll("[data-walk-blocks] > *")].map((b) => b.textContent)).toEqual(["Their best moment", "The helper words", "Nothing for now"]);
+    expect(text()).toContain("Your chat can't run this yet. Want it?");
+    expect(container.querySelector("small")).toBeNull();
+    await tap("Not now");
+    expect(posts("/api/v2/chats/setup/walk/want")).toHaveLength(0);
+    expect(text()).toContain("Your chat opens with:");
+  });
+
+  it("N641 \"I want this\" tells the founder once: the thanks and Done, and the question never again", async () => {
+    await begun();
+    await withRecording();
+    await tap("Done");
+    await tap("Keep");
+    await tap("An Ideal Text");
+    expect(puts("walk")).toEqual([{ steps: ["best", "fix", "words"], out: "ideal_text" }]);
+    await tap("I want this");
+    expect(posts("/api/v2/chats/setup/walk/want")).toHaveLength(1);
+    expect(text()).toContain("Thanks. I've told Artur.");
+    expect(text()).not.toContain("Want it?");
+    await tap("‹ Back");
+    await tap("An Ideal Text");
+    expect(text()).toContain("Thanks. I've told Artur.");
+    expect(() => button("I want this")).toThrow();
+    await tap("Done");
+    expect(posts("/api/v2/chats/setup/walk/want")).toHaveLength(1);
+    expect(text()).toContain("Your chat opens with:");
+  });
+
+  it("N641 a chat that takes no recording has no feedback walk", async () => {
+    await begun();
+    await keepTo("What do people send you? Tick all that apply.");
+    await tap("Done");
+    expect(text()).toContain("Your chat opens with:");
+    expect(text()).not.toContain("feedback walk");
+  });
+
+  it("N641 the walk's part opens its steps, and after the end the parts again", async () => {
+    backend({
+      recipe: first({ send: ["rec"], walk: { steps: ["fix", "best"], out: "ideal_text", wanted: true } }),
+      parts: [{ part: "walk", title: "The feedback walk", value: "One moment to try another way · Their best moment · An Ideal Text" }],
+      own_chat: null,
+      cost: FREE,
+    });
+    await mount();
+    act(() => void openSetupFromNote());
+    await flush();
+    await tap("The feedback walk");
+    expect(text()).toContain("What should yours hold? Tick all that apply.");
+    await tap("Done");
+    expect(text()).toContain("1. One moment to try another way");
+    await tap("Keep");
+    await tap("An Ideal Text");
+    expect(puts("walk")).toEqual([{ steps: ["fix", "best"], out: "ideal_text" }]);
+    expect(text()).toContain("Thanks. I've told Artur.");
+    await tap("Done");
+    expect(text()).toContain("Open your chat to people?");
   });
 
   it("FIRST-03 every step of the setup has Back, and Back returns to the step before", async () => {
