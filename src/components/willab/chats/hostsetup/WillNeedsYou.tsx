@@ -54,6 +54,26 @@ function PriceLine({ change, coach }: { change: PriceChange; coach: boolean }) {
   );
 }
 
+/** The parts in four groups, under headings (backend N651); a part the map
+ *  does not know goes last, with no heading. */
+export const PART_GROUPS: { heading: string; parts: string[] }[] = [
+  { heading: "About your chat", parts: ["what", "name", "line", "hello"] },
+  { heading: "What comes in", parts: ["send", "questions", "taps"] },
+  { heading: "What goes back", parts: ["out", "walk", "practice", "who"] },
+  { heading: "What makes it smart", parts: ["models"] },
+];
+const EMPTY = new Set(["Off", "None yet"]);
+
+export function groupParts(parts: SetupPart[]): { heading: string | null; parts: SetupPart[] }[] {
+  const known = new Set(PART_GROUPS.flatMap((g) => g.parts));
+  const groups = PART_GROUPS.map((g) => ({
+    heading: g.heading as string | null,
+    parts: g.parts.flatMap((id) => parts.filter((p) => p.part === id)),
+  }));
+  groups.push({ heading: null, parts: parts.filter((p) => !known.has(p.part)) });
+  return groups.filter((g) => g.parts.length > 0);
+}
+
 /** One of the chat's parts, its name over what it holds; a tap opens its
  *  step and comes back to Build (backend N642 item 3, N643 item 4). */
 function PartRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
@@ -62,10 +82,13 @@ function PartRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
       type="button"
       data-build-part={part.part}
       onClick={onOpen}
-      className="flex w-full flex-col gap-0.5 rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-left"
+      className="flex w-full items-center justify-between gap-3 rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-left"
     >
+      <span className="flex flex-col gap-0.5">
       <span className="text-[15px] text-foreground">{part.title}</span>
-      {part.value ? <span className="text-[16px] font-semibold text-foreground">{part.value}</span> : null}
+      {part.value ? <span className={`text-[16px] font-semibold ${EMPTY.has(part.value) ? "text-muted-foreground" : "text-foreground"}`}>{part.value}</span> : null}
+      </span>
+      <span aria-hidden className="text-[20px] leading-none text-primary">›</span>
     </button>
   );
 }
@@ -90,8 +113,13 @@ export default function WillNeedsYou() {
       {recipe ? (
         <>
           <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
-          {(setup?.parts ?? []).map((part) => (
-            <PartRow key={part.part} part={part} onOpen={over({ part: part.part })} />
+          {groupParts(setup?.parts ?? []).map((g) => (
+            <div key={g.heading ?? "more"} className="flex flex-col gap-2">
+              {g.heading ? <h3 className="m-0 mt-1 text-[16px] font-semibold text-primary">{g.heading}</h3> : null}
+              {g.parts.map((part) => (
+                <PartRow key={part.part} part={part} onOpen={over({ part: part.part })} />
+              ))}
+            </div>
           ))}
         </>
       ) : (
