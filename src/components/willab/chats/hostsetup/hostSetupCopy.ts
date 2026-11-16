@@ -266,6 +266,10 @@ export const W = {
   aiModelsTab: "AI models",
   youRunIt: "You run this chat.",
   partsOpen: "Your chat is open. Tap a part to change it.",
+  /** A small mark when the chat is open, beside that line. */
+  openBadge: "Open",
+  /** An empty part in the overview table. */
+  notSet: "Not set",
   partsSaved: "Your chat is saved. Nobody can see it yet. Tap a part to change it.",
   yourModels: "Your models, and everything you teach.",
   momentsTask: "Moments to answer",

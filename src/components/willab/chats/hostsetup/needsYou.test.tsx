@@ -160,11 +160,13 @@ describe("what needs you is in Will (backend N629)", () => {
 
   it("N651 the parts sit in four groups under their headings, a group with no part is absent, an unknown part comes last with none", async () => {
     const p = (part: string, value = "x") => ({ part, title: `T-${part}`, value });
-    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts: [p("odd"), p("models", "None yet"), p("who"), p("taps"), p("name")] };
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts: [p("odd"), p("models", "None yet"), p("who"), p("taps", "A recording · A photo"), p("name")] };
     act(() => root.render(createElement("div", null, createElement(WillNeedsYou), createElement(HostSetupRows))));
     await flush();
-    const seq = [...container.querySelectorAll("[data-will-needs-you] h3, [data-build-part]")].map((e) => (e.tagName === "H3" ? `# ${e.textContent}` : (e as HTMLElement).dataset.buildPart));
+    const seq = [...container.querySelectorAll("[data-will-needs-you] h3, [data-build-part]")].map((e) => (e.tagName === "H3" ? `# ${e.querySelector("span")?.textContent}` : (e as HTMLElement).dataset.buildPart));
     expect(seq).toEqual(["# About your chat", "name", "# What comes in", "taps", "# What goes back", "who", "# What makes it smart", "models", "odd"]);
+    expect([...container.querySelectorAll('[data-build-part="taps"] [data-part-chip]')].map((c) => c.textContent)).toEqual(["A recording", "A photo"]);
+    expect(container.querySelector('[data-build-part="models"] [data-not-set]')?.textContent).toBe("Not set");
   });
 
   it("N642-3 Build's Your chat: Will's line, the chat's parts, each opening its step, then the answers to send; what is taught is not here", async () => {
@@ -182,8 +184,8 @@ describe("what needs you is in Will (backend N629)", () => {
     const mine = () => container.querySelector("[data-will-needs-you]")?.textContent ?? "";
     expect(mine().startsWith("Your chat is saved. Nobody can see it yet. Tap a part to change it.")).toBe(true);
     expect([...container.querySelectorAll("[data-build-part]")].map((r) => r.textContent)).toEqual([
-      "NameAsk Lena›",
-      "Why people comePeople come to you with scalp worries.›",
+      "NameAsk Lena",
+      "Why people comePeople come to you with scalp worries.",
     ]);
     expect([...container.querySelectorAll("[data-needs-you]")].map((r) => r.textContent)).toEqual(["2 answers to sendI drafted them. You fix and send.›"]);
     expect(mine()).toContain("This needs you:");

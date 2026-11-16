@@ -1,6 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
+import {
+  Briefcase,
+  ChevronRight,
+  CircleHelp,
+  Hand,
+  Heart,
+  Inbox,
+  Mic,
+  Paperclip,
+  Reply,
+  Sparkles,
+  Tag,
+  UserRound,
+  Users,
+  type LucideProps,
+} from "lucide-react";
 import type { PriceChange, SetupPart } from "@/services/api/hostSetup";
 import { TapRow } from "../../WillQuestion";
 import { useUserProfile } from "../../useUserProfile";
@@ -74,21 +90,71 @@ export function groupParts(parts: SetupPart[]): { heading: string | null; parts:
   return groups.filter((g) => g.parts.length > 0);
 }
 
-/** One of the chat's parts, its name over what it holds; a tap opens its
- *  step and comes back to Build (backend N642 item 3, N643 item 4). */
+type Icon = ComponentType<LucideProps>;
+
+/** A small picture for each part, from the app's icon set. */
+const PART_ICON: Record<string, Icon> = {
+  what: Briefcase,
+  name: Tag,
+  line: Heart,
+  hello: Hand,
+  send: Inbox,
+  questions: CircleHelp,
+  taps: Mic,
+  out: Reply,
+  walk: Sparkles,
+  practice: Paperclip,
+  who: Users,
+  models: Sparkles,
+};
+
+const SECTION_ICON: Record<string, Icon> = {
+  "About your chat": UserRound,
+  "What comes in": Inbox,
+  "What goes back": Reply,
+  "What makes it smart": Sparkles,
+};
+
+const MULTI = new Set(["send", "questions", "taps", "models"]);
+
+function bitsOf(value: string): string[] {
+  return value.split(" · ").map((bit) => bit.trim()).filter(Boolean);
+}
+
+/** What the row shows: chips for a list, one line of words, or "Not set". */
+function PartValue({ part }: { part: SetupPart }) {
+  const value = part.value?.trim() ?? "";
+  if (!value || EMPTY.has(value)) {
+    return <span data-not-set="" className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[12px] font-medium text-muted-foreground">{W.notSet}</span>;
+  }
+  if (MULTI.has(part.part) && value.includes(" · ")) {
+    return (
+      <span className="flex flex-wrap gap-1">
+        {bitsOf(value).map((bit) => (
+          <span key={bit} data-part-chip="" className="inline-flex max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-[13px] text-foreground">{bit}</span>
+        ))}
+      </span>
+    );
+  }
+  return <span className="block truncate text-[15px] text-foreground">{value}</span>;
+}
+
+/** One of the chat's parts in the settings table. A tap opens its step. */
 function PartRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
+  const Icon = PART_ICON[part.part] ?? CircleHelp;
   return (
     <button
       type="button"
       data-build-part={part.part}
       onClick={onOpen}
-      className="flex w-full items-center justify-between gap-3 rounded-2xl border-[1.5px] border-border bg-background px-3.5 py-3 text-left"
+      className="flex min-h-12 w-full items-center gap-3 px-3.5 py-3 text-left hover:bg-muted/60 active:bg-muted"
     >
-      <span className="flex flex-col gap-0.5">
-      <span className="text-[15px] text-foreground">{part.title}</span>
-      {part.value ? <span className={`text-[16px] font-semibold ${EMPTY.has(part.value) ? "text-muted-foreground" : "text-foreground"}`}>{part.value}</span> : null}
+      <Icon aria-hidden className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
+        <span className="shrink-0 text-[15px] font-medium text-foreground sm:w-40">{part.title}</span>
+        <span className="min-w-0 flex-1"><PartValue part={part} /></span>
       </span>
-      <span aria-hidden className="text-[20px] leading-none text-primary">›</span>
+      <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
 }
@@ -112,15 +178,28 @@ export default function WillNeedsYou() {
     <div data-will-needs-you="" className="mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5">
       {recipe ? (
         <>
-          <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
-          {groupParts(setup?.parts ?? []).map((g) => (
-            <div key={g.heading ?? "more"} className="flex flex-col gap-2">
-              {g.heading ? <h3 className="m-0 mt-1 text-[16px] font-semibold text-primary">{g.heading}</h3> : null}
-              {g.parts.map((part) => (
-                <PartRow key={part.part} part={part} onOpen={over({ part: part.part })} />
-              ))}
-            </div>
-          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
+            {recipe.live ? <span data-chat-open="" className="inline-flex rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#1F7A55]">{W.openBadge}</span> : null}
+          </div>
+          {groupParts(setup?.parts ?? []).map((g) => {
+            const SectionIcon = g.heading ? SECTION_ICON[g.heading] : null;
+            return (
+              <section key={g.heading ?? "more"} className="overflow-hidden rounded-2xl border border-border bg-background">
+                {g.heading && SectionIcon ? (
+                  <h3 className="m-0 flex items-center gap-2 border-b border-border px-3.5 py-2.5 text-[13px] font-semibold text-muted-foreground">
+                    <SectionIcon aria-hidden className="h-4 w-4 text-primary" />
+                    <span>{g.heading}</span>
+                  </h3>
+                ) : null}
+                <div className="divide-y divide-border">
+                  {g.parts.map((part) => (
+                    <PartRow key={part.part} part={part} onOpen={over({ part: part.part })} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </>
       ) : (
         <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={over({ open: "parts" })} />
