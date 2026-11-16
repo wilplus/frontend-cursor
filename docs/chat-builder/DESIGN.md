@@ -65,7 +65,7 @@ Rings. Phase 1 is the founder, on the existing `chat_builder` ring, editing `spe
 
 ## 3. The CoachDefinition
 
-Identifiers are stable strings. Copy is either a literal the founder has already approved, or a reference to the walk-voice step that generates it. The document does not contain a score about a speaker. It may contain a dial's default, which is a setting, not a result.
+Identifiers are stable strings. The sentences a speaker reads are the signed lines in `idealEditCopy.ts` and `tempoStep.ts`. A step may also name a walk-voice slot. That slot is an optional replacement, used only when the ring `walk_voice` is on, and never on the Sniper. The document does not contain a score about a speaker. It may contain a dial's default, which is a setting, not a result.
 
 ```ts
 type CoachDefinition = {
@@ -144,8 +144,8 @@ type WalkStep = {
 };
 
 type Copy =
-  | { kind: "fixed"; text: string }          // already-approved line
-  | { kind: "voice"; step: string }          // walk_voice writes it
+  | { kind: "fixed"; text: string }          // the signed line the speaker reads today
+  | { kind: "voice"; step: string }          // optional override: praise, try, good_take, after_try. Never tempo
   | { kind: "speaker"; source: "stretch" | "best" | "fix" };
 
 type Noticing = {
@@ -193,7 +193,8 @@ The left column is what the audit found. The right column is the field that hold
 | `ONE_THING_TRIES` 2, `WALK_MAX_TRIES` 3 | `walk.maxTries` |
 | Step screens (`WalkTempo`, `WalkMessage`, `WalkPractiseScreens`, `WalkOthers`, `WalkAiVoice`, `WalkEndSheet`, …) | `walk.steps[].screen`, from the registry in section 4 |
 | "Lesson done.", helper-words introduction, "And here's one moment to try another way:" | `walk.steps[].copy` of kind `fixed` |
-| Will's generated sentences | `walk.steps[].copy` of kind `voice`, rules `walk.voice.rulesId` |
+| Signed walk lines (`ONE_THING_COPY`, `TEMPO_COPY`, the banks) | `walk.steps[].copy` of kind `fixed`, seed the current string |
+| Optional walk-voice override | `walk.steps[].copy` may also carry `voice` for praise, the line above the fix, a good Take, and the reply after a try. The seed leaves it off the Sniper. The signed line is what shows when the ring is off or the check fails |
 | Helper words taken from the stretch or the fix | `copy` of kind `speaker` |
 | `one_fix` tempo / moment / none | not a field. Computed. The definition only says the tempo step is offered |
 | Green band 0.275–0.725 | `noticing.pinned` `tempo_stretch.GREEN_LOW` / `GREEN_HIGH` |
@@ -201,7 +202,8 @@ The left column is what the audit found. The right column is the field that hold
 | Ranks (`VERBAL_LIFT` and the rest) | not in the document in phase 1. They stay code. Section 5 |
 | `moment_pick.FLOOR` 0.6 | `noticing.dials` `moment_pick.FLOOR` |
 | Pace replay constants (`FRAME_MS`, rise and fall) | pinned, named, shown read-only. They must match `paceSignal.ts` `INSTANT_CONFIG` |
-| `_sniper_first` comparison | not a field. The rule stays. The dial changes the input |
+| `_sniper_first` comparison, and the phone's `tempoOffered` gate | not a field. The rule stays. The dial changes the input |
+| A try lands (20 s, 80% in the green) | pinned. `tempoStep.ts` `LAND_MIN_POINTS`, `LAND_GREEN_SHARE`. Not a dial |
 | Plan levels that count as a pace week | `walk.tempoWeeks`, seed `["key_line", "pauses"]` |
 | Project card: name, Progress, chunks, attempts, delivery label, Feedback, Ideal text | `shell.historyCard`, seed matching `FeedbackWalkCard.tsx` |
 | Delivery labels and the score bands in `_delivery_read` | `shell.historyCard.labels`, seed the four words. The numeric bands stay server-side and are not a builder field in phase 1 |
@@ -293,7 +295,7 @@ The paste is stored as a plugin draft.
    step: walk.message
    ```
 
-   `interventionType` must be one of the eight. `step` must be a registry id. `hears` must be a short name, not code.
+   `interventionType` must be one of the four `intervention_type_of` actually returns (`REWRITE`, `EMPHASISE`, `ADD`, `NOTICE`). The other four names in Appendix C are refused until that function can emit them. `step` must be a registry id. `hears` must be a short name, not code. The tempo step is not a valid type here.
 3. The check rejects the paste if the source mentions network, filesystem, subprocess, `eval`, `exec`, a secret-shaped assignment, or an import outside an allowlist that phase 2 will publish. The host sees which rule failed, in one sentence, and the draft stays `rejected` or returns to `draft` after an edit.
 4. A paste that passes is `checked`. It still does not run. The builder says it is kept, and that speakers will not meet it until "Use it", and that "Use it" is not available yet.
 5. Phase 2 turns "Use it" on for `role: detector` only. The runner is a subprocess with no network, a 50 ms budget per clip, a memory cap, and a single output: a `Finding` in the Appendix C shape (id, type, anchor, evidence). The type decides the screen, not the plugin. A plugin that returns anything else is a failed clip, logged, and the walk continues without it.
@@ -303,7 +305,9 @@ Versioning. The hash is the version. A definition that goes live names the hash.
 
 This is stricter than the sentence "paste the code and wire it in." It is the version that can sit next to blind coaching, the processing-authorization path, and a prompt that is forbidden to leak numbers. Section 10 asks whether phase 2 should loosen it.
 
-Declarative plugins need no paste. "Add an intervention" can also be: pick a type, pick a screen, pick a predicate, write the line. That path is enough to rebuild the tempo step as data: type `REHEARSE`, screen `walk.tempo`, predicate `one_fix_is_tempo`, copy from the speaker's stretch. Phase 1 ships that path. The paste path stores and checks, and wires nothing.
+Declarative plugins need no paste. "Add an intervention" can also be: pick a type, pick a screen, pick a predicate, write the line. The tempo step is not one of those types. It is a walk step (`key: "tempo"`), chosen by `_sniper_first`, drawn by `WalkTempo`. `intervention_candidates.intervention_type_of` never returns `REHEARSE`, `CUT`, `DE_EMPHASISE`, or `RESTRUCTURE`. A phase 1 plugin may name only the four types that function returns: `REWRITE`, `EMPHASISE`, `ADD`, `NOTICE`. Rebuilding the sniper as data is a walk step in the seed, not an Ideal Text lane. The paste path stores and checks, and wires nothing.
+
+Reordering those walk steps is not a host-recipe field. v1 refuses `walk_order` (`assistants.LOCKED`). The founder draft may reorder known steps. A host chat cannot. Phase 1 parity means the published seed matches today's order, so a reorder stays in the draft until he publishes it to himself.
 
 ---
 
@@ -483,7 +487,7 @@ Business behaviour, not snapshots of CSS. A test that mocks the whole pipeline i
 
 1. **Seed matches the constants.** A test reads `noticing_settings.DEFAULTS`, `moment_pick.FLOOR`, `GREEN_LOW`, `GREEN_HIGH`, `MIN_OUTSIDE`, `ONE_THING_TRIES`, and the step keys `oneThing` emits for three fixture plans (praise only, moment fix, tempo fix). It compares them to the checked-in seed. A constant that moves without the seed fails.
 2. **Same plan.** For one golden Take (snippets, word timings, a pace stretch, three moments), the hardcoded `buildWalkPlan` and the runtime's plan have the same step keys, the same `one_fix`, and the same helper-word source. This is the test that would have caught a builder that "simplifies" the sniper away.
-3. **Same words, where the words are fixed.** "Lesson done." and the helper-words introduction match the flow page. Generated lines are not compared character for character. They go through `walk_voice.check`, and the existing golden set still grades the prompt.
+3. **Same words.** Every signed line the seed marks `fixed` matches `ONE_THING_COPY` and `TEMPO_COPY`, including "You rushed here. Let it breathe." and "Lesson done." A walk-voice line is not compared character for character. It still has to pass `walk_voice.check`, and the golden set still grades the prompt. The Sniper step in the plan has no voice slot.
 4. **Numbers stay off the walk.** The runtime's plan for the golden Take contains no digit in any fixed line. The history card's percentage is asserted on the card payload and asserted absent from the walk payload.
 5. **Preview writes nothing.** `POST .../preview` leaves Takes, recipes, and `noticing_settings` unchanged.
 6. **A bad document falls open.** A definition that names an unknown screen, changes a pinned constant, or sets the clock to anything but 300 is refused. The live seed is untouched.
@@ -538,9 +542,9 @@ Ordered by how much the answer moves the design. The recommended default is the 
    Replacing it breaks every host chat and the Live/Build screen that just shipped. Wrapping it leaves two writers unless the derivation in section 6 is the only one.
    **Default:** wrap, and derive `walk` on the recipe from the coach.
 
-7. **Are Will's walk lines a script or a prompt?**
-   Fixed lines exist and are locked. The rest are generated from `walk_voice` because the founder asked for rules rather than canned sentences.
-   **Default:** both, as `Copy` in section 3. The builder can change a fixed line only when that line is not on the flow page. A generated step has no text field, only the rules id.
+7. **Are the walk lines a script or a prompt?**
+   What the speaker reads today is the signed script in `idealEditCopy.ts` and `tempoStep.ts`. Walk-voice is an optional replacement for four steps, behind the ring `walk_voice`, and it never covers the Sniper.
+   **Default:** the seed stores the signed line on every step. The four steps that already call walk-voice also carry a voice slot, off whenever the ring is off. The builder edits a signed line only when that line is not on the flow page. It does not get a text box whose contents skip the signed line and go straight to the model.
 
 8. **Are dials per coach or per speaker?**
    A coach default that silently moved every speaker's floor would change feedback they are mid-way through.

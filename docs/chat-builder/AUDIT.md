@@ -51,7 +51,9 @@ The founder calls the pace intervention a sniper. In the current code that name 
 | When it is the one fix | pace/pause week with a stretch, or a rushed stretch whose `outside` is greater than `1 - willfidence` of every fixable moment. A tie keeps the moment. No moment and a rushed stretch: the sniper is the fix | `take_feedback_policy_v3._sniper_first` |
 | Who sees it | a speaker the `tempo_step` row reaches, or the founder | `tempo_stretch.tempo_on_for` |
 | Topic line | a short model phrase, or "that part". The One thing walk does not say the topic | `read_topic`, `write_topic`, `FALLBACK_TOPIC` |
-| The game on screen | the pace dot, tries, helper words from the stretch | `src/components/willab/walk/WalkTempo.tsx`, `WalkTempoSaid.tsx`, `src/lib/willab/walkThread.ts` `sniperWords` |
+| The game on screen | the pace dot, tries, helper words from the stretch (1–8 words, else the best moment's words) | `WalkTempo.tsx`, `WalkTempoSaid.tsx`, `walkThread.ts` `sniperWords`, `phraseTokens.ts` `HELPER_WORDS_MAX = 8` |
+| A try lands | at least 20 s from the first word, and 80% of that time in the green. The three words under the scale are the only threshold the speaker sees | `src/lib/willab/tempoStep.ts` `LAND_MIN_POINTS`, `LAND_GREEN_SHARE` |
+| Who offers it on the phone | a rushed stretch, or any stretch on a pace or pause week. The server's `one_fix: "tempo"` is still what inserts the step | `useDeckFeedbackWalk.tsx` `tempoOffered` |
 | Live meter while speaking | a different module, kept in step by hand with the same rise/fall constants | `src/lib/willab/pace/paceSignal.ts` `INSTANT_CONFIG` (`minGapMs` 250, `fallUpperMs` 2600, `fallLowerMs` 5000, `riseJumpMs` 400, `riseBaseMs` 1300, boosts 1.25 and 1.37) |
 
 The One thing walk's step key is `"tempo"` with `one: true` (`walkPlan.ts`, type `WalkIntervention = "tempo"`). There is no second intervention kind in that type. Adding one today means a new key, a place in `buildWalkPlan`, and a screen.
@@ -66,7 +68,9 @@ Calibration already has a store. `services/noticing_settings.py` holds one recor
 - **Ranks**, which order moments and are not dials (`VERBAL_LIFT` 0.5, `RELEVANCE_LIFT` 0.25, `TOUCHED_GIVE` 0.2, `PART_GIVE` 0.15, `STRETCH_WORDS` 8, `NEUTRAL_SOUND` 0.5, `v4_picker.SURENESS_CUTOFF` 0.3).
 - **Pinned** constants, refused if a write tries to change them. The green band is pinned because the phone's pace scale has its own copy.
 
-The builder UI for one of these already exists, and only for filler words: Build → the walk → "What I notice" → "Too many filler words" → "Catch more" / "Catch fewer". Copy is in `src/components/willab/chats/hostsetup/hostSetupCopy.ts` (`fillerTitle`, `catchMore`, `tryTold`). The mechanism is `services/silent_tries.py`: the new notch is scored beside the live one for 20 recordings or 14 days, coaches stay blind, and nothing a speaker sees changes until the host taps "Use it". That is the right shape for every other dial. It is wired for one thing.
+The builder UI for one of these already exists, and the screen only opens filler words: Build → the walk → "What I notice" → "Too many filler words" → "Catch more" / "Catch fewer". Copy is in `src/components/willab/chats/hostsetup/hostSetupCopy.ts` (`fillerTitle`, `catchMore`, `tryTold`). The route accepts three ids, `filler_cluster`, `hedging`, and `restart_repair` (`src/services/api/hostSetup.ts` `TryThing`; backend `routes/v2/silent_tries.py`). `HostSetup.tsx` only calls `filler_cluster`. The mechanism is `services/silent_tries.py`: the new notch is scored beside the live one for 20 recordings or 14 days, coaches stay blind, and nothing a speaker sees changes until the host taps "Use it". That is the right shape for every other dial. The screen is wired for one of the three the route already allows.
+
+Willfidence, the read the sniper compares against, is `S × W` (`services/moment_pick.py` `read`, `services/willfidence.py`). `S` is the sound score stretched to 0–1. `W` is filler, hedging, and slide-fit. The speaker never sees it. After a human coach has rated blind, the coach panel may show it as a whole percent (`docs/flows/coach-panel.md` E1). That percent is not a builder field.
 
 Moment floor, lifts and the rewrite gate are code constants reached through `noticing_settings.value(...)`. They are not fields on the chat recipe.
 
@@ -88,13 +92,16 @@ A Take baked before the slot scheme still walks praise, then practice, then any 
 
 The prototype's walk thread (`reference/chat-continue-prototype.html`, `renderPracticeFeedbackWalk`) is one fixed sample of that shape: grey bubbles, orange audio bubbles, "Pause before …", helper words, "Lesson done.", one Next. It does not include the sniper, the Clearer version, other speakers, or the coach's note. It is a visual contract for the thread, not a second script.
 
-Will's generated lines follow `services/prompts/walk_voice.py`. Fixed lines the product already uses (and the prototype repeats) include "Lesson done.", the helper-words introduction, and "And here's one moment to try another way:". Those live in the frontend walk components and in [`docs/flows/feedback-walk-and-chat.md`](../flows/feedback-walk-and-chat.md) section K. A new line on screen needs the founder's OK.
+The sentences the speaker reads are signed constants in `src/components/willab/idealEditCopy.ts` (`ONE_THING_COPY`, `WALK_COPY`, `WALK_LINE_BANK`, `AI_CLIP_BANK`) and `src/lib/willab/tempoStep.ts` (`TEMPO_COPY`). Examples: "You rushed here. Let it breathe.", "You slowed down here. Keep it moving.", "And here's one moment to try another way:", "These are your helper words…", "Lesson done.", "Yes. That's it.", "Close. Once more.", "Good try. Take it with you." The same lines are the flow page's section K. A new line on screen needs the founder's OK.
+
+`POST /v2/walk-voice` can replace a signed line when the ring `walk_voice` is on (`src/services/api/walkVoice.ts`). The steps it may write are praise, the line above the fix, a good Take, and the reply after a try. It waits a few seconds and then the signed line stands. It does not replace the Sniper. The system prompt is `services/prompts/walk_voice.py`. The check in `services/walk_voice.py` refuses a number, a verdict, a third sentence, or more than 220 characters.
 
 ### 1.5 Copy, theme, assets
 
 | Kind | Where |
 |---|---|
-| Walk chrome and step copy | `src/components/willab/walk/*`, especially `FeedbackWalk.tsx`, `WalkMessage.tsx`, `WalkFooter.tsx`, `WalkTempo.tsx`, `WalkPractiseScreens.tsx`, `WalkOthers.tsx`, `WalkSummary.tsx`, `WalkEndSheet.tsx` |
+| The lines the speaker reads | `src/components/willab/idealEditCopy.ts` (`ONE_THING_COPY` and the banks), `src/lib/willab/tempoStep.ts` `TEMPO_COPY` |
+| Walk chrome | `src/components/willab/walk/*`, especially `FeedbackWalk.tsx`, `WalkMessage.tsx`, `WalkFooter.tsx`, `WalkTempo.tsx`, `WalkPractiseScreens.tsx`, `WalkOthers.tsx`, `WalkSummary.tsx`, `WalkEndSheet.tsx`. `WalkAvatar` returns null. Orange is `bg-primary` (about `#FF6A14`) |
 | Thread assembly | `src/lib/willab/walkThread.ts`, `src/lib/willab/coachWalk.ts`, `src/lib/willab/coachWalkCopy.ts` |
 | Coach panel copy (a human coach, not Will) | `src/lib/willab/coachPanelCopy.ts`, `src/components/willab/coachpanel/*`. Rules: [`docs/flows/coach-panel.md`](../flows/coach-panel.md) |
 | Plan copy | `src/lib/willab/planCopy.ts`, `src/components/willab/plan/` |
@@ -199,7 +206,7 @@ Both sit on `people_profiles.chat_recipe` and both 404 without the ring `chat_bu
 
 `welcome` and `answer_with` are derived on save so v1 readers keep working. A chat that sends a recording is treated as a skill chat; any other as a topic chat. That `fit` is not asked.
 
-The walk part's own comment (`chat_recipes.py` module doc): the walk is kept and nothing more, and no visitor's chat runs it yet. "I want this" (`want_walk`) sends one mail to the founder. The setup copy says "Your chat can't run this yet."
+`chat_recipes.py` still says the walk is kept and that no visitor chat runs it. That comment is behind the code. `services/chat_replies.py` `make` does speak, when a walk is saved, an own model is sure, and the host has not turned that model off: the host's `says` line, word for word, then "Did this help?". That is one line in the host chat. It is not `buildWalkPlan`, not the sniper, and not Ideal Text. "I want this" (`want_walk`) still sends one mail to the founder, and the setup still says "Your chat can't run this yet" when `runs_on_messages` is false. v1 recipes refuse a `walk_order` field outright (`assistants.LOCKED`).
 
 ### 3.3 The setup conversation that exists
 
@@ -225,10 +232,10 @@ A visitor in the host's chat (`HostChat.tsx`) sees the hello, the taps, and the 
 These are gaps in the builder as it stands, not a request to fix them in this change.
 
 1. **Live is a chat dry-run.** The screenshot cannot show a walk, a sniper, a moment, a recording, or Ideal Text. The second bubble is a fixed sentence, so two hellos stack.
-2. **The walk is a wish list.** Three step ids and an end (`ideal_text` or `none`). "See it run" previews a sample. The real walk ignores the recipe.
+2. **The speaking walk ignores the recipe.** The recipe stores three step ids and an end (`ideal_text` or `none`). "See it run" previews a sample. `buildWalkPlan` never reads it. The only runtime is the host-chat line in `chat_replies.make`, and only for a ready model's `says`.
 3. **Two builders.** v1 `AssistantBuilder` and v2 `WillBuild` both write `chat_recipe`. A host can have a v1 document the v2 screen does not fully edit, and the reverse.
 4. **Models cannot notice pace.** An own model may only return a pick from two or three answers, on GPT. "A score" and "an answer in your words" are refused. The sniper is not a model card.
-5. **Calibration is one row.** Silent tries know about filler words. The other seven `THINGS` have no builder screen. Pinned settings have no screen, correctly.
+5. **Calibration is one screen.** The silent-try route knows `filler_cluster`, `hedging`, and `restart_repair`. The Build screen only opens filler words. The other `THINGS` have no screen. Pinned settings have no screen, correctly. Ideal Text marks are a separate serving layer (`intervention_candidates.intervention_type_of`): it returns `NOTICE`, `ADD`, `EMPHASISE`, or `REWRITE`. `DE_EMPHASISE`, `CUT`, `RESTRUCTURE`, and `REHEARSE` are named in Appendix C and never returned. The sniper is not in that function.
 6. **No version a Take can pin.** A recipe save overwrites. A speaker mid-walk cannot be held on the definition they started with, because there is no definition.
 7. **The ring hides the whole builder.** Without `chat_builder` every setup route is 404 and the screens draw nothing. That is deliberate. It also means the Speaking Coach Artur uses as a speaker is not behind this ring and is not edited here.
 8. **Copy and theme of the coach are unreachable.** Bubble radius, the orange, the walk dock, the recording strip, the letter avatar: none of them is a recipe field.
