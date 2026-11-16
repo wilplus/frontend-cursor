@@ -7,7 +7,11 @@ import SlideStage from "./SlideStage";
 import FinishTakeButton from "./FinishTakeButton";
 import { isFirstTakeDeck } from "@/lib/willab/firstTake";
 import { isDefaultDeckText } from "@/lib/willab/defaultDeck";
-import { RECORDING_COPY } from "./recordingCopy";
+import {
+  recordingCopy,
+  recordingSlidesInLocale,
+  recordingUiLocale,
+} from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
 
 export interface RecordingRoot {
@@ -69,6 +73,8 @@ export default function RecordingRoadmap({
   /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
   asks?: string | null;
 }) {
+  const locale = recordingUiLocale();
+  const copy = recordingCopy(locale);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideBoxRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +87,10 @@ export default function RecordingRoadmap({
   const currentRoots = useMemo(
     () => roots.filter((root) => root.slideIndex === currentSlide),
     [currentSlide, roots]
+  );
+  const displaySlides = useMemo(
+    () => recordingSlidesInLocale(slides, locale),
+    [locale, slides],
   );
 
   // A slide arriving forward opens at the top of its words; one arriving
@@ -160,7 +170,7 @@ export default function RecordingRoadmap({
       >
         <div className={tall ? "min-h-0 flex-1" : undefined}>
           <SlideStage
-            slides={slides}
+            slides={displaySlides}
             presentationRef={presentationRef}
             current={currentSlide}
             asks={asks}
@@ -188,7 +198,7 @@ export default function RecordingRoadmap({
           ref={scrollRef}
           tabIndex={-1}
           className="scrollbar-none h-full overflow-y-auto overscroll-contain outline-none will-change-transform"
-          aria-label={`Speaking anchors for slide ${currentSlide + 1}`}
+          aria-label={`${copy.speakingAnchors} ${currentSlide + 1}`}
         >
           <div className="flex min-h-full flex-col justify-center py-6">
             {/* NO KICKER over the cues (founder 2026-09-29: "no need for the
@@ -226,7 +236,7 @@ export default function RecordingRoadmap({
               disabled={currentSlide === 0}
               className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
             >
-              {RECORDING_COPY.back}
+              {copy.back}
             </button>
           ) : null}
           {last ? (
@@ -237,7 +247,7 @@ export default function RecordingRoadmap({
               onClick={press(currentSlide + 1)}
               className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-foreground text-[15px] font-semibold text-background"
             >
-              {RECORDING_COPY.nextSlide}
+              {copy.nextSlide}
             </button>
           )}
         </div>

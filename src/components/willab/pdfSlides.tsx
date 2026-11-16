@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { bulletLines } from "./presentation";
 import { firstTakeKicker } from "@/lib/willab/firstTake";
+import { recordingText } from "./recordingCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  pdfSlides — client-only rendering of the deck (T0)                          */
@@ -268,7 +269,7 @@ export function MockPresentationSlide({
  *  against the slide ON SCREEN, so a speaker who cannot see which slide they
  *  are on cannot drive that boundary. */
 /** Over an answer's question (backend N441 item 7, signed). */
-export const nameAsks = (name: string) => `${name} asks`;
+export const nameAsks = (name: string) => `${name} ${recordingText("asks")}`;
 
 export function SlideTextCard({
   title,
@@ -493,7 +494,7 @@ export function SlideRender({
   return (
     <div className={className}>
       <div className="flex aspect-video h-full w-full items-center justify-center rounded-xl border border-border bg-muted text-[13px] text-muted-foreground">
-        Slide preview unavailable
+        {recordingText("slidePreviewUnavailable")}
       </div>
       {/* Clearing pdfFailed remounts PdfPage, and loadPdf evicts the failed
           promise on error, so retry really re-fetches the visual. */}
@@ -504,7 +505,7 @@ export function SlideRender({
             onClick={() => setPdfFailed(false)}
             className="rounded-full border border-border px-3 py-1 text-[12px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            Retry loading slides
+            {recordingText("retryLoadingSlides")}
           </button>
         </div>
       ) : null}

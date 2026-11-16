@@ -2,13 +2,14 @@
 /*
 STORY    As someone with the chat builder's ring, the one Lounge is three
          chats: Will (the model, the chat's setup, what needs me) with the
-         text field always; the speaking chat with my Takes and the record
-         button; Principles with its rows and the text field. Without the
+         text field always; the speaking chat with my Takes and the text
+         field by default; Principles with its rows and the text field. Without the
          ring it is one chat, as it was (backend N635, N636 items 1 to 5).
 OUTCOME
-  O1  The speaking chat has "Start your first recording", then "Record
-      Take 2", its Take rows and the plan's dock; Will's chat has the text
-      field and none of them; Principles its own rows and the text field.
+  O1  The speaking chat has the normal text composer at rest, switching to a
+      recording control only when a current task explicitly needs speech; its
+      Take rows and plan dock remain. Will and Principles stay chats in words.
+      Without the ring, the original record dock remains.
   O2  What I type or tap in a chat says which chat it is, so it lands there.
   O3  "Copy my link ›" and "Your questions for people who join ›" leave the
       way in's "You're set." row in the speaking chat and show in Will's.
@@ -32,7 +33,7 @@ import { wayInRowFor } from "../plan/WayIn";
 import OwnChatLinks from "./OwnChatLinks";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { PlaceOnly, onAskedPlace, placeOf, rememberPlace, shownIn, speakingFirst, typedHint, wordsShow, type LoungePlace } from "./loungePlace";
+import { barModeIn, PlaceOnly, onAskedPlace, placeOf, rememberPlace, shownIn, speakingFirst, typedHint, type LoungePlace } from "./loungePlace";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -40,7 +41,25 @@ type Row = { client_id: string; body: string; metadata: Record<string, unknown> 
 
 /** The Lounge as it wires the places: its rows of the chat open, what needs
  *  you in Will's, the plan's dock in the speaking chat, and the bar. */
-function Lounge({ place, rows, next }: { place: LoungePlace | null; rows: Row[]; next: { arcId: string; takeIndex: number } | null }) {
+function Lounge({
+  place,
+  rows,
+  next,
+  hear = false,
+}: {
+  place: LoungePlace | null;
+  rows: Row[];
+  next: { arcId: string; takeIndex: number } | null;
+  hear?: boolean;
+}) {
+  const mode = barModeIn(
+    place,
+    false,
+    null,
+    hear ? { onTap: () => undefined } : null,
+    false,
+    false,
+  );
   return (
     <div>
       <div data-thread="">{rows.filter((r) => shownIn(r, place)).map((r) => <p key={r.client_id}>{r.body}</p>)}</div>
@@ -54,10 +73,12 @@ function Lounge({ place, rows, next }: { place: LoungePlace | null; rows: Row[];
         <PlaceOnly place={place} in={["speaking"]}>
           <button type="button" aria-label="Your projects" />
         </PlaceOnly>
-        {wordsShow(place, false) ? (
+        {mode === "words" ? (
           <textarea aria-label="Message Will" />
+        ) : mode === "quiet" ? (
+          <span data-quiet-bar="" />
         ) : (
-          <WillBarMiddle hear={null} next={next} held={false} onRecord={() => undefined} onFirst={() => undefined} />
+          <WillBarMiddle hear={hear ? { onTap: () => undefined } : null} next={mode === "record" ? next : null} held={false} onRecord={() => undefined} onFirst={() => undefined} />
         )}
       </form>
     </div>
@@ -81,20 +102,30 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
 });
-const draw = (place: LoungePlace | null, rows: Row[], next: { arcId: string; takeIndex: number } | null = null) =>
-  act(() => root.render(<Lounge place={place} rows={rows} next={next} />));
+const draw = (
+  place: LoungePlace | null,
+  rows: Row[],
+  next: { arcId: string; takeIndex: number } | null = null,
+  hear = false,
+) => act(() => root.render(<Lounge place={place} rows={rows} next={next} hear={hear} />));
 const thread = () => host.querySelector("[data-thread]")!.textContent;
-const recordButton = () => host.querySelector("[data-bar] [data-start-first], [data-bar] [data-record-next]")?.textContent ?? null;
+const recordButton = () => host.querySelector("[data-bar] [data-start-first], [data-bar] [data-record-next], [data-bar] [data-will-hear]")?.textContent ?? null;
 
 describe("three chats over the one Lounge (N636)", () => {
-  it("N636-2: the record button and the Takes in the speaking chat; Will's and Principles' chats in words; without the ring, one chat", () => {
+  it("N636-2: Speaking coach is a text chat at rest and uses recording only for a current spoken task", () => {
     draw("speaking", []);
-    expect(recordButton()).toBe("Start your first recording");
+    expect(recordButton()).toBeNull();
+    expect(host.querySelector("textarea")).not.toBeNull();
     draw("speaking", ROWS, { arcId: "a1", takeIndex: 1 });
-    expect(recordButton()).toBe("Record Take 2");
+    expect(recordButton()).toBeNull();
+    expect(host.querySelector("textarea")).not.toBeNull();
     expect(thread()).toBe("Your feedback is ready.");
     expect(host.querySelector("[data-plan-dock]")).not.toBeNull();
     expect(host.querySelector("[data-needs-you]")).toBeNull();
+
+    draw("speaking", ROWS, { arcId: "a1", takeIndex: 1 }, true);
+    expect(recordButton()).toBe("Record your answer");
+    expect(host.querySelector("textarea")).toBeNull();
 
     draw("will", ROWS, { arcId: "a1", takeIndex: 1 });
     expect(recordButton()).toBeNull();
