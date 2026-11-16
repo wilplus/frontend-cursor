@@ -170,9 +170,12 @@ export function tempoOpening(stretch: Pick<TempoStretch, "reading" | "topic">, o
 }
 
 /** The Sniper's lines after a try, as the One thing walk's fix. */
-export function oneThingTempoLines(isLanded: boolean, n: number): string[] {
-  if (isLanded) return [ONE_THING_COPY.landed];
-  return [n < ONE_THING_TEMPO_TRIES ? ONE_THING_COPY.onceMore : ONE_THING_COPY.takeItWithYou];
+export function oneThingTempoLines(isLanded: boolean, n: number, copy?: { landed: string; onceMore: string; takeItWithYou: string }): string[] {
+  const landed = copy?.landed ?? ONE_THING_COPY.landed;
+  const onceMore = copy?.onceMore ?? ONE_THING_COPY.onceMore;
+  const takeItWithYou = copy?.takeItWithYou ?? ONE_THING_COPY.takeItWithYou;
+  if (isLanded) return [landed];
+  return [n < ONE_THING_TEMPO_TRIES ? onceMore : takeItWithYou];
 }
 
 /** The closing line: dynamic once a try was ok and the last one was not

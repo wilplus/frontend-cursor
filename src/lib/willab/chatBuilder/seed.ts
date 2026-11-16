@@ -3,6 +3,7 @@
    drift; this function reads them. */
 
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
+import { PROCESSING_STAGES } from "@/components/willab/ProcessingWait";
 import { ONE_THING_TRIES, WALK_MAX_TRIES } from "@/lib/willab/walkPlan";
 import { TEMPO_COPY, LAND_GREEN_SHARE } from "@/lib/willab/tempoStep";
 import type { CoachDefinition, WalkStepDef } from "./types";
@@ -95,6 +96,20 @@ export function speakingCoachSeed(): CoachDefinition {
     },
     noticing: { dials: NOTICING_DIALS.map((d) => ({ ...d })), pinned: NOTICING_PINNED.map((d) => ({ ...d })) },
     plugins: [],
+    screens: [
+      { id: "recording", states: [
+        { id: "before", lines: ["Start recording"] },
+        { id: "after", lines: ["Continue recording"] },
+      ] },
+      { id: "ideal", states: [{ id: "empty", lines: ["Your ideal text"] }] },
+      { id: "processing", states: [{ id: "wait", lines: [...PROCESSING_STAGES] }] },
+      { id: "tries", states: [
+        { id: "landed", lines: [ONE_THING_COPY.landed] },
+        { id: "once", lines: [ONE_THING_COPY.onceMore] },
+        { id: "done", lines: [ONE_THING_COPY.takeItWithYou] },
+        { id: "skip", lines: [ONE_THING_COPY.skipped] },
+      ] },
+    ],
     theme: {
       canvasMaxPx: 1080,
       color: {

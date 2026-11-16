@@ -5,6 +5,8 @@
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { buildWalkPlan, walkMoments, type WalkPlanInput } from "@/lib/willab/walkPlan";
 import { middleOf, plusRows, takesFromSend, type Middle } from "@/components/willab/chats/ChatBar";
+import { IDEAL_TEXT_NAME, RECORD_AFTER, RECORD_BEFORE, processingLabels, recordLabel, tryCopy } from "./screenCopy";
+import { PROCESSING_STAGES } from "@/components/willab/ProcessingWait";
 import type { CoachDefinition } from "./types";
 import { planFromDefinition } from "./runtime";
 
@@ -116,6 +118,19 @@ export function parityGaps(def: CoachDefinition): Gap[] {
     if (got !== want) gaps.push({ item: `choices:${key}`, product: want, builder: got });
   }
   const walks = productWalkKeys();
+  const tries = tryCopy(def);
+  const productTries = tryCopy(null);
+  for (const key of ["landed", "onceMore", "takeItWithYou", "skipped"] as const) {
+    if (tries[key] !== productTries[key]) gaps.push({ item: `try:${key}`, product: productTries[key], builder: tries[key] });
+  }
+  if (recordLabel(def, false) !== RECORD_BEFORE) gaps.push({ item: "recording:before", product: RECORD_BEFORE, builder: recordLabel(def, false) });
+  if (recordLabel(def, true) !== RECORD_AFTER) gaps.push({ item: "recording:after", product: RECORD_AFTER, builder: recordLabel(def, true) });
+  if ((def.screens?.find((s) => s.id === "ideal")?.states.find((s) => s.id === "empty")?.lines[0] ?? "") !== IDEAL_TEXT_NAME) {
+    gaps.push({ item: "ideal:empty", product: IDEAL_TEXT_NAME, builder: "" });
+  }
+  const wait = processingLabels(def).join(" | ");
+  const productWait = [...PROCESSING_STAGES].join(" | ");
+  if (wait !== productWait) gaps.push({ item: "processing:wait", product: productWait, builder: wait });
   for (const key of ["praise", "moment", "tempo"] as const) {
     const got = face.walkKeys[key].join(",");
     const want = walks[key].join(",");

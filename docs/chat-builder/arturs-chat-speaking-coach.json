@@ -248,6 +248,80 @@
     ]
   },
   "plugins": [],
+  "screens": [
+    {
+      "id": "recording",
+      "states": [
+        {
+          "id": "before",
+          "lines": [
+            "Start recording"
+          ]
+        },
+        {
+          "id": "after",
+          "lines": [
+            "Continue recording"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ideal",
+      "states": [
+        {
+          "id": "empty",
+          "lines": [
+            "Your ideal text"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "processing",
+      "states": [
+        {
+          "id": "wait",
+          "lines": [
+            "Processing your recording",
+            "Transcribing your take",
+            "Building your Ideal Text",
+            "Finding feedback moments",
+            "Finding your anchors"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tries",
+      "states": [
+        {
+          "id": "landed",
+          "lines": [
+            "Yes. That's it."
+          ]
+        },
+        {
+          "id": "once",
+          "lines": [
+            "Close. Once more."
+          ]
+        },
+        {
+          "id": "done",
+          "lines": [
+            "Good try. Take it with you."
+          ]
+        },
+        {
+          "id": "skip",
+          "lines": [
+            "Okay, we'll skip this one."
+          ]
+        }
+      ]
+    }
+  ],
   "theme": {
     "canvasMaxPx": 1080,
     "color": {

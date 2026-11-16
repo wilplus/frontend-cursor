@@ -483,6 +483,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · An Ideal Text with no project name uses the coach document's empty name when one is published, and otherwise "Your ideal text". · FE (this PR)
+
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
 
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)

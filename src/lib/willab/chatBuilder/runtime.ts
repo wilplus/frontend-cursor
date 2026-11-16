@@ -27,6 +27,12 @@ export function refuse(def: CoachDefinition): string | null {
     const sentences = [row.fixed, ...(row.lines ?? []), ...(row.variants ?? []).map((v) => v.fixed), ...(row.choices ?? [])];
     if (sentences.some((line) => line && DIGIT.test(line))) return "COACH_NUMBER";
   }
+  for (const screen of def.screens ?? []) {
+    for (const state of screen.states) {
+      const sentences = [...state.lines, ...(state.choices ?? [])];
+      if (sentences.some((line) => line && DIGIT.test(line))) return "COACH_NUMBER";
+    }
+  }
   for (const plugin of def.plugins) {
     if (!["REWRITE", "EMPHASISE", "ADD", "NOTICE"].includes(plugin.interventionType)) return "COACH_PLUGIN_TYPE";
   }

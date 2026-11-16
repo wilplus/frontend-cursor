@@ -430,6 +430,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · The wait can take its five labels from the coach document. With none, the same five stay, in the same order. · FE (this PR)
+
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 
 - 2026-11-11 · N648 item 8 · no screen changes: a Take recorded in a host's chat that takes Takes goes up exactly as every Take does; the chat is noted at Finish (`keepTakeAtFinish`); once the server names it, `sendTake` (`lib/willab/takeOutbox.ts`) tags it with that chat once, best effort (POST /v2/chats/<id>/take {take}, backend #1961). A failed tag stops nothing. A Take made in the speaking chat posts no tag. The chat is kept with the Take's copy on the device (`KeptTake.chat`), so a Take sent again after a reload is tagged too · FE (this PR)

@@ -20,6 +20,9 @@
  *  pitch" read "Garage pitc" with room to spare. Now it takes the room the
  *  header has and an ellipsis appears only when the name truly does not fit
  *  (`truncate` ellipsizes on real overflow and never otherwise). */
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { idealEmptyName } from "@/lib/willab/chatBuilder/screenCopy";
+
 const TITLE_CLS =
   "block min-w-0 truncate text-[17px] font-semibold text-foreground";
 
@@ -34,7 +37,7 @@ export default function IdealTextHeading({
    *  no served document has nothing to report the coach's position on. */
   status: "verified" | "unverified" | null;
 }) {
-  const headerTitle = title?.trim() || "Your ideal text";
+  const headerTitle = title?.trim() || idealEmptyName(usePublishedCoach());
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className={TITLE_CLS} title={headerTitle}>

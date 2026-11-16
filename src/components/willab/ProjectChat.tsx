@@ -11,6 +11,8 @@ import FeedbackWalkCard from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
 import TypingDots from "./TypingDots";
 import { useBackDismiss } from "./useBackDismiss";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { recordLabel } from "@/lib/willab/chatBuilder/screenCopy";
 import { useUserId } from "./useUserId";
 import {
   PRACTICE_CHUNK_SECONDS,
@@ -32,6 +34,7 @@ export default function ProjectChat({
   onRecord: () => void;
 }) {
   useBackDismiss(onBack);
+  const coach = usePublishedCoach();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const [opened, setOpened] = useState<Opened>(null);
@@ -198,7 +201,7 @@ export default function ProjectChat({
             else onRecord();
           }} className="mx-auto flex h-[58px] w-full max-w-2xl items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background">
             <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
-            {hasPractice ? "Continue recording" : "Start recording"}
+            {recordLabel(coach, Boolean(hasPractice))}
           </button>
         )}
       </div>

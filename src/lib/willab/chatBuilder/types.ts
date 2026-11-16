@@ -112,6 +112,8 @@ export type CoachDefinition = {
     pinned: { name: string; value: number | string }[];
   };
   plugins: { id: string; hash: string; role: "detector" | "step" | "copy"; interventionType: PluginType }[];
+  /** Recording, the wait, Ideal Text's empty name, and the tries. Absent on an older document: the screens keep today's words. */
+  screens?: ScreenDef[];
   theme: {
     canvasMaxPx: 1080;
     color: {
@@ -127,6 +129,12 @@ export type CoachDefinition = {
     radius: { bubble: number; card: number; chunk: number; dock: number };
   };
 };
+
+/** One state of a screen the coach can name: its sentences, then two taps. */
+export type ScreenState = { id: string; lines: string[]; choices?: [string, string] };
+
+/** A screen the product already has. The id is the screen, not a special case. */
+export type ScreenDef = { id: string; states: ScreenState[] };
 
 export type PluginStatus = "draft" | "checked" | "rejected";
 

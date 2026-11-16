@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import FeedbackWalkCard from "../../FeedbackWalkCard";
+import ProcessingWait from "../../ProcessingWait";
 import { planForWalk } from "@/lib/willab/chatBuilder/runtime";
+import { idealEmptyName, processingLabels, recordLabel, tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { walkMoments } from "@/lib/willab/walkPlan";
 import type { PracticeChunk } from "@/services/api/trainings";
@@ -27,6 +29,7 @@ export default function CoachLive({ doc }: { doc: CoachDefinition }) {
   const shown = new Set<string>(plan.map((s) => s.key));
   const lines = doc.walk.steps.filter((s) => s.fixed && shown.has(s.key)).map((s) => s.fixed);
   const theme = doc.theme.color;
+  const tries = tryCopy(doc);
   return (
     <div
       data-coach-live=""
@@ -44,6 +47,15 @@ export default function CoachLive({ doc }: { doc: CoachDefinition }) {
             onFeedback={() => setWalkOpen(true)}
             onIdealText={() => setWalkOpen(false)}
           />
+        </div>
+        <div data-coach-states="" className="mx-auto mt-4 flex w-full max-w-[520px] flex-col gap-2 text-[15px]">
+          <p data-coach-record="">{recordLabel(doc, false)}</p>
+          <p data-coach-record-again="">{recordLabel(doc, true)}</p>
+          <p data-coach-ideal="">{idealEmptyName(doc)}</p>
+          <p data-coach-try="">{tries.landed}</p>
+          <p data-coach-try="">{tries.onceMore}</p>
+          <p data-coach-try="">{tries.takeItWithYou}</p>
+          <ProcessingWait labels={processingLabels(doc)} />
         </div>
         {walkOpen ? (
           <div data-coach-walk="" className="mx-auto mt-4 flex w-full max-w-[520px] flex-col gap-2">

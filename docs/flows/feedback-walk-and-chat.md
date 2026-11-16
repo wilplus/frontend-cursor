@@ -2379,6 +2379,8 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · A try that lands, one miss, and the last miss read their sentences from the coach document when one is published. With none, the signed lines stay. · FE (this PR)
+
 - 2026-11-16 · The walk reads a published speaking-coach document when this account has one, and otherwise the same plan as before (`planForWalk` in `feedbackWalkModel.ts`, `useDeckFeedbackWalk.tsx`). A missing or refused document changes nothing a speaker sees. The builder that edits the draft is the chat's Build screen, not this walk. · FE (this PR)
 - 2026-11-16 · The chat bar follows They send (`rec` records, `text` types, `photo` and `file` sit behind +). A read with no `send` keeps answer_with: recordings, taps, Send a photo, no typing, no file. /dev/chat-bar shows every combination. · FE (this PR)
 - 2026-11-16 · In a row's chat, the header's back arrow returns to Your chat, the same as the row's Back. It goes on to the list of chats only from that page. The browser's Back does the same: opening a row pushes a history entry. · FE (this PR)

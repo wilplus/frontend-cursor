@@ -11,6 +11,7 @@ import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, type FeedbackWalkRequest, type FeedbackWalkTempoWords, type WalkAiShown } from "./walk/FeedbackWalk";
 import { useWalkVoiceOn } from "./walk/useWalkVoice";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
@@ -1040,6 +1041,7 @@ export function useDeckFeedbackWalk(args: {
     const takeIndex = live.current.takeIndex ?? null;
     void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
   }, []);
+  const publishedCoach = usePublishedCoach();
   /* The tempo step in the chat and for Will (N166 step 4): its opening
      lines, each try with the dot's line and Will's word on it (N245), the
      closing line unless a try landed, as Lounge messages like every other
@@ -1066,7 +1068,7 @@ export function useDeckFeedbackWalk(args: {
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
         // The Sniper as the One thing walk's fix says its own words (N309).
-        const lines = one ? oneThingTempoLines(event.landed, event.n) : afterTry(event.result, event.landed, event.n);
+        const lines = one ? oneThingTempoLines(event.landed, event.n, tryCopy(publishedCoach)) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
       } else {
         // Left mid-game (✕): kept for Will below, nothing said. Skipped:
@@ -1075,7 +1077,7 @@ export function useDeckFeedbackWalk(args: {
         if (!event.left) {
           if (!event.close || (one && event.skipped)) {
             // As the One thing walk's fix, the walk's answer alone (N452 item 1).
-            if (one) say("tempo:skipped", "app", ONE_THING_COPY.skipped);
+            if (one) say("tempo:skipped", "app", tryCopy(publishedCoach).skipped);
             else say("tempo:skip", "speaker", TEMPO_COPY.skip);
           } else if (!one && !event.tries.some((t) => t.landed)) say("tempo:close", "app", TEMPO_COPY.close[event.close]);
         }
@@ -1083,14 +1085,13 @@ export function useDeckFeedbackWalk(args: {
         if (arcId && take) void postTempoGame(arcId, take, tempo.reading, event);
       }
     },
-    [tempo, tempoWords, post, args.arcId, take],
+    [tempo, tempoWords, post, args.arcId, take, publishedCoach],
   );
   /* THE ONE THING WALK JUDGES ONE MOMENT, FROM TAKE 2 (founder 2026-10-31,
      N309 item 2, N300): its machine level the Take's turn, high, middle,
      low; Take 1 judges no one. */
   const judgesOne = (args.takeIndex ?? 0) >= 2;
   const othersLevel = othersLevelFor(args.takeIndex ?? null);
-  const publishedCoach = usePublishedCoach();
   const model = useMemo(
     () =>
       buildFeedbackWalk({
