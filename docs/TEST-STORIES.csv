@@ -981,11 +981,10 @@ O6 -> ""N642-5 someone who is not a coach has no moments line in AI models""
 O7 -> ""N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own""
 O8 -> ""N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this""
 O7 -> ""N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try""",
-src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the one
-bar: the arrow and ""Your chat"", no ""Back"" word, no circle, no close
-(a new account: its first screen, ""What do you do?"");
-the arrow on its first screen brings me back to Will's chat, and so
-does the phone's Back.
+src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the
+chat's own header: back, the circle, ""Lena's chat"", ""You run this
+chat."", and Live / Build. The arrow on its first screen brings me
+back to Will's chat, and so does the phone's Back.
 O2  The drafted answers say ""Answers to send"" in that bar, and Back
 returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
 O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."

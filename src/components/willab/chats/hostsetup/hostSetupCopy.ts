@@ -39,6 +39,8 @@ export const W = {
   backPlain: "Back",
   keep: "Keep",
   change: "Change",
+  /** A new suggestion, in the same place Change had (the host's words, 16 November 2026). */
+  drawNew: "Draw new one",
   typeOwn: "Type my own",
   done: "Done",
   next: "Next",
@@ -167,7 +169,10 @@ export const W = {
   stackSay: "Your model. Tap a block to change it.",
   givesBlock: (gives: string) => `It gives back ${gives.toLowerCase()}`,
   builtOnGpt: "Built on GPT",
-  taughtByYou: "Taught by you",
+  /** The host's own answers teach a model still learning. A visitor's message
+   *  is not kept as an example (chat_recipes.teach). The card cannot choose
+   *  anyone else. */
+  taughtByYou: "Taught by your answers",
   teachIt: "Teach it",
   modelAsk: "What should it spot? Write it as a question.",
   modelPlaceholder: "Is this a dry scalp?",

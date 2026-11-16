@@ -15,7 +15,9 @@ import { W } from "./hostSetupCopy";
 import { OPEN_EVENT, knowSetup, type OpenDetail } from "./hostSetupDoor";
 import { CoverSiteBar } from "../siteBarCover";
 import { BarBackContext, EdgeBack, OneBarBack, OneBarContext } from "../../OneTopBar";
-import { FrameTitle } from "./SetupBits";
+import { LetterCircle } from "../ChatList";
+import { BUILD_MODE_EVENT, LiveBuildSwitch, TopBar } from "../TopBar";
+import { FrameBar, FrameTitle } from "./SetupBits";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup in the list of chats (backend N616, N618 item 8): the     */
@@ -162,8 +164,27 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       </FrameTitle.Provider>
     );
   }
+  const title = read?.own_chat?.title || (name ? W.chatOf(name) : W.yourChatTitle);
   return (
     <FrameTitle.Provider value={W.yourChatTitle}>
+    <FrameBar.Provider value={(onBack) => (
+      <TopBar
+        circle={<LetterCircle id={`setup-${title}`} name={title} size={36} />}
+        title={title}
+        subtitle={W.youRunIt}
+        onBack={onBack ?? onClose}
+        right={(
+          <LiveBuildSwitch
+            mode="build"
+            onMode={(next) => {
+              if (next !== "live") return;
+              window.dispatchEvent(new CustomEvent(BUILD_MODE_EVENT, { detail: "live" }));
+              onClose();
+            }}
+          />
+        )}
+      />
+    )}>
     <HostSetup
       name={name}
       recipe={recipe}
@@ -174,6 +195,7 @@ function OverList({ open, read, name, onClose }: { open: Open; read: SetupRead |
       part={detail.part ?? null}
       onClose={onClose}
     />
+    </FrameBar.Provider>
     </FrameTitle.Provider>
   );
 }

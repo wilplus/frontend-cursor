@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { LetterCircle } from "./ChatList";
-import { TopBar } from "./TopBar";
+import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import BuildModels from "./BuildModels";
 import { DevParts, DevSwitch, useDev } from "./DevMode";
 import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
@@ -34,26 +34,6 @@ import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 
 type Mode = "build" | "live";
 type Tab = "chat" | "models";
-
-function Switch({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) {
-  const one = (m: Mode, label: string) => (
-    <button
-      type="button"
-      data-switch={m}
-      aria-pressed={mode === m}
-      onClick={() => onMode(m)}
-      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <span data-live-build="" className="flex items-center rounded-full border border-border p-0.5">
-      {one("live", W.live)}
-      {one("build", W.build)}
-    </span>
-  );
-}
 
 /** The chat as people meet it: its hello and taps as the backend reads them
  *  for its people (own_chat, backend #1945), "Something else" added by the
@@ -112,7 +92,15 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     asked.current = true;
     openOverList({});
   }, [setup]);
-  const swap = canTry ? <Switch mode={mode} onMode={setMode} /> : null;
+  useEffect(() => {
+    const on = (e: Event) => {
+      const next = (e as CustomEvent<string>).detail;
+      if (next === "live" || next === "build") setMode(next);
+    };
+    window.addEventListener(BUILD_MODE_EVENT, on);
+    return () => window.removeEventListener(BUILD_MODE_EVENT, on);
+  }, []);
+  const swap = canTry ? <LiveBuildSwitch mode={mode} onMode={setMode} /> : null;
   if (coachOpen) {
     return (
       <Cover>
@@ -143,12 +131,12 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
       <Tabs tab={tab} onTab={(t) => { setTab(t); setDevOn(false); }} />
+      {dev ? <DevSwitch on={devOn} onToggle={() => setDevOn((on) => !on)} /> : null}
       {tab === "chat" ? (
         <button type="button" data-open-coach="" onClick={() => setCoachOpen(true)} className="mx-4 my-2 min-h-11 rounded-2xl border border-border px-3 text-left text-[15px] font-semibold">
           Speaking coach
         </button>
       ) : null}
-      {dev ? <DevSwitch on={devOn} onToggle={() => setDevOn((on) => !on)} /> : null}
     </div>
   );
   if (dev && devOn) {

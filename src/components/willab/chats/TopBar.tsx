@@ -7,6 +7,30 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
+import { W } from "./hostsetup/hostSetupCopy";
+
+/** Live or Build, the same switch on a chat and on the setup. */
+export const BUILD_MODE_EVENT = "willab:build-mode";
+
+export function LiveBuildSwitch({ mode, onMode }: { mode: "live" | "build"; onMode: (mode: "live" | "build") => void }) {
+  const one = (m: "live" | "build", label: string) => (
+    <button
+      type="button"
+      data-switch={m}
+      aria-pressed={mode === m}
+      onClick={() => onMode(m)}
+      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span data-live-build="" className="flex items-center rounded-full border border-border p-0.5">
+      {one("live", W.live)}
+      {one("build", W.build)}
+    </span>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /*  The chats' top bars, apart from the chat itself (ChatThread.tsx): Will's   */

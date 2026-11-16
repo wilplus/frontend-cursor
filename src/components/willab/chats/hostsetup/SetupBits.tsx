@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { TypingGlyph } from "../../TypingDots";
+import { TapRow } from "../../WillQuestion";
 import { W } from "./hostSetupCopy";
 import { BarBox } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
@@ -34,23 +35,61 @@ export const FrameHistory = createContext<ReactNode>(null);
  *  item 1); null otherwise. */
 export const FrameNote = createContext<ReactNode>(null);
 
+/** The chats' own top bar, in place of the one bar, on the setup (the host's
+ *  chat). Null everywhere else that opens from Will's lines. */
+export const FrameBar = createContext<((onBack?: () => void) => ReactNode) | null>(null);
+
+/** The shared bottom bar: tap-to-choose answers, then the chat's composer.
+ *  A screen passes its own; otherwise the setup's default (the composer).
+ *  `null` on a screen that already has its own box. */
+export type SetupDockSpec = {
+  choices?: string[];
+  onChoice?: (label: string) => void;
+  onSend: (text: string) => void | boolean;
+  placeholder?: string;
+  lines?: boolean;
+  disabled?: boolean;
+  initial?: string;
+};
+export const FrameDock = createContext<SetupDockSpec | null>(null);
+
+/** One bar for every setup screen: the app's answer chips, then the chat's
+ *  composer, always open. */
+export function SetupDock({ choices, onChoice, onSend, placeholder, lines, disabled, initial }: SetupDockSpec) {
+  return (
+    <div data-setup-dock="" className="shrink-0 border-t border-border bg-background">
+      {choices?.length && onChoice ? (
+        <div className="px-4 pt-2">
+          <TapRow even={false} disabled={disabled} labels={choices} onTap={onChoice} dataAttr={{ "data-setup-dock-choices": "" }} />
+        </div>
+      ) : null}
+      <Box key={`${placeholder ?? ""}:${initial ?? ""}`} placeholder={placeholder ?? W.typeHere} onSend={onSend} lines={lines} initial={initial} />
+    </div>
+  );
+}
+
 /** One screen: its top bar, Will's lines, and what to tap at the foot. The
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
  *  the name), as a chat keeps. */
-export function Frame({ title, onBack, circle, foot, bar = null, children }: {
+export function Frame({ title, onBack, circle, foot, bar = null, dock, children }: {
   /** A bar of its own in place of the header (Live's, backend N642 item 3). */
   bar?: ReactNode;
   title?: ReactNode;
   onBack?: () => void;
   circle?: ReactNode;
   foot?: ReactNode;
+  /** The shared bottom bar. Omit to use the setup's default; null to draw none. */
+  dock?: SetupDockSpec | null;
   children: ReactNode;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   const named = useContext(FrameTitle);
   const history = useContext(FrameHistory);
   const note = useContext(FrameNote);
+  const makeBar = useContext(FrameBar);
+  const dockFallback = useContext(FrameDock);
+  const dockSpec = dock === null ? null : dock ?? dockFallback;
   useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
@@ -71,14 +110,14 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
           <b className="text-[17px] font-semibold text-foreground">{title ?? W.will}</b>
         </div>
       ) : (
-        <OneTopBar onBack={onBack} title={title ?? named} />
+        makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
         {history}
         {children}
         {note}
       </div>
-      {foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
+      {dockSpec ? <SetupDock {...dockSpec} /> : foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
     </div>
   );
 }

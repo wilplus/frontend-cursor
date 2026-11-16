@@ -214,7 +214,7 @@ describe("what needs you is in Will (backend N629)", () => {
     await act(async () => (container.querySelector('[data-build-part="hello"]') as HTMLButtonElement).click());
     await flush();
     expect(container.querySelector("[data-host-setup]")?.textContent).toContain("Your chat opens with:");
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     expect(bff.calls.filter((c) => c.path === "/api/v2/chats/setup/hello").map((c) => (c.json as { value: string }).value)).toEqual(["Welcome."]);
     expect(container.querySelector("[data-host-setup]")).toBeNull();
@@ -360,7 +360,7 @@ describe("what needs you is in Will (backend N629)", () => {
     moments.speakers = [{ waiting: 2 }, { waiting: 1 }];
     // No chat yet: no switch, Build at once; the moments in AI models.
     await build({ recipe: null, parts: [], own_chat: null, cost: null, can_try: false });
-    expect(container.querySelector("[data-live-build]")).toBeNull();
+    expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
     expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Your chat");
     await tab("models");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer3 waiting›");
@@ -451,7 +451,7 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetSetup();
     forgetHostWork();
     await build({ ...SETUP, can_try: false });
-    expect(container.querySelector("[data-live-build]")).toBeNull();
+    expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
   });
 
   it("N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this", async () => {

@@ -77,6 +77,9 @@ describe("Developer mode (backend N648)", () => {
   it("N648 Developer mode: the switch under the tabs shows the five parts, each opening its screen", async () => {
     bff.routes["GET /api/v2/chats/setup/dev"] = DEV;
     await open();
+    const bar = container.querySelector("[data-build-bar]")!;
+    expect(bar.querySelectorAll("[data-dev-switch]")).toHaveLength(1);
+    expect(bar.innerHTML.indexOf("data-dev-switch")).toBeLessThan(bar.innerHTML.indexOf("data-open-coach"));
     await click("[data-dev-switch]");
     for (const t of ["How close to the speaking coach", "What I notice", "What I say", "Charts", "Your training data"]) expect(text()).toContain(t);
     await click('[data-dev-part="close"]');
