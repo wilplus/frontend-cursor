@@ -889,6 +889,9 @@ O26 -> ""a website visitor's answers carry the visitor's name, not the word Widg
 O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
 O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""
 O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
+src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
+O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
+O2 -> keeps a paste that calls eval as not live","The Chat Builder has to edit the coach in words, and a paste must not become running code (phase 1 of the Chat Builder)."
 src/components/willab/chats/devMode.test.tsx,Story,"As a host with the chat builder's ring, I switch on Developer mode under Build's two tabs and see in plain numbers how close my chat is to the speaking coach, what it notices, what it says, charts by week and my training data to keep; off the ring I see none of it (backend N648).","O1  With the ring, Build has a ""Developer mode"" switch; on, it shows the
 five parts, each opening its screen.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
@@ -2235,6 +2238,15 @@ O2  Finish take: ""Sending to {name}…"" with Undo for 5 seconds; as soon as it
 O3  Undo within the 5 seconds takes it back on the backend, before or after it got there; a Take that never uploads, or screens closed before the Take arrived, send nothing.","O1 -> the question becomes its own one-slide project and mine comes back
 O2 -> the answer goes as soon as its Take is up, held for the rest of the 5 seconds, once
 O3 -> undo takes it back on the backend; a failed upload or closing early sends nothing",
+src/lib/willab/chatBuilder/parity.test.ts,Story,"As the founder, I want the speaking-coach document to describe the walk I already have, so that building from it does not change a speaker's steps, words, or the pace step.","O1  The seed's lines, try caps and pinned pace numbers are the ones the
+walk already uses.
+O2  Praise only, a moment fix, and the sniper each produce the same plan
+from the document as from the hardcoded walk.
+O3  A fixed line on the walk carries no digit. The card's progress is not
+a walk line.
+O4  A document that moves a pinned number, the clock, or names an unknown
+screen is refused, and the seed is unchanged.
+O5  A paste that calls eval or the network is rejected, and no loader runs.",,
 src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
 O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
 O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).

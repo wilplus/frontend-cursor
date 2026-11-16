@@ -2,6 +2,13 @@
 /*
 STORY    As the founder, I want to build the speaking coach from today's
          coach, one question at a time, and a paste must not run.
+OUTCOME
+  O1  The builder opens on the parts, and a signed line stays locked.
+  O2  A paste that calls eval is kept as not live.
+PROVES   O1 -> starts from today's coach and keeps a locked line
+         O2 -> keeps a paste that calls eval as not live
+WHY      The Chat Builder has to edit the coach in words, and a paste must
+         not become running code (phase 1 of the Chat Builder).
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
