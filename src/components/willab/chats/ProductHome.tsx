@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
+import { PdfPage } from "../pdfSlides";
 import { ChatListRow, WillMark } from "./ChatList";
 
 /* -------------------------------------------------------------------------- */
@@ -78,6 +79,7 @@ export default function ProductHome({
                 key={project.arcId}
                 id={project.arcId}
                 title={project.topic}
+                circle={<ProjectCircle project={project} />}
                 onOpen={() => onOpenProject(project)}
               />
             ))
@@ -93,6 +95,75 @@ export default function ProductHome({
         </div>
       </div>
     </div>
+  );
+}
+
+const PROJECT_ICON_TONES = ["#244FC5", "#FF6A14", "#E8A317"] as const;
+
+function projectIconTone(identity: string): (typeof PROJECT_ICON_TONES)[number] {
+  let hash = 0;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash = (hash * 31 + identity.charCodeAt(index)) >>> 0;
+  }
+  return PROJECT_ICON_TONES[hash % PROJECT_ICON_TONES.length];
+}
+
+/** True after an enabled element first enters the viewport. Browsers without
+ * IntersectionObserver keep the compatible eager behaviour after mount. */
+function useVisibleOnce(ref: RefObject<HTMLElement | null>, enabled: boolean): boolean {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (visible || !enabled) return;
+    const element = ref.current;
+    if (!element) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      setVisible(true);
+      observer.disconnect();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [enabled, ref, visible]);
+  return visible;
+}
+
+/** A project keeps one palette colour for its identity. An uploaded deck uses
+ * page one from the already-served `coverRef`; PdfPage shares its document
+ * cache across every preview of that URL and only mounts when its row enters
+ * the viewport. The colour stays underneath while the PDF waits, loads and if
+ * it cannot be drawn, so the row never returns to an empty grey placeholder. */
+function ProjectCircle({ project }: { project: Pick<TrainingArc, "arcId" | "coverRef"> }) {
+  const tone = projectIconTone(project.arcId);
+  const iconRef = useRef<HTMLSpanElement | null>(null);
+  const showSlide = useVisibleOnce(iconRef, project.coverRef !== null);
+  return (
+    <span
+      ref={iconRef}
+      aria-hidden
+      data-project-icon={project.arcId}
+      data-project-icon-source={project.coverRef ? "slide" : "palette"}
+      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full"
+      style={{ backgroundColor: tone }}
+    >
+      {project.coverRef && showSlide ? (
+        <span
+          data-project-icon-slide=""
+          className="absolute -inset-0.5 scale-110 overflow-hidden blur-[1.25px] saturate-75"
+        >
+          <PdfPage
+            url={project.coverRef}
+            pageIndex={0}
+            fit
+            className="h-full w-full [&>div]:hidden [&>canvas]:!h-full [&>canvas]:!w-full [&>canvas]:!rounded-none [&>canvas]:!object-cover"
+          />
+        </span>
+      ) : null}
+      <span className="pointer-events-none absolute inset-0 bg-black/[0.06]" />
+    </span>
   );
 }
 
