@@ -15,6 +15,8 @@ OUTCOME
   O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
       that chat's rows alone, read with ?chat=; back in the Lounge, its own
       thread again, with nothing of the other kept.
+  O5  A failed optimistic write keeps one exact bubble; retry reuses its
+      client id, and the authoritative reload replaces rather than duplicates it.
 PROVES   O1 -> "a failed read again keeps the chat on screen, an answered one replaces it"
          O4 -> "N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again"
          O2 -> "an open with no answer waits and reads again, never an empty chat"
@@ -27,7 +29,11 @@ WHY      The walk's end reads the chat again whatever the summary's answer
 import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useLoungeThread, type UseLoungeThreadReturn } from "./useLoungeThread";
+import {
+  useLoungeThread,
+  type RecoverableAppend,
+  type UseLoungeThreadReturn,
+} from "./useLoungeThread";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -74,6 +80,58 @@ describe("the chat read again (C9, B8)", () => {
     expect(ids()).toEqual(["1", "2"]);
     await act(async () => box.thread!.reload());
     expect(ids()).toEqual(["3"]);
+    await act(async () => root.unmount());
+  });
+
+  it("N655 keeps a failed optimistic row retryable and reconciles the same client id once", async () => {
+    let writes = 0;
+    let stored: ReturnType<typeof row>[] = [];
+    let refuseFirst!: (reason?: unknown) => void;
+    const firstWrite = new Promise<Response>((_resolve, reject) => {
+      refuseFirst = reject;
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).includes("/lounge/messages")) return new Response("{}", { status: 404 });
+      if (init?.method === "POST") {
+        const payload = JSON.parse(String(init.body)) as { messages: ReturnType<typeof row>[] };
+        writes += 1;
+        if (writes === 1) return firstWrite;
+        stored = payload.messages;
+        return new Response(JSON.stringify({ messages: stored }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ messages: stored, has_more: false, oldest_cursor: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }));
+    const { box, root, ids } = await mountThread();
+    let pending!: RecoverableAppend;
+    act(() => {
+      pending = box.thread!.appendRecoverable({ role: "user", kind: "text", body: "Keep these words" });
+    });
+    const clientId = pending.message.client_id;
+    expect(ids()).toEqual([clientId]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let firstStored = true;
+    await act(async () => {
+      refuseFirst(new TypeError("offline"));
+      firstStored = await pending.stored;
+    });
+    expect(firstStored).toBe(false);
+    expect(ids()).toEqual([clientId]);
+
+    let retried = false;
+    await act(async () => {
+      retried = await pending.retry();
+    });
+    expect(retried).toBe(true);
+    expect(stored[0]?.client_id).toBe(clientId);
+    await act(async () => box.thread!.reload());
+    expect(ids()).toEqual([clientId]);
+    warn.mockRestore();
     await act(async () => root.unmount());
   });
 });

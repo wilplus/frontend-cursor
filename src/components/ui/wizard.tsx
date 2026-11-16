@@ -76,6 +76,7 @@ export function WizardProgress({
   onBack,
   trailing,
   showBack = true,
+  backLabel = "Back",
 }: {
   count: number;
   current: number;
@@ -87,6 +88,8 @@ export function WizardProgress({
    *  while keeping the fixed-width spacer, so the dots stay centred and the
    *  other consumer (RecordingSetup) is untouched by default. */
   showBack?: boolean;
+  /** Localised word after the fixed left arrow. */
+  backLabel?: string;
 }) {
   return (
     <div className="mb-6 flex items-center gap-3">
@@ -97,7 +100,7 @@ export function WizardProgress({
             onClick={onBack}
             className="inline-flex h-8 items-center rounded-full px-2 text-[13px] text-muted-foreground transition hover:text-foreground"
           >
-            ← Back
+            ← {backLabel}
           </button>
         ) : null}
       </div>

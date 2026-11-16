@@ -1185,7 +1185,7 @@ export default function IdealTextReadout({
         <div
           data-ideal-text-wheel-native
           data-testid="readout-plain-scroller"
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+          className="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
         >
           <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
         </div>

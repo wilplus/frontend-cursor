@@ -17,6 +17,7 @@ import {
   resolveUiLocaleFromRequest,
   UI_LOCALE_COOKIE,
 } from "@/lib/uiLocale";
+import UiLocaleProvider from "@/components/ui/UiLocaleProvider";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
 // Serif Display via Tailwind's `font-heading`, whose stack reads
@@ -114,20 +115,22 @@ export default function RootLayout({
         use h-full so they fill the content slot instead of the document.
       */}
       <body className="flex h-[100dvh] flex-col font-sans antialiased">
-        <div className="flex-1 overflow-y-auto">{children}</div>
-        <Footer initialLocale={uiLocale} />
-        <Toaster position="top-center" />
-        <ServiceWorkerRegistrar />
-        <HomeScreenReporter />
-        <NativeAppMarker />
-        <NativePush />
-        <NativeLinks />
-        <NativeKeyboard />
-        {/* Side-effect-only: claim the guest graph, then send the exact parked
-            Project Take after OAuth. Renders nothing. */}
-        <PendingCoachSend />
-        <GuestProjectClaim />
-        <BookingReturn />
+        <UiLocaleProvider initialLocale={uiLocale}>
+          <div className="flex-1 overflow-y-auto">{children}</div>
+          <Footer />
+          <Toaster position="top-center" />
+          <ServiceWorkerRegistrar />
+          <HomeScreenReporter />
+          <NativeAppMarker />
+          <NativePush />
+          <NativeLinks />
+          <NativeKeyboard />
+          {/* Side-effect-only: claim the guest graph, then send the exact parked
+              Project Take after OAuth. Renders nothing. */}
+          <PendingCoachSend />
+          <GuestProjectClaim />
+          <BookingReturn />
+        </UiLocaleProvider>
       </body>
     </html>
   );

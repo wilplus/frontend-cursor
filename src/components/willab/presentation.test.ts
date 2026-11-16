@@ -4,7 +4,9 @@ STORY    As a speaker, I want a clear message when I pick a file that is not
 OUTCOME
   O1  PowerPoint and Keynote files are refused with a message naming PDF;
       a PDF over the size limit is refused with a message naming 20 MB.
+  O2  Polish fixed UI receives the approved Polish validation message.
 PROVES   O1 -> "rejects non-pdf (incl. pptx, now PDF-only) and oversize"
+         O2 -> "uses approved Polish validation copy when the fixed UI is Polish"
 */
 import { describe, expect, it } from "vitest";
 import {
@@ -20,6 +22,15 @@ describe("deckFileError", () => {
     expect(deckFileError(file("deck.key", 1000))).toMatch(/PDF/);
     expect(deckFileError(file("deck.pdf", SLIDE_CAPS.maxFileBytes + 1))).toMatch(
       /20 MB/
+    );
+  });
+
+  it("uses approved Polish validation copy when the fixed UI is Polish", () => {
+    expect(deckFileError(file("deck.pptx", 1000), "pl")).toBe(
+      "Prześlij plik PDF. Jeśli slajdy nie są jeszcze w formacie PDF, najpierw je wyeksportuj.",
+    );
+    expect(deckFileError(file("deck.pdf", SLIDE_CAPS.maxFileBytes + 1), "pl")).toContain(
+      "20 MB",
     );
   });
 });

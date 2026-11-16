@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
+import { PdfPage } from "../pdfSlides";
 import { ChatListRow, WillMark } from "./ChatList";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  The speaking-coach home. The old people-chat list still reads its backend  */
@@ -27,6 +31,7 @@ export default function ProductHome({
   onOpenProject: (project: TrainingArc) => void;
   onStartNewProject: () => void;
 }) {
+  const locale = useUiLocale();
   const thread = useLoungeThreadMaybe();
   const [projects, setProjects] = useState<TrainingArc[]>([]);
   const [status, setStatus] = useState<Status>("loading");
@@ -55,7 +60,7 @@ export default function ProductHome({
   if (status === "loading" || !coachReady) {
     return (
       <div data-product-home data-product-home-loading className="flex min-h-0 flex-1">
-        <LoadingState placement="surface" />
+        <LoadingState placement="surface" label={uiText(locale, "loading")} />
       </div>
     );
   }
@@ -63,21 +68,22 @@ export default function ProductHome({
   return (
     <div data-product-home className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-4xl flex-col px-[15px] pb-6 pt-2">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col px-[15px] pb-6 pt-2`}>
           <HomeRow
             id="speaking-coach"
-            title="Speaking coach"
+            title={uiText(locale, "speakingCoach")}
             circle={<WillMark size={48} />}
             onOpen={onOpenSpeaking}
           />
           {status === "error" ? (
-            <HomeError onRetry={() => setAttempt((value) => value + 1)} />
+            <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
           ) : (
             projects.map((project) => (
               <HomeRow
                 key={project.arcId}
                 id={project.arcId}
                 title={project.topic}
+                circle={<ProjectCircle project={project} />}
                 onOpen={() => onOpenProject(project)}
               />
             ))
@@ -88,11 +94,80 @@ export default function ProductHome({
             onClick={onStartNewProject}
             className="mt-2 flex min-h-[56px] w-full items-center px-3 text-left text-[16px] font-semibold text-foreground"
           >
-            Start a new project
+            {uiText(locale, "startNewProject")}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+const PROJECT_ICON_TONES = ["#244FC5", "#FF6A14", "#E8A317"] as const;
+
+function projectIconTone(identity: string): (typeof PROJECT_ICON_TONES)[number] {
+  let hash = 0;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash = (hash * 31 + identity.charCodeAt(index)) >>> 0;
+  }
+  return PROJECT_ICON_TONES[hash % PROJECT_ICON_TONES.length];
+}
+
+/** True after an enabled element first enters the viewport. Browsers without
+ * IntersectionObserver keep the compatible eager behaviour after mount. */
+function useVisibleOnce(ref: RefObject<HTMLElement | null>, enabled: boolean): boolean {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (visible || !enabled) return;
+    const element = ref.current;
+    if (!element) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      setVisible(true);
+      observer.disconnect();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [enabled, ref, visible]);
+  return visible;
+}
+
+/** A project keeps one palette colour for its identity. An uploaded deck uses
+ * page one from the already-served `coverRef`; PdfPage shares its document
+ * cache across every preview of that URL and only mounts when its row enters
+ * the viewport. The colour stays underneath while the PDF waits, loads and if
+ * it cannot be drawn, so the row never returns to an empty grey placeholder. */
+function ProjectCircle({ project }: { project: Pick<TrainingArc, "arcId" | "coverRef"> }) {
+  const tone = projectIconTone(project.arcId);
+  const iconRef = useRef<HTMLSpanElement | null>(null);
+  const showSlide = useVisibleOnce(iconRef, project.coverRef !== null);
+  return (
+    <span
+      ref={iconRef}
+      aria-hidden
+      data-project-icon={project.arcId}
+      data-project-icon-source={project.coverRef ? "slide" : "palette"}
+      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full"
+      style={{ backgroundColor: tone }}
+    >
+      {project.coverRef && showSlide ? (
+        <span
+          data-project-icon-slide=""
+          className="absolute -inset-0.5 scale-110 overflow-hidden blur-[1.25px] saturate-75"
+        >
+          <PdfPage
+            url={project.coverRef}
+            pageIndex={0}
+            fit
+            className="h-full w-full [&>div]:hidden [&>canvas]:!h-full [&>canvas]:!w-full [&>canvas]:!rounded-none [&>canvas]:!object-cover"
+          />
+        </span>
+      ) : null}
+      <span className="pointer-events-none absolute inset-0 bg-black/[0.06]" />
+    </span>
   );
 }
 
@@ -119,15 +194,15 @@ function HomeRow({
   );
 }
 
-function HomeError({ onRetry }: { onRetry: () => void }) {
+function HomeError({ locale, onRetry }: { locale: UiLocale; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-start gap-2 px-3 py-4">
       <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
         <VoiceMark size={20} />
-        <span>Couldn&apos;t load your projects.</span>
+        <span>{uiText(locale, "projectLoadFailed")}</span>
       </div>
       <button type="button" onClick={onRetry} className="text-[13px] text-foreground underline underline-offset-2">
-        Try again
+        {uiText(locale, "tryAgain")}
       </button>
     </div>
   );

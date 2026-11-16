@@ -9,9 +9,11 @@ OUTCOME
       first, then the project's.
   O3  On the first Take after I changed the slides it says "New slides";
       after that it names the Take the slides were first used on.
+  O4  Fixed status words follow the app locale while slide content is unchanged.
 PROVES   O1 -> "names the speaker's own file, the stand-in deck, or nothing until the setup is known"
          O2 -> "is shown before a later Take only, from the Take's own setup first"
          O3 -> "says New slides on the first Take with them, then the Take they started on"
+         O4 -> "uses Polish for fixed setup status without changing slide content"
 WHY      Founder 2026-10-16; backend N257 (2026-10-29).
 */
 import { describe, expect, it } from "vitest";
@@ -55,5 +57,19 @@ describe("which presentation a later Take is said against (founder 2026-10-16)",
     );
     // Not sent: today's line.
     expect(laterTakePresentation(2, null, own, deckNewsOf({}))).toBe(PRESENTATION_IN_PLAY.own);
+  });
+
+  it("uses Polish for fixed setup status without changing slide content", () => {
+    const own = {
+      slides: [{ title: "English customer story", body: "Keep this text" }],
+      presentationRef: "https://example.test/deck.pdf",
+    };
+    expect(laterTakePresentation(6, null, own, deckNewsOf({ deckSinceTake: 5 }), "pl")).toBe(
+      "Ta sama prezentacja co w nagraniu 5",
+    );
+    expect(laterTakePresentation(6, null, { slides: [], presentationRef: null }, null, "pl")).toBe(
+      "Ta sama prezentacja zastępcza co w nagraniu 1",
+    );
+    expect(own.slides[0]).toEqual({ title: "English customer story", body: "Keep this text" });
   });
 });

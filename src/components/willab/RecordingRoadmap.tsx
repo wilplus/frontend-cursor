@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
 import { ENTER_OFFSET_PX, type Dir } from "@/lib/willab/recordingGesture";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
 import FinishTakeButton from "./FinishTakeButton";
@@ -10,7 +11,6 @@ import { isDefaultDeckText } from "@/lib/willab/defaultDeck";
 import {
   recordingCopy,
   recordingSlidesInLocale,
-  recordingUiLocale,
 } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
 
@@ -73,7 +73,7 @@ export default function RecordingRoadmap({
   /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
   asks?: string | null;
 }) {
-  const locale = recordingUiLocale();
+  const locale = useUiLocale();
   const copy = recordingCopy(locale);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideBoxRef = useRef<HTMLDivElement | null>(null);

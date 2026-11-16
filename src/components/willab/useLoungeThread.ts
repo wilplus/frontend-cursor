@@ -50,6 +50,10 @@ export interface UseLoungeThreadReturn {
   hasMore: boolean;
   /** Append a message (stamped here) to whichever store is active. */
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+  /** Put a message on screen synchronously and expose the durable write.
+   *  A failed write keeps the same idempotent bubble in the thread; `retry`
+   *  stores that exact row again, so typed words never need a second bubble. */
+  appendRecoverable: (draft: LoungeMessageDraft) => RecoverableAppend;
   /** #2 — show a message in the thread WITHOUT persisting it, used when the
    *  BACKEND owns persistence for the turn (the bot turn on a signed-in
    *  persist:true chat call). The authoritative row arrives on the next
@@ -79,6 +83,12 @@ export interface UseLoungeThreadReturn {
    *  the backend writes (backend N632 item 7). */
   own: OwnBubble;
 }
+
+export type RecoverableAppend = {
+  message: LoungeMessage;
+  stored: Promise<boolean>;
+  retry: () => Promise<boolean>;
+};
 
 /** One own bubble on screen before the backend's row: `settle` once the
  *  answer is taken (the next read that lands puts the backend's row in its
@@ -133,15 +143,29 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
   // appends not yet stored: a read that lands meanwhile keeps them.
   // A settled one goes with the first read begun after it was settled,
   // which holds the backend's row; a read begun before keeps it.
-  const keptRef = useRef<Map<string, { message: LoungeMessage; settledAt: number | null }>>(new Map());
+  const keptRef = useRef<Map<string, {
+    message: LoungeMessage;
+    settledAt: number | null;
+    exact?: boolean;
+  }>>(new Map());
   const readsRef = useRef(0);
   const startRead = () => (readsRef.current += 1);
   const withKept = useCallback((page: LoungeMessage[], read: number): LoungeMessage[] => {
     const ids = new Set(page.map((m) => m.client_id));
     const out = [...page];
     for (const [id, kept] of keptRef.current) {
-      if (kept.settledAt !== null && read > kept.settledAt) keptRef.current.delete(id);
-      else if (!ids.has(id)) out.push(kept.message);
+      if (ids.has(id)) {
+        keptRef.current.delete(id);
+      } else if (kept.exact) {
+        // Recoverable appends use this exact client_id as their idempotency
+        // key. Keep the optimistic row through an eventually-consistent read;
+        // the authoritative row replaces it once that same id is returned.
+        out.push(kept.message);
+      } else if (kept.settledAt !== null && read > kept.settledAt) {
+        keptRef.current.delete(id);
+      } else {
+        out.push(kept.message);
+      }
     }
     return out;
   }, []);
@@ -217,38 +241,69 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
     return stop;
   }, [signedIn, chat, withKept]);
 
-  const append = useCallback(
-    async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
+  const appendRecoverable = useCallback(
+    (draft: LoungeMessageDraft): RecoverableAppend => {
       const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
-      // Optimistic — the bubble shows instantly; persistence trails.
-      setMessages((prev) =>
-        prev.some((item) => item.client_id === msg.client_id)
-          ? prev
-          : [...prev, msg]
-      );
-      if (signedIn) keptRef.current.set(msg.client_id, { message: msg, settledAt: null });
-      const stored = (async () => {
+      let stored = false;
+      let inFlight: Promise<boolean> | null = null;
+
+      const keepOnScreen = () => {
+        setMessages((prev) =>
+          prev.some((item) => item.client_id === msg.client_id)
+            ? prev
+            : [...prev, msg]
+        );
         if (signedIn) {
-          const persisted = await appendLoungeMessages([msg]);
-          announceDiscoveriesFromPersistedMessages(persisted);
-        } else {
-          appendLocalLoungeMessage(msg);
+          keptRef.current.set(msg.client_id, { message: msg, settledAt: null, exact: true });
         }
-      })();
-      pendingRef.current.add(stored);
-      try {
-        await stored;
-      } catch (err) {
-        // Persistence is best-effort; the bubble stays on screen. (Idempotent
-        // on client_id, so a later retry/merge reconciles.)
-        console.warn("useLoungeThread.append — persist failed:", err);
-      } finally {
-        pendingRef.current.delete(stored);
-        keptRef.current.delete(msg.client_id);
-      }
-      return msg;
+      };
+
+      const write = (): Promise<boolean> => {
+        if (stored) return Promise.resolve(true);
+        if (inFlight) return inFlight;
+        keepOnScreen();
+        const operation = (async () => {
+          try {
+            if (signedIn) {
+              const persisted = await appendLoungeMessages([msg]);
+              announceDiscoveriesFromPersistedMessages(persisted);
+            } else {
+              appendLocalLoungeMessage(msg);
+            }
+            stored = true;
+            const kept = keptRef.current.get(msg.client_id);
+            if (kept) kept.settledAt = readsRef.current;
+            return true;
+          } catch (err) {
+            // Keep the exact optimistic row. A retry uses the same client_id,
+            // so a response lost after the server write still cannot duplicate.
+            console.warn("useLoungeThread.append — persist failed:", err);
+            return false;
+          }
+        })();
+        const attempt = operation.finally(() => {
+          pendingRef.current.delete(attempt);
+          inFlight = null;
+        });
+        inFlight = attempt;
+        pendingRef.current.add(attempt);
+        return attempt;
+      };
+
+      keepOnScreen();
+      const first = write();
+      return { message: msg, stored: first, retry: write };
     },
     [signedIn],
+  );
+
+  const append = useCallback(
+    async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
+      const pending = appendRecoverable(draft);
+      await pending.stored;
+      return pending.message;
+    },
+    [appendRecoverable],
   );
 
   const appendLocalOnly = useCallback(
@@ -351,6 +406,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
     loadingOlder,
     hasMore,
     append,
+    appendRecoverable,
     appendLocalOnly,
     signedIn,
     loadOlder,

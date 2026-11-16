@@ -13,6 +13,7 @@ import { aiGeneratedAttrs } from "@/lib/willab/aiGeneratedMark";
 import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookmark";
 import { helperHeadlineOf, slideGroupsOf, type IdealTextPast } from "@/lib/willab/pastIdealText";
 import type { IdealTextRevision } from "@/services/api/blockVariants";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextPastVersion — an older Take's Ideal Text card, opened (founder    */
@@ -48,21 +49,23 @@ export default function IdealTextPastVersion({
       {...aiGeneratedAttrs("ideal-text")}
       className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
-        <div className="flex min-w-0 flex-col">
-          <IdealTextHeading title={past.title} status={null} />
-          <AiGeneratedNote
-            kind="ideal-text"
-            name={past.title}
-            take={take}
-          />
+      <div className="shrink-0 border-b border-border bg-background">
+        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
+          <div className="flex min-w-0 flex-col">
+            <IdealTextHeading title={past.title} status={null} />
+            <AiGeneratedNote
+              kind="ideal-text"
+              name={past.title}
+              take={take}
+            />
+          </div>
+          <OverlayCloseButton onClick={onClose} />
         </div>
-        <OverlayCloseButton onClick={onClose} />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         {/* Which Take this is, and the way to the latest (N380, signed). */}
         {take !== null ? (
-          <div data-past-take className="mx-auto flex w-full max-w-[56rem] flex-col gap-3 px-6 pt-6 sm:px-10">
+          <div data-past-take className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-3 px-6 pt-6 sm:px-10`}>
             <p className="text-[15px] leading-relaxed text-foreground">{PAST_TAKE_COPY.whichTake(take)}</p>
             {latestTake !== null && latestTake !== take ? (
               <WalkPill outline action={{ label: PAST_TAKE_COPY.goToLatest(latestTake), onClick: onLatest }} />
@@ -73,7 +76,7 @@ export default function IdealTextPastVersion({
           // The live page's reading column and its compact slide row
           // (founder 2026-09-26 and 2026-09-28): the tile beside the kicker
           // on a phone, above it on a computer. Read only: no pencil.
-          <section key={i} className="mx-auto flex w-full max-w-[56rem] flex-col gap-4 px-6 py-6 sm:px-10">
+          <section key={i} className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-6 py-6 sm:px-10`}>
             {onSlides ? (
               <div className="flex shrink-0 items-center gap-3 md:flex-col md:gap-2">
                 {g.slideIndex !== null ? (
@@ -93,7 +96,7 @@ export default function IdealTextPastVersion({
         ))}
       </div>
       <div className="shrink-0 bg-background px-4">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className={WILLAB_CONTENT_RAIL}>
           <WalkLink action={{ label: "Close", onClick: onClose }} />
         </div>
       </div>

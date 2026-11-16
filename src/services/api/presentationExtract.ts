@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import { guestOwnerHeaders } from "@/services/api/projects";
 import {
   deckFileError,
@@ -32,8 +33,11 @@ const PUBLIC_BACKEND_URL = (
   ""
 ).replace(/\/+$/, "");
 
-export async function extractPresentation(file: File): Promise<ExtractResult> {
-  const guard = deckFileError(file);
+export async function extractPresentation(
+  file: File,
+  locale: UiLocale = "en",
+): Promise<ExtractResult> {
+  const guard = deckFileError(file, locale);
   if (guard) return { status: "error", message: guard };
 
   const form = new FormData();
@@ -93,7 +97,7 @@ export async function extractPresentation(file: File): Promise<ExtractResult> {
         if (e instanceof Error && e.name === "AbortError") {
           return {
             status: "error",
-            message: "Reading the deck took too long. Add your slides below.",
+            message: uiText(locale, "setupDeckReadTimeout"),
           };
         }
         // Network-layer death (CORS preflight block, DNS, offline) → the
@@ -108,7 +112,7 @@ export async function extractPresentation(file: File): Promise<ExtractResult> {
   } catch {
     return {
       status: "error",
-      message: "Couldn't reach the lab to read your deck. Add your slides below.",
+      message: uiText(locale, "setupDeckReachFailed"),
     };
   }
 
@@ -122,28 +126,27 @@ export async function extractPresentation(file: File): Promise<ExtractResult> {
       // false. Honest copy until the direct path (BE CORS) carries big decks.
       return {
         status: "error",
-        message:
-          "That deck is too large to send right now. Export a lighter PDF (a few MB) or add your slides below.",
+        message: uiText(locale, "setupDeckProxyTooLarge"),
       };
     }
-    return { status: "error", message: fileTooLargeMessage(body) };
+    return { status: "error", message: fileTooLargeMessage(body, locale) };
   }
   if (res.status === 415) {
     return {
       status: "error",
-      message: "That file type isn't supported. Export your slides to PDF and upload that.",
+      message: uiText(locale, "setupDeckUnsupported"),
     };
   }
   if (res.status === 422) {
     return {
       status: "error",
-      message: "We couldn't read that deck. Add your slides below.",
+      message: uiText(locale, "setupDeckUnreadable"),
     };
   }
   if (!res.ok) {
     return {
       status: "error",
-      message: "We couldn't read that deck just now. Add your slides below.",
+      message: uiText(locale, "setupDeckReadFailed"),
     };
   }
 

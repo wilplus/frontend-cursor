@@ -16,6 +16,7 @@ import {
 } from "@/lib/willab/presentationDocument";
 import { buildRootPhraseLayer } from "@/lib/willab/rootPhraseLayer";
 import { helperWordRanges } from "@/lib/willab/answeredBookmark";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  PresentMode — the ideal text, fullscreen, for actually presenting it.      */
@@ -121,7 +122,7 @@ export default function PresentMode({
     <div
       data-ideal-text-wheel-native
       data-present-mode
-      className="dark willab-canvas fixed inset-0 z-50 bg-background text-foreground"
+      className="dark fixed inset-0 z-50 bg-background text-foreground"
     >
       {exportFormat ? (
         <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
@@ -155,7 +156,7 @@ export default function PresentMode({
         ref={scrollRef}
         className="scrollbar-none h-full overflow-y-auto overscroll-contain"
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-5 pb-24 pt-16 print:max-w-none print:px-0 print:pt-0">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-10 px-5 pb-24 pt-16 print:max-w-none print:px-0 print:pt-0`}>
           {slides.map((slide, slideIndex) => (
             <section
               key={slide.key}

@@ -361,6 +361,29 @@ step; the loop never waits for a coach.
   N319 item 1); "Type here" faded while the plan asked, with its note (N319
   item 3, N323, N325); "Something else" in the bar's middle (N371 item 3);
   voice notes to Will and the "#" note (N253).
+
+  **N655 · project content conversation override (founder-approved and
+  locked):** tap options are supplemental; they never replace or remove the
+  persistent bottom composer. In a project's content conversation the chips
+  stay naturally stacked above a usable text field. A typed answer and a
+  tapped answer both draw the speaker's orange bubble immediately, before the
+  request answers. Once the conversation reaches the next-Take state, that
+  same persistent bottom action becomes the recording bar/button. There is no
+  new visible copy. For a signed-in typed project turn, both project surfaces
+  call contextual `/chat/query` with `persist:true` and the exact optimistic
+  user's `client_id` and `client_created_at`. The idempotent user outbox may
+  upsert that same row so it cannot disappear; it never writes a signed-in bot
+  row. Only `persisted:true` settles the turn. A failed request or a 200 with
+  `persisted:false` keeps the exact words and ID visible and retryable. The
+  local reply merges the backend's authoritative `row_metadata`; then the
+  thread reloads (required when `after_take:true`) so the backend-owned rows
+  and released next-Take closing replace local state without duplicates.
+  Signed-out storage remains frontend-owned. `ProjectChat.tsx` owns the project
+  surface and the switch to its next-Take action; `Lounge.tsx` owns the same
+  open-question routing in the main speaking chat; `useLoungeThread.ts` owns
+  the idempotent optimistic outbox; `projectChat.ts` owns project history and
+  arc/take/place metadata. `ProjectChat.test.tsx` and
+  `LoungeTypedAnswer.test.tsx` lock the outcome.
 - **B15** **The chat follows the newest bubble after an answer** (founder
   2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
   the continue tap or an answer to the plan's question, the Lounge lands on
@@ -992,7 +1015,9 @@ praised moment:
   panel's asks are not among them since N391: they come in the bar at the
   top. One question or ask is on screen at a time
   (N294 item 4). While Will's question waits, his answers sit under it,
-  "Something else" first, and the bar's middle stays the record button: his
+  "Something else" first. In the project content conversation, N655 keeps the
+  text composer under those answers; the bottom action becomes the next-Take
+  recording action only after the question/conversation has closed. His
   question never stands in front of the next Take (B14, N483 item 2).
 
   **Notifications come in a bar at the top of the chat, never in the
@@ -1092,9 +1117,9 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for has no "Someone else": their own words go into "Something else",
-  the first of his answers, which opens the box (N483 item 2; was in the
-  bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
+  is for has no "Someone else": their own words can be typed in the persistent
+  box; "Something else", the first of his answers, focuses that same box
+  (N655; N483 item 2; was in the bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
   last, opening "Who is it for, then? 👀", N319 item 8). The check
   ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the stack still
@@ -2379,6 +2404,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 - 2026-11-16 · founder-approved product structure · the home has one Speaking coach destination, every active project and Start a new project; projects stay concurrent, opening or creating one never archives another, and the project owns its conversation, Takes, questions, Feedback Walk, Ideal Text and resume point. The home waits for the project list and Speaking coach state before painting; the legacy people-chat reads remain for required backend side effects, not as the speaking-coach IA · FE (this PR)
 

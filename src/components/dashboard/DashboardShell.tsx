@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /** Wraps dashboard content under the dashboard header. */
 export default function DashboardShell({
@@ -16,8 +17,8 @@ export default function DashboardShell({
   return (
     <div className="bg-background">
       <DashboardHeader />
-      <main className="w-full max-w-4xl mx-auto flex flex-col min-w-0 px-[15px] pt-6 pb-4 sm:pt-8 sm:pb-6">
-        <div className="w-full max-w-2xl sm:max-w-3xl mx-auto flex flex-col items-center">
+      <main className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col px-[15px] pb-4 pt-6 sm:pb-6 sm:pt-8`}>
+        <div className="flex w-full flex-col items-center">
           {children}
         </div>
       </main>

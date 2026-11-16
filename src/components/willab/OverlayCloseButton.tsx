@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -38,7 +40,7 @@ export const OVERLAY_ICON_CLASS = "h-4 w-4";
 
 export default function OverlayCloseButton({
   onClick,
-  ariaLabel = "Close",
+  ariaLabel,
   className,
 }: {
   onClick: () => void;
@@ -46,11 +48,13 @@ export default function OverlayCloseButton({
   /** Position / offset overrides only — the visual treatment is fixed. */
   className?: string;
 }) {
+  const locale = useUiLocale();
+  const label = ariaLabel ?? uiText(locale, "close");
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel}
+      aria-label={label}
       className={cn(OVERLAY_ICON_BUTTON_CLASS, CLOSE_TAP_AREA_CLASS, className)}
     >
       <X className={OVERLAY_ICON_CLASS} aria-hidden />

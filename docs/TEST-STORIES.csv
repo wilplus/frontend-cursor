@@ -428,6 +428,8 @@ comes shows the step's plain words (founder 2026-10-20).","O1 -> ""draws the pla
 asked for the clip, short, with its ›""
 O2 -> ""a clip still being made comes in when it lands, and one
 that never comes shows the plain words""",
+src/components/willab/LoungeTypedAnswer.test.tsx,Story,"As a speaker answering Will in the main speaking chat, I see my own words immediately and never lose them to a slow or failed model call.","The open project question keeps its composer, uses contextual chat,
+preserves project/place identity, and reconciles one own bubble.",,"Founder lock N655, 2026-11-16."
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, with sending on, I want the people in my chats listed with everyone ticked, the one I sent to last on top, so that one Continue sends my Take to them, and I want the line under it to let me add people later but never unsend. With sending off, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O3  With sending on: the three bubbles, Select all and one row per
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
@@ -510,9 +512,12 @@ O4 -> ""opens the full consent screens when the last country is no longer allowe
 src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
-O3  The project uses one chat top bar and the standard answer controls.","O1 -> ""puts the result before the project conversation""
+O3  The project uses one chat top bar and the standard answer controls.
+O4  Every route to the current Ideal Text preserves the decision to
+continue to the next fragment or repeat this fragment.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
-O3 -> ""uses the locked chat bar and answer controls""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
+O3 -> ""uses the locked chat bar and answer controls""
+O4 -> ""keeps the fragment decision when Ideal Text opens from the card""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -614,8 +619,9 @@ is read again (App Model MATCH-04; N518 item 1). The rating inside
 the answer waits for its prototype (N518 item 9) and is not built.","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""
 O2 -> ""no card follows Sent: the answer goes and nothing asks about it""","O2: founder, 5 November 2026, N518 item 1 (""No, never ask"") and item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
 src/components/willab/chats/ProductHome.test.tsx,Story,"As a speaker, I want one speaking-coach home with all my active projects, so I can keep and practise projects concurrently.","The home waits for the project index and Speaking coach state, then
-paints Speaking coach, every active project and Start a new project.","Opening a project is a local navigation callback; it never archives
-another project.",
+paints Speaking coach, every active project and Start a new project.
+Polish app UI localises the fixed rows without translating project names.","Opening a project is a local navigation callback; it never archives
+another project; the locale test keeps user-authored names byte-for-byte.",
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
 photos and files we shared; with none, ""No photos yet."" and ""No files
 yet.""; no pencil and no Edit.
@@ -942,7 +948,7 @@ O7 -> ""the founder's ⋯ deletes a waiting speaker's moments, the greyed one's 
 O8 -> ""the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none""
 O9 -> ""A speaker: who the talk is for and what they should do under the goal, from the newest Take that says so (founder 2026-10-20)""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder 2026-10-20, like the training corpus's ⋯."
 src/components/willab/coachpanel/coachPanelColumn.test.tsx,Story,"As a coach on a computer, I want my queue and every screen after it as wide as Will's chat, the way the rest of the app is, not a narrow strip in the middle (backend N627).","O1  Opened from the list of chats (""Your queue""), the panel is drawn in
-the column Will's chat fills, and ‹ closes it from there.","O1 -> ""opened from the list of chats, the panel is drawn in Will's column and closes from there""","Backend N627; frontend #1363 did the same for the AI models overlay. No snapshot or CSS test: one check that the panel's frame is the shared column, every screen and sheet drawing through it."
+the column Will's chat fills, and ‹ closes it from there.","O1 -> ""opened from the list of chats, the panel is drawn in Will's column and closes from there""","Backend N627; frontend #1363 did the same for the AI models overlay. No snapshot or CSS test: one check that the panel's frame is the shared locked app canvas, every screen and sheet drawing through it."
 src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up, let me rename finished imports and import several files at once, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
 ""Set up · {n} moments"".
 O2  An import with nothing to judge is never judged: back on the imports.
@@ -1572,15 +1578,19 @@ O3  Control: with the choice on, that same clearer version does offer
 ""Accept and practise"" (so O2 cannot pass on a sheet that never offers it).","O1 -> ""a Not sure offers Next, never Practise or Skip""
 O2, O3 -> ""a clearer version offers no Accept and practise (and does with the choice on)""",F1 Repair Plan Phase 4: every practice route answers 403 CONSENT_CHOICE_OFF.
 src/components/willab/presentation.test.ts,Story,"As a speaker, I want a clear message when I pick a file that is not a PDF or is over 20 MB, so that I know what to upload.","O1  PowerPoint and Keynote files are refused with a message naming PDF;
-a PDF over the size limit is refused with a message naming 20 MB.","O1 -> ""rejects non-pdf (incl. pptx, now PDF-only) and oversize""",
+a PDF over the size limit is refused with a message naming 20 MB.
+O2  Polish fixed UI receives the approved Polish validation message.","O1 -> ""rejects non-pdf (incl. pptx, now PDF-only) and oversize""
+O2 -> ""uses approved Polish validation copy when the fixed UI is Polish""",
 src/components/willab/presentationInPlay.test.ts,Story,"As a speaker starting a later Take, I want to be told whether I am speaking to my own slides or the stand-in deck, so that I know what this Take goes with.","O1  It names my own file, the stand-in deck, or nothing while the setup
 is not known yet.
 O2  It is shown only before Take 2 and later, from that Take's own setup
 first, then the project's.
 O3  On the first Take after I changed the slides it says ""New slides"";
-after that it names the Take the slides were first used on.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
+after that it names the Take the slides were first used on.
+O4  Fixed status words follow the app locale while slide content is unchanged.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
 O2 -> ""is shown before a later Take only, from the Take's own setup first""
-O3 -> ""says New slides on the first Take with them, then the Take they started on""",Founder 2026-10-16; backend N257 (2026-10-29).
+O3 -> ""says New slides on the first Take with them, then the Take they started on""
+O4 -> ""uses Polish for fixed setup status without changing slide content""",Founder 2026-10-16; backend N257 (2026-10-29).
 src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
 src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
@@ -1617,8 +1627,11 @@ O3 -> ""an answer's question is the poster with whose question it is""
 O4 -> ""an uploaded deck is never the poster""","Founder 2026-11-04: ""the slides are perfect lock them"", ""update the default presentation and keep this formating for any presentation that comes from the questions to the specialist"" (backend N462)."
 src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the presentation time limit, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
 O2  With no slides added, the slides step's button is ""Skip for now"", the
-last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
-O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
+last step included, and it starts the Take.
+O3  Polish app UI localises the fixed questions, upload control and actions
+without translating the speaker's typed topic.","O1 -> ""asks topic, length, slides, then starts""
+O2 -> ""asks topic, length, slides, then starts""
+O3 -> ""uses approved Polish fixed UI while keeping the speaker's topic unchanged""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
 src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once; a question to
 someone (N483 item 4) reads ""To Sarah · Slide 1 of 3"".
 O2  On the last slide Next slide becomes the red Finish take, which ends
@@ -1713,7 +1726,9 @@ O3  ""Load earlier messages"" with no answer keeps the button, so a tap
 asks again; answered, the older messages come in above.
 O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
 that chat's rows alone, read with ?chat=; back in the Lounge, its own
-thread again, with nothing of the other kept.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+thread again, with nothing of the other kept.
+O5  A failed optimistic write keeps one exact bubble; retry reuses its
+client id, and the authoritative reload replaces rather than duplicates it.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
 O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
 O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
@@ -2061,7 +2076,9 @@ O2 -> ""an ask after the answer reads again, so a change is seen""
 O3 -> ""an unanswered auth read releases the app instead of loading forever""",
 src/lib/uiLocale.test.ts,Story,"As a visitor, I want the interface to start in Polish in Poland and English elsewhere, while my explicit EN/PL choice remains in control.","O1  PL edge country defaults to Polish; every other or missing country defaults to English.
 O2  A persisted EN or PL UI choice wins over the country default.
-O3  Incomplete Polish copy falls back to the approved English source.",O1/O2 -> request locale resolution; O3 -> safe translation fallback,
+O3  Incomplete Polish copy falls back to the approved English source.
+O4  Founder-approved project/setup UI is served in Polish.","O1/O2 -> request locale resolution; O3 -> safe translation fallback;
+O4 -> approved copy and interpolation",
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.

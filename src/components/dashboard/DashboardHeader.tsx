@@ -4,6 +4,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  DashboardHeader — the lab's chrome.                                        */
@@ -22,7 +23,7 @@ export default function DashboardHeader() {
   const menu = useAppMenuData();
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
+      <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4`}>
         <div className="flex shrink-0 items-center gap-2">
           {/* prefetch={false}, as the footer's links (loading audit,
               2026-11-02): this bar is drawn on every open of /chat, and the

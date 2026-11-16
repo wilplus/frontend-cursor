@@ -30,6 +30,8 @@ export interface ConfirmCopy {
   title: string;
   body: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  failedLabel?: string;
 }
 
 /** A draft's confirmation, unchanged since 2026-09-25. */
@@ -47,6 +49,7 @@ export default function ProjectRowMenu({
   failedLabel = "Couldn't save that. Try again.",
   secondary,
   menuAlign = "right",
+  menuAriaLabel,
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
@@ -63,6 +66,8 @@ export default function ProjectRowMenu({
   /** Which edge of the ⋯ the open menu lines up with: "left" when the ⋯ sits
    *  on a row's left edge (the coach panel's lists, founder 2026-10-20). */
   menuAlign?: "left" | "right";
+  /** Localised accessible name for the row's menu trigger. */
+  menuAriaLabel?: string;
 }) {
   const [failedDirect, setFailedDirect] = useState(false);
   const [open, setOpen] = useState(false);
@@ -90,7 +95,7 @@ export default function ProjectRowMenu({
     <div ref={wrapRef} className="relative shrink-0">
       <button
         type="button"
-        aria-label={`More options for ${label}`}
+        aria-label={menuAriaLabel ?? `More options for ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -217,7 +222,7 @@ export function ConfirmDelete({
         </p>
         {failed ? (
           <p className="mt-2 text-[13px] text-record">
-            Couldn&apos;t delete. Try again.
+            {copy.failedLabel ?? "Couldn't delete. Try again."}
           </p>
         ) : null}
         <div className="mt-5 grid grid-cols-2 gap-2">
@@ -228,7 +233,7 @@ export function ConfirmDelete({
             disabled={busy}
             className="rounded-full"
           >
-            Cancel
+            {copy.cancelLabel ?? "Cancel"}
           </Button>
           <Button
             type="button"

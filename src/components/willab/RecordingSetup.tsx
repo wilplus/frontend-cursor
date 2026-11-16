@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StepHead, WizardCancel, WizardChip, WizardProgress } from "@/components/ui/wizard";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import PresentationInput from "./PresentationInput";
 import ContextDocumentInput from "./ContextDocumentInput";
 import { type LabSessionContext } from "./LabOverlay";
@@ -20,6 +22,7 @@ import {
   readActiveSetupDraft,
   saveSetupDraft,
 } from "@/lib/willab/setupDraft";
+import { recordingText } from "./recordingCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
@@ -66,9 +69,12 @@ function recordingSetupPrimaryLabel(
   current: StepKey,
   hasSlides: boolean,
   isLast: boolean,
+  locale: UiLocale,
 ): string {
-  if (current === "slides" && !hasSlides) return "Skip for now";
-  return isLast ? "Start recording" : "Next";
+  if (current === "slides" && !hasSlides) return uiText(locale, "setupSkipForNow");
+  return isLast
+    ? uiText(locale, "setupStartRecording")
+    : uiText(locale, "setupNext");
 }
 
 function recordingSetupPrimaryDisabled(
@@ -134,6 +140,7 @@ export default function RecordingSetup({
    *  out and a second one would just be two crosses on one screen). */
   onCancel?: () => void;
 }) {
+  const locale = useUiLocale();
   const steps = setupSteps(hideDeck);
   // Read once, at mount: the draft being resumed (or the fresh slot "Start a
   // new project" opened). Later renders never re-read it — this form owns it.
@@ -325,7 +332,7 @@ export default function RecordingSetup({
 
   // The slides step with none added says "Skip for now", the last step
   // included, where it starts the recording (backend N449 item 3).
-  const primaryLabel = recordingSetupPrimaryLabel(current, hasSlides, isLast);
+  const primaryLabel = recordingSetupPrimaryLabel(current, hasSlides, isLast, locale);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -336,6 +343,7 @@ export default function RecordingSetup({
         count={leadSteps + steps.length}
         current={leadSteps + step}
         onBack={step > 0 ? goBack : undefined}
+        backLabel={recordingText("back", locale)}
         trailing={
           // FE-6 — the "cross" on the "progress bar" is a CANCEL button on the
           // step indicator, not a position marker and not a playhead. It sits
@@ -344,7 +352,9 @@ export default function RecordingSetup({
           // A real 44px target, and the slot mirrors Back's width so it can
           // never overlap the dots. It leaves IMMEDIATELY — the
           // confirm-before-discard was deleted with its copy.
-          onCancel ? <WizardCancel onClick={onCancel} /> : null
+          onCancel ? (
+            <WizardCancel onClick={onCancel} ariaLabel={uiText(locale, "setupCancel")} />
+          ) : null
         }
       />
 
@@ -352,12 +362,12 @@ export default function RecordingSetup({
       <div className="flex-1">
         {current === "topic" && (
           <div>
-            <StepHead icon={Mic} question="What is the topic?" />
+            <StepHead icon={Mic} question={uiText(locale, "setupTopicQuestion")} />
             <input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               onKeyDown={onEnterAdvance}
-              placeholder="e.g. my Q3 results pitch"
+              placeholder={uiText(locale, "setupTopicPlaceholder")}
               className={SETUP_INPUT_CLS}
               autoFocus
             />
@@ -414,6 +424,7 @@ export default function RecordingSetup({
               setLengthSec(presentationMinutesToSeconds(value));
             }}
             onNoLimit={() => pickLength(null, "none")}
+            locale={locale}
           />
         )}
 
@@ -421,9 +432,10 @@ export default function RecordingSetup({
           <div>
             <StepHead
               icon={Mic}
-              question="Have slides to go with it?"
+              question={uiText(locale, "setupSlidesQuestion")}
             />
             <PresentationInput
+              locale={locale}
               slides={slides}
               presentationRef={presentationRef}
               onChange={(s, ref) => {
@@ -484,7 +496,7 @@ export default function RecordingSetup({
             immediately before the thing it describes. Renders nothing unless
             token pricing is live, and never disables the CTA above it. The
             3-take nudge that sat here was removed (founder 2026-10-12). */}
-        {isLast ? <RecordPriceNote /> : null}
+        {isLast ? <RecordPriceNote locale={locale} /> : null}
       </div>
     </div>
   );
@@ -498,6 +510,7 @@ function LengthStep({
   onOther,
   onOtherMinutes,
   onNoLimit,
+  locale,
 }: {
   choice: LengthChoice;
   lengthSec: number | null;
@@ -506,10 +519,11 @@ function LengthStep({
   onOther: () => void;
   onOtherMinutes: (value: string) => void;
   onNoLimit: () => void;
+  locale: UiLocale;
 }) {
   return (
     <div>
-      <StepHead icon={Mic} question="Do you have a time limit?" />
+      <StepHead icon={Mic} question={uiText(locale, "setupTimeLimitQuestion")} />
       <div className="flex flex-wrap gap-2">
         {LENGTH_PRESETS.map((preset) => (
           <WizardChip
@@ -521,7 +535,7 @@ function LengthStep({
           </WizardChip>
         ))}
         <WizardChip active={choice === "other"} onClick={onOther}>
-          Other
+          {uiText(locale, "setupOther")}
         </WizardChip>
       </div>
       {choice === "other" ? (
@@ -530,7 +544,7 @@ function LengthStep({
             htmlFor="presentation-limit-minutes"
             className="mb-1.5 block text-[13px] text-muted-foreground"
           >
-            Minutes
+            {uiText(locale, "setupMinutes")}
           </label>
           <input
             id="presentation-limit-minutes"
@@ -550,7 +564,7 @@ function LengthStep({
         onClick={onNoLimit}
         className="mt-4 text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
       >
-        No time limit
+        {uiText(locale, "setupNoTimeLimit")}
       </button>
     </div>
   );
