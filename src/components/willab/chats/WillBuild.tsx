@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useBackDismiss } from "../useBackDismiss";
-import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
@@ -136,11 +135,14 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     );
   }
   const top = (
-    <div data-build-bar="" className="shrink-0 bg-background pt-[env(safe-area-inset-top)]">
-      <div className={ONE_BAR_ROW}>
-        <BackRow onBack={headerBack} label={name} />
-        {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
-      </div>
+    <div data-build-bar="" className="shrink-0 bg-background">
+      <TopBar
+        circle={<LetterCircle id={`build-${name}`} name={name} size={36} />}
+        title={name}
+        subtitle={W.youRunIt}
+        onBack={headerBack}
+        right={swap}
+      />
       <Tabs tab={tab} onTab={setTab} />
     </div>
   );
@@ -206,7 +208,7 @@ function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, 
     <div data-part-chat={part.part} className={shown ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
       <FrameLead.Provider value={<PartBubble part={part} />}>
         <FrameBar.Provider value={(stepBack) => (
-          <div data-part-chat-bar="" className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2">
+          <div data-part-chat-bar="" className="flex h-[60px] shrink-0 items-center gap-2 border-b border-border px-4">
             <button type="button" aria-label="Back" onClick={() => (stepBack ? stepBack() : onBack())} className="min-h-11 px-2 text-[15px] font-semibold text-foreground">
               {W.backPlain}
             </button>

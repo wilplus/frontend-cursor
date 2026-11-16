@@ -272,7 +272,7 @@ describe("what needs you is in Will (backend N629)", () => {
     act(() => root.render(createElement(Stay, null, createElement(WillBuild, { onBack: back }), createElement(HostSetupRows))));
     await flush();
     const header = () => container.querySelector<HTMLButtonElement>("[data-build-bar] button")!;
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Artur's chat");
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Artur's chat");
     await act(async () => header().click());
     expect(back).toHaveBeenCalledTimes(1);
     back.mockClear();
@@ -546,7 +546,7 @@ describe("what needs you is in Will (backend N629)", () => {
     // No chat yet: no switch, Build at once; the moments in AI models.
     await build({ recipe: null, parts: [], own_chat: null, cost: null, can_try: false });
     expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Your chat");
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Your chat");
     await tab("models");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer3 waiting›");
     expect(await queueOpened()).toEqual([{ fromWill: true }]);
@@ -630,7 +630,7 @@ describe("what needs you is in Will (backend N629)", () => {
     expect(live).toContain("Hi. Show me your scalp.");
     expect([...container.querySelectorAll("[data-host-taps] button")].map((b) => b.textContent)).toEqual(["Look at my scalp", "Something else"]);
     await toggle("build");
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Ask Lena");
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Ask Lena");
     act(() => root.unmount());
     root = createRoot(container);
     forgetSetup();

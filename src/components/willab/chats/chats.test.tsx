@@ -415,7 +415,7 @@ describe("the chats in front of the Lounge", () => {
     await tap(row("will"));
     // Will's chat is Build's "Your chat" (backend N642 item 3): the arrow,
     // the chat's name, and the two tabs over the Lounge drawn as Will's.
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe(BUILD_NAME);
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe(BUILD_NAME);
     expect([...container.querySelectorAll("[data-build-tab]")].map((t) => t.textContent)).toEqual(["Your chat", "AI models"]);
     expect(container.querySelector("[data-testid=lounge]")?.getAttribute("data-place")).toBe("will");
     // No chat yet: Build opens at "What do you do?"; the phone's Back comes
