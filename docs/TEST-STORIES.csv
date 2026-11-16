@@ -2250,6 +2250,12 @@ a walk line.
 O4  A document that moves a pinned number, the clock, or names an unknown
 screen is refused, and the seed is unchanged.
 O5  A paste that calls eval or the network is rejected, and no loader runs.",,
+src/lib/willab/chatBuilder/surfaceParity.test.ts,Story,"As the founder, I want Artur's chat, built from the document, to meet a speaker with the same lines, the same walk order and the same bar as the speaking coach already does.","O1  The document's lines, the practise taps and the three walks match
+the signed walk. A missing line is a gap, not a pass.
+O2  They send is a recording and typing. Nothing asked is the box. The
+chat asking records. A photo asked is Add a photo. Thanks stays off
+because typing is on.","O1 -> ""the document matches the speaking coach line for line""
+O2 -> ""They send puts the box, the recorder and Add a photo in the right states""",
 src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
 O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
 O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).

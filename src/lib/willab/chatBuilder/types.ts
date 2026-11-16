@@ -51,6 +51,13 @@ export type WalkStepDef = {
   when: StepWhen;
   /** The signed line. Empty when the step has no sentence of its own. */
   fixed: string;
+  /** Every signed sentence on this step, in the order a speaker meets them.
+   *  When omitted, the step's sentence is `fixed` alone. */
+  lines?: string[];
+  /** Another signed sentence for the same step, chosen by id. */
+  variants?: { id: string; fixed: string }[];
+  /** The two taps on this step, nearest the thumb last. */
+  choices?: [string, string];
   /** Optional walk-voice slot. Never set on the tempo step. */
   voice?: VoiceStep;
   speaker?: "stretch" | "best" | "fix";

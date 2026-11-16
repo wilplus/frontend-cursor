@@ -24,7 +24,8 @@ export function refuse(def: CoachDefinition): string | null {
   for (const row of def.walk.steps) {
     if (!SCREENS.includes(row.screen)) return "COACH_UNKNOWN_SCREEN";
     if (row.key === "tempo" && row.voice) return "COACH_SNIPER_VOICE";
-    if (row.fixed && DIGIT.test(row.fixed)) return "COACH_NUMBER";
+    const sentences = [row.fixed, ...(row.lines ?? []), ...(row.variants ?? []).map((v) => v.fixed), ...(row.choices ?? [])];
+    if (sentences.some((line) => line && DIGIT.test(line))) return "COACH_NUMBER";
   }
   for (const plugin of def.plugins) {
     if (!["REWRITE", "EMPHASISE", "ADD", "NOTICE"].includes(plugin.interventionType)) return "COACH_PLUGIN_TYPE";
@@ -63,5 +64,5 @@ export function planForWalk(def: CoachDefinition | null | undefined, input: Walk
 }
 
 export function fixedLines(def: CoachDefinition): string[] {
-  return def.walk.steps.map((s) => s.fixed).filter((line) => line.length > 0);
+  return def.walk.steps.flatMap((s) => [s.fixed, ...(s.lines ?? []), ...(s.variants ?? []).map((v) => v.fixed), ...(s.choices ?? [])]).filter((line) => line.length > 0);
 }
