@@ -273,6 +273,15 @@ button,
   height: 0;
 }
 
+/* Build's pages scroll, without a visible bar (Your chat, AI models, a row's chat). */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* The setup composer's box grows with its words and never draws a bar.
    A long placeholder stays on one line. Typed words wrap; nothing scrolls
    sideways. */

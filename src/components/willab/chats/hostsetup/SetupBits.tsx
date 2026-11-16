@@ -171,7 +171,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
       ) : (
         makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
-      <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
+      <div ref={body} className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
         {lead}
         {history}
         {children}

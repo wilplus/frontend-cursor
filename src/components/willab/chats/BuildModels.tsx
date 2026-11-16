@@ -71,7 +71,7 @@ export default function BuildModels() {
   const examples = count("examples");
   const check = count("check");
   return (
-    <div data-build-models="" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-4">
+    <div data-build-models="" className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-4">
       <Said>{W.yourModels}</Said>
       {(setup?.recipe?.models ?? []).map((m, k) => (
         <Row

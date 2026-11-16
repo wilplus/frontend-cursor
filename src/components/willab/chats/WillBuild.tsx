@@ -144,7 +144,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   return (
     <Cover>
       {top}
-      <div className={active ? "hidden" : "min-h-0 flex-1 overflow-y-auto"}>
+      <div className={active ? "hidden" : "no-scrollbar min-h-0 flex-1 overflow-y-auto"}>
         <WillNeedsYou page onPart={(part) => openPart(part.part)} />
       </div>
       {seen.map((id) => {
