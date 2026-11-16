@@ -71,3 +71,5 @@ On http://localhost:3100/chat, signed in as a host on the chat-builder ring.
 - `6349902c` Carry the walk's extra lines on the coach document.
 - `54f5f096` Make Clear a full-height tap on Your chat search.
 - `4de32dab` Use the chats header on Build, and line the row bar up with it.
+- `09aafae7` Let the coach document name the wait, the record button, and the tries.
+- `c7c96210` Record the audits and the two backend patches still to open.
