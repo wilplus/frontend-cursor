@@ -483,15 +483,6 @@ export default function ChatList({
       {newestFirst(chats.filter((chat) => chat !== first && !chat.inquiry)).map((chat) => row(chat))}
       {work.ring ? null : modelsRows}
       </div>
-      <button
-        type="button"
-        data-add-someone=""
-        aria-label={ADD_SHEET_TITLE}
-        onClick={openAdd}
-        className="absolute bottom-5 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg"
-      >
-        <Plus className="h-5 w-5" aria-hidden />
-      </button>
       {adding === "note" ? (
         <SetupNote onClose={() => setAdding(false)} onOpenWill={onOpenWill} onLink={() => setAdding(true)} />
       ) : adding ? (

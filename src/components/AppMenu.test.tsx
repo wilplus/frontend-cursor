@@ -1,30 +1,25 @@
 // @vitest-environment jsdom
 /*
 STORY    As someone signed in, I want the ☰ menu to hold only what I need,
-         with my own link at the top, so that bringing someone in is one tap
-         (backend N367, N196, N365, N495).
+         without the retired personal invitation control, so that app
+         admission and product sharing cannot be confused (N196, N365, N495).
 OUTCOME
   O1  Signed in, the menu reads: my name and email (opening my profile),
-      Copy my link, Settings, Tokens with the balance, then Sign out. No
-      Lab, no Log out.
-  O2  Copy my link opens "Add someone to chat with" (N567 item 1; was: it
-      copied at once): Copy my link there copies the whole link. The switch
-      for the website is hidden until its new design is signed (N569).
-  O3  Tokens shows the balance and opens the Tokens page, on the web and in
+      Settings, Tokens with the balance, then Sign out. No personal-link row,
+      Lab or Log out.
+  O2  Tokens shows the balance and opens the Tokens page, on the web and in
       the iPhone app alike (N495; in the app that page has no way to buy,
       N365 item 1).
-  O4  Signed out (the blog), the menu is Lab and Log in, as before.
-PROVES   O1 -> "signed in, the menu is me, Copy my link, Settings, Tokens and Sign out"
-         O2 -> "Copy my link opens the sheet, and Copy my link there copies the link"
-         O3 -> "Tokens shows the balance and opens the Tokens page"
-         O4 -> "signed out, the menu is Lab and Log in"
+  O3  Signed out (the blog), the menu is Lab and Log in, as before.
+PROVES   O1 -> "signed in, the menu is me, Settings, Tokens and Sign out"
+         O2 -> "Tokens shows the balance and opens the Tokens page"
+         O3 -> "signed out, the menu is Lab and Log in"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/chat" }));
-vi.mock("@/services/api/chats", () => ({ getMyChatLink: async () => "/c/AbCdEfGhIjKlMnOpQrStUvWx" }));
 vi.mock("@/lib/auth/nativeSignIn", () => ({ isNativeApp: () => false }));
 
 import AppMenu from "./AppMenu";
@@ -62,39 +57,23 @@ const SIGNED_IN = {
   userName: "Tomek Nowak",
   tokensLabel: "12,000 · 30 Nov",
   dataConsentHref: "/account/data-consent",
-  onCopyLink: async () => "https://willpowerlab.com/c/AbCdEfGhIjKlMnOpQrStUvWx",
   onLogout: () => {},
 };
 
 describe("the ☰ menu", () => {
-  it("signed in, the menu is me, Copy my link, Settings, Tokens and Sign out", async () => {
+  it("signed in, the menu is me, Settings, Tokens and Sign out", async () => {
     await open(SIGNED_IN);
     const text = container.querySelector("#app-header-menu")?.textContent ?? "";
     expect(text).toContain("Tomek Nowak");
     expect(text).toContain("tomek@example.com");
-    const order = ["Copy my link", "Settings", "Tokens", "Sign out"].map((w) => text.indexOf(w));
+    const order = ["Settings", "Tokens", "Sign out"].map((w) => text.indexOf(w));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(text).not.toContain("Copy my link");
+    expect(container.querySelector("[data-add-sheet]")).toBeNull();
     expect(text).not.toContain("Lab");
     expect(text).not.toContain("Log out");
     expect(container.querySelector('#app-header-menu a[href="/profile"]')?.textContent).toContain("Tomek Nowak");
-  });
-
-  it("Copy my link opens the sheet, and Copy my link there copies the link", async () => {
-    const writeText = vi.fn(async () => {});
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
-    await open(SIGNED_IN);
-    const row = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes("Copy my link"));
-    await act(async () => row!.click());
-    const sheet = container.querySelector("[data-add-sheet]");
-    expect(sheet?.textContent).toContain("Add someone to chat with");
-    expect(sheet?.textContent).toContain("Only the two of you are in it.");
-    const link = `${window.location.origin}/c/AbCdEfGhIjKlMnOpQrStUvWx`;
-    expect(container.querySelector("[data-my-link]")?.textContent).toBe(link);
-    expect(container.querySelector("[data-website-switch]")).toBeNull();
-    await act(async () => (container.querySelector("[data-copy-link]") as HTMLButtonElement).click());
-    expect(writeText).toHaveBeenCalledWith(link);
-    expect(container.textContent).toContain("✓ Copied");
   });
 
   it("Tokens shows the balance and opens the Tokens page", async () => {

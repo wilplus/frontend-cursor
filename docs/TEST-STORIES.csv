@@ -181,19 +181,15 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
-Copy my link, Settings, Tokens with the balance, then Sign out. No
-Lab, no Log out.
-O2  Copy my link opens ""Add someone to chat with"" (N567 item 1; was: it
-copied at once): Copy my link there copies the whole link. The switch
-for the website is hidden until its new design is signed (N569).
-O3  Tokens shows the balance and opens the Tokens page, on the web and in
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, without the retired personal invitation control, so that app admission and product sharing cannot be confused (N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
+Settings, Tokens with the balance, then Sign out. No personal-link row,
+Lab or Log out.
+O2  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
-O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link opens the sheet, and Copy my link there copies the link""
-O3 -> ""Tokens shows the balance and opens the Tokens page""
-O4 -> ""signed out, the menu is Lab and Log in""",
+O3  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Settings, Tokens and Sign out""
+O2 -> ""Tokens shows the balance and opens the Tokens page""
+O3 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
 password says ""That password isn’t right."" and keeps the form.
@@ -614,6 +610,9 @@ heard?"", no ""Teach Will"", no rating; the asking chat goes and my list
 is read again (App Model MATCH-04; N518 item 1). The rating inside
 the answer waits for its prototype (N518 item 9) and is not built.","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""
 O2 -> ""no card follows Sent: the answer goes and nothing asks about it""","O2: founder, 5 November 2026, N518 item 1 (""No, never ask"") and item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
+src/components/willab/chats/ProductHome.test.tsx,Story,"As a speaker, I want one speaking-coach home with all my active projects, so I can keep and practise projects concurrently.","The home waits for the project index and Speaking coach state, then
+paints Speaking coach, every active project and Start a new project.","Opening a project is a local navigation callback; it never archives
+another project.",
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
 photos and files we shared; with none, ""No photos yet."" and ""No files
 yet.""; no pencil and no Edit.
@@ -738,157 +737,8 @@ O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
 O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
 O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
 O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
-src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
-and no chat is read (Never 3).
-O19 As a user with no ring at all, signed in, I land on the list of
-chats, Will first, under the WillpowerLab bar; the rings never decide
-it, and a rings read that fails changes nothing (N456).
-O20 As a developer, I cannot switch the chats off with a ring: a `chats`
-row in the rings panel, on or off, lands everyone on the same list.
-O2  Signed in: the list stands in front of the Lounge, Will pinned first, then
-the chats, newest last message first, each with its title, subtitle
-and last message (an emoji with its meaning); an empty list is Will
-and ""Add someone to chat with"", on the web as in the iPhone app, and
-no demo chats are asked for (N401). Will's row uncovers the Lounge,
-never remounted, with a back to the list (customer-requests.md C1;
-N274, N298, N322).
-O4  The WillpowerLab bar shows on the list only: in a person's chat and
-in Will's, the chat's own top bar takes its place (N321 item 1, N334).
-O5  A chat whose last message is newer than the last time it was opened
-on this device shows as new, and stops being new once opened (N322).
-O26 While the list is what I see, it reads the chats again every 20
-seconds, so a message that arrives while I look shows (N500 item 3);
-while Will's chat or a person's chat covers it, it is not read, and
-back on the list it is read at once.
-O7  A voice note from the other person is their grey bubble with a play
-control that plays it from the chat's audio route (N321 item 2); its
-words, once ready, are closed behind ""Read it"" under the player, and
-""Hide"" closes them again (N331).
-O8  The + on the list opens my own link, with the add sheet's signed
-words and ""Only the two of you are in it."" (N567 item 1; was: three
-steps), and no website switch for now (N569 item 1), and Copy my link puts the whole link on the clipboard and says
-""✓ Copied"" (N308, N310, N367).
-O9  In a chat I joined through someone's link, one line above the
-messages says whose link it was (N496, replacing N335 item 2's), and
-its row in the list keeps that line until the first message (N488); a
-chat without it has no such line.
-O10 Just joined (/chat?with=<chat>), the list opens with Will's row
-first, as always, and right under it the chat with the one who invited
-me, marked new with the joined line; the address is clean again;
-opened, it is a chat like the rest (N357, N360; was N348 item 1, and
-N357's inviter above Will). Will's row has his newest line, bold with
-the dot, until his chat is open (N457 item 2).
-O11 On the web and in the iPhone app, Will's chat never shows for a moment
-before the list covers it: the loader stands in front until the list
-has answered, and it never waits on the rings (N354, N456).
-O12 The ""+"" in a chat asks them (N483 item 4, N498): ""Ask {name}"", with
-no line, the black ""Record your question"" and Cancel, and the three
-steps only before my first question; ""Record your question"" opens the
-recording screens on the default presentation (a project with no
-slides of its own, named ""To {name}""), and the question goes to the
-question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
-{name}"". Until I first tap it the ""+"" is orange; then it is plain.
-Camera, Files and Someone else are off (N483 item 4); ""Send a
-photo"" is chatBar.test.tsx's (N610).
-O14 The other person's file shows a tile with its extension and its own
-name, and downloads
-from the chat's file route; a photo opens full size with a close and
-no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
-O15 An answer sent to me is one message (N355): its voice, the slides it
-was said over in a strip that marks the one being heard as it plays,
-and its words closed behind ""Read it""; no Take number.
-O16 A question Will marked as about a product or a treatment takes one
-black ""Record your answer"" in the bar's middle, the ""+"" on its left and
-nothing else (N321 item 4, N361, N483 items 3 and 5, N610), and ""Not now"", a grey
-word under the question, brings ""Ask {name}"" back, telling them nothing,
-until the chat is opened again; the answer hands the recording screens the
-chat, the person and the question. Back from them, the bar's middle
-reads ""Sending to {name}… {n}"" with Undo while the answer, already
-with the backend, waits out its 5 seconds there (N441 item 3); then
-""Sent"" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
-O17 Back (the iPhone's swipe from the left edge in the app, the browser's
-Back on the web) goes back by one, from a chat to the list, and never
-off the list; back on the list, it is where I left it, the row I came
-from lit. Forward (the swipe from the list's right edge in the app,
-the browser's Forward on the web) opens the chat I just left again;
-before I have left one, it does nothing (N378, N436).
-O18 An answer the backend refused stays in the bar's middle, ""Not sent""
-with ""Send again"", which sends the same Take (N441 item 1).
-O23 A matched Take that reached me (N485, N486, N493) is its own row in
-the list under the pseudonym, ""Asks you about {topic}"", new; opened,
-it shows who asks and what about, never a name, with ""Open Take"" in
-the bar; Open Take shows the name and the Take with ""Record your
-answer"", which answers it over its slides as an inquiry; ""Not now""
-removes it and tells nobody.
-O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
-you Take {n}"" with the Take's tile, its first slide and no play mark
-(N493 item 6), already open: its recording, and its words slide by
-slide behind ""Read it"", nothing else of it (N504 item 1); the list's
-line says ""{name} sent you Take {n}""; a Take I sent is my tile with
-""Sent"" (N504 item 3). Newest, it asks for an answer: ""Record your
-answer"" in the bar with ""Not now"" under it, which tells them nothing
-and is kept for the system (N504 item 2), and the answer is recorded
-over the Take's own slides (N493 items 1 and 3).
-O21 At the foot of the other person's profile, ""Block {name}"" asks first
-and then blocks them: the backend is told, ""{name} is blocked."" shows,
-and back in the chat the bar is one pill, ""You blocked {name}."" with
-Unblock, the earlier messages still there; Unblock unblocks at once.
-""Report {name}"" asks first too, and ""Report and block"" reports them
-with the block (N466).
-O23 Joining someone who set questions (N487): the line at the top says a
-few questions come first; their question waits with its answers on my
-side; ""No"" is sent at once and its deadline shows under it; a question
-that takes more than one answer fills each one I tap, and Send in the
-bar's middle sends them. The link's owner reads one card of my
-answers, under ""{name} joined through your link."", and their list
-says ""{name}'s answers"".
-O24 Before my questions are set, the + shows a note at the bottom, not
-my link (N503, N534); ""Set them"" opens Will's chat on his setup; his question waits with its answers on my side,
-""Something else"" first, and a tap goes to the backend; the summary
-shows what someone new will see, my name in its top line, with
-""Change it"" and ""That's right""; ""You're set."" ends with ""Copy my
-link ›"" and ""Your questions for people who join ›"". After the setup,
-the + opens my link as before (O8).
-O25 While the list (or a chat, or the loader) covers Will's chat, the
-slide previews on his cards wait, so pdf.js and the decks are not
-downloaded behind the list; they draw once his chat is open.
-O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
-answers"", on their row and on the card, never ""Widget's answers""
-(N569 item 6).
-O28 What opens from Will's chat opens over it; Back comes back to Will
-(N639 item 2).
-O29 A chat that takes Takes opens as its speaking chat (N648 item 8).
-O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
-""From {site}""; the bar is the chat's two places (N610): ""+"", and
-""Record your answer"" for their typed question, which the backend
-marks as any question (WID-19, WID-22).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
-O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
-O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
-O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
-O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
-O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
-O26 -> ""the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back""
-O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
-O8 -> ""the + opens my own link and copies it""
-O9 -> ""a chat joined through a link says whose link it was""
-O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
-O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
-O12 -> ""the + asks them: the default presentation, and the question goes with Sending, Undo and Sent""
-O14 -> ""the other person's photo or file opens from the chat's file route""
-O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
-O16 -> ""a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent""
-O17 -> ""the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left""
-O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""
-O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
-O22 -> ""a Take sent to me opens with its recording and words, and the list says who sent it""
-O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
-O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
-O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
-O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
-O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
-O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
-O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""
-O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
+src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want the home to lead with my Speaking coach and projects, so the older people-chat list does not define my practice IA.","The door waits for auth, preserves the people-chat read, and then
+paints Speaking coach, active projects and Start a new project.",No general Will destination or floating add button is part of home.,
 src/components/willab/chats/devMode.test.tsx,Story,"As a host with the chat builder's ring, I switch on Developer mode under Build's two tabs and see in plain numbers how close my chat is to the speaking coach, what it notices, what it says, charts by week and my training data to keep; off the ring I see none of it (backend N648).","O1  With the ring, Build has a ""Developer mode"" switch; on, it shows the
 five parts, each opening its screen.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
@@ -1017,6 +867,8 @@ matter"", each with the way into that person's chat, which opens it.
 O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
 under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
 O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
+src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
+becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -1513,22 +1365,8 @@ O2  Under a message where Will spots something, the short line ""🔒 Security d
 O3  Other messages get no line; the backend's own line row (every fifth named note) is drawn as the line alone.","O1 -> introduces the notebook with the rules
 O2 -> reminds under every spotted message
 O3 -> stays quiet elsewhere",
-src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
-with my newest Take; Continue archives that one, then starts the new
-project; Cancel leaves me on the list with nothing archived.
-O2  Picking another project asks the same; Continue archives the current
-one and opens the one I picked. Picking the current one asks nothing,
-and with no Take yet nothing is asked.
-O3  ""Record Take N"" on an archived project asks first; Continue brings it
-back, archives the current one, then records. On the current project
-it records at once, asking nothing (Never 3).
-O4  Will's ""Create new project"" in the chat asks the same, in place of the
-message box; Continue archives the current one, then starts the new
-project; Cancel brings the message box back; with no Take yet it
-starts at once (N260).","O1 -> ""Start a new project asks, and Continue archives the current one first""
-O2 -> ""another project asks; the current one and a first project do not""
-O3 -> ""Record Take N on an archived project asks; on the current one it never does""
-O4 -> ""Will's Create new project asks in place of the message box""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260."
+src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want projects to stay concurrent, so opening or creating one never archives work in another.","New-project actions start directly; an archived project is restored
+without archiving the current project.",,
 src/components/willab/ownBubble.test.tsx,Story,"As a speaker, when I tap an answer or send what I typed, I want my own bubble on screen at once and kept there while the answer is on its way, so that I know it went (backend N632 item 7, the founder on a phone, 10 November 2026: ""it disappears, and then the posted bubble by me appears when the answer appears"").","B1  A tap under Will's question (""When is it?"" → ""No date yet""): the
 bubble shows before the backend answers, stays, and once the
 backend's row is read it is there exactly once.
@@ -2214,6 +2052,9 @@ changed in between (signed out, a new token) is what it gets.
 O3  A session read that never answers releases the app as signed out.","O1 -> ""asks made while a read is out share it""
 O2 -> ""an ask after the answer reads again, so a change is seen""
 O3 -> ""an unanswered auth read releases the app instead of loading forever""",
+src/lib/uiLocale.test.ts,Story,"As a visitor, I want the interface to start in Polish in Poland and English elsewhere, while my explicit EN/PL choice remains in control.","O1  PL edge country defaults to Polish; every other or missing country defaults to English.
+O2  A persisted EN or PL UI choice wins over the country default.
+O3  Incomplete Polish copy falls back to the approved English source.",O1/O2 -> request locale resolution; O3 -> safe translation fallback,
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.

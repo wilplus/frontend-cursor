@@ -229,7 +229,34 @@ export default function WillabSurface({
     (answer: AnswerFor) => void startAnswer(answer, userId, startAnswerSetup),
     [userId, startAnswerSetup],
   );
-  const chats = useChatsDoor(idealTextArcId !== null || bestPresentationArcId !== null, recordAnswer);
+  const chats = useChatsDoor(
+    idealTextArcId !== null || bestPresentationArcId !== null,
+    recordAnswer,
+    {
+      onStartNewProject: () => {
+        clearExploreArc(userId);
+        beginSetupDraft(userId);
+        flow.startNewTopicSetup();
+      },
+      onOpenProject: (arc) => {
+        clearActiveSetupDraft(userId);
+        const cached = readExploreArc(userId);
+        if (cached?.arcId !== arc.arcId) {
+          const latest = [...(arc.takes ?? [])].sort(
+            (a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0),
+          ).pop();
+          writeExploreArc(
+            userId,
+            arc.arcId,
+            (latest?.takeIndex ?? arc.takeCount ?? 0) + 1,
+            undefined,
+            latest?.sessionId,
+          );
+        }
+        setPickedProject(arc);
+      },
+    },
+  );
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.

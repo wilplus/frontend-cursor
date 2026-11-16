@@ -108,11 +108,35 @@ The backend's table is in its [master doc](https://github.com/wilplus/backend-cu
 | The admin console: people, users, deletion requests | `src/app/admin/`, `src/components/admin/`, `src/app/api/v2/admin/`, `src/lib/founder.ts`, `src/components/founder/FounderFrame.tsx` | No page |
 | Audits: the PDF reports a coach uploads for a speaker | `src/app/audits/`, `src/services/api/userAudits.ts`, `src/app/api/v2/user/audits/` | No page |
 | The app's server routes: how they reach the backend | `src/app/api/_lib/`, `src/app/api/getAuth.ts`, `src/app/api/proxyResponse.ts`, `src/app/api/*.golden.json`, `src/lib/api/`, `src/services/api/glueContracts.golden.json`, `src/app/api/recordings/` | No page |
-| The app shell: layout, header, error and loading screens, shared buttons and helpers | `src/app/layout.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/globals.css`, `src/app/icon.tsx`, `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/fonts/`, `src/app/willab-logo/`, `src/app/game/`, `src/app/recordings/`, `src/components/Footer.tsx`, `src/components/Logo.tsx`, `src/components/SiteHeader.tsx`, `src/components/ui/`, `src/components/dashboard/`, `src/lib/utils.ts`, `src/lib/uuid.ts`, `src/lib/screenChrome.ts`, `src/lib/willabWindowEvents.ts`, `src/lib/lastCopy.ts`, `src/components/willab/ErrorState.tsx`, `src/components/willab/LoadingState.tsx`, `src/components/willab/OverlayCloseButton.tsx`, `src/components/willab/useBackDismiss.ts` | No page |
+| The app shell: layout, header, locale foundation, error and loading screens, shared buttons and helpers | `src/app/layout.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/globals.css`, `src/app/icon.tsx`, `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/fonts/`, `src/app/willab-logo/`, `src/app/game/`, `src/app/recordings/`, `src/components/Footer.tsx`, `src/components/Logo.tsx`, `src/components/SiteHeader.tsx`, `src/components/ui/`, `src/components/dashboard/`, `src/lib/utils.ts`, `src/lib/uuid.ts`, `src/lib/screenChrome.ts`, `src/lib/uiLocale.ts`, `src/lib/willabWindowEvents.ts`, `src/lib/lastCopy.ts`, `src/components/willab/ErrorState.tsx`, `src/components/willab/LoadingState.tsx`, `src/components/willab/OverlayCloseButton.tsx`, `src/components/willab/useBackDismiss.ts` | No page |
 | Installing the app on a phone (home-screen app) | `src/components/pwa/`, `src/lib/pwa.ts`, `src/hooks/usePwaInstall.ts`, `public/sw.js`, `src/app/api/v2/user/home-screen/` | No page |
 | The public pages: landing, about, unsubscribe, and the files in public/ | `src/app/page.tsx`, `src/app/page.client.tsx`, `src/app/about/`, `src/app/unsubscribe/`, `src/app/api/public/`, `public/` | No page |
 | Build settings, packages and the repo's own check scripts | `package.json`, `package-lock.json`, `next.config.mjs`, `postcss.config.mjs`, `tailwind.config.ts`, `tsconfig.json`, `vercel.json`, `vitest.config.ts`, `scripts/` | No page |
 <!-- code-homes:end -->
+
+## UI locale copy inventory
+
+The locale foundation controls UI chrome only. It never selects the language of
+coaching content, transcripts, feedback, or user-authored text. Polish remains a
+safe English fallback until the founder approves each translation.
+
+| EN source | Proposed PL | Screen/context | Status |
+|---|---|---|---|
+| `WillpowerLab 2026` | Not drafted | Global footer brand | Pending founder approval |
+| `About us` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Blog` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Privacy` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Language` | Not drafted | Footer locale control accessible label | Draft — pending founder approval |
+| `Use English` | Not drafted | EN locale choice accessible label | Draft — pending founder approval |
+| `Use Polish` | Not drafted | PL locale choice accessible label | Draft — pending founder approval |
+| `EN` / `PL` | Language codes only; no Polish product copy | Footer locale control visible choices | Structural, not translation copy |
+
+Integration point: `src/components/Footer.tsx` mounts the locale control for the
+global shell. The speaking coach/project shell is intentionally not edited by
+this foundation task; its existing copy remains English and should adopt
+`uiText` only in a separately approved content-migration task. Any future user
+profile preference must be a dedicated UI-locale field, not the recording or
+coaching-language fields.
 
 ## Setup
 

@@ -71,7 +71,7 @@ export interface IdealTextSd {
   /** The project has a deck of its own: "Update slides", else "Add slides"
    *  (N257). */
   hasDeck: boolean;
-  /** Archived (N14): its next Take first asks "One project at a time" (N254). */
+  /** Archived (N14): restore it before its next Take; other projects remain active. */
   projectArchived: boolean;
   /** Slide titles by index — the deck's title slot. */
   slideTitles: string[] | null;
