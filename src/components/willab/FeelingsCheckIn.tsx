@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { StepHead, WizardCancel, WizardProgress } from "@/components/ui/wizard";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import {
+  uiText,
+  type UiCopyKey,
+} from "@/lib/uiLocale";
 import { feelingsAllowed } from "@/services/api/plan";
 import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 
@@ -20,11 +25,11 @@ import { clearFeeling, recordFeeling, type Feeling } from "./willabFeelings";
 /*  backend N392). Was the ✕ alone.                                            */
 /* -------------------------------------------------------------------------- */
 
-const FEELINGS: { key: Feeling; label: string }[] = [
-  { key: "nervous", label: "Nervous" },
-  { key: "excited", label: "Excited" },
-  { key: "calm", label: "Calm" },
-  { key: "unsure", label: "Not sure" },
+const FEELINGS: { key: Feeling; copy: UiCopyKey }[] = [
+  { key: "nervous", copy: "feelingNervous" },
+  { key: "excited", copy: "feelingExcited" },
+  { key: "calm", copy: "feelingCalm" },
+  { key: "unsure", copy: "feelingUnsure" },
 ];
 
 /** The marks when the set-up is restored: this screen, then the Take (N392). */
@@ -50,6 +55,7 @@ export default function FeelingsCheckIn({
   onReady: (shown: boolean) => void;
   onCancel: () => void;
 }) {
+  const locale = useUiLocale();
   // A speaker on a plan is asked only after the plan's own yes (backend
   // N211, N217); a guest never (N272). Otherwise the check is passed by at
   // once and keeps nothing.
@@ -85,9 +91,13 @@ export default function FeelingsCheckIn({
       <WizardProgress
         count={setupSteps > 0 ? setupSteps + 1 : MARKS_BEFORE_TAKE}
         current={0}
-        trailing={<WizardCancel onClick={onCancel} ariaLabel="Close" />}
+        trailing={<WizardCancel onClick={onCancel} ariaLabel={uiText(locale, "close")} />}
       />
-      <StepHead icon={Mic} question="How do you feel?" helper="Before you step on stage" />
+      <StepHead
+        icon={Mic}
+        question={uiText(locale, "feelingsQuestion")}
+        helper={uiText(locale, "feelingsHelper")}
+      />
 
       <div className="grid grid-cols-2 gap-2.5">
         {FEELINGS.map((f) => {
@@ -105,7 +115,7 @@ export default function FeelingsCheckIn({
                   : "border-border bg-background text-foreground hover:border-foreground/40"
               }`}
             >
-              {f.label}
+              {uiText(locale, f.copy)}
             </button>
           );
         })}
@@ -119,7 +129,7 @@ export default function FeelingsCheckIn({
           data-feelings-skip
           className="h-[52px] rounded-full border border-border/50 bg-background/50 text-[16px] font-medium text-muted-foreground/80 transition-colors hover:text-muted-foreground disabled:opacity-40"
         >
-          Skip
+          {uiText(locale, "skip")}
         </button>
       </div>
     </div>

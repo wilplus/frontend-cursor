@@ -87,6 +87,7 @@ import {
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import NoticeBar from "./NoticeBar";
@@ -115,7 +116,7 @@ import {
 } from "./loungeOffers";
 import { screenHistory } from "./loungeScreen";
 import {
-  CHIP_LABEL,
+  chipLabel,
   coerceSuggestedAction,
   coerceSuggestedActions,
   type ChipAction,
@@ -457,6 +458,7 @@ export default function Lounge({
   waitHandedOver?: string | null;
   onWaitHandedOverShown?: () => void;
 }) {
+  const uiLocale = useUiLocale();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
@@ -660,7 +662,7 @@ export default function Lounge({
   function onChip(action: ChipAction): void {
     const project = readExploreArc(userId);
     if (action === "create_new_project") {
-      postAnswerBubble(CHIP_LABEL[action]);
+      postAnswerBubble(chipLabel(action, uiLocale));
       // Starting a project is concurrent with every project already kept.
       newProjectAsk.begin(() => {
         clearExploreArc(userId);
@@ -672,14 +674,14 @@ export default function Lounge({
       // The backend only offers this before Take 1; repeat the guard locally so
       // a stale, persisted button cannot reopen deck mutation after a take.
       if (project && Math.max(0, project.nextTakeIndex - 1) === 0) {
-        postAnswerBubble(CHIP_LABEL[action]);
+        postAnswerBubble(chipLabel(action, uiLocale));
         dispatch("setup_requested");
       }
       return;
     }
     if (action === "edit_current_slide") {
       if (project?.arcId) {
-        postAnswerBubble(CHIP_LABEL[action]);
+        postAnswerBubble(chipLabel(action, uiLocale));
         openIdealText(project.arcId, "notebook");
       }
       return;
@@ -2835,6 +2837,7 @@ function BotWays({
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   onOpenConfidencePractice?: (practiceId: string) => void;
 }) {
+  const uiLocale = useUiLocale();
   const productAction = productActionFromMetadata(metadata);
   const productDestination = productAction
     ? productSpec(productAction.product)
@@ -2883,11 +2886,11 @@ function BotWays({
           <ChatLink label="Open speaker" onClick={() => requestOpenSpeaker(goalCardSpeaker)} />
         ) : null}
         {ways.map((action) => (
-          <ChatLink key={action} label={CHIP_LABEL[action]} onClick={() => onChip!(action)} />
+          <ChatLink key={action} label={chipLabel(action, uiLocale)} onClick={() => onChip!(action)} />
         ))}
       </ChatLinks>
       {actions.includes("feedback_skip") ? (
-        <TapRow labels={[CHIP_LABEL.feedback_skip]} onTap={() => onChip!("feedback_skip")} dataAttr={{ "data-chip-skip": "" }} />
+        <TapRow labels={[chipLabel("feedback_skip", uiLocale)]} onTap={() => onChip!("feedback_skip")} dataAttr={{ "data-chip-skip": "" }} />
       ) : null}
     </>
   );

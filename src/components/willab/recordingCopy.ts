@@ -10,11 +10,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { DEFAULT_DECK, isDefaultDeckText } from "@/lib/willab/defaultDeck";
-import {
-  normalizeUiLocale,
-  storedUiLocale,
-  type UiLocale,
-} from "@/lib/uiLocale";
+import type { UiLocale } from "@/lib/uiLocale";
 
 export const RECORDING_COPY = {
   /** The two buttons under the strip (N70). On the last slide Next slide
@@ -85,29 +81,13 @@ const RECORDING_SCREEN_COPY: Record<UiLocale, RecordingScreenCopy> = {
 
 export type RecordingCopyKey = keyof RecordingScreenCopy;
 
-/**
- * Read the app/system locale resolved by the existing locale foundation.
- * The persisted manual choice wins, then the server-rendered html language;
- * neither transcript nor coaching-content language is consulted.
- */
-export function recordingUiLocale(): UiLocale {
-  const stored = storedUiLocale();
-  if (stored) return stored;
-  if (typeof document === "undefined") return "en";
-  return (
-    normalizeUiLocale(document.documentElement.lang) ??
-    normalizeUiLocale(document.documentElement.dataset.uiLocale) ??
-    "en"
-  );
-}
-
 export function recordingCopy(locale: UiLocale): RecordingScreenCopy {
   return RECORDING_SCREEN_COPY[locale];
 }
 
 export function recordingText(
   key: RecordingCopyKey,
-  locale: UiLocale = recordingUiLocale(),
+  locale: UiLocale = "en",
 ): string {
   return recordingCopy(locale)[key];
 }
@@ -130,7 +110,7 @@ const DEFAULT_POSTER_COPY: Record<
  */
 export function recordingSlidesInLocale<
   T extends { title: string; body: string },
->(slides: readonly T[], locale: UiLocale = recordingUiLocale()): T[] {
+>(slides: readonly T[], locale: UiLocale = "en"): T[] {
   if (!isDefaultDeckText(slides)) return [...slides];
   return slides.map((slide, index) => {
     const fixed = DEFAULT_POSTER_COPY[locale][index];
@@ -146,7 +126,7 @@ export function recordingWhere(
   slideIndex: number,
   slideCount: number,
   to: string | null = null,
-  locale: UiLocale = recordingUiLocale(),
+  locale: UiLocale = "en",
 ): string {
   const copy = recordingCopy(locale);
   const slide = `${copy.slide} ${slideIndex + 1} ${copy.of} ${slideCount}`;
@@ -161,7 +141,7 @@ export function answerWhere(
   name: string,
   slideIndex: number,
   slideCount: number,
-  locale: UiLocale = recordingUiLocale(),
+  locale: UiLocale = "en",
 ): string {
   const copy = recordingCopy(locale);
   return `${name} · ${copy.slide} ${slideIndex + 1} ${copy.of} ${slideCount}`;

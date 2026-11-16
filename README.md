@@ -130,13 +130,33 @@ safe English fallback until the founder approves each translation.
 | `Use English` | Not drafted | EN locale choice accessible label | Draft — pending founder approval |
 | `Use Polish` | Not drafted | PL locale choice accessible label | Draft — pending founder approval |
 | `EN` / `PL` | Language codes only; no Polish product copy | Footer locale control visible choices | Structural, not translation copy |
+| `Speaking coach` | `Trener wystąpień` | Product home | Founder-approved 2026-11-16 |
+| `Start a new project` | `Rozpocznij nowy projekt` | Product home / project picker | Founder-approved 2026-11-16 |
+| `Create new project` | `Utwórz nowy projekt` | Will quick action | Founder-approved 2026-11-16 |
+| `Start your first project` | `Rozpocznij pierwszy projekt` | Empty project picker | Founder-approved 2026-11-16 |
+| `What are you recording?` | `Co nagrywasz?` | Project picker | Founder-approved 2026-11-16 |
+| `What is the topic?` | `Jaki jest temat?` | New-project setup | Founder-approved 2026-11-16 |
+| `Do you have a time limit?` | `Czy masz limit czasu?` | New-project setup | Founder-approved 2026-11-16 |
+| `Have slides to go with it?` | `Czy masz do tego slajdy?` | New-project setup | Founder-approved 2026-11-16 |
+| `Upload your deck (PDF)` | `Prześlij prezentację (PDF)` | New-project slide upload | Founder-approved 2026-11-16 |
+| `Start recording` | `Rozpocznij nagrywanie` | New-project setup | Founder-approved 2026-11-16 |
+| `How do you feel?` | `Jak się czujesz?` | Pre-recording check | Founder-approved 2026-11-16 |
 
-Integration point: `src/components/Footer.tsx` mounts the locale control for the
-global shell. The speaking coach/project shell is intentionally not edited by
-this foundation task; its existing copy remains English and should adopt
-`uiText` only in a separately approved content-migration task. Any future user
-profile preference must be a dedicated UI-locale field, not the recording or
-coaching-language fields.
+Integration point: `src/app/layout.tsx` resolves the request locale first and
+seeds the single `UiLocaleProvider`; `src/components/Footer.tsx` mounts its
+locale control. A manual EN/PL choice updates that provider and every mounted
+subscriber immediately, without remounting a recording or waiting for a reload.
+The footer brand and visible `About us`, `Blog`, and `Privacy` links intentionally
+remain English in PL mode while their Polish copy is pending founder approval;
+the table above is the source of truth and they must not be described as
+translated. The complete founder-approved recording/project-setup inventory,
+including every picker state, setup action, slide-upload error and later-Take
+status line, is kept in
+[`docs/flows/recording-screens.md`](docs/flows/recording-screens.md#project-entry-and-newcomer-setup-copy-inventory-polish).
+Any future user profile preference must be a dedicated UI-locale field, not the
+recording or coaching-language fields. Raw transcripts, feedback, typed project
+and slide text, and generated coaching continue to use their immediate content
+language rather than this UI table.
 
 ## Setup
 

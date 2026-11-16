@@ -28,7 +28,7 @@ import { ChatQueryRequestError, postChatQuery } from "@/services/api/chatQuery";
 import { GUEST_OWNER_HEADER } from "@/services/api/projects";
 import { FLOW_COPY } from "./flowCopy";
 import { chatFailureReply } from "./Lounge";
-import { CHIP_LABEL, coerceSuggestedAction } from "./loungePrompts";
+import { CHIP_LABEL, chipLabel, coerceSuggestedAction } from "./loungePrompts";
 
 const LAB_ERROR = "I'm having trouble reaching the lab right now. Give it another try in a moment.";
 
@@ -39,6 +39,7 @@ describe("Will's reply when the chat is refused", () => {
       expect(reply.body).toBe(FLOW_COPY.firstTakeHello);
       const chip = coerceSuggestedAction(reply.metadata?.suggested_action);
       expect(chip && CHIP_LABEL[chip]).toBe("Start your first recording");
+      expect(chip && chipLabel(chip, "pl")).toBe("Rozpocznij pierwsze nagranie");
     }
   });
 

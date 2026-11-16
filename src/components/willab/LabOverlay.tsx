@@ -6,6 +6,8 @@ import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/wil
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import type { UiLocale } from "@/lib/uiLocale";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
@@ -177,6 +179,7 @@ export default function LabOverlay({
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
   ) => void;
 }) {
+  const uiLocale = useUiLocale();
   // AN ANSWER IN A CHAT (backend N363, founder-approved for this lock): the
   // screens opened from "Record an answer" record it as any Take, with the
   // person's name above "Take 1 · Slide 1 of 1" (N334 item 2); Finish take
@@ -1705,7 +1708,7 @@ export default function LabOverlay({
         {showsMicWait(state, mic.state.status, rejectedMsg) ? (
           <LoadingState
             placement="surface"
-            label={recordingText("micReady")}
+            label={recordingText("micReady", uiLocale)}
             labelVisible
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
@@ -1713,7 +1716,8 @@ export default function LabOverlay({
             // On Take 1, why the browser is asking for the mic (N273 item 4).
             note={micWaitNote(
               arcTakeIndex,
-              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews),
+              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews, uiLocale),
+              uiLocale,
             )}
           />
         ) : null}
@@ -2015,6 +2019,7 @@ export function RecordingPhase({
    *  (backend N441 item 7). */
   asks?: string | null;
 }) {
+  const uiLocale = useUiLocale();
   const retryFileRef = useRef<HTMLInputElement | null>(null);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
   // setup context and let the user re-record without re-entering Setup. This
@@ -2070,7 +2075,7 @@ export function RecordingPhase({
   // itself once the mic is open (N70: the learning screen is deleted).
   if (micState.status === "idle") {
     if (micWaitShownByHost) return null;
-    return <LoadingState placement="surface" label={recordingText("micReady")} labelVisible />;
+    return <LoadingState placement="surface" label={recordingText("micReady", uiLocale)} labelVisible />;
   }
 
   if (micState.status === "error") {
@@ -2256,9 +2261,13 @@ function enteringRecording(state: WillabState): boolean {
 /** The small grey lines under "Getting your mic ready": a later Take's
  *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4);
  *  then the earbuds line when the last Take was recorded through them (N372). */
-function micWaitNote(take: number, presentation: string | null): string[] {
-  const first = presentation ?? (take <= 1 ? recordingText("micWhy") : null);
-  const earbuds = lastMicWasEarbuds() ? recordingText("earbuds") : null;
+function micWaitNote(
+  take: number,
+  presentation: string | null,
+  locale: UiLocale,
+): string[] {
+  const first = presentation ?? (take <= 1 ? recordingText("micWhy", locale) : null);
+  const earbuds = lastMicWasEarbuds() ? recordingText("earbuds", locale) : null;
   return [first, earbuds].filter((line): line is string => line !== null);
 }
 
@@ -2320,6 +2329,7 @@ export function RecordingWhere({
   slide: number;
   slideCount: number;
 }) {
+  const locale = useUiLocale();
   if (!show || micStatus !== "recording" || slideCount === 0) {
     return <span />;
   }
@@ -2327,7 +2337,7 @@ export function RecordingWhere({
   if (of) {
     return (
       <p data-testid="recording-where" data-recording-of="" className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground">
-        {answerWhere(of, slide, slideCount)}
+        {answerWhere(of, slide, slideCount, locale)}
       </p>
     );
   }
@@ -2344,7 +2354,7 @@ export function RecordingWhere({
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {recordingWhere(takeNumber, slide, slideCount, to)}
+      {recordingWhere(takeNumber, slide, slideCount, to, locale)}
     </p>
   );
 }

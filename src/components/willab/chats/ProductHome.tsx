@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
@@ -28,6 +30,7 @@ export default function ProductHome({
   onOpenProject: (project: TrainingArc) => void;
   onStartNewProject: () => void;
 }) {
+  const locale = useUiLocale();
   const thread = useLoungeThreadMaybe();
   const [projects, setProjects] = useState<TrainingArc[]>([]);
   const [status, setStatus] = useState<Status>("loading");
@@ -56,7 +59,7 @@ export default function ProductHome({
   if (status === "loading" || !coachReady) {
     return (
       <div data-product-home data-product-home-loading className="flex min-h-0 flex-1">
-        <LoadingState placement="surface" />
+        <LoadingState placement="surface" label={uiText(locale, "loading")} />
       </div>
     );
   }
@@ -67,12 +70,12 @@ export default function ProductHome({
         <div className="mx-auto flex w-full max-w-4xl flex-col px-[15px] pb-6 pt-2">
           <HomeRow
             id="speaking-coach"
-            title="Speaking coach"
+            title={uiText(locale, "speakingCoach")}
             circle={<WillMark size={48} />}
             onOpen={onOpenSpeaking}
           />
           {status === "error" ? (
-            <HomeError onRetry={() => setAttempt((value) => value + 1)} />
+            <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
           ) : (
             projects.map((project) => (
               <HomeRow
@@ -90,7 +93,7 @@ export default function ProductHome({
             onClick={onStartNewProject}
             className="mt-2 flex min-h-[56px] w-full items-center px-3 text-left text-[16px] font-semibold text-foreground"
           >
-            Start a new project
+            {uiText(locale, "startNewProject")}
           </button>
         </div>
       </div>
@@ -190,15 +193,15 @@ function HomeRow({
   );
 }
 
-function HomeError({ onRetry }: { onRetry: () => void }) {
+function HomeError({ locale, onRetry }: { locale: UiLocale; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-start gap-2 px-3 py-4">
       <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
         <VoiceMark size={20} />
-        <span>Couldn&apos;t load your projects.</span>
+        <span>{uiText(locale, "projectLoadFailed")}</span>
       </div>
       <button type="button" onClick={onRetry} className="text-[13px] text-foreground underline underline-offset-2">
-        Try again
+        {uiText(locale, "tryAgain")}
       </button>
     </div>
   );

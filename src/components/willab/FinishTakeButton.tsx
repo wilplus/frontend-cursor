@@ -1,5 +1,6 @@
 "use client";
 
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { recordingText } from "./recordingCopy";
 
 /** Finish take: the record red with its 12px stop square. On the recording
@@ -12,7 +13,8 @@ export default function FinishTakeButton({
   onClick: () => void;
   className: string;
 }) {
-  const label = recordingText("finishTake");
+  const locale = useUiLocale();
+  const label = recordingText("finishTake", locale);
   return (
     <button
       type="button"

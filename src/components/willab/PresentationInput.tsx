@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CircleCheck, Upload } from "lucide-react";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import { extractPresentation } from "@/services/api/presentationExtract";
 import {
   ACCEPTED_DECK_ACCEPT,
@@ -21,10 +22,12 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export default function PresentationInput({
+  locale,
   slides,
   presentationRef,
   onChange,
 }: {
+  locale: UiLocale;
   slides: PresentationSlide[];
   presentationRef: string | null;
   onChange: (slides: PresentationSlide[], presentationRef: string | null) => void;
@@ -42,7 +45,7 @@ export default function PresentationInput({
     setUploadState("uploading");
     setErrorMsg(null);
     setWarnings([]);
-    const result = await extractPresentation(file);
+    const result = await extractPresentation(file, locale);
     if (result.status === "ok") {
       const next = result.deck.slides.length > 0 ? result.deck.slides : slides;
       onChange(next, result.deck.presentationRef);
@@ -93,16 +96,19 @@ export default function PresentationInput({
         {/* Once a deck is attached the upload arrow gives way to a check and
             the box reads "Deck attached" — tapping it still replaces it. */}
         {presentationRef && uploadState !== "uploading" ? (
-          <CircleCheck className="h-6 w-6 text-foreground" aria-label="Deck attached" />
+          <CircleCheck
+            className="h-6 w-6 text-foreground"
+            aria-label={uiText(locale, "setupDeckAttached")}
+          />
         ) : (
           <Upload className="h-5 w-5 text-muted-foreground" aria-hidden />
         )}
         <span className="text-[14px] text-foreground">
           {uploadState === "uploading"
-            ? "Reading your deck…"
+            ? uiText(locale, "setupDeckReading")
             : presentationRef
-              ? "Deck attached"
-              : "Upload your deck (PDF)"}
+              ? uiText(locale, "setupDeckAttached")
+              : uiText(locale, "setupDeckUpload")}
         </span>
       </button>
 
@@ -117,7 +123,7 @@ export default function PresentationInput({
             disabled={uploadState === "uploading"}
             className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
           >
-            Replace the deck
+            {uiText(locale, "setupDeckReplace")}
           </button>
         </div>
       ) : null}

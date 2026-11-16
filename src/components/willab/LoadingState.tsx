@@ -1,5 +1,8 @@
 "use client";
 
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
+
 /* -------------------------------------------------------------------------- */
 /*  LoadingState — the one generic full-surface waiting composition            */
 /*                                                                            */
@@ -62,7 +65,7 @@ export function VoiceMark({ size, className }: { size: number; className?: strin
 
 export default function LoadingState({
   placement,
-  label = "Loading",
+  label,
   labelVisible = false,
   note = null,
 }: {
@@ -80,13 +83,15 @@ export default function LoadingState({
    *  and the earbuds line (N372). */
   readonly note?: string | readonly string[] | null;
 }) {
+  const locale = useUiLocale();
+  const resolvedLabel = label ?? uiText(locale, "loading");
   const presentation = (
     <div className="flex min-h-full w-full flex-1 flex-col items-center justify-center">
       <VoiceMark size={64} />
       {labelVisible ? (
         <>
           <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
-            {label}
+            {resolvedLabel}
           </p>
           {(typeof note === "string" ? [note] : note ?? []).map((line) => (
             <p key={line} data-loading-note className="mt-1 text-[13px] text-muted-foreground">
@@ -96,7 +101,7 @@ export default function LoadingState({
         </>
       ) : (
         <span className="sr-only" role="status">
-          {label}
+          {resolvedLabel}
         </span>
       )}
     </div>
@@ -118,12 +123,14 @@ export default function LoadingState({
 }
 
 /** Content-region wait: same canonical mark size, without taking the viewport. */
-export function SectionLoadingState({ label = "Loading" }: { label?: string }) {
+export function SectionLoadingState({ label }: { label?: string }) {
+  const locale = useUiLocale();
+  const resolvedLabel = label ?? uiText(locale, "loading");
   return (
     <div className="flex min-h-[140px] flex-1 items-center justify-center">
       <VoiceMark size={64} />
       <span className="sr-only" role="status">
-        {label}
+        {resolvedLabel}
       </span>
     </div>
   );

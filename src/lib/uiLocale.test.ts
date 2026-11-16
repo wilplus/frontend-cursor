@@ -5,7 +5,9 @@ OUTCOME
   O1  PL edge country defaults to Polish; every other or missing country defaults to English.
   O2  A persisted EN or PL UI choice wins over the country default.
   O3  Incomplete Polish copy falls back to the approved English source.
-PROVES O1/O2 -> request locale resolution; O3 -> safe translation fallback
+  O4  Founder-approved project/setup UI is served in Polish.
+PROVES O1/O2 -> request locale resolution; O3 -> safe translation fallback;
+       O4 -> approved copy and interpolation
 */
 import { describe, expect, it } from "vitest";
 import {
@@ -13,6 +15,7 @@ import {
   resolveUiLocale,
   resolveUiLocaleFromRequest,
   uiText,
+  uiTextWith,
 } from "./uiLocale";
 
 function requestHeaders(values: Record<string, string>): Headers {
@@ -40,5 +43,13 @@ describe("UI locale foundation", () => {
   it("falls back to English when Polish copy is not approved yet", () => {
     expect(uiText("pl", "footerAbout")).toBe("About us");
     expect(uiText("en", "footerPrivacy")).toBe("Privacy");
+  });
+
+  it("serves the founder-approved Polish project and setup UI", () => {
+    expect(uiText("pl", "startNewProject")).toBe("Rozpocznij nowy projekt");
+    expect(uiText("pl", "setupTimeLimitQuestion")).toBe("Czy masz limit czasu?");
+    expect(uiTextWith("pl", "samePresentationAsTake", { take: 5 })).toBe(
+      "Ta sama prezentacja co w nagraniu 5",
+    );
   });
 });

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import type { UiLocale } from "@/lib/uiLocale";
 import { bulletLines } from "./presentation";
 import { firstTakeKicker } from "@/lib/willab/firstTake";
 import { recordingText } from "./recordingCopy";
@@ -269,7 +271,8 @@ export function MockPresentationSlide({
  *  against the slide ON SCREEN, so a speaker who cannot see which slide they
  *  are on cannot drive that boundary. */
 /** Over an answer's question (backend N441 item 7, signed). */
-export const nameAsks = (name: string) => `${name} ${recordingText("asks")}`;
+export const nameAsks = (name: string, locale: UiLocale = "en") =>
+  `${name} ${recordingText("asks", locale)}`;
 
 export function SlideTextCard({
   title,
@@ -284,7 +287,8 @@ export function SlideTextCard({
    *  space, its words at the bottom (backend N449 item 4). */
   tall?: boolean;
 }) {
-  if (asks) return <AnswerSlide name={asks} question={title} />;
+  const locale = useUiLocale();
+  if (asks) return <AnswerSlide name={asks} question={title} locale={locale} />;
   if (tall) return <TallQuestionSlide title={title} body={body} />;
   const bullets = bulletLines(body);
   // A first Take's question carries its small title above it (backend N401
@@ -397,13 +401,21 @@ export function PosterSlide({
 
 /** An answer's one slide (backend N441 item 7): a small "{name} asks" and the
  *  question under it in body size, read like a message, not a heading. */
-function AnswerSlide({ name, question }: { name: string; question: string }) {
+function AnswerSlide({
+  name,
+  question,
+  locale,
+}: {
+  name: string;
+  question: string;
+  locale: UiLocale;
+}) {
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#061a3a]">
       <div className="absolute inset-0 flex flex-col justify-center px-[6%] py-[5%] text-white">
         <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
         <p data-slide-asks="" className="mb-1.5 text-[13px] font-semibold text-white/65">
-          {nameAsks(name)}
+          {nameAsks(name, locale)}
         </p>
         <p className="text-[17px] leading-[1.45]">{question}</p>
       </div>
@@ -446,6 +458,7 @@ export function SlideRender({
   showRetry?: boolean;
   fit?: boolean;
 }) {
+  const locale = useUiLocale();
   const [pdfFailed, setPdfFailed] = useState(false);
   const handleError = useCallback(() => setPdfFailed(true), []);
   // A new deck source gets a fresh chance to render.
@@ -465,7 +478,7 @@ export function SlideRender({
   if (!presentationRef && poster && (title.trim() || body.trim())) {
     return (
       <div className={className}>
-        <PosterSlide label={asks ? nameAsks(asks) : firstTakeKicker(title)} title={title} body={body} tall={tall} />
+        <PosterSlide label={asks ? nameAsks(asks, locale) : firstTakeKicker(title)} title={title} body={body} tall={tall} />
       </div>
     );
   }
@@ -494,7 +507,7 @@ export function SlideRender({
   return (
     <div className={className}>
       <div className="flex aspect-video h-full w-full items-center justify-center rounded-xl border border-border bg-muted text-[13px] text-muted-foreground">
-        {recordingText("slidePreviewUnavailable")}
+        {recordingText("slidePreviewUnavailable", locale)}
       </div>
       {/* Clearing pdfFailed remounts PdfPage, and loadPdf evicts the failed
           promise on error, so retry really re-fetches the visual. */}
@@ -505,7 +518,7 @@ export function SlideRender({
             onClick={() => setPdfFailed(false)}
             className="rounded-full border border-border px-3 py-1 text-[12px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            {recordingText("retryLoadingSlides")}
+            {recordingText("retryLoadingSlides", locale)}
           </button>
         </div>
       ) : null}

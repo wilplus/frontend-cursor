@@ -1,4 +1,9 @@
 import { deckForRecording, type DeckSlide } from "@/lib/willab/defaultDeck";
+import {
+  uiText,
+  uiTextWith,
+  type UiLocale,
+} from "@/lib/uiLocale";
 
 /* -------------------------------------------------------------------------- */
 /*  presentationInPlay — which presentation a later Take is said against      */
@@ -42,11 +47,19 @@ export function deckNewsOf(setup: {
 }
 
 /** The line for a Take said against `setup`, or null until it is known. Pure. */
-export function presentationInPlay(setup: DeckSetup | null, news: DeckNews = null): string | null {
+export function presentationInPlay(
+  setup: DeckSetup | null,
+  news: DeckNews = null,
+  locale: UiLocale = "en",
+): string | null {
   if (!setup) return null;
-  if (news?.deckChanged) return PRESENTATION_IN_PLAY.newSlides;
-  if (deckForRecording(setup.slides, setup.presentationRef).isDefault) return PRESENTATION_IN_PLAY.standIn;
-  return PRESENTATION_IN_PLAY.ownSince(news?.deckSinceTake ?? 1);
+  if (news?.deckChanged) return uiText(locale, "newSlides");
+  if (deckForRecording(setup.slides, setup.presentationRef).isDefault) {
+    return uiText(locale, "sameStandInPresentationAsTakeOne");
+  }
+  return uiTextWith(locale, "samePresentationAsTake", {
+    take: news?.deckSinceTake ?? 1,
+  });
 }
 
 /** The line under "Getting your mic ready": only before a later Take, for the
@@ -57,7 +70,8 @@ export function laterTakePresentation(
   recording: DeckSetup | null,
   restored: DeckSetup | null,
   news: DeckNews = null,
+  locale: UiLocale = "en",
 ): string | null {
   if (takeNumber <= 1) return null;
-  return presentationInPlay(recording ?? restored, news);
+  return presentationInPlay(recording ?? restored, news, locale);
 }

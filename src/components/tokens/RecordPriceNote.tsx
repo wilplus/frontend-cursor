@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 import { fetchRecordingBand, type RecordingBandState } from "@/services/api/tokens";
-import { TOKENS_COPY, formatShortDate } from "./copy";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordPriceNote — what the next take costs, ON the trigger, BEFORE it runs */
@@ -30,7 +30,13 @@ import { TOKENS_COPY, formatShortDate } from "./copy";
 /*  moves it is a duration band, chosen before recording.                      */
 /* -------------------------------------------------------------------------- */
 
-export default function RecordPriceNote({ className }: { className?: string }) {
+export default function RecordPriceNote({
+  locale = "en",
+  className,
+}: {
+  locale?: UiLocale;
+  className?: string;
+}) {
   const [band, setBand] = useState<RecordingBandState>({ kind: "unknown" });
 
   useEffect(() => {
@@ -48,7 +54,7 @@ export default function RecordPriceNote({ className }: { className?: string }) {
   // changes what the button does.
   if (band.kind !== "exhausted") return null;
 
-  const text = TOKENS_COPY.recordEmpty(formatShortDate(band.periodEndsAt));
+  const text = uiText(locale, "recordTokensEmpty");
 
   return (
     <p className={className ?? "mt-3 text-center text-[12px] text-muted-foreground"}>
