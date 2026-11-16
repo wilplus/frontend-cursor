@@ -5,7 +5,6 @@ import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { LetterCircle } from "./ChatList";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import BuildModels from "./BuildModels";
-import { DevParts, DevSwitch, useDev } from "./DevMode";
 import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
 import CoachBuild from "./coachbuild/CoachBuild";
@@ -75,9 +74,6 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // (backend N642 item 3).
   const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
-  // Developer mode (backend N648): the switch under the tabs, only where its read answers.
-  const dev = useDev();
-  const [devOn, setDevOn] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const draft = useCoachDraft();
   const own = setup?.own_chat ?? null;
@@ -130,8 +126,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
         <BackRow onBack={onBack} label={name} />
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
-      <Tabs tab={tab} onTab={(t) => { setTab(t); setDevOn(false); }} />
-      {dev ? <DevSwitch on={devOn} onToggle={() => setDevOn((on) => !on)} /> : null}
+      <Tabs tab={tab} onTab={setTab} />
       {tab === "chat" ? (
         <button type="button" data-open-coach="" onClick={() => setCoachOpen(true)} className="mx-4 my-2 min-h-11 rounded-2xl border border-border px-3 text-left text-[15px] font-semibold">
           Speaking coach
@@ -139,14 +134,6 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       ) : null}
     </div>
   );
-  if (dev && devOn) {
-    return (
-      <Cover>
-        {top}
-        <div className="min-h-0 flex-1 overflow-y-auto"><DevParts read={dev} /></div>
-      </Cover>
-    );
-  }
   if (tab === "models") {
     return (
       <Cover>

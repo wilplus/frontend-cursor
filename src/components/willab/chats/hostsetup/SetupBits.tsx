@@ -53,12 +53,67 @@ export type SetupDockSpec = {
 };
 export const FrameDock = createContext<SetupDockSpec | null>(null);
 
-/** One bar for every setup screen: the app's answer chips, then the chat's
- *  composer, always open. */
+/** Two big taps, then the composer. One or two choices fill the bar; the
+ *  last one is the one that keeps. */
+function BigChoices({ labels, onChoice, disabled }: { labels: string[]; onChoice: (label: string) => void; disabled?: boolean }) {
+  return (
+    <div data-setup-dock-choices="" className="flex gap-2 px-4 pt-3">
+      {labels.map((label, i) => (
+        <button
+          key={label}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChoice(label)}
+          className={`min-h-12 flex-1 rounded-full px-3 text-[16px] font-semibold disabled:opacity-40 ${
+            i === labels.length - 1 && labels.length > 1 ? "bg-foreground text-background" : "border-[1.5px] border-border bg-background text-foreground"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** One item with exactly two taps (On/Off, Keep/Remove). */
+export function BinaryRow({ title, sub, on, onLabel, offLabel, onPick }: {
+  title: string;
+  sub?: string;
+  on: boolean;
+  onLabel: string;
+  offLabel: string;
+  onPick: (on: boolean) => void;
+}) {
+  const one = (label: string, chosen: boolean, pick: boolean) => (
+    <button
+      type="button"
+      data-choice={pick ? "on" : "off"}
+      aria-pressed={chosen}
+      onClick={() => onPick(pick)}
+      className={`min-h-11 flex-1 rounded-full px-3 text-[15px] font-semibold ${chosen ? "bg-foreground text-background" : "border-[1.5px] border-border bg-background text-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div data-binary="" className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-border px-3.5 py-3">
+      <b className="text-[16px] font-semibold text-foreground">{title}</b>
+      {sub ? <span className="text-[16px] text-foreground">{sub}</span> : null}
+      <div className="flex gap-2">
+        {one(offLabel, !on, false)}
+        {one(onLabel, on, true)}
+      </div>
+    </div>
+  );
+}
+
+/** One bar for every setup screen: two big taps when the step has a pair,
+ *  then the chat's composer, always open. */
 export function SetupDock({ choices, onChoice, onSend, placeholder, lines, disabled, initial }: SetupDockSpec) {
+  const pair = choices && choices.length > 0 && choices.length <= 2 && onChoice;
   return (
     <div data-setup-dock="" className="shrink-0 border-t border-border bg-background">
-      {choices?.length && onChoice ? (
+      {pair ? <BigChoices labels={choices} onChoice={onChoice} disabled={disabled} /> : choices?.length && onChoice ? (
         <div className="px-4 pt-2">
           <TapRow even={false} disabled={disabled} labels={choices} onTap={onChoice} dataAttr={{ "data-setup-dock-choices": "" }} />
         </div>

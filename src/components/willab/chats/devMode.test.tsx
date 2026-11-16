@@ -1,19 +1,16 @@
 // @vitest-environment jsdom
 /*
-STORY    As a host with the chat builder's ring, I switch on Developer mode
-         under Build's two tabs and see in plain numbers how close my chat is
-         to the speaking coach, what it notices, what it says, charts by week
-         and my training data to keep; off the ring I see none of it (backend
-         N648).
+STORY    As a host in Build, the panel under the tabs is the Speaking coach
+         chip and nothing called Developer mode. That switch already sits
+         elsewhere, so this panel does not draw a second one (backend N648
+         still draws its own screens when they are opened).
 OUTCOME
-  O1  With the ring, Build has a "Developer mode" switch; on, it shows the
-      five parts, each opening its screen.
+  O1  Build's bar has the Speaking coach chip and no Developer mode row,
+      whether or not the dev read answers.
   O2  A week with fewer than five people reads "fewer than 5", and a chart
       that could not be counted is drawn as not counted, never as zero.
-  O3  Off the ring (the read is 404) there is no switch and nothing else.
-PROVES   O1 -> "N648 Developer mode: the switch under the tabs shows the five parts, each opening its screen"
+PROVES   O1 -> "Build has the Speaking coach chip and no Developer mode row"
          O2 -> "N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero"
-         O3 -> "N648 off the ring nothing of Developer mode shows"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -30,6 +27,7 @@ vi.mock("@/lib/api/bffFetch", () => ({
 vi.mock("../useUserProfile", () => ({ useUserProfile: () => ({ profile: { first_name: "Lena" }, loading: false, isCoach: false }) }));
 
 import WillBuild from "./WillBuild";
+import { DevParts } from "./DevMode";
 import { forgetSetup } from "./hostsetup/hostSetupDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -74,29 +72,19 @@ async function open() {
 }
 
 describe("Developer mode (backend N648)", () => {
-  it("N648 Developer mode: the switch under the tabs shows the five parts, each opening its screen", async () => {
+  it("Build has the Speaking coach chip and no Developer mode row", async () => {
     bff.routes["GET /api/v2/chats/setup/dev"] = DEV;
     await open();
     const bar = container.querySelector("[data-build-bar]")!;
-    expect(bar.querySelectorAll("[data-dev-switch]")).toHaveLength(1);
-    expect(bar.innerHTML.indexOf("data-dev-switch")).toBeLessThan(bar.innerHTML.indexOf("data-open-coach"));
-    await click("[data-dev-switch]");
-    for (const t of ["How close to the speaking coach", "What I notice", "What I say", "Charts", "Your training data"]) expect(text()).toContain(t);
-    await click('[data-dev-part="close"]');
-    expect(text()).toContain("Your chat does 2 of the 3 things the speaking coach does.");
-    await click("[data-dev-back]");
-    await click('[data-dev-part="says"]');
-    expect(text()).toContain("Helped 3 of 4 times.");
-    expect(text()).toContain("26 more answers before I can tell for sure.");
-    await click("[data-dev-back]");
-    await click('[data-dev-part="data"]');
-    expect((container.querySelector("[data-dev-data] a") as HTMLAnchorElement).getAttribute("href")).toBe("/api/v2/models/m1/download?format=jsonl");
+    expect(bar.querySelector("[data-dev-switch]")).toBeNull();
+    expect(bar.querySelector("[data-dev-row]")).toBeNull();
+    expect(bar.textContent).not.toContain("Developer mode");
+    expect(bar.querySelector("[data-open-coach]")?.textContent).toContain("Speaking coach");
   });
 
   it("N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero", async () => {
-    bff.routes["GET /api/v2/chats/setup/dev"] = DEV;
-    await open();
-    await click("[data-dev-switch]");
+    act(() => root.render(createElement(DevParts, { read: DEV as never })));
+    await flush();
     await click('[data-dev-part="charts"]');
     expect(container.querySelector("[data-dev-hidden]")?.textContent).toBe("2026-11-02: fewer than 5");
     const none = container.querySelector("[data-dev-uncounted]") as HTMLElement;
@@ -105,9 +93,4 @@ describe("Developer mode (backend N648)", () => {
     expect(container.querySelector('[data-dev-chart="ideal_texts"] a')).toBeNull();
   });
 
-  it("N648 off the ring nothing of Developer mode shows", async () => {
-    await open();
-    expect(container.querySelector("[data-dev-switch]")).toBeNull();
-    expect(text()).not.toContain("Developer mode");
-  });
 });

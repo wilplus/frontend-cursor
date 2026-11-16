@@ -27,7 +27,7 @@ import {
   editSaid,
 } from "@/services/api/hostSetup";
 import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
-import { Cap, Card, Chips, Dots, Frame, FrameDock, FrameHistory, FrameNote, Link, Mine, Opt, Say, type SetupDockSpec } from "./SetupBits";
+import { BinaryRow, Cap, Card, Chips, Dots, Frame, FrameDock, FrameHistory, FrameNote, Link, Mine, Opt, Say, type SetupDockSpec } from "./SetupBits";
 import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
@@ -753,6 +753,28 @@ function WalkStep(c: Ctx): ReactNode {
   const { S, R } = c;
   switch (S.at) {
     case "walk": {
+      if (S.edit) {
+        const on = new Set(walkSteps(S, R));
+        const save = (next: WalkStepId[]) => {
+          if (!next.length) return;
+          c.keep("walk", { steps: WALK_IDS.filter((id) => next.includes(id)), out: walkOut(R) }, c.paint);
+        };
+        return (
+          <Frame onBack={c.back} dock={{ onSend: () => false }}>
+            <Say>{W.walkSay[0]}</Say>
+            {WALK_IDS.map((k) => (
+              <BinaryRow
+                key={k}
+                title={W.walkSteps[k]}
+                on={on.has(k)}
+                onLabel={W.on}
+                offLabel={W.off}
+                onPick={(turnOn) => save(turnOn ? [...on, k] : [...on].filter((id) => id !== k))}
+              />
+            ))}
+          </Frame>
+        );
+      }
       const ticks = S.walkTicks ?? walkSteps(S, R);
       S.walkTicks = ticks;
       // Any number of ticks; the last one stays, as on "What do people send you?".
@@ -961,7 +983,16 @@ function WalkNoticeStep({ c }: { c: Ctx }) {
     <Frame onBack={c.back}>
       <Say>{W.noticeSay}</Say>
       {notice.map((n) => (
-        <Opt key={n.model_id} title={n.q} sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning} onClick={() => { S.walkItem = n.model_id; c.paint(); }} />
+        <div key={n.model_id} data-notice={n.model_id}>
+          <BinaryRow
+            title={n.q}
+            sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning}
+            on={n.on}
+            onLabel={W.on}
+            offLabel={W.off}
+            onPick={(turnOn) => { if (turnOn !== n.on) changeItem(c, n.model_id, { on: turnOn }, () => undefined); }}
+          />
+        </div>
       ))}
       {S.filler ? (
         <Opt
@@ -985,25 +1016,25 @@ function WalkSayStep({ c }: { c: Ctx }) {
   const open = say.find((x) => x.model_id === S.walkItem);
   const close = () => { S.walkItem = null; c.paint(); };
   if (open) {
-    const words = () => c.typeIn(W.whatShouldISay, (v) => {
-      changeItem(c, open.model_id, { says: v }, () => { S.typing = null; S.thread.pop(); });
-      // Kept in the box until the words are taken.
-      return false;
-    }, W.writeHere);
     return (
       <Frame
         onBack={close}
-        dock={open.on ? picks([W.keepIt, W.changeWords, W.turnOff], (label) => {
+        dock={open.on ? picks([W.keepIt, W.turnOff], (label) => {
           if (label === W.keepIt) close();
-          else if (label === W.changeWords) words();
-          else changeItem(c, open.model_id, { on: false }, () => undefined);
+          else changeItem(c, open.model_id, { on: false }, close);
         }, {
-          placeholder: W.writeHere,
+          placeholder: W.whatShouldISay,
           onSend: (v) => {
             changeItem(c, open.model_id, { says: v }, () => undefined);
             return false;
           },
-        }) : picks([W.turnOn], () => changeItem(c, open.model_id, { on: true }, () => undefined))}
+        }) : picks([W.turnOn], () => changeItem(c, open.model_id, { on: true }, close), {
+          placeholder: W.whatShouldISay,
+          onSend: (v) => {
+            changeItem(c, open.model_id, { says: v }, () => undefined);
+            return false;
+          },
+        })}
       >
         <Say>{W.whenINotice(open.q)}</Say>
         <Card b={open.says} />
@@ -1028,6 +1059,29 @@ function StepScreen(c: Ctx) {
   if (asked) return asked;
   switch (c.S.at) {
     case "send": {
+      if (S.edit) {
+        const chosen = new Set(R.send);
+        const save = (next: SendKind[]) => {
+          if (!next.length) return;
+          c.keep("send", R.suggest.send.filter((k) => next.includes(k)), c.paint);
+        };
+        return (
+          <Frame onBack={c.back} dock={{ onSend: () => false, placeholder: W.typeHere }}>
+            <Say>{W.sendSay}</Say>
+            {R.suggest.send.map((k) => (
+              <BinaryRow
+                key={k}
+                title={SEND[k][0]}
+                sub={SEND[k][1]}
+                on={chosen.has(k)}
+                onLabel={W.on}
+                offLabel={W.off}
+                onPick={(turnOn) => save(turnOn ? [...chosen, k] : [...chosen].filter((id) => id !== k))}
+              />
+            ))}
+          </Frame>
+        );
+      }
       const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
       S.sendSet = set;
       // Each row ticks on its own, any number of them; the last tick stays,
@@ -1049,6 +1103,32 @@ function StepScreen(c: Ctx) {
     case "out":
       return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => c.keep("out", v));
     case "q": {
+      if (S.edit && R.questions.length) {
+        const qs = R.questions.map((item) => item.q);
+        const save = (next: string[]) => c.keep("questions", next.map((q) => ({ q })), c.paint);
+        return (
+          <Frame onBack={c.back} dock={{
+            placeholder: W.qAsk,
+            onSend: (typed) => {
+              const q = typed.trim();
+              if (!q || qs.length >= 3 || qs.some((item) => item.toLowerCase() === q.toLowerCase())) return false;
+              save([...qs, q]);
+            },
+          }}>
+            <Say>{W.qSay}</Say>
+            {qs.map((q) => (
+              <BinaryRow
+                key={q}
+                title={q}
+                on
+                onLabel={W.keep}
+                offLabel={W.remove}
+                onPick={(keep) => { if (!keep && qs.length > 1) save(qs.filter((item) => item !== q)); }}
+              />
+            ))}
+          </Frame>
+        );
+      }
       const n = S.qs.length;
       const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
       return kc(c, `q${n}`, W.qSay, list, list[0], (v) => <Card b={v} />, (v) => {
@@ -1104,6 +1184,13 @@ function StepScreen(c: Ctx) {
         </Frame>
       );
     case "who":
+      if (S.edit) {
+        const kinds = WHO.filter(([kind]) => !(R.care !== false && kind === "assistant")).map(([kind]) => kind);
+        return kc(c, "who", W.whoSay, kinds, R.who, (kind) => {
+          const row = WHO.find(([id]) => id === kind)!;
+          return <Card b={row[1]} s={row[2]} />;
+        }, (kind) => c.keep("who", kind));
+      }
       return (
         <Frame onBack={c.back}>
           <Say>{W.whoSay}</Say>

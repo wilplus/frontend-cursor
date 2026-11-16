@@ -477,17 +477,13 @@ describe("the blank setup (FIRST-)", () => {
     act(() => void openSetupFromNote());
     await flush();
     await tap("The feedback walk");
-    // A walk already kept opens part by part (N647 item 1); "Its steps" is today's.
+    // One tap opens the steps. Each step is On or Off, saved as it is tapped.
     await tap("Its steps");
-    expect(text()).toContain("What should yours hold? Tick all that apply.");
-    await tap("Done");
-    expect(text()).toContain("1. One moment to try another way");
-    await tap("Keep");
-    await tap("An Ideal Text");
-    expect(puts("walk")).toEqual([{ steps: ["fix", "best"], out: "ideal_text" }]);
-    expect(text()).toContain("Thanks. I've told Artur.");
-    await tap("Done");
-    expect(text()).toContain("Open your chat to people?");
+    expect(text()).not.toContain("Tick all that apply");
+    expect(container.querySelectorAll("[data-binary]")).toHaveLength(3);
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-binary] [data-choice='off']")!.click());
+    await flush();
+    expect(puts("walk").length).toBeGreaterThan(0);
   });
 
   /** A host with a walk kept, its part opened; the walk read as the backend gives it. */
@@ -566,14 +562,16 @@ describe("the blank setup (FIRST-)", () => {
     await walkHome(WALK_READ);
     await tap("What I notice");
     expect(text()).toContain("This is what I notice in a message. Tap one.");
-    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Ready");
-    expect(button("Is the hair thinning here?").textContent).toBe("Is the hair thinning here?Still learning");
+    const dry = container.querySelector("[data-notice='m-dry']")!;
+    expect(dry.textContent).toContain("Is this a dry scalp?");
+    expect(dry.textContent).toContain("Ready");
+    expect(container.querySelector("[data-notice='m-thin']")?.textContent).toContain("Still learning");
     expect(text()).not.toContain("Coaches agreed");
     expect(text()).not.toContain("Catch more");
-    await tap("Is this a dry scalp?");
-    await tap("Turn it off");
+    await act(async () => dry.querySelector<HTMLButtonElement>("[data-choice='off']")!.click());
+    await flush();
     expect(sentItems()).toEqual([["m-dry", { on: false }]]);
-    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Off");
+    expect(container.querySelector("[data-notice='m-dry']")?.textContent).toContain("Off");
     await tap("Something else. I want this");
     expect(bff.calls.filter((c) => c.path === "/api/v2/chats/setup/walk/want")).toHaveLength(1);
     expect(text()).toContain("Thanks. I've told Artur.");
@@ -594,9 +592,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Keep it");
     await tap("The crown is thinner.");
     expect(text()).toContain("It's new. I'll tell you how it does.");
-    await tap("Change the words");
-    expect(text()).toContain("What should I say?");
-    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("What should I say?");
     await type("The crown looks thinner than the sides.");
     expect(container.querySelector("textarea")?.value).toBe("The crown looks thinner than the sides.");
     refuse = false;
