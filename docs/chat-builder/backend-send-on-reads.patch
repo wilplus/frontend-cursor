@@ -1,0 +1,20 @@
+# APPLY
+# In wilplus/backend-cursor, on the two reads the bar uses. Do not apply to production from an agent.
+# 1. GET /v2/chats/<id>/host — add "send" on the host object when the recipe has one:
+#      host["send"] = list(recipe.send)  # "rec" | "text" | "photo" | "file"
+#    Omit the key when there is no recipe. The frontend then keeps answer_with.
+# 2. The widget read (GET and start under /v2/chats/widget/<token>) — add the same "send" list
+#    next to "writes". Omit it when the recipe has none.
+# answer_with is unchanged. send does not replace it.
+
+--- a/routes/v2/chats_host.py
++++ b/routes/v2/chats_host.py
+@@ -1,3 +1,11 @@
++# APPLY: in the host JSON builder, after answer_with is set:
++#   send = getattr(recipe, "send", None) if recipe is not None else None
++#   if send:
++#       host["send"] = list(send)
++# Widget payload, next to "writes":
++#   if send:
++#       payload["send"] = list(send)
++

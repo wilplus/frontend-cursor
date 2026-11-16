@@ -18,6 +18,12 @@ Before: `h-12 px-2`.
 
 After: `h-[60px] px-4`, the header's height and the thread's inset. Back, the place in the list, and Next sit in that row. The bottom of a visitor chat is still `ChatBar` (`p-2`, the + on the left, one thing in the middle).
 
+## AI models
+
+Before: `gap-2`, and the coming rows at `text-[15.5px]` with no minimum height.
+
+After: `gap-3 px-4 py-4`, the same inset and gap as Your chat. Coming rows are `min-h-12 text-[15px]`, the table row's type and height. Borders stay `border-border`, radius `rounded-2xl`.
+
 ## Left alone
 
 Scrollbars on these pages were already `no-scrollbar`. The locked walk, Ideal Text, and recording screens were not restyled.

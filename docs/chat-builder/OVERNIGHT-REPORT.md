@@ -24,11 +24,13 @@ A digit in any of them is refused, the same rule as `fixed`.
 | Practise taps Try it / Keep mine | Pass |
 | Walk order: best only, a moment to fix, the pace step | Pass |
 | Bar: nothing asked is the box; the chat asking records; a photo asked is Add a photo; thanks stays off because typing is on | Pass |
-| Hello and the three first questions | Pass, on the document |
-| Recording screens, Ideal Text, processing wait | Not redrawn. Named on the document. Locked screens |
-| Tries inside the recorder (landed, once more, take it with you) | Not in the document's step list. Same gap as before tonight |
+| Hello and the three first questions | Pass |
+| Start recording / Continue recording | Pass. The record button reads the document |
+| Empty Ideal Text name, "Your ideal text" | Pass. The heading reads the document |
+| Processing wait, the five labels in order | Pass. The wait reads the document |
+| A try that lands, one miss, the last miss, and Skip | Pass. The walk reads the document |
 
-The check is `parityGaps` in `src/lib/willab/chatBuilder/surfaceParity.ts`. Empty means the rows above that say Pass.
+`parityGaps` is empty. With no published document the screens keep today's words, which are the same sentences.
 
 ## Audits applied
 
@@ -42,8 +44,8 @@ Do not apply these to production from an agent.
 
 1. `docs/chat-builder/coach-definition-phase1.patch` — the draft, preview, publish, and active routes. Apply notes in `docs/chat-builder/APPLY.md`.
 2. `docs/chat-builder/backend-coach-lines.patch` — after that patch, `refuse` also rejects a digit in `lines`, `variants`, or `choices`.
-3. `POST /v2/chats/<id>/file` multipart `file`, same `{message}` shape as the photo route. The frontend proxy is already on this branch. Without the backend route, Send a file fails closed.
-4. `GET /v2/chats/<id>/host` and the widget read should include `send`. If they do not, the bar keeps `answer_with`.
+3. `docs/chat-builder/backend-chat-file.patch` — POST `/v2/chats/<id>/file`, multipart `file`, `{message}` with kind `file`, beside the photo route. The APPLY note is at the top of the file. The frontend proxy is already on this branch.
+4. `docs/chat-builder/backend-send-on-reads.patch` — add `send` on GET `/v2/chats/<id>/host` and on the widget read. The APPLY note is at the top. If `send` is missing, the bar keeps `answer_with`.
 
 Applying Artur's chat: `docs/chat-builder/APPLY-ARTURS-CHAT.md`. The fixture is `docs/chat-builder/arturs-chat-speaking-coach.json`. It is not pushed to production by this work.
 
@@ -57,8 +59,11 @@ On http://localhost:3100/chat, signed in as a host on the chat-builder ring.
 4. Tap Name. The first bubble is that row. The header arrow returns to the page, not the list of chats.
 5. Tap Keep. The next row's chat opens. On the last row, Keep returns to the page.
 6. Tap They send. Recording and a message are the speaking coach's pair. Photo and file stay off unless you turn them on.
-7. AI models is the other tab. Back from the page returns to the list of chats.
-8. The walk lines in the fixture (the best moment, "Say it straight:", "Lesson done.") are on the document. They show in Live when that draft is the one loaded. They are not written onto production by this branch.
+7. AI models is the other tab. The rows match the table's type and height. Back from the page returns to the list of chats.
+8. Start a recording from a project. The button says Start recording, or Continue recording once a practice exists.
+9. After the Take, the wait says Processing your recording, then the later labels, then the Ideal Text. With no project name the heading is Your ideal text.
+10. Open the feedback walk. You meet the best moment, one moment to try another way, Your turn, Try it or Keep mine. A try that lands says Yes. That's it. One miss says Close. Once more. The last miss says Good try. Take it with you. Then the helper words and Lesson done.
+11. Those sentences are on the fixture. They are not written onto production by this branch. Live shows them when that draft is the one loaded.
 
 ## Commits tonight
 

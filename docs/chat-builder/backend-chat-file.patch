@@ -1,0 +1,19 @@
+# APPLY
+# After the photo route in wilplus/backend-cursor. Do not apply to production from an agent.
+# Add POST /v2/chats/<chat_id>/file beside POST /v2/chats/<chat_id>/photo.
+# Same auth, same multipart field name `file`, same size limit.
+# The stored message kind is "file". The JSON is {"message": <the row>}, the photo route's shape.
+# The frontend proxy is already POST /api/v2/chats/<chatId>/file.
+#
+# If the photo handler is a function, call it with kind="file" instead of copying the body.
+# The diff below is the contract the frontend already calls.
+
+--- /dev/null
++++ b/routes/v2/chat_file.py
+@@ -0,0 +1,14 @@
++# APPLY: register this POST next to the photo upload, or fold the kind into that handler.
++# POST /v2/chats/<chat_id>/file  multipart field "file"  -> {"message": {...kind: "file"...}}
++
++def post_chat_file(chat_id: str, upload, user_id: str):
++    """A file sent from the chat bar. Same checks as a photo. Kind is file."""
++    return post_chat_upload(chat_id, upload, user_id, kind="file")
