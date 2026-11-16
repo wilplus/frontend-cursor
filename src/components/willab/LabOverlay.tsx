@@ -80,6 +80,7 @@ import {
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { restoredSetupFor } from "./restoredSetup";
 import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentationInPlay";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
@@ -1668,25 +1669,27 @@ export default function LabOverlay({
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
       {drawsOwnTopBar(state) ? null : (
-        <header className={`flex ${look.header} shrink-0 items-center justify-between px-4`}>
-          {/* The recording screen says where you are: "Take N · Slide n of
-              m" on the left, in place of the old "Recording" label (founder
-              lock 2026-10-07, the recording screens: "Recording" crossed out,
-              "Take · Slide" moved up into the top bar). Every other step —
-              "Getting your mic ready" included —
-              keeps the bare ✕. This bar is the still frame: a slide change
-              rewrites the line's text and nothing else. */}
-          <RecordingWhere
-            show={state === "lab_recording"}
-            micStatus={mic.state.status}
-            who={look.who}
-            of={look.of}
-            to={look.to}
-            takeNumber={arcTakeIndex}
-            slide={currentSlide}
-            slideCount={recordingSlides.length}
-          />
-          <OverlayCloseButton onClick={handleClose} />
+        <header className={`${look.header} shrink-0`}>
+          <div className={`${WILLAB_CONTENT_RAIL} flex h-full items-center justify-between px-4`}>
+            {/* The recording screen says where you are: "Take N · Slide n of
+                m" on the left, in place of the old "Recording" label (founder
+                lock 2026-10-07, the recording screens: "Recording" crossed out,
+                "Take · Slide" moved up into the top bar). Every other step —
+                "Getting your mic ready" included —
+                keeps the bare ✕. This bar is the still frame: a slide change
+                rewrites the line's text and nothing else. */}
+            <RecordingWhere
+              show={state === "lab_recording"}
+              micStatus={mic.state.status}
+              who={look.who}
+              of={look.of}
+              to={look.to}
+              takeNumber={arcTakeIndex}
+              slide={currentSlide}
+              slideCount={recordingSlides.length}
+            />
+            <OverlayCloseButton onClick={handleClose} />
+          </div>
         </header>
       )}
 
@@ -2297,7 +2300,7 @@ export function labColumnClass(
     state === "readout" || state === "lab_recording"
       ? "min-h-0 overflow-hidden"
       : "overflow-y-auto";
-  return `scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${gaps} ${scroll}`;
+  return `scrollbar-none ${WILLAB_CONTENT_RAIL} flex flex-1 flex-col px-4 ${gaps} ${scroll}`;
 }
 
 /** Where you are while recording: "Take 2 · Slide 3 of 6" on the left of

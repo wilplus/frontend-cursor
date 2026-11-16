@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBackDismiss } from "./useBackDismiss";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 export default function SnippetScreenShell({
   onClose,
@@ -48,7 +49,7 @@ export default function SnippetScreenShell({
   children: ReactNode;
 }) {
   return (
-    <div className="willab-canvas fixed inset-0 z-40 flex flex-col bg-background">
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
       {managed ? <BackDismissManager onClose={onClose} /> : null}
 
       {/* ── slide overlay: X + indicator floated over the slide. Rendered only
@@ -56,7 +57,7 @@ export default function SnippetScreenShell({
           nothing and smears the top of the page (see hasSlideBehind). ── */}
       {hasSlideBehind ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
-          <div className="mx-auto w-full max-w-2xl">
+          <div className={WILLAB_CONTENT_RAIL}>
             <div className="pointer-events-auto flex items-start justify-between bg-gradient-to-b from-black/40 to-transparent px-3 pb-8 pt-2">
               <SlideIndicator index={index} total={total} />
               <button
@@ -74,12 +75,12 @@ export default function SnippetScreenShell({
 
       {/* ── scrollable content — slide first (edge-to-edge), then padded body ── */}
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl">{children}</div>
+        <div className={WILLAB_CONTENT_RAIL}>{children}</div>
       </div>
 
       {/* ── pinned navbar: Back | Next ── */}
       <div className="shrink-0 border-t border-border px-4 py-2.5">
-        <div className="flex items-center gap-3">
+        <div className={`${WILLAB_CONTENT_RAIL} flex items-center gap-3`}>
           <button
             type="button"
             onClick={onPrev}

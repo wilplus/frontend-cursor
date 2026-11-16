@@ -20,6 +20,7 @@ import {
   listSetupDrafts,
   type SetupDraft,
 } from "@/lib/willab/setupDraft";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectPicker — context-aware recording setup, Scenario A (founder         */
@@ -161,7 +162,7 @@ export default function ProjectPicker({
       {/* Game-style header row (the design reference): title left, close
           right, one row — the old "New recording" eyebrow is gone (founder,
           item 6c). */}
-      <div className="flex shrink-0 items-center justify-between px-5 pt-4">
+      <div className={`${WILLAB_CONTENT_RAIL} flex shrink-0 items-center justify-between px-5 pt-4`}>
         <h2 className="text-[17px] font-semibold text-foreground">
           {uiText(locale, "projectPickerTitle")}
         </h2>
@@ -181,7 +182,7 @@ export default function ProjectPicker({
         </div>
       ) : (
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-6">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-5 px-5 py-6`}>
           <Button
             type="button"
             onClick={startNew}

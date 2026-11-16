@@ -8,6 +8,7 @@ import ProcessingWait, {
   type ProcessingProgress,
 } from "./ProcessingWait";
 import { useBackDismiss } from "./useBackDismiss";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingResumeOverlay — a VIEW of the Lounge-owned durable job.         */
@@ -62,7 +63,7 @@ export default function ProcessingResumeOverlay({
     <div
       ref={dialogRef}
       tabIndex={-1}
-      className="willab-canvas fixed inset-0 z-50 flex flex-col bg-background focus:outline-none"
+      className="fixed inset-0 z-50 flex flex-col bg-background focus:outline-none"
       role="dialog"
       aria-modal="true"
       /* The dialog's name is held to the same standard as the label inside it:
@@ -75,15 +76,17 @@ export default function ProcessingResumeOverlay({
       }
       onKeyDown={keepFocusInside}
     >
-      <header className="flex h-12 shrink-0 items-center justify-end px-4">
-        <OverlayCloseButton onClick={onClose} ariaLabel="Close processing" />
+      <header className="h-12 shrink-0">
+        <div className={`${WILLAB_CONTENT_RAIL} flex h-full items-center justify-end px-4`}>
+          <OverlayCloseButton onClick={onClose} ariaLabel="Close processing" />
+        </div>
       </header>
       {/* THE LAB'S OWN FRAME, to the pixel (founder 2026-10-21: "make it
           stay"). The Lab hands its wait to this view in one commit, so the
           column and the wrapper are the Lab's (labColumnClass and its
           Processing): any difference would be the screen moving. */}
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none ${WILLAB_CONTENT_RAIL} flex flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
       >
         <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
           <ProcessingWait

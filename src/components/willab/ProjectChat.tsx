@@ -21,6 +21,7 @@ import {
   readPracticeCheckpoint,
   writePracticeResume,
 } from "@/lib/willab/practiceResume";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -225,17 +226,15 @@ export default function ProjectChat({
 
   return (
     <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
-      <div className="mx-auto w-full max-w-4xl shrink-0">
-        <TopBar
-          circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-          title={project.topic}
-          subtitle="Project"
-          onBack={onBack}
-        />
-      </div>
+      <TopBar
+        circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
+        title={project.topic}
+        subtitle="Project"
+        onBack={onBack}
+      />
 
       <div ref={scrollRef} className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-end gap-2">
+        <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
           {hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
@@ -285,7 +284,7 @@ export default function ProjectChat({
             <form
               data-project-question-composer
               onSubmit={(event) => { event.preventDefault(); void answerText(); }}
-              className="relative mx-auto flex w-full max-w-4xl items-end"
+              className={`${WILLAB_CONTENT_RAIL} relative flex items-end`}
             >
               <textarea
                 autoFocus
@@ -319,7 +318,7 @@ export default function ProjectChat({
           <button type="button" data-project-record onClick={() => {
             if (hasPractice) setOpened("decision");
             else onRecord();
-          }} className="mx-auto flex h-[58px] w-full max-w-4xl items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background">
+          }} className={`${WILLAB_CONTENT_RAIL} flex h-[58px] items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background`}>
             <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
             {hasPractice ? "Continue recording" : "Start recording"}
           </button>

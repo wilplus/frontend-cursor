@@ -8,6 +8,7 @@ import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { PdfPage } from "../pdfSlides";
 import { ChatListRow, WillMark } from "./ChatList";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  The speaking-coach home. The old people-chat list still reads its backend  */
@@ -67,7 +68,7 @@ export default function ProductHome({
   return (
     <div data-product-home className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-4xl flex-col px-[15px] pb-6 pt-2">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col px-[15px] pb-6 pt-2`}>
           <HomeRow
             id="speaking-coach"
             title={uiText(locale, "speakingCoach")}

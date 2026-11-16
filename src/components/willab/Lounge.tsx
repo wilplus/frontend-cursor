@@ -61,6 +61,7 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import { PROCESSING_STAGES } from "./ProcessingWait";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
@@ -2117,8 +2118,8 @@ export default function Lounge({
        is empty while it loads), and the thread's -mb-1 leaves 8px of the
        gap under it: what scrolls stops 8px above the bar, as the bar keeps
        8px from the sides and the bottom (N505). The column is the shared
-       max-w-4xl desktop shell, aligned with the logo and hamburger. */
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden">
+       1080px app canvas, aligned with the logo and hamburger. */
+    <div className={`${WILLAB_CONTENT_RAIL} flex flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden`}>
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
           an empty <div>. Out of the column's flow, so their four gaps no
           longer push the thread down (founder 2026-10-30: "Please remove

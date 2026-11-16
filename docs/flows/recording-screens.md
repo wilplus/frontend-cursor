@@ -167,6 +167,13 @@ was not practical").
 - **Never a reload:** pulling or scrolling at the top never reloads or
   refreshes the page, on a phone or on the web.
 
+### The shared app rail (2026-11-16, founder-approved)
+
+On a computer, setup, feelings, microphone wait, recording, processing and
+readout content use the locked 1080px app canvas shared by the global logo and
+hamburger; the full-screen recording layer remains viewport-wide. Below
+1080px, the rail stays fluid and retains each screen's existing side padding.
+
 ### The words
 
 New with this lock (locked with the screens): **Take N · Slide n of m** in
@@ -533,6 +540,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · reactive UI-locale source · RootLayout's server-resolved locale seeds the one provider used by mounted recording, project, Lounge quick-action and footer surfaces; a manual EN/PL choice propagates immediately without a reload or remount, so an active recording is not interrupted. Footer links whose Polish wording is still pending continue to fall back visibly to English. Transcript, feedback and generated-coaching language remain separate · FE (this PR)
 - 2026-11-16 · founder-approved localization task · project entry, newcomer setup, the pre-recording feelings check, slide upload and later-Take presentation status use the app/system locale; user-authored and model-generated content keep their own language. Exact Polish copy is inventoried above. Was: these fixed controls remained English while the recording still frame was Polish · FE (this PR)
+- 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 

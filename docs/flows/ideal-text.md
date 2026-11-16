@@ -432,6 +432,16 @@ Signed by the founder in the Claude Code chat on 9 November 2026 ("Both").
   it. No new words. Was: the line alone, with no second read until the
   page was closed and opened again.
 
+### The shared app rail (2026-11-16, founder-approved)
+
+On a computer, the Ideal Text page, its history, presentation/export view,
+editors, loading and error states, and bottom actions use the locked 1080px
+app canvas shared by the global logo and hamburger. The full-page layer and
+every thin separator still span the viewport. Scrollable document bodies hide
+the native scrollbar without disabling wheel, trackpad, touch, keyboard or
+programmatic scrolling; the page owns one scroll area at a time. Below 1080px,
+the rail remains fluid and keeps each screen's existing side padding.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -483,6 +493,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · founder-approved shared app rail · Ideal Text, history, presentation/export, editor states and bottom actions align with the locked 1080px app canvas used by the global logo/hamburger shell; full-page layers and thin separators remain viewport-wide; native scrollbars are hidden without disabling scrolling; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
 
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)

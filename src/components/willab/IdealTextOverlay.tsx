@@ -95,6 +95,7 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -954,38 +955,40 @@ export default function IdealTextOverlay({
       className={lensHides(lens.on)}
     >
       <LensFrame on={lens.on} onClose={onClose} />
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
-        {/* The project's name and its verification state, from the shared
-            head, with the Article 50(2) notice as a caption under it
-            (founder 2026-09-26: it keeps its mark on every branch, but it no
-            longer spends a full-width row of its own). */}
-        <div className="flex min-w-0 flex-col">
-          <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-          <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version
-              history, Copy and Save the ideal text. None of them is part of
-              the review loop, and on a phone their five icons read as a row
-              of unlabelled circles. No edit control here (founder
-              2026-08-11: "The edits should not be in the top bar"). */}
-          {shownStatus === "ready" && sd ? (
-            <IdealTextMenu
-              arcId={arcId}
-              saved={sd.saved}
-              onSaved={() => setRefetchNonce((n) => n + 1)}
-              onPresent={() => setPresenting(true)}
-              onExport={() => setExportChooserOpen(true)}
-              onHistory={historyEntry(sd.version, openHistory)}
-              slides={updateSlides.item}
-              onCopy={copyText}
-              copied={copied}
-            />
-          ) : null}
-          {/* ✕ beside the ⋯ (founder 2026-10-18): the same close as the
-              "Close" under Record, where the eye looks for it on a wide
-              screen. */}
-          <OverlayCloseButton onClick={onClose} />
+      <div className="shrink-0 border-b border-border bg-background">
+        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
+          {/* The project's name and its verification state, from the shared
+              head, with the Article 50(2) notice as a caption under it
+              (founder 2026-09-26: it keeps its mark on every branch, but it no
+              longer spends a full-width row of its own). */}
+          <div className="flex min-w-0 flex-col">
+            <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
+            <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version
+                history, Copy and Save the ideal text. None of them is part of
+                the review loop, and on a phone their five icons read as a row
+                of unlabelled circles. No edit control here (founder
+                2026-08-11: "The edits should not be in the top bar"). */}
+            {shownStatus === "ready" && sd ? (
+              <IdealTextMenu
+                arcId={arcId}
+                saved={sd.saved}
+                onSaved={() => setRefetchNonce((n) => n + 1)}
+                onPresent={() => setPresenting(true)}
+                onExport={() => setExportChooserOpen(true)}
+                onHistory={historyEntry(sd.version, openHistory)}
+                slides={updateSlides.item}
+                onCopy={copyText}
+                copied={copied}
+              />
+            ) : null}
+            {/* ✕ beside the ⋯ (founder 2026-10-18): the same close as the
+                "Close" under Record, where the eye looks for it on a wide
+                screen. */}
+            <OverlayCloseButton onClick={onClose} />
+          </div>
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
@@ -1076,7 +1079,7 @@ export default function IdealTextOverlay({
           {sd.additions.length > 0 ? (
             <div
               data-ideal-text-wheel-native
-              className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3"
+              className="scrollbar-none max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3"
             >
               <AdditionsPanel
                 additions={sd.additions}
@@ -1088,7 +1091,7 @@ export default function IdealTextOverlay({
         </div>
       ) : (
         <div className="scrollbar-none flex-1 overflow-y-auto">
-          <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
+          <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col px-5 py-8`}>
             {shownStatus === "loading" ? (
               analysisPending ? (
                 // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
@@ -1186,7 +1189,7 @@ export default function IdealTextOverlay({
           {/* MASTER DOCUMENT — Save, then the next official take. On a
               computer in the Lounge's column, as the lens is (founder
               2026-10-20: the three views share one column). */}
-          <div className="mx-auto w-full max-w-3xl">{nextStep(reviewWaiting === true)}</div>
+          <div className={WILLAB_CONTENT_RAIL}>{nextStep(reviewWaiting === true)}</div>
         </div>
       ) : null}
 
@@ -1318,11 +1321,11 @@ function walkStepOnScreen(): boolean {
 function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
-    <div data-lens-screen className="willab-canvas fixed inset-0 z-[45] flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+    <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background pt-[env(safe-area-inset-top)]">
       <div className="flex min-h-[44px] w-full items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={onClose} className="mr-2.5" />
       </div>
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end px-5 py-3.5">
+      <div className={`${WILLAB_CONTENT_RAIL} flex flex-1 flex-col justify-end px-5 py-3.5`}>
         <LateDots />
       </div>
     </div>,
@@ -1415,14 +1418,14 @@ function LoadFailed({ onRetry }: { onRetry: () => void }) {
 function PageNotice({ notice }: { notice: string | null }) {
   if (!notice) return null;
   return (
-    <p data-ideal-text-notice className="mx-auto w-full max-w-3xl px-5 pt-3 text-[13px] leading-relaxed text-muted-foreground">
+    <p data-ideal-text-notice className={`${WILLAB_CONTENT_RAIL} px-5 pt-3 text-[13px] leading-relaxed text-muted-foreground`}>
       {notice}
     </p>
   );
 }
 
 function lensHides(on: boolean): string {
-  return `willab-canvas fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
+  return `fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
 }
 
 /** Where the walk's end lands: the coach-only walk goes back to the chat,
