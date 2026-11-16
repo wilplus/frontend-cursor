@@ -29,7 +29,7 @@ function input(items: Parameters<typeof walkMoments>[0], extra: Partial<WalkPlan
   return { moments: walkMoments(items), coachNote: false, practiceOn: true, guest: false, ...extra };
 }
 
-function shape(plan: { key: string; moment?: number; of?: number }[]) {
+function shape(plan: { key: string; moment?: number | null; of?: number | null }[]) {
   return plan.map((s) => (s.moment != null ? `${s.key}:${s.moment}` : s.of != null ? `${s.key}:of${s.of}` : s.key));
 }
 
@@ -61,8 +61,8 @@ describe("the speaking-coach seed", () => {
     ];
     for (const one of cases) {
       const fromSeed = planFromDefinition(seed, one);
-      expect(fromSeed).not.toHaveProperty("refused");
-      expect(shape(fromSeed as { key: string; moment?: number; of?: number }[])).toEqual(shape(buildWalkPlan(one)));
+      if ("refused" in fromSeed) throw new Error(fromSeed.refused);
+      expect(shape(fromSeed)).toEqual(shape(buildWalkPlan(one)));
     }
   });
 

@@ -44,7 +44,10 @@ type Screen =
   | { id: "locked" }
   | { id: "kept"; line: string };
 
-const LOCKED = new Set<string>(Object.values(ONE_THING_COPY).filter((v): v is string => typeof v === "string"));
+const LOCKED = new Set<string>();
+for (const value of Object.values(ONE_THING_COPY)) {
+  if (typeof value === "string") LOCKED.add(value);
+}
 
 function nudge(name: string, value: number, direction: "more" | "fewer"): number {
   const notches = NOTCHES[name];

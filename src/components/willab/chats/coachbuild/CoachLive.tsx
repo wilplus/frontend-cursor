@@ -24,7 +24,7 @@ export default function CoachLive({ doc }: { doc: CoachDefinition }) {
     () => planForWalk(doc, { moments: walkMoments(FIXTURE), coachNote: false, practiceOn: true, guest: false }),
     [doc],
   );
-  const shown = new Set(plan.map((s) => s.key));
+  const shown = new Set<string>(plan.map((s) => s.key));
   const lines = doc.walk.steps.filter((s) => s.fixed && shown.has(s.key)).map((s) => s.fixed);
   const theme = doc.theme.color;
   return (
