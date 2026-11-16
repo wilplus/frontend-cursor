@@ -212,10 +212,10 @@ export default function WillNeedsYou({ page = false, onPart }: { page?: boolean;
             placeholder={W.search}
             aria-label={W.search}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-16 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+            className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-20 text-[16px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
           />
           {query ? (
-            <button type="button" aria-label="Clear" onClick={() => setQuery("")} className="absolute right-2 top-1/2 min-h-8 -translate-y-1/2 px-2 text-[14px] font-medium text-muted-foreground">
+            <button type="button" aria-label="Clear" onClick={() => setQuery("")} className="absolute right-0 top-0 flex h-11 items-center px-3 text-[15px] font-medium text-foreground">
               Clear
             </button>
           ) : null}
