@@ -181,19 +181,15 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
-Copy my link, Settings, Tokens with the balance, then Sign out. No
-Lab, no Log out.
-O2  Copy my link opens ""Add someone to chat with"" (N567 item 1; was: it
-copied at once): Copy my link there copies the whole link. The switch
-for the website is hidden until its new design is signed (N569).
-O3  Tokens shows the balance and opens the Tokens page, on the web and in
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, without the retired personal invitation control, so that app admission and product sharing cannot be confused (N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
+Settings, Tokens with the balance, then Sign out. No personal-link row,
+Lab or Log out.
+O2  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
-O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link opens the sheet, and Copy my link there copies the link""
-O3 -> ""Tokens shows the balance and opens the Tokens page""
-O4 -> ""signed out, the menu is Lab and Log in""",
+O3  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Settings, Tokens and Sign out""
+O2 -> ""Tokens shows the balance and opens the Tokens page""
+O3 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
 password says ""That password isn’t right."" and keeps the form.
@@ -871,6 +867,8 @@ matter"", each with the way into that person's chat, which opens it.
 O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
 under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
 O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
+src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
+becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -2054,6 +2052,9 @@ changed in between (signed out, a new token) is what it gets.
 O3  A session read that never answers releases the app as signed out.","O1 -> ""asks made while a read is out share it""
 O2 -> ""an ask after the answer reads again, so a change is seen""
 O3 -> ""an unanswered auth read releases the app instead of loading forever""",
+src/lib/uiLocale.test.ts,Story,"As a visitor, I want the interface to start in Polish in Poland and English elsewhere, while my explicit EN/PL choice remains in control.","O1  PL edge country defaults to Polish; every other or missing country defaults to English.
+O2  A persisted EN or PL UI choice wins over the country default.
+O3  Incomplete Polish copy falls back to the approved English source.",O1/O2 -> request locale resolution; O3 -> safe translation fallback,
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.
