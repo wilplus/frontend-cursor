@@ -112,6 +112,12 @@ service unavailable."" as before.
 O3  A path that is not a tool is a 404 and nothing is sent.","O1 -> ""%s"" (one test per tool path)
 O2 -> ""%s"" (one test per tool path)
 O3 -> ""does not forward a path that is not a tool""",Fifteen one-file routes became one route (founder 2026-10-12).
+src/app/api/v2/chats/setup/models/route.test.ts,Guard,"Teach it, and keeping or dropping a model at a new price, save with PUT /api/v2/chats/setup/models. A static models folder hides the setup's [part] route, so that PUT has to be exported here or Next answers 405 and the host sees ""That didn't save. Try again.""","The models route dropping PUT, or any other setup part the host
+saves (Keep on ""what"", ""walk"", ""models"", …) whose static folder
+does not export the PUT the client sends.","the models PUT reaches /v2/chats/setup/models with the JSON body
+-> ""PUT /api/v2/chats/setup/models is proxied to the backend""
+every saved setup part has a route that exports PUT
+-> ""every setup part the host saves has a PUT route""","If removed: Teach it fails again with a 405 that never reaches the backend, and the next static setup folder can do the same with nothing failing."
 src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker, I want my uploaded slide deck to reach the slide reader with my guest pass, so that my deck is used for my Take.","O1  The upload goes to the backend's slide-reading route with the guest
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
