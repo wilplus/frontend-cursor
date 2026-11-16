@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want setup to ask my topic, then the length, then
+STORY    As a speaker, I want setup to ask my topic, then the presentation time limit, then
          slides, then start, so that starting a Take is quick.
 OUTCOME
   O1  The questions come in that order, and starting carries my topic.
@@ -16,10 +16,6 @@ import { expect, it, vi } from "vitest";
 
 vi.mock("./PresentationInput", () => ({ default: () => null }));
 vi.mock("@/components/tokens/RecordPriceNote", () => ({ default: () => null }));
-vi.mock("@/services/api/recordingConfig", () => ({
-  fetchRecordingConfig: () => new Promise(() => {}),
-}));
-
 import RecordingSetup from "./RecordingSetup";
 
 it("asks topic, length, slides, then starts", () => {
@@ -39,9 +35,20 @@ it("asks topic, length, slides, then starts", () => {
   const next = () => act(() => [...host.querySelectorAll("button")].at(-1)!.click());
 
   next();
-  expect(host.textContent).toContain("How long should it run?");
+  expect(host.textContent).toContain("Do you have a time limit?");
+  expect(host.textContent).toContain("3 min");
+  expect(host.textContent).toContain("10 min");
+  expect(host.textContent).toContain("Other");
+  expect(host.textContent).toContain("No time limit");
+  expect(host.textContent).not.toContain("How long do you want to practise?");
+  act(() =>
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "No time limit")!
+      .click()
+  );
   next();
   expect(host.textContent).toContain("Have slides to go with it?");
+  expect(host.textContent).not.toContain("Adding slides makes the ideal text dramatically better.");
   expect(host.textContent).not.toContain("Three is where it really lands");
   expect([...host.querySelectorAll("button")].at(-1)!.textContent).toBe("Skip for now");
   next();

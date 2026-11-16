@@ -30,6 +30,7 @@ export interface SetupDraft {
   audience: string;
   desiredCallToAction: string;
   lengthSec: number | null;
+  lengthChoice?: "preset" | "other" | "none" | null;
   slides: { title: string; body: string }[];
   presentationRef: string | null;
   strategicContext: string;
@@ -64,6 +65,12 @@ function pickDraft(raw: unknown): SetupDraft | null {
     desiredCallToAction: str(d.desiredCallToAction),
     lengthSec:
       typeof d.lengthSec === "number" && d.lengthSec > 0 ? d.lengthSec : null,
+    lengthChoice:
+      d.lengthChoice === "preset" ||
+      d.lengthChoice === "other" ||
+      d.lengthChoice === "none"
+        ? d.lengthChoice
+        : null,
     slides,
     presentationRef:
       typeof d.presentationRef === "string" && d.presentationRef.length > 0
@@ -115,6 +122,7 @@ export function isDraftWorthKeeping(f: SetupDraftFields): boolean {
     f.desiredCallToAction.trim().length > 0 ||
     f.strategicContext.trim().length > 0 ||
     f.lengthSec !== null ||
+    f.lengthChoice === "none" ||
     f.presentationRef !== null ||
     f.slides.some((s) => s.title.trim().length > 0 || s.body.trim().length > 0)
   );

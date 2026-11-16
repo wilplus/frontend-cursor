@@ -115,7 +115,7 @@ export default function FeedbackOverlay({
   return (
     <MediaRefreshProvider refresh={media.refresh} payload={data}>
     <div
-      className={`fixed inset-0 flex flex-col bg-background ${
+      className={`willab-canvas fixed inset-0 flex flex-col bg-background ${
         topLayer ? "z-50" : "z-40"
       }`}
     >

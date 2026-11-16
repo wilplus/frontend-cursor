@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadJoinLink } from "@/lib/chats/server";
-import { joinInvited } from "@/components/willab/chats/joinCopy";
+import { ADMISSION_TITLE, joinInvited } from "@/components/willab/chats/joinCopy";
+import { isEarlyCoachAdmissionToken } from "@/lib/admission";
 import JoinPage from "./JoinPage";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
    replaced or switched-off link is the site's own not-found page. */
 
 export async function generateMetadata({ params }: { params: { token: string } }): Promise<Metadata> {
+  if (isEarlyCoachAdmissionToken(params.token)) {
+    return { title: ADMISSION_TITLE, robots: { index: false, follow: false } };
+  }
   const info = await loadJoinLink(params.token);
   return info ? { title: joinInvited(info.name), robots: { index: false, follow: false } } : {};
 }
@@ -18,6 +22,16 @@ export default async function Page({ params, searchParams }: {
   params: { token: string };
   searchParams: { join?: string | string[] };
 }) {
+  if (isEarlyCoachAdmissionToken(params.token)) {
+    return (
+      <JoinPage
+        token={params.token}
+        name="WillpowerLab"
+        finish={searchParams.join === "1"}
+        admission
+      />
+    );
+  }
   const info = await loadJoinLink(params.token);
   if (!info) notFound();
   return (

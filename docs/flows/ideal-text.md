@@ -483,6 +483,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
+
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)
 - 2026-11-09 · N565 · `ONE_THING_COPY` in `idealEditCopy.ts`: their best's line becomes "To our ears, this one sounded really sure." or "To us, this one sounded really sure." (`best`, `bestToUs`); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N565, FE (this PR)
 - 2026-11-09 · N557 · `ONE_THING_COPY` in `idealEditCopy.ts`: "And here's one moment to try another way:" and "The rest of this Take held up just as well." replace the fix's opener and the good Take's line; nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N557, FE (this PR)

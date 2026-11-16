@@ -489,12 +489,14 @@ O3  A cancelled deletion reads the status again and lets the person in.
 O4  A re-acceptance hands the flow the country given last time.
 O5  A signed-up guest is not asked to accept again: the claim comes first.
 O6  A refused identity blocks with Try again, which reads again; no active
-policy still passes (the gate fails open).","O1 -> ""shows the ended state for a block, never the acceptance flow or the Lounge""
+policy still passes (the gate fails open).
+O7  A rejected startup read fails open instead of leaving the chat loading.","O1 -> ""shows the ended state for a block, never the acceptance flow or the Lounge""
 O2 -> ""switched off, a block does what it did before""
 O3 -> ""a cancelled deletion reads the status again, and lets the person back in""
 O4 -> ""a re-acceptance hands the flow the country given last time""
 O5 -> ""a signed-up guest is not asked to accept again: the claim comes before the read""
-O6 -> ""a refused identity blocks, and Try again reads the status again""","Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18."
+O6 -> ""a refused identity blocks, and Try again reads the status again""
+O7 -> ""a rejected startup read opens the Lounge""","Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18."
 src/components/willab/PolicyUpdate.test.tsx,Story,"As a speaker who agreed to an older policy, I want one tap to accept the update with my last country, and a refused Take to go through once I accept, so that I am never locked out.","O1  The app opens with the update prompt; one tap accepts it with the
 country I gave last time.
 O2  A Take refused for an old acceptance shows the prompt, then processes
@@ -505,6 +507,9 @@ consent screens instead of choosing for me.","O1 -> ""opens the app with the pro
 O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
 O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
 O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
+src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want a project conversation with its two saved results, contextual questions and one recording action, so that the next step is clear without mixing project work into Will.","O1  Feedback walk and Ideal Text are the two durable results.
+O2  An open question replaces recording with taps and typed reply.","O1 -> ""has exactly two durable results and one continuation CTA""
+O2 -> ""replaces recording with taps and text while a project question is open""","Founder-approved project-chat prototype, 2026-11-15."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -1761,7 +1766,7 @@ O4  An uploaded deck is drawn as itself, never as the poster.","O1 -> ""the firs
 O2 -> ""the default presentation is the poster and gives way to helper words""
 O3 -> ""an answer's question is the poster with whose question it is""
 O4 -> ""an uploaded deck is never the poster""","Founder 2026-11-04: ""the slides are perfect lock them"", ""update the default presentation and keep this formating for any presentation that comes from the questions to the specialist"" (backend N462)."
-src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the length, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
+src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the presentation time limit, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
 O2  With no slides added, the slides step's button is ""Skip for now"", the
 last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
 O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
@@ -2109,6 +2114,7 @@ O4 -> keeps the screen awake while recording and lets it lock after
 O5 -> a stop while the mic is opening leaves the mic off
 O6 -> remembers a Take recorded through earbuds
 O7 -> a phone call pauses the Take, which carries on after, the call not in its length",Never-rule 3 (never break record → process → Ideal Text).
+src/lib/admission.test.ts,Story,"As an invited early tester, I want the one admission URL to be stable, so that every valid invitation opens the speaking-coach welcome.",O1  Only the founder-approved token is admitted.,"O1 -> ""accepts only the founder-approved admission link""",Founder 2026-11-15: this is the app's only admission link.
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
 O2 -> reports a thrown fetch as network, never as a response",
@@ -2200,8 +2206,10 @@ src/lib/supabase/client.test.ts,Guard,Building the site without secrets still wo
 src/lib/supabase/retryingFetch.test.ts,Story,"As a speaker signing in on a shaky phone connection, I want the sign-in step retried after a dropped connection, so that sign-in does not fail at random.",O1  After one dropped connection the sign-in step is sent again and its answer is used.,O1 -> resends the code exchange after a dropped connection,
 src/lib/supabase/session.test.ts,Story,"As a speaker opening the app, I want my screens to read my sign-in once between them, not once each in a queue, so that the chat is not held up waiting its turn; and a sign-in or sign-out is still seen at once.","O1  Asks made while a read of the session is out share that one read.
 O2  An ask after the read has answered reads again: a session that
-changed in between (signed out, a new token) is what it gets.","O1 -> ""asks made while a read is out share it""
-O2 -> ""an ask after the answer reads again, so a change is seen""",
+changed in between (signed out, a new token) is what it gets.
+O3  A session read that never answers releases the app as signed out.","O1 -> ""asks made while a read is out share it""
+O2 -> ""an ask after the answer reads again, so a change is seen""
+O3 -> ""an unanswered auth read releases the app instead of loading forever""",
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.
@@ -2374,6 +2382,10 @@ src/lib/willab/paragraphOverlay.test.ts,Story,"As a speaker, I want the paragrap
 O2  With helper words already saved, Next does not open the word picker.","O1 -> a moment that needed work opens on its exercise, else its rewrite, else itself
 O2 -> Next opens the helper words on unsaved words only",
 src/lib/willab/partsFromCorePieces.test.ts,Story,"As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.",O1  Paragraphs built from the server's pieces keep the server's paragraph identities.,O1 -> keeps the core's Paragraph identity,Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
+src/lib/willab/practiceResume.test.ts,Story,"As a speaker continuing a project, I want my chosen fragment and time to apply to one Take, so that later practices keep their own choices.","O1  The choice is scoped to account and project.
+O2  The durable checkpoint is the slide where recording actually
+stopped, not the slide where it began.","O1 -> ""keeps duration and slide scoped to the account and project""
+O2 -> ""keeps the actual stopping slide after consuming the selection""",Founder 2026-11-15: timer and fragment choice belong to continuation.
 src/lib/willab/praiseLane.test.ts,Story,"As a speaker, I want praise to compare me only to myself and never show a number, so that feedback is personal and in words.","O1  No praise line compares me to others (""than most/others/average""); the
 lines that compare say ""you usually"".
 O2  No praise line carries a digit. Never-1: feedback is in words.","O1 -> ""compares them to THEMSELVES, never to other speakers""
@@ -2388,6 +2400,9 @@ O2 -> ""is still a well-formed PDF a reader can open""","Article 50(2) marking; 
 src/lib/willab/processingTake.test.ts,Story,"As a speaker, I want my ""still processing"" marker kept for my account only, and Take 1's ""Ideal Text not confirmed"" state kept as its own state, so that nobody else sees my pending Take and I get the right recovery screen.","O1  Another account sees no processing marker of mine.
 O2  Take 1 marked as unconfirmed reads back as that state.","O1 -> never exposes account A's pending analysis to account B
 O2 -> preserves the distinct Take 1 Ideal Text terminal state",
+src/lib/willab/projectChat.test.ts,Story,"As a speaker, I want each project to keep its own conversation while Will keeps general insights, so that take context never leaks lanes.","O1  Project rows route by arc and stay out of Will.
+O2  Only the newest unanswered project question remains open.","O1 -> ""keeps project rows out of Will and in their own project""
+O2 -> ""keeps the newest unanswered project question open""",Founder 2026-11-15: project feedback is local; Will is cross-project.
 src/lib/willab/richMarkers.test.ts,Story,"As a speaker, I want broken formatting marks never shown as raw symbols, so that my text reads clean.","O1  Whatever the broken input, no formatting symbol reaches the screen.","O1 -> no grammar character survives, whatever the malformation",
 src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want my unfinished talk setups visible only to me, so that nobody sees my plans.","O1  Another account, or someone signed out, sees none of my drafts.","O1 -> is scoped per account, so a switch never shows another person's draft",
 src/lib/willab/takeOutbox.test.ts,Story,"As a speaker on the iPhone app, I want a Take I finished to stay on my phone until the server has it, and to go up again by itself when I next open the app or my connection comes back, so that closing the app or losing the connection never loses a Take, and it is never made twice or put over a newer one.","O1  A Take whose answer never came goes up again at the next open, with

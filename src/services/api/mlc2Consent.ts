@@ -48,7 +48,7 @@ const PATH = "/api/v2/user/mlc2-consent";
  *  Supabase who this is. */
 function readStatus(
   response: BffResult,
-  options: { phase2DisabledIsNotApplicable?: boolean } = {},
+  options: { retiredReadIsNotApplicable?: boolean } = {},
 ): Mlc2ConsentStatus {
   if (response.kind !== "response") {
     throw new Error("Consent service is unavailable.");
@@ -56,10 +56,12 @@ function readStatus(
   const payload = (response.body ?? {}) as Mlc2ConsentStatus | ErrorEnvelope;
   if (!response.ok) {
     if (
-      options.phase2DisabledIsNotApplicable === true &&
-      response.status === 410 &&
-      "code" in payload &&
-      payload.code === "PHASE2_DISABLED"
+      options.retiredReadIsNotApplicable === true &&
+      (response.status === 404 ||
+        (response.status === 410 &&
+          "code" in payload &&
+          (payload.code === "PHASE2_DISABLED" ||
+            payload.code === "BUNDLED_CONSENT_RETIRED")))
     ) {
       return PHASE2_DISABLED_STATUS;
     }
@@ -75,7 +77,11 @@ function readStatus(
 export async function fetchMlc2Consent(): Promise<Mlc2ConsentStatus> {
   return readStatus(
     await bffFetch(PATH, { auth: "optional", cache: "no-store" }),
-    { phase2DisabledIsNotApplicable: true },
+    // This bundled model-improvement consent is a retired, founder-only
+    // compatibility read. Some deployed backends no longer expose the old
+    // route at all; that must not block the current Phase-1 consent screen or
+    // the recording loop. Writes intentionally do not use this exception.
+    { retiredReadIsNotApplicable: true },
   );
 }
 

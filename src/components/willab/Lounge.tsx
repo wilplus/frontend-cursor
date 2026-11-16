@@ -151,6 +151,7 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
+import { isProjectMessage } from "@/lib/willab/projectChat";
 import WillQuestionBubble, {
   AnswerPair,
   ChatLink,
@@ -526,6 +527,9 @@ export default function Lounge({
     const items: ThreadItem[] = [];
     for (const m of messages) {
       if (isRetiredLoungeMessage(m)) continue;
+      // Project-specific Takes, feedback and questions live in that project's
+      // chat. Will keeps only cross-project patterns, principles and mindset.
+      if (isProjectMessage(m)) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);

@@ -787,3 +787,10 @@ button,
 [data-walk-pair] [data-review-card] {
   border-top-left-radius: 6px;
 }
+
+/* The speaking-coach workspace uses one responsive desktop canvas. It remains
+   edge-to-edge on smaller screens and stops growing at the approved 1080px. */
+.willab-canvas {
+  width: min(100%, 1080px);
+  margin-inline: auto;
+}

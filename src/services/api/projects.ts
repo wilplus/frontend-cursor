@@ -131,11 +131,14 @@ export async function ensureGuestOwnerToken(): Promise<string | null> {
 }
 
 async function mintGuestOwnerToken(): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const response = await fetch("/api/v2/processing-authorization/principal", {
       method: "POST",
       credentials: "include",
       cache: "no-store",
+      signal: controller.signal,
     });
     const body = (await response.json().catch(() => null)) as Record<
       string,
@@ -155,6 +158,8 @@ async function mintGuestOwnerToken(): Promise<string | null> {
     return token;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

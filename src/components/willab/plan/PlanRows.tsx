@@ -119,22 +119,16 @@ function barOf(value: unknown): PlanBarData | null {
   return typeof b.level_name === "string" && typeof b.marks === "number" ? (b as PlanBarData) : null;
 }
 
-/** The hello (G4, G5; N564): "Hi {name}, good to see you back!", the plan's
- *  bar (the level's name and its four marks, as when it was written) and
- *  "See your plan". */
+/** The hello (G4, G5): "Hi {name}, good to see you back!" and
+ *  "See your plan". Progress belongs to the combined Ideal Text and
+ *  Feedback walk experience, not this greeting. */
 function Hello({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
   const meta = (message.metadata ?? {}) as Meta;
-  const bar = barOf(meta.plan_bar) ?? ctx.plan?.bar ?? null;
   return (
     <>
       {typeof meta.day_line === "string" ? <DayLine text={meta.day_line} /> : null}
       <WillBubble>
         <div className="whitespace-pre-wrap">{message.body}</div>
-        {bar ? (
-          <div className="mt-2.5" data-plan-hello-bar>
-            <PlanBar bar={bar} />
-          </div>
-        ) : null}
         <button
           type="button"
           onClick={ctx.onSeePlan}

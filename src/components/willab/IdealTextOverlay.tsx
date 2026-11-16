@@ -125,6 +125,7 @@ export type IdealTextLaunchMode =
 
 export default function IdealTextOverlay({
   arcId,
+  practiceDecision,
   analysisPending = false,
   initialMode = "notebook",
   coachTake,
@@ -134,6 +135,11 @@ export default function IdealTextOverlay({
   onReadAloud,
 }: {
   arcId: string;
+  practiceDecision?: {
+    continueLabel?: string;
+    onContinue: () => void;
+    onRepeat: () => void;
+  };
   /** With "review": the Lounge step tapped, where the walk opens. */
   reviewAt?: WalkStepTarget | null;
   /** W4/W5 — true while a take for this arc is still analysing. While true
@@ -928,6 +934,7 @@ export default function IdealTextOverlay({
         onClose={onClose}
         shareFirst={!endCard && initialMode === "share"}
         confirmFirst={archivedReturn.confirmFirst}
+        practiceDecision={practiceDecision}
       />
     );
   }
@@ -1310,7 +1317,7 @@ function walkStepOnScreen(): boolean {
 function LensFrame({ on, onClose }: { on: boolean; onClose: () => void }) {
   if (!on || typeof document === "undefined") return null;
   return createPortal(
-    <div data-lens-screen className="fixed inset-0 z-[45] flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+    <div data-lens-screen className="willab-canvas fixed inset-0 z-[45] flex flex-col bg-background pt-[env(safe-area-inset-top)]">
       <div className="flex min-h-[44px] w-full items-center justify-end px-2.5 pt-2">
         <OverlayCloseButton onClick={onClose} className="mr-2.5" />
       </div>
@@ -1414,7 +1421,7 @@ function PageNotice({ notice }: { notice: string | null }) {
 }
 
 function lensHides(on: boolean): string {
-  return `fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
+  return `willab-canvas fixed inset-0 z-40 flex flex-col overscroll-none bg-background${on ? " invisible" : ""}`;
 }
 
 /** Where the walk's end lands: the coach-only walk goes back to the chat,
@@ -1427,3 +1434,5 @@ function walkEndFor(
 ): () => void {
   return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
 }
+
+// Founder-Approved: 2026-11-15, project practice opens this source Ideal Text before repeat-or-continue.

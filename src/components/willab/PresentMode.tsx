@@ -121,7 +121,7 @@ export default function PresentMode({
     <div
       data-ideal-text-wheel-native
       data-present-mode
-      className="dark fixed inset-0 z-50 bg-background text-foreground"
+      className="dark willab-canvas fixed inset-0 z-50 bg-background text-foreground"
     >
       {exportFormat ? (
         <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">

@@ -12,6 +12,12 @@ export const COPY_MY_LINK = "Copy my link";
 export const COPIED = "✓ Copied";
 export const CANCEL = "Cancel";
 
+/** The one public door into the early speaking-coach release (founder,
+ *  2026-11-15). Personal chat links keep their own host-specific page. */
+export const ADMISSION_TITLE = "Join the early version of WillpowerLab";
+export const ADMISSION_LINE =
+  "WillpowerLab is a place to practise presentations and sales calls, and to experiment with techniques for self-regulation and stress relief—so you can turn what you wish for into what you will do.";
+
 /** The join page in three lines (backend N601 items 1 and 3, signed). */
 export const joinInvited = (name: string) => `${name} invited you`;
 export const JOIN_ONLY_THE_TWO_OF_YOU = "Only the two of you are in this chat.";

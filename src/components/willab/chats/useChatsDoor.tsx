@@ -160,7 +160,7 @@ const MENU_OPEN = "#app-header-menu";
 /** A screen opened over the list (the +'s sheet, the ☰ menu, any screen
  *  that Back closes): Forward leaves it alone (backend N436 item 2). */
 function listCovered(): boolean {
-  return backDismissDepth() > 0 || !!document.querySelector(`[data-add-sheet], ${MENU_OPEN}`);
+  return backDismissDepth() > 0 || !!document.querySelector(MENU_OPEN);
 }
 
 /** A link that opens a Take opens the speaking chat (N636 item 5). */

@@ -300,7 +300,7 @@ export default function LibraryOverlay({
 
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={presentations.length || general.length ? { presentations, general } : null}>
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
+    <div className="willab-canvas fixed inset-0 z-30 flex flex-col bg-background">
       {/* header */}
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
         <nav className="flex min-w-0 items-center gap-1.5 text-[15px]">

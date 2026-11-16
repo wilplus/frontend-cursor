@@ -176,7 +176,10 @@ export async function fetchLoungeHistory(opts?: {
   if (opts?.before) qs.set("before", opts.before);
   if (opts?.chat) qs.set("chat", opts.chat);
 
-  const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store", timeoutMs: opts?.timeoutMs })) as
+  const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, {
+    cache: "no-store",
+    timeoutMs: opts?.timeoutMs ?? 10_000,
+  })) as
     | (LoungeHistoryPage & { new_coach_feedback?: unknown })
     | null;
   if (!data || !Array.isArray(data.messages)) return { ...empty, failed: true };

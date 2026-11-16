@@ -68,6 +68,27 @@ async function render(finish = false) {
 const joinPosts = () => fetchMock.mock.calls.filter(([url, init]) => init?.method === "POST" && String(url) === `/api/v2/chats/join/${LINK}`);
 
 describe("the join page", () => {
+  it("introduces WillpowerLab on the fixed early-release door", async () => {
+    await act(async () =>
+      root.render(
+        createElement(JoinPage, {
+          token: LINK,
+          name: "WillpowerLab",
+          finish: false,
+          admission: true,
+        }),
+      ),
+    );
+    await flush();
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "Join the early version of WillpowerLab",
+    );
+    expect(container.querySelector("[data-admission-line]")?.textContent).toContain(
+      "practise presentations and sales calls",
+    );
+    expect(container.querySelector("[data-join-only-two]")).toBeNull();
+  });
+
   it("N601-1: the page is three lines and Join, nothing under it", async () => {
     await render();
     const main = container.querySelector("[data-join-page]")!;
