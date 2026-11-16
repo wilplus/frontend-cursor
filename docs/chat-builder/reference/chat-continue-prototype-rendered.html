@@ -1,0 +1,1620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="0; url=chat-continue-prototype.html">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Chat Continue Prototype</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Chat Continue Prototype" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Chat Continue Prototype&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress {
+  display: flex;
+  height: 6px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 6px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;willab-chat-prototype&quot;&gt;
+  &lt;style&gt;
+    #willab-chat-prototype {
+      --wlp-background: #ffffff;
+      --wlp-foreground: #121212;
+      --wlp-muted: #f5f5f5;
+      --wlp-muted-foreground: #737373;
+      --wlp-border: #ebebeb;
+      --wlp-primary: #ff6a14;
+      --wlp-primary-foreground: #ffffff;
+      --wlp-record: #ee5a3d;
+      --wlp-green: #1f9d55;
+      box-sizing: border-box;
+      width: min(100%, 980px);
+      min-height: 640px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--wlp-border);
+      border-radius: 22px;
+      background: var(--wlp-background);
+      color: var(--wlp-foreground);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .08);
+    }
+
+    #willab-chat-prototype *,
+    #willab-chat-prototype *::before,
+    #willab-chat-prototype *::after { box-sizing: border-box; }
+
+    #willab-chat-prototype button,
+    #willab-chat-prototype input,
+    #willab-chat-prototype textarea { font: inherit; }
+
+    #willab-chat-prototype button {
+      border: 0;
+      cursor: pointer;
+      color: inherit;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #willab-chat-prototype button:active { opacity: .72; transform: scale(.98); }
+    #willab-chat-prototype svg { display: block; }
+
+    .wlp-shell { display: flex; min-height: 640px; background: var(--wlp-background); }
+    .wlp-rail { width: 330px; flex: 0 0 330px; border-right: 1px solid var(--wlp-border); background: #fff; }
+    .wlp-brand { display: flex; height: 68px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--wlp-border); padding: 0 18px; }
+    .wlp-brand-name { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+    .wlp-brand-note { font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-list-title { padding: 22px 18px 10px; font-size: 13px; font-weight: 700; color: var(--wlp-muted-foreground); }
+    .wlp-chat-list { overflow: auto; }
+    .wlp-chat-row { position: relative; display: flex; min-height: 76px; width: 100%; align-items: center; gap: 12px; padding: 0 16px; text-align: left; }
+    .wlp-chat-row:hover { background: #fafafa; }
+    .wlp-chat-row + .wlp-chat-row { border-top: 1px solid #f0f0f0; }
+    .wlp-chat-row.is-selected { background: #fafafa; }
+    .wlp-chat-row.is-paused .wlp-chat-preview { color: var(--wlp-foreground); }
+    .wlp-chat-main { min-width: 0; flex: 1; }
+    .wlp-chat-line { display: flex; min-width: 0; align-items: baseline; gap: 8px; }
+    .wlp-chat-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 600; }
+    .wlp-chat-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-chat-time { flex: 0 0 auto; font-size: 11px; color: var(--wlp-muted-foreground); }
+    .wlp-chat-preview { overflow: hidden; margin-top: 4px; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--wlp-muted-foreground); }
+    .wlp-pin { flex: 0 0 auto; color: #a3a3a3; }
+    .wlp-project-mark,
+    .wlp-will-mark { display: flex; height: 48px; width: 48px; flex: 0 0 48px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-project-mark { background: #e4edfb; color: #1e4c99; font-size: 20px; font-weight: 600; }
+    .wlp-will-mark { gap: 3px; background: var(--wlp-muted); }
+    .wlp-will-mark i { display: block; height: 5px; width: 5px; border-radius: 999px; background: var(--wlp-foreground); }
+    .wlp-will-mark i:nth-child(2) { height: 7px; width: 7px; }
+    .wlp-add-project { margin: 18px 16px; display: flex; align-items: center; gap: 10px; padding: 12px 2px; text-align: left; color: var(--wlp-muted-foreground); }
+    .wlp-add-project:hover { color: var(--wlp-foreground); }
+    .wlp-add-project span { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 999px; background: var(--wlp-muted); color: var(--wlp-foreground); }
+    .wlp-chat-pane { position: relative; display: flex; min-width: 0; flex: 1; flex-direction: column; }
+    .wlp-topbar { display: flex; height: 68px; flex: 0 0 68px; align-items: center; gap: 10px; border-bottom: 1px solid var(--wlp-border); padding: 0 18px 0 10px; }
+    .wlp-back { display: flex; height: 44px; width: 44px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-back:hover { background: var(--wlp-muted); }
+    .wlp-top-title { display: flex; min-width: 0; flex-direction: column; }
+    .wlp-top-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.1; }
+    .wlp-top-title span { margin-top: 3px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-thread { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 10px; overflow: auto; padding: 20px 24px 16px; }
+    .wlp-day { align-self: center; margin: 2px 0 6px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-bubble-row { display: flex; }
+    .wlp-bubble-row.me { justify-content: flex-end; }
+    .wlp-bubble { max-width: min(88%, 410px); border-radius: 16px; background: var(--wlp-muted); padding: 10px 13px; font-size: 15px; line-height: 1.45; }
+    .wlp-bubble.me { background: var(--wlp-primary); color: var(--wlp-primary-foreground); }
+    .wlp-bubble small { display: block; margin-top: 7px; font-size: 11px; opacity: .72; text-align: right; }
+    .wlp-audio { width: min(100%, 390px); }
+    .wlp-audio-label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .wlp-audio-meta { margin-top: 3px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-audio.me .wlp-audio-meta { color: rgba(255,255,255,.82); }
+    .wlp-player { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .wlp-play { display: flex; height: 34px; width: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border-radius: 999px; background: var(--wlp-foreground); color: #fff; }
+    .wlp-audio.me .wlp-play { background: #fff; color: var(--wlp-primary); }
+    .wlp-wave { display: flex; height: 28px; flex: 1; align-items: center; gap: 3px; }
+    .wlp-wave i { display: block; width: 3px; border-radius: 999px; background: currentColor; opacity: .5; }
+    .wlp-wave i:nth-child(1) { height: 9px; } .wlp-wave i:nth-child(2) { height: 18px; } .wlp-wave i:nth-child(3) { height: 13px; }
+    .wlp-wave i:nth-child(4) { height: 24px; } .wlp-wave i:nth-child(5) { height: 12px; } .wlp-wave i:nth-child(6) { height: 20px; }
+    .wlp-wave i:nth-child(7) { height: 8px; } .wlp-wave i:nth-child(8) { height: 17px; } .wlp-wave i:nth-child(9) { height: 11px; }
+    .wlp-audio-status { min-width: 54px; font-size: 11px; text-align: right; opacity: .76; }
+    .wlp-resume-card { border: 1px solid var(--wlp-border); border-radius: 16px; background: #fff; padding: 14px; }
+    .wlp-resume-card strong { display: block; font-size: 15px; }
+    .wlp-resume-card p { margin: 4px 0 12px; font-size: 13px; line-height: 1.4; color: var(--wlp-muted-foreground); }
+    .wlp-resume-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wlp-button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; border-radius: 999px; padding: 0 16px; font-size: 14px; font-weight: 600; }
+    .wlp-button.dark { background: var(--wlp-foreground); color: #fff; }
+    .wlp-button.orange { background: var(--wlp-primary); color: #fff; }
+    .wlp-button.outline { border: 1px solid var(--wlp-border); background: #fff; }
+    .wlp-button.muted { background: var(--wlp-muted); }
+    .wlp-status-line { display: flex; align-items: center; gap: 8px; margin: 2px auto 0; border-radius: 999px; background: var(--wlp-muted); padding: 7px 12px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-status-dot { height: 7px; width: 7px; border-radius: 999px; background: var(--wlp-primary); }
+    .wlp-composer { display: flex; align-items: flex-end; gap: 4px; border-top: 1px solid var(--wlp-border); padding: 12px 18px 16px; }
+    .wlp-icon-button { display: flex; height: 40px; width: 40px; flex: 0 0 40px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-icon-button:hover { background: var(--wlp-muted); }
+    .wlp-input-wrap { position: relative; flex: 1; }
+    .wlp-input { display: block; width: 100%; min-height: 40px; resize: none; border: 1px solid var(--wlp-border); border-radius: 24px; background: #fff; padding: 10px 44px 10px 14px; outline: none; font-size: 15px; line-height: 1.25; }
+    .wlp-input:focus { border-color: var(--wlp-primary); }
+    .wlp-input::placeholder { color: #9a9a9a; }
+    .wlp-send { position: absolute; right: 4px; bottom: 4px; display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-send:hover { background: var(--wlp-muted); }
+    .wlp-sheet-backdrop { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; justify-content: flex-end; background: rgba(0,0,0,.28); }
+    .wlp-sheet { border-radius: 24px 24px 0 0; background: #fff; padding: 10px 18px 22px; box-shadow: 0 -14px 40px rgba(0,0,0,.12); }
+    .wlp-grabber { height: 5px; width: 40px; margin: 0 auto 18px; border-radius: 999px; background: #e0e0e0; }
+    .wlp-sheet h2 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.03em; }
+    .wlp-sheet p { margin: 0 0 16px; font-size: 14px; line-height: 1.4; color: var(--wlp-muted-foreground); }
+    .wlp-sheet-option { display: flex; width: 100%; align-items: center; justify-content: space-between; border-top: 1px solid var(--wlp-border); padding: 15px 0; text-align: left; }
+    .wlp-sheet-option strong { font-size: 15px; }
+    .wlp-sheet-option span { display: block; margin-top: 3px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-sheet-footer { display: flex; gap: 8px; padding-top: 8px; }
+    .wlp-create-input { width: 100%; border: 1px solid var(--wlp-border); border-radius: 14px; padding: 12px 13px; outline: none; font-size: 15px; }
+    .wlp-create-input:focus { border-color: var(--wlp-primary); }
+    .wlp-route-note { position: absolute; top: 12px; right: 18px; z-index: 2; border-radius: 999px; background: var(--wlp-muted); padding: 5px 9px; font-size: 10px; color: var(--wlp-muted-foreground); }
+    .wlp-hidden { display: none !important; }
+    @media (max-width: 720px) {
+      #willab-chat-prototype { min-height: 660px; border-radius: 0; border-right: 0; border-left: 0; }
+      .wlp-shell { min-height: 660px; }
+      .wlp-rail { width: 270px; flex-basis: 270px; }
+      .wlp-thread { padding-left: 16px; padding-right: 16px; }
+    }
+    @media (max-width: 560px) {
+      .wlp-shell { display: block; }
+      #willab-chat-prototype[data-view=&quot;list&quot;] .wlp-rail { display: block; width: 100%; min-height: 660px; border-right: 0; }
+      #willab-chat-prototype[data-view=&quot;list&quot;] .wlp-chat-pane { display: none; }
+      #willab-chat-prototype:not([data-view=&quot;list&quot;]) .wlp-rail { display: none; }
+      #willab-chat-prototype:not([data-view=&quot;list&quot;]) .wlp-chat-pane { display: flex; min-height: 660px; }
+      .wlp-route-note { right: 10px; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;wlp-shell&quot;&gt;
+    &lt;aside class=&quot;wlp-rail&quot; aria-label=&quot;Your chats&quot;&gt;
+      &lt;div class=&quot;wlp-brand&quot;&gt;
+        &lt;span class=&quot;wlp-brand-name&quot;&gt;WillpowerLab&lt;/span&gt;
+        &lt;span class=&quot;wlp-brand-note&quot;&gt;Your chats&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;wlp-list-title&quot;&gt;Chats&lt;/div&gt;
+      &lt;div class=&quot;wlp-chat-list&quot; id=&quot;wlp-chat-list&quot;&gt;&lt;/div&gt;
+      &lt;button class=&quot;wlp-add-project&quot; id=&quot;wlp-add-project&quot; type=&quot;button&quot;&gt;
+        &lt;span&gt;&lt;svg width=&quot;18&quot; height=&quot;18&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;M12 5v14M5 12h14&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+        &lt;strong&gt;Start a new project&lt;/strong&gt;
+      &lt;/button&gt;
+    &lt;/aside&gt;
+
+    &lt;section class=&quot;wlp-chat-pane&quot; aria-label=&quot;Chat&quot;&gt;
+      &lt;div class=&quot;wlp-route-note&quot;&gt;Shared link → hardcoded Speaking Coach&lt;/div&gt;
+      &lt;div id=&quot;wlp-chat-view&quot;&gt;&lt;/div&gt;
+      &lt;div id=&quot;wlp-overlay&quot;&gt;&lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&quot;willab-chat-prototype&quot;);
+      if (!root) return;
+      const list = document.getElementById(&quot;wlp-chat-list&quot;);
+      const view = document.getElementById(&quot;wlp-chat-view&quot;);
+      const overlay = document.getElementById(&quot;wlp-overlay&quot;);
+      const addProject = document.getElementById(&quot;wlp-add-project&quot;);
+      if (!list || !view || !overlay || !addProject) return;
+
+      const icons = {
+        back: &#x27;&lt;svg width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;m15 18-6-6 6-6&quot;/&gt;&lt;/svg&gt;&#x27;,
+        pin: &#x27;&lt;svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;m12 17 5 5v-6.5a7 7 0 1 0-10 0V22l5-5Z&quot;/&gt;&lt;/svg&gt;&#x27;,
+        layers: &#x27;&lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.8&quot;&gt;&lt;path d=&quot;m12 2 9 5-9 5-9-5 9-5Z&quot;/&gt;&lt;path d=&quot;m3 12 9 5 9-5&quot;/&gt;&lt;path d=&quot;m3 17 9 5 9-5&quot;/&gt;&lt;/svg&gt;&#x27;,
+        mic: &#x27;&lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.8&quot;&gt;&lt;rect x=&quot;8&quot; y=&quot;2&quot; width=&quot;8&quot; height=&quot;13&quot; rx=&quot;4&quot;/&gt;&lt;path d=&quot;M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8&quot;/&gt;&lt;/svg&gt;&#x27;,
+        send: &#x27;&lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;1.8&quot;&gt;&lt;path d=&quot;m22 2-7 20-4-9-9-4Z&quot;/&gt;&lt;path d=&quot;M22 2 11 13&quot;/&gt;&lt;/svg&gt;&#x27;,
+        play: &#x27;&lt;svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;&gt;&lt;path d=&quot;m8 5 11 7-11 7V5Z&quot;/&gt;&lt;/svg&gt;&#x27;,
+        pause: &#x27;&lt;svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;&gt;&lt;path d=&quot;M7 5h3v14H7zM14 5h3v14h-3z&quot;/&gt;&lt;/svg&gt;&#x27;,
+        check: &#x27;&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;m5 12 4 4L19 6&quot;/&gt;&lt;/svg&gt;&#x27;,
+        arrow: &#x27;&lt;svg width=&quot;17&quot; height=&quot;17&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;m9 18 6-6-6-6&quot;/&gt;&lt;/svg&gt;&#x27;,
+        x: &#x27;&lt;svg width=&quot;20&quot; height=&quot;20&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;m6 6 12 12M18 6 6 18&quot;/&gt;&lt;/svg&gt;&#x27;
+      };
+
+      const chats = [
+        { id: &quot;project-2&quot;, title: &quot;Board meeting&quot;, subtitle: &quot;Project chat&quot;, preview: &quot;Not started&quot;, time: &quot;New&quot;, letter: &quot;B&quot;, paused: false },
+        { id: &quot;project-1&quot;, title: &quot;Investor talk&quot;, subtitle: &quot;Project chat&quot;, preview: &quot;Paused at slide 3 · 5 minutes&quot;, time: &quot;Now&quot;, letter: &quot;I&quot;, paused: true },
+      ];
+      let current = &quot;will&quot;;
+      let overlayState = null;
+      let playing = false;
+      let selectedDuration = null;
+      let training = &quot;paused&quot;;
+      let newProjectCount = 0;
+
+      const mark = (chat) =&gt; chat.id === &quot;will&quot;
+        ? &#x27;&lt;span class=&quot;wlp-will-mark&quot; aria-hidden&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/span&gt;&#x27;
+        : `&lt;span class=&quot;wlp-project-mark&quot; aria-hidden&gt;${chat.letter}&lt;/span&gt;`;
+
+      function chatRow(chat) {
+        const selected = current === chat.id ? &quot; is-selected&quot; : &quot;&quot;;
+        const subtitle = chat.id === &quot;will&quot; ? &quot;Speaking Coach&quot; : chat.subtitle;
+        const preview = chat.preview || (chat.id === &quot;will&quot; ? &quot;AI audio is ready&quot; : &quot;&quot;);
+        return `&lt;button class=&quot;wlp-chat-row${selected}${chat.paused ? &quot; is-paused&quot; : &quot;&quot;}&quot; type=&quot;button&quot; data-open-chat=&quot;${chat.id}&quot;&gt;
+          ${mark(chat)}
+          &lt;span class=&quot;wlp-chat-main&quot;&gt;
+            &lt;span class=&quot;wlp-chat-line&quot;&gt;&lt;strong class=&quot;wlp-chat-title&quot;&gt;${chat.title}&lt;/strong&gt;&lt;span class=&quot;wlp-chat-subtitle&quot;&gt;${subtitle}&lt;/span&gt;&lt;span class=&quot;wlp-chat-time&quot;&gt;${chat.time || &quot;&quot;}&lt;/span&gt;&lt;/span&gt;
+            &lt;span class=&quot;wlp-chat-preview&quot;&gt;${preview}&lt;/span&gt;
+          &lt;/span&gt;
+          ${chat.id === &quot;will&quot; ? `&lt;span class=&quot;wlp-pin&quot; title=&quot;Pinned&quot;&gt;${icons.pin}&lt;/span&gt;` : &quot;&quot;}
+        &lt;/button&gt;`;
+      }
+
+      function renderList() {
+        list.innerHTML = chatRow({ id: &quot;will&quot;, title: &quot;Will&quot;, time: &quot;&quot;, preview: &quot;AI audio is ready&quot; }) + chats.map(chatRow).join(&quot;&quot;);
+        list.querySelectorAll(&quot;[data-open-chat]&quot;).forEach((button) =&gt; {
+          button.addEventListener(&quot;click&quot;, () =&gt; {
+            current = button.getAttribute(&quot;data-open-chat&quot;) || &quot;will&quot;;
+            render();
+          });
+        });
+      }
+
+      function topbar(title, subtitle) {
+        return `&lt;header class=&quot;wlp-topbar&quot;&gt;&lt;button class=&quot;wlp-back&quot; type=&quot;button&quot; data-back aria-label=&quot;Back&quot;&gt;${icons.back}&lt;/button&gt;${mark({ id: title === &quot;Will&quot; ? &quot;will&quot; : &quot;project&quot;, title, letter: title[0] })}&lt;span class=&quot;wlp-top-title&quot;&gt;&lt;strong&gt;${title}&lt;/strong&gt;&lt;span&gt;${subtitle}&lt;/span&gt;&lt;/span&gt;&lt;/header&gt;`;
+      }
+
+      function composer() {
+        return `&lt;form class=&quot;wlp-composer&quot; id=&quot;wlp-composer&quot;&gt;&lt;button class=&quot;wlp-icon-button&quot; id=&quot;wlp-projects&quot; type=&quot;button&quot; aria-label=&quot;Your projects&quot;&gt;${icons.layers}&lt;/button&gt;&lt;span class=&quot;wlp-input-wrap&quot;&gt;&lt;textarea class=&quot;wlp-input&quot; rows=&quot;1&quot; placeholder=&quot;Message Will&quot; aria-label=&quot;Message Will&quot;&gt;&lt;/textarea&gt;&lt;button class=&quot;wlp-send&quot; type=&quot;submit&quot; aria-label=&quot;Send&quot;&gt;${icons.send}&lt;/button&gt;&lt;/span&gt;&lt;button class=&quot;wlp-icon-button&quot; type=&quot;button&quot; aria-label=&quot;Voice note&quot;&gt;${icons.mic}&lt;/button&gt;&lt;/form&gt;`;
+      }
+
+      function audioBubble() {
+        return `&lt;div class=&quot;wlp-bubble-row&quot;&gt;&lt;div class=&quot;wlp-bubble wlp-audio&quot;&gt;&lt;div class=&quot;wlp-audio-label&quot;&gt;AI audio &lt;span style=&quot;font-weight:400;color:var(--wlp-muted-foreground)&quot;&gt;· Speaking Coach&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;wlp-audio-meta&quot;&gt;The hardcoded chat&#x27;s voice example&lt;/div&gt;&lt;div class=&quot;wlp-player&quot;&gt;&lt;button class=&quot;wlp-play&quot; id=&quot;wlp-play&quot; type=&quot;button&quot; aria-label=&quot;Play AI audio&quot;&gt;${playing ? icons.pause : icons.play}&lt;/button&gt;&lt;span class=&quot;wlp-wave&quot; aria-hidden&gt;${Array.from({ length: 9 }, () =&gt; &quot;&lt;i&gt;&lt;/i&gt;&quot;).join(&quot;&quot;)}&lt;/span&gt;&lt;span class=&quot;wlp-audio-status&quot;&gt;${playing ? &quot;Playing&quot; : &quot;0:18&quot;}&lt;/span&gt;&lt;/div&gt;&lt;small&gt;Today&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;`;
+      }
+
+      function willChat() {
+        return `${topbar(&quot;Will&quot;, &quot;Speaking Coach · hardcoded&quot;)}
+          &lt;div class=&quot;wlp-thread&quot;&gt;
+            &lt;div class=&quot;wlp-day&quot;&gt;Today&lt;/div&gt;
+            &lt;div class=&quot;wlp-bubble-row&quot;&gt;&lt;div class=&quot;wlp-bubble&quot;&gt;Hi, I&#x27;m Will. 👋 I can help you practise your talk and continue where you left off.&lt;/div&gt;&lt;/div&gt;
+            ${audioBubble()}
+            &lt;div class=&quot;wlp-bubble-row me&quot;&gt;&lt;div class=&quot;wlp-bubble me&quot;&gt;I want to practise the investor talk.&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;wlp-status-line&quot;&gt;&lt;span class=&quot;wlp-status-dot&quot;&gt;&lt;/span&gt; Hardcoded Speaking Coach is active&lt;/div&gt;
+          &lt;/div&gt;${composer()}`;
+      }
+
+      function projectChat(chat) {
+        const active = training === &quot;active&quot;;
+        const paused = training === &quot;paused&quot;;
+        return `${topbar(chat.title, &quot;Project chat&quot;)}
+          &lt;div class=&quot;wlp-thread&quot;&gt;
+            &lt;div class=&quot;wlp-day&quot;&gt;Today&lt;/div&gt;
+            &lt;div class=&quot;wlp-bubble-row&quot;&gt;&lt;div class=&quot;wlp-bubble&quot;&gt;This project keeps its own conversation and training point. You can leave and come back later.&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;wlp-bubble-row me&quot;&gt;&lt;div class=&quot;wlp-bubble me&quot;&gt;I want to practise for ${selectedDuration || &quot;5 minutes&quot;}.&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;wlp-resume-card&quot;&gt;
+              &lt;strong&gt;${active ? &quot;Training in progress&quot; : &quot;Training paused&quot;}&lt;/strong&gt;
+              &lt;p&gt;${active ? &quot;Your stopping point will be saved when you pause.&quot; : &quot;Saved stopping point: slide 3. Continue from here whenever you return to this chat.&quot;}&lt;/p&gt;
+              &lt;div class=&quot;wlp-resume-actions&quot;&gt;
+                ${active ? `&lt;button class=&quot;wlp-button orange&quot; id=&quot;wlp-pause&quot; type=&quot;button&quot;&gt;Pause at slide 3&lt;/button&gt;` : `&lt;button class=&quot;wlp-button dark&quot; id=&quot;wlp-continue&quot; type=&quot;button&quot;&gt;Continue from slide 3&lt;/button&gt;`}
+                &lt;button class=&quot;wlp-button outline&quot; id=&quot;wlp-duration&quot; type=&quot;button&quot;&gt;${selectedDuration ? &quot;Change duration&quot; : &quot;Choose training length&quot;}&lt;/button&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;wlp-status-line&quot;&gt;&lt;span class=&quot;wlp-status-dot&quot; style=&quot;background:${active ? &quot;var(--wlp-primary)&quot; : &quot;var(--wlp-green)&quot;}&quot;&gt;&lt;/span&gt;${active ? `Training · ${selectedDuration || &quot;5 minutes&quot;}` : &quot;Saved · ready to continue&quot;}&lt;/div&gt;
+          &lt;/div&gt;${composer()}`;
+      }
+
+      function listView() {
+        return `&lt;div class=&quot;wlp-thread&quot; style=&quot;justify-content:center;align-items:center;text-align:center&quot;&gt;&lt;div style=&quot;max-width:300px&quot;&gt;&lt;div class=&quot;wlp-will-mark&quot; style=&quot;margin:0 auto 18px&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;strong style=&quot;display:block;font-size:18px&quot;&gt;Your chats&lt;/strong&gt;&lt;p style=&quot;margin:7px 0 0;font-size:14px;line-height:1.45;color:var(--wlp-muted-foreground)&quot;&gt;Will stays pinned at the top. Every project you start becomes its own chat below.&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;`;
+      }
+
+      function render() {
+        root.dataset.view = current;
+        renderList();
+        const chat = chats.find((item) =&gt; item.id === current);
+        view.innerHTML = current === &quot;list&quot; ? listView() : current === &quot;will&quot; ? willChat() : projectChat(chat || chats[0]);
+        view.querySelector(&quot;[data-back]&quot;)?.addEventListener(&quot;click&quot;, () =&gt; { current = &quot;list&quot;; render(); });
+        view.querySelector(&quot;#wlp-play&quot;)?.addEventListener(&quot;click&quot;, () =&gt; { playing = !playing; render(); });
+        view.querySelector(&quot;#wlp-projects&quot;)?.addEventListener(&quot;click&quot;, () =&gt; openProjectSheet());
+        view.querySelector(&quot;#wlp-duration&quot;)?.addEventListener(&quot;click&quot;, () =&gt; openDurationSheet());
+        view.querySelector(&quot;#wlp-pause&quot;)?.addEventListener(&quot;click&quot;, () =&gt; { training = &quot;paused&quot;; chats[0].preview = &quot;Paused at slide 3 · &quot; + (selectedDuration || &quot;5 minutes&quot;); chats[0].time = &quot;Now&quot;; render(); });
+        view.querySelector(&quot;#wlp-continue&quot;)?.addEventListener(&quot;click&quot;, () =&gt; { training = &quot;active&quot;; render(); });
+        view.querySelector(&quot;#wlp-composer&quot;)?.addEventListener(&quot;submit&quot;, (event) =&gt; { event.preventDefault(); });
+      }
+
+      function openProjectSheet() {
+        overlayState = &quot;projects&quot;;
+        overlay.innerHTML = `&lt;div class=&quot;wlp-sheet-backdrop&quot; data-close-overlay&gt;&lt;div class=&quot;wlp-sheet&quot; role=&quot;dialog&quot; aria-label=&quot;Your projects&quot; data-stop-close&gt;&lt;div class=&quot;wlp-grabber&quot;&gt;&lt;/div&gt;&lt;h2&gt;Your projects&lt;/h2&gt;&lt;p&gt;Open a project chat or start a new one. The main chat stays pinned above them.&lt;/p&gt;${chats.map((chat) =&gt; `&lt;button class=&quot;wlp-sheet-option&quot; type=&quot;button&quot; data-sheet-project=&quot;${chat.id}&quot;&gt;&lt;span&gt;&lt;strong&gt;${chat.title}&lt;/strong&gt;&lt;span&gt;${chat.preview}&lt;/span&gt;&lt;/span&gt;${icons.arrow}&lt;/button&gt;`).join(&quot;&quot;)}&lt;button class=&quot;wlp-sheet-option&quot; type=&quot;button&quot; data-sheet-new&gt;&lt;span&gt;&lt;strong&gt;Start a new project&lt;/strong&gt;&lt;span&gt;A new project becomes a new chat below Will&lt;/span&gt;&lt;/span&gt;${icons.arrow}&lt;/button&gt;&lt;div class=&quot;wlp-sheet-footer&quot;&gt;&lt;button class=&quot;wlp-button outline&quot; type=&quot;button&quot; data-close-button&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
+        overlay.querySelector(&quot;[data-stop-close]&quot;)?.addEventListener(&quot;click&quot;, (event) =&gt; event.stopPropagation());
+        overlay.querySelectorAll(&quot;[data-close-overlay], [data-close-button]&quot;).forEach((el) =&gt; el.addEventListener(&quot;click&quot;, closeOverlay));
+        overlay.querySelectorAll(&quot;[data-sheet-project]&quot;).forEach((el) =&gt; el.addEventListener(&quot;click&quot;, () =&gt; { current = el.getAttribute(&quot;data-sheet-project&quot;) || &quot;project-1&quot;; closeOverlay(); render(); }));
+        overlay.querySelector(&quot;[data-sheet-new]&quot;)?.addEventListener(&quot;click&quot;, openCreateSheet);
+      }
+
+      function openCreateSheet() {
+        overlayState = &quot;create&quot;;
+        overlay.innerHTML = `&lt;div class=&quot;wlp-sheet-backdrop&quot; data-close-overlay&gt;&lt;div class=&quot;wlp-sheet&quot; role=&quot;dialog&quot; aria-label=&quot;Start a new project&quot; data-stop-close&gt;&lt;div class=&quot;wlp-grabber&quot;&gt;&lt;/div&gt;&lt;h2&gt;Start a new project&lt;/h2&gt;&lt;p&gt;The project will have its own chat and its own saved training point.&lt;/p&gt;&lt;input class=&quot;wlp-create-input&quot; id=&quot;wlp-project-name&quot; value=&quot;New presentation&quot; aria-label=&quot;Project name&quot;&gt;&lt;div class=&quot;wlp-sheet-footer&quot;&gt;&lt;button class=&quot;wlp-button outline&quot; type=&quot;button&quot; data-close-button&gt;Cancel&lt;/button&gt;&lt;button class=&quot;wlp-button dark&quot; type=&quot;button&quot; data-create-confirm&gt;Create project chat&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
+        overlay.querySelector(&quot;[data-stop-close]&quot;)?.addEventListener(&quot;click&quot;, (event) =&gt; event.stopPropagation());
+        overlay.querySelectorAll(&quot;[data-close-overlay], [data-close-button]&quot;).forEach((el) =&gt; el.addEventListener(&quot;click&quot;, closeOverlay));
+        overlay.querySelector(&quot;[data-create-confirm]&quot;)?.addEventListener(&quot;click&quot;, () =&gt; {
+          const input = overlay.querySelector(&quot;#wlp-project-name&quot;);
+          const title = input &amp;&amp; input.value.trim() ? input.value.trim() : &quot;New presentation&quot;;
+          newProjectCount += 1;
+          const id = `project-${newProjectCount + 1}`;
+          chats.unshift({ id, title, subtitle: &quot;Project chat&quot;, preview: &quot;Not started&quot;, time: &quot;New&quot;, letter: title[0].toUpperCase(), paused: false });
+          current = id;
+          training = &quot;paused&quot;;
+          selectedDuration = null;
+          closeOverlay();
+          render();
+        });
+      }
+
+      function openDurationSheet() {
+        overlayState = &quot;duration&quot;;
+        overlay.innerHTML = `&lt;div class=&quot;wlp-sheet-backdrop&quot; data-close-overlay&gt;&lt;div class=&quot;wlp-sheet&quot; role=&quot;dialog&quot; aria-label=&quot;Choose training length&quot; data-stop-close&gt;&lt;div class=&quot;wlp-grabber&quot;&gt;&lt;/div&gt;&lt;h2&gt;Choose training length&lt;/h2&gt;&lt;p&gt;Save this choice with the project chat. You can return and continue later.&lt;/p&gt;&lt;button class=&quot;wlp-sheet-option&quot; type=&quot;button&quot; data-duration=&quot;5 minutes&quot;&gt;&lt;span&gt;&lt;strong&gt;5 minutes&lt;/strong&gt;&lt;span&gt;Short focused practice&lt;/span&gt;&lt;/span&gt;${selectedDuration === &quot;5 minutes&quot; ? icons.check : icons.arrow}&lt;/button&gt;&lt;button class=&quot;wlp-sheet-option&quot; type=&quot;button&quot; data-duration=&quot;10 minutes&quot;&gt;&lt;span&gt;&lt;strong&gt;10 minutes&lt;/strong&gt;&lt;span&gt;Keep going through the next section&lt;/span&gt;&lt;/span&gt;${selectedDuration === &quot;10 minutes&quot; ? icons.check : icons.arrow}&lt;/button&gt;&lt;button class=&quot;wlp-sheet-option&quot; type=&quot;button&quot; data-duration=&quot;Until I stop&quot;&gt;&lt;span&gt;&lt;strong&gt;Until I stop&lt;/strong&gt;&lt;span&gt;Pause whenever you choose&lt;/span&gt;&lt;/span&gt;${selectedDuration === &quot;Until I stop&quot; ? icons.check : icons.arrow}&lt;/button&gt;&lt;div class=&quot;wlp-sheet-footer&quot;&gt;&lt;button class=&quot;wlp-button outline&quot; type=&quot;button&quot; data-close-button&gt;Cancel&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
+        overlay.querySelector(&quot;[data-stop-close]&quot;)?.addEventListener(&quot;click&quot;, (event) =&gt; event.stopPropagation());
+        overlay.querySelectorAll(&quot;[data-close-overlay], [data-close-button]&quot;).forEach((el) =&gt; el.addEventListener(&quot;click&quot;, closeOverlay));
+        overlay.querySelectorAll(&quot;[data-duration]&quot;).forEach((el) =&gt; el.addEventListener(&quot;click&quot;, () =&gt; { selectedDuration = el.getAttribute(&quot;data-duration&quot;); training = &quot;active&quot;; chats.find((chat) =&gt; chat.id === current).preview = `Training · ${selectedDuration}`; closeOverlay(); render(); }));
+      }
+
+      function closeOverlay() { overlayState = null; overlay.innerHTML = &quot;&quot;; }
+      addProject.addEventListener(&quot;click&quot;, openCreateSheet);
+      current = &quot;list&quot;;
+      render();
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<script>
+  const prototypeFrame = document.querySelector("iframe");
+  prototypeFrame.removeAttribute("srcdoc");
+  prototypeFrame.src = "chat-continue-prototype.html";
+</script>
+</body>
+</html>

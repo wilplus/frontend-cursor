@@ -33,6 +33,9 @@ The backend's `main` is the one source of truth (backend N95).
 - [Life Panel FE — what shipped, what it assumes, what is still open](docs/life-panel-fe-status.md)
 - [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
 - [The Life Panel — implementation document](docs/life-panel-spec.md)
+- [Chat Builder audit (how the Speaking Coach and Live/Build work today)](docs/chat-builder/AUDIT.md) · Founder-Approved: the owner's cloud-agent task, 16 November 2026, which asked for this docs-only audit
+- [Chat Builder design (CoachDefinition, builder UX, phases)](docs/chat-builder/DESIGN.md) · Founder-Approved: the owner's cloud-agent task, 16 November 2026, which asked for this docs-only design
+- [Feedback-walk handoff kept with the Chat Builder prototype](docs/chat-builder/reference/feedback-walk-handoff.md) · Founder-Approved: the owner's cloud-agent task, 16 November 2026, which asked for the prototype files to be committed as reference
 
 **Pointers to the backend's rules (In force)**
 

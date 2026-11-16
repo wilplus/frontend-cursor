@@ -1,0 +1,1544 @@
+<!--
+  PROTOTYPE LOCK: approved interaction contracts live in
+  chat-continue-prototype.lock.json. Run `node verify-prototype-lock.mjs`
+  after every edit. Change a locked contract only with explicit founder
+  approval; the general Speaking Coach summaries/Principles scope is open.
+-->
+<div id="willab-chat-prototype">
+  <style>
+    #willab-chat-prototype {
+      --wlp-background: #ffffff;
+      --wlp-foreground: #121212;
+      --wlp-muted: #f5f5f5;
+      --wlp-muted-foreground: #737373;
+      --wlp-border: #ebebeb;
+      --wlp-primary: #ff6a14;
+      --wlp-primary-foreground: #ffffff;
+      --wlp-record: hsl(5 79% 54%);
+      --wlp-green: #1f9d55;
+      --wlp-canvas-width: 1080px;
+      box-sizing: border-box;
+      width: min(100%, var(--wlp-canvas-width));
+      min-height: 640px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-top: 1px solid var(--wlp-border);
+      border-radius: 0;
+      background: var(--wlp-background);
+      color: var(--wlp-foreground);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #willab-chat-prototype *,
+    #willab-chat-prototype *::before,
+    #willab-chat-prototype *::after { box-sizing: border-box; }
+
+    #willab-chat-prototype button,
+    #willab-chat-prototype input,
+    #willab-chat-prototype textarea { font: inherit; }
+
+    #willab-chat-prototype button {
+      border: 0;
+      cursor: pointer;
+      color: inherit;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #willab-chat-prototype button:active { opacity: .72; transform: scale(.98); }
+    #willab-chat-prototype svg { display: block; }
+
+    .wlp-shell { display: flex; min-height: 640px; background: var(--wlp-background); }
+    #willab-chat-prototype[data-view="list"] .wlp-rail { width: 100%; flex-basis: 100%; border-right: 0; }
+    #willab-chat-prototype[data-view="list"] .wlp-chat-pane { display: none; }
+    #willab-chat-prototype[data-view="will"] .wlp-rail,
+    #willab-chat-prototype[data-view^="project"] .wlp-rail { display: none; }
+    #willab-chat-prototype[data-view="will"] .wlp-chat-pane,
+    #willab-chat-prototype[data-view^="project"] .wlp-chat-pane { width: 100%; }
+    #willab-chat-prototype:has(.wlp-onboarding-overlay) .wlp-rail,
+    #willab-chat-prototype:has(.wlp-setup-overlay) .wlp-rail { display: none; }
+    #willab-chat-prototype:has(.wlp-onboarding-overlay) .wlp-chat-pane,
+    #willab-chat-prototype:has(.wlp-setup-overlay) .wlp-chat-pane { width: 100%; }
+    .wlp-rail { width: 330px; flex: 0 0 330px; border-right: 1px solid var(--wlp-border); background: #fff; }
+    .wlp-brand { display: flex; height: 68px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--wlp-border); padding: 0 18px; }
+    .wlp-brand-name { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+    .wlp-brand-note { font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-list-title { padding: 22px 18px 10px; font-size: 13px; font-weight: 700; color: var(--wlp-muted-foreground); }
+    .wlp-chat-list { overflow: auto; }
+    .wlp-chat-row { position: relative; display: flex; min-height: 76px; width: 100%; align-items: center; gap: 12px; padding: 0 16px; text-align: left; }
+    .wlp-chat-row:hover { background: #fafafa; }
+    .wlp-chat-row + .wlp-chat-row { border-top: 1px solid #f0f0f0; }
+    .wlp-chat-row.is-selected { background: #fafafa; }
+    .wlp-chat-row.is-paused .wlp-chat-preview { color: var(--wlp-foreground); }
+    .wlp-chat-main { min-width: 0; flex: 1; }
+    .wlp-chat-line { display: flex; min-width: 0; align-items: baseline; gap: 8px; }
+    .wlp-chat-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 600; }
+    .wlp-chat-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-chat-time { flex: 0 0 auto; font-size: 11px; color: var(--wlp-muted-foreground); }
+    .wlp-chat-preview { overflow: hidden; margin-top: 4px; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--wlp-muted-foreground); }
+    .wlp-pin { flex: 0 0 auto; color: #a3a3a3; }
+    .wlp-project-mark,
+    .wlp-will-mark { display: flex; height: 48px; width: 48px; flex: 0 0 48px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-project-mark { background: #e4edfb; color: #1e4c99; font-size: 20px; font-weight: 600; }
+    .wlp-will-mark { gap: 3px; background: var(--wlp-muted); }
+    .wlp-will-mark i { display: block; height: 5px; width: 5px; border-radius: 999px; background: var(--wlp-foreground); }
+    .wlp-will-mark i:nth-child(2) { height: 7px; width: 7px; }
+    .wlp-chat-pane { position: relative; display: flex; min-width: 0; flex: 1; flex-direction: column; }
+    .wlp-topbar { display: flex; height: 60px; flex: 0 0 60px; align-items: center; gap: 4px; border-bottom: 1px solid var(--wlp-border); padding: 0 16px 0 4px; }
+    .wlp-back { display: flex; height: 44px; width: 44px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-back:hover { background: var(--wlp-muted); }
+    .wlp-top-title { display: flex; min-width: 0; flex-direction: column; }
+    .wlp-top-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.1; }
+    .wlp-top-title span { margin-top: 3px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-top-mark { height: 36px; width: 36px; flex-basis: 36px; }
+    .wlp-top-mark i { height: 5px; width: 5px; }
+    .wlp-top-mark i:nth-child(2) { height: 7px; width: 7px; }
+    .wlp-thread { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 8px; overflow: auto; padding: 16px 20px 8px; }
+    .wlp-lounge-thread { gap: 0; }
+    .wlp-lounge-thread .wlp-bubble-row { margin-bottom: 8px; }
+    .wlp-lounge-thread .wlp-bubble-row.me { margin-top: 24px; margin-bottom: 24px; }
+    .wlp-lounge-thread .wlp-day { margin: 20px 0 20px; }
+    .wlp-lounge-thread .wlp-plan-row { margin-bottom: 8px; }
+    .wlp-lounge-thread .wlp-one-thing { max-width: 66%; }
+    .wlp-screenshot-message { max-width: 88%; }
+    .wlp-screenshot-message.wlp-short { max-width: 40%; }
+    .wlp-screenshot-message.wlp-long { max-width: 82%; }
+    .wlp-screenshot-message.wlp-answer { max-width: 84%; }
+    .wlp-lounge-thread .wlp-bubble { border-radius: 16px; padding: 8px 12px; font-size: 15px; line-height: 1.45; }
+    .wlp-lounge-thread .wlp-bubble.me { border-radius: 16px; padding: 8px 12px; }
+    .wlp-date-line { align-self: center; margin: 26px 0 18px; color: var(--wlp-muted-foreground); font-size: 14px; }
+    .wlp-plan-bubble { max-width: 62%; border-radius: 16px; background: var(--wlp-muted); padding: 10px 13px 8px; font-size: 15px; line-height: 1.45; }
+    .wlp-plan-bubble strong { display: block; margin-top: 10px; font-size: 15px; }
+    .wlp-plan-bar { display: flex; gap: 4px; margin-top: 10px; }
+    .wlp-plan-bar i { height: 8px; flex: 1; border-radius: 999px; background: #ebebeb; }
+    .wlp-plan-bar i.done { background: #ff640a; }
+    .wlp-plan-link { display: inline-block; margin-top: 10px; color: #6b6b6b; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+    .wlp-record-row { display: flex; align-items: center; gap: 6px; padding-top: 16px; }
+    .wlp-record-dock { display: flex; height: 48px; min-width: 0; flex: 1; align-items: center; justify-content: center; gap: 10px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; font-size: 15px; font-weight: 500; }
+    .wlp-record-dock:disabled { opacity: .5; }
+    .wlp-record-close { display: flex; height: 44px; width: 44px; flex: 0 0 44px; align-items: center; justify-content: center; border-radius: 999px; color: var(--wlp-muted-foreground) !important; }
+    .wlp-record-close:hover { background: var(--wlp-muted); color: var(--wlp-foreground) !important; }
+    .wlp-onboarding-overlay { position: absolute; inset: 0; z-index: 9; display: flex; min-height: 0; flex-direction: column; background: var(--wlp-background); }
+    .wlp-onboarding-scroll { min-height: 0; flex: 1; overflow-y: auto; }
+    .wlp-onboarding-content { display: flex; min-height: 100%; flex-direction: column; align-items: center; justify-content: center; padding: 28px 24px; text-align: center; }
+    .wlp-breath-mark { position: relative; display: flex; height: 128px; width: 128px; align-items: center; justify-content: center; margin-bottom: 28px; }
+    .wlp-breath-mark::before, .wlp-breath-mark::after { position: absolute; inset: 0; border: 1px solid var(--wlp-border); border-radius: 999px; content: ""; }
+    .wlp-breath-mark::after { inset: 20px; border-color: rgba(255,106,20,.3); }
+    .wlp-breath-dots { display: flex; align-items: center; gap: 5px; }
+    .wlp-breath-dots i { height: 7px; width: 7px; border-radius: 999px; background: var(--wlp-foreground); }
+    .wlp-breath-dots i:nth-child(2) { height: 10px; width: 10px; }
+    .wlp-onboarding-content h1 { margin: 0; font-size: 32px; line-height: 1.05; letter-spacing: -.04em; }
+    .wlp-onboarding-content p { max-width: 36ch; margin: 12px 0 0; color: var(--wlp-muted-foreground); font-size: 15px; line-height: 1.55; }
+    .wlp-onboarding-actions { display: flex; flex-direction: column; align-items: center; margin-top: 28px; }
+    .wlp-onboarding-primary { display: inline-flex; height: 48px; align-items: center; gap: 8px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; padding: 0 28px; font-size: 14px; font-weight: 500; }
+    .wlp-onboarding-primary::after { height: 6px; width: 6px; border-radius: 999px; background: var(--wlp-primary); content: ""; }
+    .wlp-onboarding-secondary { height: 44px; margin-top: 2px; padding: 0 8px; color: var(--wlp-muted-foreground) !important; font-size: 14px; }
+    .wlp-consent-card { width: min(100%, 520px); text-align: left; }
+    .wlp-consent-card .wlp-consent-mark { height: 76px; width: 76px; margin: 0 auto 18px; }
+    .wlp-consent-card h2 { margin: 0 0 10px; font-size: 24px; letter-spacing: -.03em; }
+    .wlp-consent-card p { max-width: none; margin: 0 0 16px; }
+    .wlp-consent-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0; font-size: 14px; }
+    .wlp-consent-links button { color: var(--wlp-foreground); text-decoration: underline; text-underline-offset: 3px; }
+    .wlp-consent-tick { display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--wlp-border); border-radius: 12px; padding: 13px; text-align: left; font-size: 14px; line-height: 1.4; }
+    .wlp-consent-tick span { display: flex; height: 18px; width: 18px; flex: 0 0 18px; align-items: center; justify-content: center; border: 1.5px solid var(--wlp-muted-foreground); border-radius: 5px; }
+    .wlp-consent-tick.is-selected span { background: var(--wlp-foreground); border-color: var(--wlp-foreground); color: var(--wlp-background); }
+    .wlp-consent-country { display: block; width: 100%; height: 50px; margin: 14px 0 10px; appearance: none; border: 1px solid var(--wlp-border); border-radius: 12px; background: var(--wlp-background); padding: 0 14px; color: var(--wlp-foreground); font-size: 14px; }
+    .wlp-recording-card { width: min(100%, 600px); text-align: left; }
+    .wlp-recording-kicker { color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-recording-card h2 { margin: 8px 0 10px; font-size: 26px; line-height: 1.15; letter-spacing: -.03em; }
+    .wlp-recording-card p { max-width: none; margin: 0; }
+    .wlp-recording-strip { display: flex; gap: 4px; margin-top: 26px; }
+    .wlp-recording-strip i { height: 8px; flex: 1; border-radius: 999px; background: var(--wlp-border); }
+    .wlp-recording-strip i.is-current, .wlp-recording-strip i.is-done { background: var(--wlp-primary); }
+    .wlp-onboarding-close { position: absolute; top: 12px; right: 16px; }
+    .wlp-onboarding-back { position: absolute; top: 12px; left: 12px; }
+    /* Source-derived recording setup: ProjectPicker, FeelingsCheckIn,
+       WizardProgress and RecordingSetup. These are deliberately kept as one
+       overlay so the prototype walks the same route as the product code. */
+    .wlp-setup-overlay { position: absolute; inset: 0; z-index: 10; display: flex; min-height: 0; flex-direction: column; overflow-y: auto; background: var(--wlp-background); }
+    .wlp-setup-screen { display: flex; min-height: 100%; flex: 1; flex-direction: column; padding: 16px 20px 20px; }
+    .wlp-setup-progress { display: grid; min-height: 44px; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 12px; }
+    .wlp-setup-progress-side { display: flex; min-width: 0; align-items: center; color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-setup-progress-side.right { justify-content: flex-end; }
+    .wlp-setup-back { display: inline-flex; height: 32px; align-items: center; border-radius: 999px; padding: 0 8px; color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-setup-back:hover { color: var(--wlp-foreground); background: var(--wlp-muted); }
+    .wlp-setup-close { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; color: var(--wlp-muted-foreground) !important; }
+    .wlp-setup-close.plain { border: 0 !important; height: 44px; width: 44px; }
+    .wlp-setup-close:hover { color: var(--wlp-foreground) !important; background: var(--wlp-muted); }
+    .wlp-setup-dots { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .wlp-setup-dots i { display: block; height: 6px; width: 6px; border-radius: 999px; background: color-mix(in srgb, var(--wlp-muted-foreground) 20%, transparent); }
+    .wlp-setup-dots i.done { background: color-mix(in srgb, var(--wlp-foreground) 40%, transparent); }
+    .wlp-setup-dots i.active { height: 8px; width: 24px; background: var(--wlp-foreground); }
+    .wlp-setup-body { width: min(100%, 640px); margin: 0 auto; padding: 30px 0 20px; }
+    .wlp-setup-head { margin-bottom: 20px; }
+    .wlp-setup-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 600; line-height: 1.35; }
+    .wlp-setup-head h2 svg { height: 16px; width: 16px; flex: 0 0 16px; color: var(--wlp-primary); }
+    .wlp-setup-head p { margin: 8px 0 0; color: var(--wlp-muted-foreground); font-size: 14px; line-height: 1.45; }
+    .wlp-setup-input { display: block; width: 100%; height: 48px; border: 1px solid #b8b8b8; border-radius: 12px; background: var(--wlp-background); padding: 0 16px; outline: none; font-size: 15px; }
+    .wlp-setup-input:focus { border-color: color-mix(in srgb, var(--wlp-foreground) 42%, transparent); }
+    .wlp-setup-input::placeholder { color: var(--wlp-muted-foreground); }
+    .wlp-setup-footer { width: min(100%, 640px); margin: auto auto 0; padding-top: 20px; }
+    .wlp-setup-primary { display: flex; height: 48px; width: 100%; align-items: center; justify-content: center; border-radius: 999px !important; background: var(--wlp-primary) !important; color: var(--wlp-primary-foreground) !important; font-size: 15px; font-weight: 500; }
+    .wlp-setup-primary:disabled { cursor: default; background: var(--wlp-primary) !important; opacity: .46; }
+    .wlp-setup-chip-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .wlp-setup-choice { display: flex; height: 52px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; background: var(--wlp-background); font-size: 16px; font-weight: 500; }
+    .wlp-setup-choice:hover { border-color: color-mix(in srgb, var(--wlp-foreground) 40%, transparent); }
+    .wlp-setup-choice.is-selected { border-color: var(--wlp-primary) !important; background: var(--wlp-primary); color: var(--wlp-primary-foreground); }
+    .wlp-setup-choice:disabled:not(.is-selected) { cursor: default; opacity: .4; }
+    .wlp-setup-skip { display: flex; height: 52px; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--wlp-border) 55%, transparent) !important; border-radius: 999px; color: color-mix(in srgb, var(--wlp-muted-foreground) 82%, transparent); font-size: 16px; font-weight: 500; }
+    .wlp-setup-skip:hover { color: var(--wlp-muted-foreground); }
+    .wlp-setup-lengths { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wlp-setup-length { display: inline-flex; height: 40px; align-items: center; gap: 7px; border: 1px solid var(--wlp-border) !important; border-radius: 999px; padding: 0 16px; font-size: 14px; }
+    .wlp-setup-length:hover { border-color: color-mix(in srgb, var(--wlp-foreground) 40%, transparent); }
+    .wlp-setup-length.is-selected { border-color: var(--wlp-foreground) !important; background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; }
+    .wlp-setup-recommended { color: var(--wlp-muted-foreground); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .wlp-setup-length.is-selected .wlp-setup-recommended { color: color-mix(in srgb, var(--wlp-background) 72%, transparent); }
+    .wlp-setup-no-limit { display: inline-flex; margin-top: 14px; color: var(--wlp-muted-foreground); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+    .wlp-setup-other { display: flex; align-items: center; gap: 10px; margin-top: 14px; max-width: 220px; }
+    .wlp-setup-other .wlp-setup-input { margin: 0; }
+    .wlp-setup-other span { color: var(--wlp-muted-foreground); font-size: 14px; }
+    .wlp-setup-upload { display: flex; min-height: 152px; width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--wlp-border) !important; border-radius: 16px; padding: 24px; text-align: center; }
+    .wlp-setup-upload:hover { background: var(--wlp-muted); }
+    .wlp-setup-upload svg { height: 20px; width: 20px; color: var(--wlp-muted-foreground); }
+    .wlp-setup-upload span { font-size: 14px; }
+    .wlp-setup-upload.is-attached svg { color: var(--wlp-foreground); }
+    .wlp-setup-replace { display: flex; min-height: 48px; width: 100%; align-items: center; justify-content: center; color: var(--wlp-muted-foreground); font-size: 16px; }
+    .wlp-setup-replace:hover { color: var(--wlp-foreground); }
+    .wlp-picker-header { display: flex; min-height: 36px; align-items: center; justify-content: space-between; }
+    .wlp-picker-header h2 { margin: 0; font-size: 17px; font-weight: 600; }
+    .wlp-picker-content { width: min(100%, 448px); margin: 0 auto; padding: 22px 0; }
+    .wlp-picker-new { display: flex; height: 48px; width: 100%; align-items: center; justify-content: center; gap: 8px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; font-size: 15px; font-weight: 500; }
+    .wlp-picker-new svg { height: 16px; width: 16px; }
+    .wlp-picker-label { margin: 28px 0 8px; color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-picker-row { display: flex; min-height: 48px; width: 100%; align-items: center; justify-content: space-between; border-radius: 12px; padding: 0 4px; text-align: left; }
+    .wlp-picker-row:hover { background: var(--wlp-muted); }
+    .wlp-picker-row strong { font-size: 16px; font-weight: 500; }
+    .wlp-picker-row em { margin-left: 8px; color: var(--wlp-muted-foreground); font-size: 13px; font-style: normal; }
+    .wlp-picker-more { padding: 8px; color: var(--wlp-muted-foreground); font-size: 17px; letter-spacing: 2px; }
+    .wlp-day { align-self: center; margin: 2px 0 6px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-bubble-row { display: flex; }
+    .wlp-bubble-row.me { justify-content: flex-end; }
+    .wlp-bubble { max-width: min(88%, 410px); border-radius: 16px; background: var(--wlp-muted); padding: 10px 13px; font-size: 15px; line-height: 1.45; }
+    .wlp-bubble.me { background: var(--wlp-primary); color: var(--wlp-primary-foreground); }
+    .wlp-bubble small { display: block; margin-top: 7px; font-size: 11px; opacity: .72; text-align: right; }
+    /* Project history keeps only the two durable Take outputs from the real
+       chat: FeedbackWalkBubble and IdealTextCard. */
+    .wlp-project-pair { display: flex; width: 80%; max-width: 384px; flex-direction: column; gap: 3px; }
+    .wlp-project-pair .wlp-feedback-walk,
+    .wlp-project-pair .wlp-review-card { width: 100%; max-width: none; }
+    .wlp-feedback-walk { position: relative; display: flex; min-width: 0; flex-direction: column; border-radius: 16px; background: var(--wlp-muted); padding: 8px 30px 8px 12px; text-align: left; font-size: 15px; line-height: 1.45; }
+    .wlp-feedback-walk:hover { background: #f0f0f0; }
+    .wlp-feedback-walk.is-paired { border-bottom-left-radius: 6px; }
+    .wlp-feedback-walk strong { font-weight: 400; }
+    .wlp-feedback-walk-card { display: flex; width: 100%; min-width: 0; flex-direction: column; border-radius: 20px; background: var(--wlp-muted); padding: 10px; text-align: left; }
+    .wlp-feedback-walk-card-head { display: block; padding: 1px 2px 5px; }
+    .wlp-feedback-walk-kicker { color: var(--wlp-muted-foreground); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .wlp-feedback-title-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+    .wlp-feedback-walk-title { display: block; width: fit-content; margin-top: 3px; border-radius: 5px; font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+    .wlp-feedback-walk-title[contenteditable="true"] { cursor: text; outline: 0; }
+    .wlp-feedback-walk-title[contenteditable="true"]:focus { background: var(--wlp-background); box-shadow: 0 0 0 1px var(--wlp-primary); }
+    .wlp-feedback-edit-hint { color: var(--wlp-muted-foreground); font-size: 9px; font-weight: 600; opacity: 0; transition: opacity .15s ease; }
+    .wlp-feedback-title-line:hover .wlp-feedback-edit-hint, .wlp-feedback-title-line:focus-within .wlp-feedback-edit-hint { opacity: 1; }
+    .wlp-feedback-general { margin: 9px 0 8px; }
+    .wlp-feedback-general-row { display: flex; align-items: center; justify-content: space-between; color: var(--wlp-muted-foreground); font-size: 9px; font-weight: 600; }
+    .wlp-feedback-general-row b { color: var(--wlp-foreground); font-size: 10px; }
+    .wlp-feedback-general-track { height: 4px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: #e8e8e8; }
+    .wlp-feedback-general-track span { display: block; height: 100%; border-radius: inherit; background: var(--wlp-primary); }
+    .wlp-feedback-walk-toggle { display: flex; min-height: 32px; align-items: center; justify-content: center; margin-bottom: 5px; border: 1px dashed var(--wlp-border) !important; border-radius: 10px; color: var(--wlp-muted-foreground) !important; font-size: 11px; font-weight: 600; }
+    .wlp-feedback-walk-toggle:hover { background: var(--wlp-background); color: var(--wlp-foreground) !important; }
+    .wlp-feedback-chain { display: flex; flex-direction: column; gap: 7px; }
+    .wlp-feedback-wagon { position: relative; display: flex; min-width: 0; align-items: center; gap: 9px; border-left: 3px solid #e5e5e5; border-radius: 13px; background: var(--wlp-background); padding: 6px; animation: wlp-wagon-in .22s ease-out both; }
+    .wlp-feedback-wagon + .wlp-feedback-wagon { margin-top: 4px; }
+    .wlp-feedback-wagon + .wlp-feedback-wagon::before { display: none; }
+    .wlp-feedback-wagon-old { opacity: .72; }
+    .wlp-feedback-wagon-latest { border-left-color: var(--wlp-primary); box-shadow: 0 0 0 1.5px var(--wlp-primary); }
+    .wlp-feedback-walk-card.is-single-chunk { padding: 16px; }
+    .wlp-feedback-walk-card.is-single-chunk .wlp-feedback-wagon { min-height: 70px; padding: 10px; }
+    .wlp-feedback-walk-card.is-single-chunk .wlp-feedback-wagon-thumb { height: 50px; width: 68px; flex-basis: 68px; }
+    .wlp-feedback-walk-card.is-single-chunk .wlp-feedback-wagon-name { font-size: 13px; }
+    .wlp-feedback-walk-card.is-single-chunk .wlp-feedback-quality { font-size: 10px; }
+    .wlp-feedback-wagon-thumb { position: relative; display: block; height: 42px; width: 57px; flex: 0 0 57px; overflow: hidden; border: 0 !important; border-radius: 8px; background: #244fc5; padding: 0; cursor: pointer; }
+    .wlp-feedback-wagon-old .wlp-feedback-wagon-thumb { height: 34px; width: 49px; flex-basis: 49px; padding: 6px; }
+    .wlp-feedback-wagon-thumb-image { position: absolute; inset: -8px; background-image: linear-gradient(135deg, rgba(255,255,255,.24), transparent 42%), linear-gradient(155deg, #5279db 0 24%, #234ac0 24% 56%, #142f99 56% 100%), radial-gradient(circle at 78% 70%, rgba(255,255,255,.32) 0 18%, transparent 19%); filter: blur(3px); transform: scale(1.08); }
+    .wlp-feedback-wagon-thumb::before { position: absolute; top: 12px; left: 9px; height: 2px; width: 23px; border-radius: 2px; background: rgba(255,255,255,.85); content: ""; }
+    .wlp-feedback-wagon-thumb::after { position: absolute; right: -10px; bottom: -14px; height: 34px; width: 34px; border-radius: 999px; background: rgba(255,255,255,.11); content: ""; }
+    .wlp-feedback-wagon-copy { min-width: 0; flex: 1; }
+    .wlp-feedback-wagon-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .wlp-feedback-range-wrap { display: flex; min-width: 0; align-items: center; gap: 5px; }
+    .wlp-feedback-range-wrap:hover .wlp-feedback-edit-hint, .wlp-feedback-range-wrap:focus-within .wlp-feedback-edit-hint { opacity: 1; }
+    .wlp-feedback-wagon-name { display: block; min-width: 0; overflow: hidden; border-radius: 4px; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+    .wlp-feedback-wagon-name[contenteditable="true"] { cursor: text; outline: 0; }
+    .wlp-feedback-wagon-name[contenteditable="true"]:focus { background: var(--wlp-muted); box-shadow: 0 0 0 1px var(--wlp-primary); }
+    .wlp-feedback-wagon-stats { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .wlp-feedback-wagon-quality-row { display: flex; min-width: 0; align-items: center; margin-top: 2px; }
+    .wlp-feedback-wagon-meta { min-width: 0; overflow: hidden; color: var(--wlp-muted-foreground); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .wlp-feedback-wagon-take { flex: 0 0 auto; border-radius: 999px; background: #ffeadf; padding: 3px 6px; color: #ff6727; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .wlp-feedback-quality { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; color: var(--wlp-muted-foreground); font-size: 9px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .wlp-feedback-quality-icon { display: block; height: 6px; width: 6px; flex: 0 0 6px; border-radius: 999px; background: #b66d4c; }
+    .wlp-feedback-quality.almost .wlp-feedback-quality-icon { background: #d6a048; }
+    .wlp-feedback-quality.good .wlp-feedback-quality-icon { background: #6e9c6c; }
+    .wlp-feedback-quality.strong .wlp-feedback-quality-icon { background: #3f7fbd; }
+    .wlp-feedback-wagon-score { flex: 0 0 auto; color: var(--wlp-muted-foreground); font-size: 10px; }
+    .wlp-feedback-wagon-score b { color: var(--wlp-foreground); }
+    .wlp-feedback-wagon-track { height: 3px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: #e8e8e8; }
+    .wlp-feedback-wagon-track span { display: block; height: 100%; border-radius: inherit; background: var(--wlp-primary); }
+    .wlp-feedback-walk-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 7px; }
+    .wlp-feedback-walk-actions button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+    .wlp-feedback-walk-actions button svg { height: 15px; width: 15px; }
+    .wlp-feedback-walk-actions .primary { background: #1b1918; color: #fff; }
+    .wlp-feedback-walk-actions .secondary { border: 1px solid var(--wlp-border); background: var(--wlp-background); color: var(--wlp-foreground); }
+    .wlp-feedback-walk-actions button:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(24,32,52,.08); }
+    @keyframes wlp-wagon-in { from { opacity: 0; transform: translateY(-4px); } }
+    .wlp-feedback-meta { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; color: var(--wlp-muted-foreground); font-size: 11.5px; line-height: 1.3; }
+    .wlp-feedback-date { margin-left: auto; white-space: nowrap; }
+    .wlp-feedback-arrow, .wlp-review-arrow { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: var(--wlp-muted-foreground); font-size: 25px; line-height: 1; }
+    .wlp-review-card { position: relative; display: flex; min-width: 0; align-items: center; gap: 10px; border: 1px solid var(--wlp-border); border-radius: 18px; background: var(--wlp-background); padding: 10px 28px 10px 10px; text-align: left; }
+    .wlp-review-card:hover { background: #fcfcfc; }
+    .wlp-review-card.is-paired { border-top-left-radius: 6px; }
+    .wlp-slide-thumb { display: block; width: 72px; aspect-ratio: 16 / 9; flex: 0 0 72px; overflow: hidden; border-radius: 6px; background: linear-gradient(135deg, #244fd0, #17358f); color: #fff; }
+    .wlp-slide-thumb-inner { display: flex; height: 100%; flex-direction: column; justify-content: center; padding: 8px; }
+    .wlp-slide-thumb-line { display: block; width: 24px; height: 1px; margin-bottom: 5px; background: rgba(255,255,255,.9); }
+    .wlp-slide-thumb-title { font-size: 7px; font-weight: 700; line-height: 1.1; }
+    .wlp-slide-thumb-copy { margin-top: 4px; max-width: 42px; overflow: hidden; color: rgba(255,255,255,.78); font-size: 4px; line-height: 1.2; white-space: nowrap; }
+    .wlp-review-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
+    .wlp-review-version { flex: 0 0 auto; border-radius: 999px; background: var(--wlp-muted); padding: 4px 10px; font-size: 12px; font-weight: 600; }
+    .wlp-project-after-pair { margin-top: 8px; }
+    .wlp-project-message-wide { max-width: 82%; }
+    .wlp-project-context { display: flex; flex-direction: column; gap: 11px; margin-top: 16px; }
+    .wlp-project-context .wlp-bubble { max-width: min(88%, 520px); }
+    .wlp-project-answer-options { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 1px; }
+    .wlp-project-answer-options button { min-height: 36px; border: 1px solid var(--wlp-border) !important; border-radius: 999px; background: var(--wlp-background); padding: 0 13px; font-size: 13px; font-weight: 600; }
+    .wlp-project-answer-options button:hover { border-color: var(--wlp-primary) !important; color: var(--wlp-primary); }
+    .wlp-project-answer-composer .wlp-input { min-height: 44px; }
+    .wlp-sunday-head { position: relative; max-width: min(88%, 410px); border-radius: 16px; background: var(--wlp-muted); padding: 10px 38px 10px 13px; text-align: left; font-size: 15px; line-height: 1.45; }
+    .wlp-sunday-head.is-waiting { box-shadow: 0 0 0 2px var(--wlp-primary); }
+    .wlp-sunday-head span { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: var(--wlp-muted-foreground); font-size: 23px; line-height: 1; }
+    .wlp-sunday-offer-dock { display: flex; gap: 10px; border-top: 1px solid var(--wlp-border); padding: 12px 18px 16px; }
+    .wlp-sunday-offer-dock button { min-height: 48px; flex: 1; border-radius: 999px; font-size: 15px; font-weight: 600; }
+    .wlp-sunday-offer-dock .outline { border: 1px solid var(--wlp-border) !important; background: var(--wlp-background); }
+    .wlp-sunday-offer-dock .dark { background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; }
+    .wlp-sunday-lens { z-index: 11; }
+    .wlp-sunday-lens .wlp-walk-body { padding-top: 12px; }
+    .wlp-sunday-lens .wlp-walk-thread { width: min(100%, 680px); margin: 0 auto; }
+    .wlp-sunday-lens .wlp-walk-row { font-size: 17px; }
+    .wlp-sunday-lens .wlp-walk-row.me .wlp-walk-bubble { background: var(--wlp-primary); }
+    .wlp-sunday-lens-dock { display: flex; width: min(100%, 680px); flex-direction: column; gap: 8px; margin: 0 auto; padding: 10px 20px max(28px, env(safe-area-inset-bottom)); }
+    .wlp-sunday-choice { display: flex; min-height: 58px; width: 100%; align-items: center; justify-content: flex-start; gap: 13px; border: 1px solid var(--wlp-border) !important; border-radius: 16px; background: var(--wlp-background); padding: 10px 18px; text-align: left; font-size: 16px; font-weight: 600; }
+    .wlp-sunday-choice-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+    .wlp-sunday-choice-copy small { color: var(--wlp-muted-foreground); font-size: 12px; font-weight: 400; line-height: 1.35; }
+    .wlp-sunday-choice:hover { border-color: var(--wlp-foreground) !important; }
+    .wlp-sunday-choice.add { justify-content: space-between; color: var(--wlp-muted-foreground); }
+    .wlp-sunday-choice.add span { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border); border-radius: 999px; color: var(--wlp-foreground); font-size: 20px; }
+    .wlp-sunday-field { display: block; width: 100%; min-height: 48px; border: 1px solid var(--wlp-border); border-radius: 14px; padding: 13px 15px; outline: none; font: inherit; resize: vertical; }
+    .wlp-sunday-field:focus { border-color: var(--wlp-primary); }
+    .wlp-sunday-field-group { display: flex; flex-direction: column; gap: 6px; }
+    .wlp-sunday-field-group label { color: var(--wlp-muted-foreground); font-size: 12px; font-weight: 600; }
+    .wlp-sunday-observed-note { margin: 0; color: var(--wlp-muted-foreground); font-size: 12px; line-height: 1.4; }
+    .wlp-sunday-principle { font-weight: 700; }
+    .wlp-record-dock { display: flex; width: 100%; margin-top: 18px; }
+    .wlp-record-dock-button { display: flex; min-height: 48px; width: 100%; align-items: center; justify-content: center; gap: 10px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; font-size: 15px; font-weight: 500; }
+    .wlp-record-dock-button:hover { opacity: .9; }
+    .wlp-button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; border-radius: 999px; padding: 0 16px; font-size: 14px; font-weight: 600; }
+    .wlp-button.dark { background: var(--wlp-foreground); color: #fff; }
+    .wlp-button.orange { background: var(--wlp-primary); color: #fff; }
+    .wlp-button.outline { border: 1px solid var(--wlp-border); background: #fff; }
+    .wlp-button.muted { background: var(--wlp-muted); }
+    .wlp-status-line { display: flex; align-items: center; gap: 8px; margin: 2px auto 0; border-radius: 999px; background: var(--wlp-muted); padding: 7px 12px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-status-dot { height: 7px; width: 7px; border-radius: 999px; background: var(--wlp-primary); }
+    .wlp-processing-card { border: 1px solid #f1d8c7; border-radius: 16px; background: #fffaf6; padding: 14px; }
+    .wlp-processing-card strong { display: block; font-size: 14px; }
+    .wlp-processing-card p { margin: 4px 0 11px; font-size: 13px; line-height: 1.4; color: var(--wlp-muted-foreground); }
+    .wlp-question { border-top: 1px solid #f1d8c7; padding-top: 11px; font-size: 14px; line-height: 1.35; }
+    .wlp-question-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+    .wlp-question-actions button { min-height: 32px; border-radius: 999px; padding: 0 11px; background: #fff; border: 1px solid #e7c4aa; font-size: 12px; font-weight: 600; }
+    .wlp-question-actions button:hover { background: #fff1e8; }
+    .wlp-insight-card { border: 1px solid #dfe9e3; border-radius: 16px; background: #fbfefc; padding: 14px; }
+    .wlp-insight-card strong { display: block; font-size: 14px; }
+    .wlp-insight-card p { margin: 5px 0 8px; font-size: 13px; line-height: 1.45; }
+    .wlp-ref-link { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; background: #eef8f1; padding: 5px 9px; color: #176b3a; font-size: 11px; font-weight: 700; }
+    .wlp-moment-card { border: 1px solid var(--wlp-border); border-radius: 16px; background: #fff; padding: 14px; }
+    .wlp-moment-card strong { display: block; font-size: 14px; }
+    .wlp-moment-card p { margin: 5px 0 8px; font-size: 13px; line-height: 1.45; color: var(--wlp-muted-foreground); }
+    .wlp-moment-tag { display: inline-flex; border-radius: 999px; background: var(--wlp-muted); padding: 4px 8px; font-size: 11px; font-weight: 700; }
+    .wlp-row-actions { display: flex; align-items: center; gap: 3px; }
+    .wlp-row-menu { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border-radius: 999px; color: var(--wlp-muted-foreground); font-size: 17px; letter-spacing: 1px; }
+    .wlp-row-menu:hover { background: var(--wlp-muted); color: var(--wlp-foreground); }
+    .wlp-action-danger { color: #b33b2e !important; }
+    .wlp-composer { display: flex; align-items: flex-end; gap: 4px; border-top: 1px solid var(--wlp-border); padding: 12px 18px 16px; }
+    .wlp-icon-button { display: flex; height: 40px; width: 40px; flex: 0 0 40px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-icon-button:hover { background: var(--wlp-muted); }
+    .wlp-input-wrap { position: relative; flex: 1; }
+    .wlp-input { display: block; width: 100%; min-height: 40px; resize: none; border: 1px solid var(--wlp-border); border-radius: 24px; background: #fff; padding: 10px 44px 10px 14px; outline: none; font-size: 15px; line-height: 1.25; }
+    .wlp-input:focus { border-color: var(--wlp-primary); }
+    .wlp-input::placeholder { color: #9a9a9a; }
+    .wlp-input:disabled { cursor: default; opacity: .5; }
+    .wlp-send { position: absolute; right: 4px; bottom: 4px; display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 999px; }
+    .wlp-send:hover { background: var(--wlp-muted); }
+    .wlp-send.is-hidden { display: none; }
+    .wlp-presentation-overlay { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; background: #f7f4ef; color: #201e1c; }
+    .wlp-presentation-top { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(30,28,26,.08); padding: 8px 12px; }
+    .wlp-presentation-top > button { display: flex; height: 34px; width: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border-radius: 999px; color: #6e6a66; }
+    .wlp-presentation-top > button:hover { background: rgba(0,0,0,.05); color: #201e1c; }
+    .wlp-presentation-heading { min-width: 0; flex: 1; }
+    .wlp-presentation-heading strong, .wlp-presentation-heading span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wlp-presentation-heading strong { font-size: 14px; }
+    .wlp-presentation-heading span { margin-top: 2px; color: #77736e; font-size: 10px; }
+    .wlp-presentation-stage { display: flex; min-height: 0; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow-y: auto; background: var(--presentation-surface); padding: 22px 20px 24px; transition: background .25s ease; }
+    .wlp-presentation-slide { display: flex; width: min(100%, 520px); min-height: 285px; flex-direction: column; justify-content: space-between; border-radius: 20px; background: var(--presentation-slide); box-shadow: 0 15px 28px rgba(30,28,26,.13); padding: 22px; color: var(--presentation-ink); transition: background .25s ease, color .25s ease; }
+    .wlp-presentation-slide-top, .wlp-presentation-slide-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .78; }
+    .wlp-presentation-slide-line { display: block; width: 34px; height: 2px; margin-bottom: 16px; background: currentColor; opacity: .75; }
+    .wlp-presentation-slide h1 { max-width: 390px; margin: 0; font-size: clamp(28px, 6vw, 46px); line-height: 1.02; letter-spacing: -.045em; }
+    .wlp-presentation-slide p { max-width: 340px; margin: 13px 0 0; font-size: 14px; line-height: 1.45; opacity: .82; }
+    .wlp-presentation-slide-foot span:last-child { border-radius: 999px; background: var(--presentation-accent); padding: 5px 8px; color: #201e1c; letter-spacing: 0; text-transform: none; }
+    .wlp-presentation-caption { color: #77736e; font-size: 11px; text-align: center; }
+    .wlp-presentation-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .wlp-presentation-controls > button { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border: 1px solid rgba(30,28,26,.14) !important; border-radius: 999px; background: rgba(255,255,255,.65); color: #201e1c; }
+    .wlp-presentation-controls > button:hover:not(:disabled) { background: #fff; }
+    .wlp-presentation-controls > button:disabled { cursor: default; opacity: .32; }
+    .wlp-presentation-dots { display: flex; align-items: center; gap: 5px; }
+    .wlp-presentation-dots i { display: block; height: 5px; width: 5px; border-radius: 999px; background: rgba(30,28,26,.22); }
+    .wlp-presentation-dots i.active { width: 16px; background: #201e1c; }
+    .wlp-presentation-themes { display: flex; align-items: center; justify-content: center; gap: 7px; color: #77736e; font-size: 10px; }
+    .wlp-presentation-themes button { display: flex; height: 23px; width: 23px; align-items: center; justify-content: center; border: 2px solid transparent !important; border-radius: 999px; }
+    .wlp-presentation-themes button.is-selected { border-color: #201e1c !important; }
+    .wlp-presentation-theme-dot { display: block; height: 13px; width: 13px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+    .wlp-presentation-theme-dot.blue { background: #2148be; }
+    .wlp-presentation-theme-dot.warm { background: #e4c7ad; }
+    .wlp-presentation-theme-dot.light { background: #fff; }
+    .wlp-full-overlay { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--wlp-background); color: var(--wlp-foreground); }
+    .wlp-walk-top { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding: 8px 10px 0; }
+    .wlp-walk-nav { display: flex; min-width: 0; align-items: center; gap: 2px; font-size: 13.5px; font-weight: 600; }
+    .wlp-walk-nav button { display: flex; height: 36px; width: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border-radius: 999px; color: var(--wlp-muted-foreground); }
+    .wlp-walk-nav button:hover { background: var(--wlp-muted); color: var(--wlp-foreground); }
+    .wlp-walk-nav button:disabled { cursor: default; opacity: .25; }
+    .wlp-walk-nav span { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wlp-overlay-close { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; color: var(--wlp-muted-foreground) !important; }
+    .wlp-overlay-close:hover { background: var(--wlp-muted); color: var(--wlp-foreground) !important; }
+    .wlp-walk-body { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 15px; overflow-y: auto; padding: 18px 20px 28px; }
+    .wlp-walk-thread { display: flex; flex-direction: column; gap: 15px; }
+    .wlp-walk-mark { align-self: flex-start; color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-walk-row { display: flex; max-width: 94%; align-items: flex-end; gap: 7px; color: var(--wlp-foreground); font-size: 18.5px; line-height: 1.45; }
+    .wlp-walk-row.me { align-self: flex-end; max-width: 88%; }
+    .wlp-walk-bubble { min-width: 0; border-radius: 22px; background: var(--wlp-muted); padding: 13px 17px; font-weight: 400; }
+    .wlp-walk-row.me .wlp-walk-bubble { background: var(--wlp-primary); color: #fff; }
+    .wlp-walk-bubble em { color: var(--wlp-primary); font-style: normal; }
+    .wlp-walk-row.me .wlp-walk-bubble em { color: #fff; text-decoration: underline; text-decoration-color: rgba(255,255,255,.65); }
+    .wlp-walk-audio { display: flex; width: min(90%, 450px); align-self: flex-end; flex-direction: column; gap: 9px; border-radius: 22px; background: var(--wlp-primary); padding: 14px 17px; color: #fff; }
+    .wlp-walk-audio.compact { width: min(72%, 340px); }
+    .wlp-walk-audio-copy { font-size: 16px; line-height: 1.45; }
+    .wlp-walk-audio-copy strong { font-weight: 700; }
+    .wlp-walk-player { display: flex; min-width: 0; align-items: center; gap: 10px; }
+    .wlp-walk-play { display: flex; height: 42px; width: 42px; flex: 0 0 42px; align-items: center; justify-content: center; border-radius: 999px; background: #fff; color: var(--wlp-primary); }
+    .wlp-walk-wave { display: flex; height: 28px; min-width: 0; flex: 1; align-items: center; gap: 2px; overflow: hidden; }
+    .wlp-walk-wave i { display: block; min-width: 2px; flex: 1; border-radius: 2px; background: rgba(255,255,255,.72); }
+    .wlp-walk-duration { flex: 0 0 auto; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .wlp-walk-helper { font-weight: 700; }
+    .wlp-walk-pill small { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .wlp-walk-dock { display: flex; flex-direction: column; gap: 4px; padding: 8px 20px max(30px, env(safe-area-inset-bottom)); }
+    .wlp-walk-pill { display: flex; height: 54px; width: 100%; align-items: center; justify-content: center; gap: 9px; border-radius: 999px !important; text-align: center; font-size: 16px; font-weight: 600; }
+    .wlp-walk-pill.dark { background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; }
+    .wlp-walk-pill.outline { border: 1.5px solid var(--wlp-foreground) !important; background: var(--wlp-background) !important; color: var(--wlp-foreground) !important; }
+    .wlp-walk-link { display: flex; height: 40px; width: 100%; align-items: center; justify-content: center; color: var(--wlp-muted-foreground) !important; font-size: 16px; }
+    .wlp-record-dot { height: 10px; width: 10px; border-radius: 999px; background: var(--wlp-record); }
+    /* Proposed resumable practice flow, using the source deck/recording/walk
+       surfaces above rather than introducing a second visual language. */
+    .wlp-practice-overlay { position: absolute; inset: 0; z-index: 9; display: flex; min-height: 0; flex-direction: column; overflow-y: auto; background: var(--wlp-background); }
+    .wlp-practice-head { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--wlp-border); padding: 10px 20px; }
+    .wlp-practice-picker-head { min-height: 54px; justify-content: flex-end; border-bottom: 0; padding-top: 10px; }
+    .wlp-practice-heading { min-width: 0; }
+    .wlp-practice-heading strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18px; }
+    .wlp-practice-heading span { display: block; margin-top: 3px; color: var(--wlp-muted-foreground); font-size: 12px; }
+    .wlp-practice-head-actions { display: flex; align-items: center; gap: 7px; }
+    .wlp-practice-time-button { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; color: var(--wlp-muted-foreground) !important; }
+    .wlp-practice-time-button:hover { background: var(--wlp-muted); color: var(--wlp-foreground) !important; }
+    .wlp-practice-time-button svg { height: 16px; width: 16px; }
+    .wlp-practice-close { display: flex; height: 32px; width: 32px; flex: 0 0 32px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; color: var(--wlp-muted-foreground) !important; }
+    .wlp-practice-close:hover { background: var(--wlp-muted); color: var(--wlp-foreground) !important; }
+    .wlp-practice-body { width: min(100%, 680px); margin: 0 auto; padding: 22px 20px 16px; }
+    .wlp-practice-kicker { margin: 0 0 7px; color: var(--wlp-primary); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .wlp-practice-body h2 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -.03em; }
+    .wlp-practice-body > p { margin: 7px 0 18px; color: var(--wlp-muted-foreground); font-size: 14px; line-height: 1.45; }
+    .wlp-practice-slide { overflow: hidden; border: 1px solid var(--wlp-border); border-radius: 16px; background: #fff; }
+    .wlp-practice-slide-art { position: relative; display: flex; min-height: 190px; flex-direction: column; justify-content: center; overflow: hidden; background: linear-gradient(135deg, #2454d8, #163b98); padding: 24px; color: #fff; }
+    .wlp-practice-slide-art::after { position: absolute; right: -30px; bottom: -65px; height: 190px; width: 190px; border-radius: 999px; background: rgba(255,255,255,.08); content: ""; }
+    .wlp-practice-slide-line { display: block; width: 42px; height: 3px; margin-bottom: 20px; border-radius: 99px; background: rgba(255,255,255,.9); }
+    .wlp-practice-slide-art strong { position: relative; z-index: 1; font-size: 35px; line-height: 1; letter-spacing: -.04em; }
+    .wlp-practice-slide-art span { position: relative; z-index: 1; margin-top: 13px; color: rgba(255,255,255,.86); font-size: 15px; }
+    .wlp-practice-slide-meta { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; color: var(--wlp-muted-foreground); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .wlp-practice-picker-meta { display: none; }
+    .wlp-helper-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 18px; border: 0; border-radius: 0; background: transparent; padding: 8px 2px; }
+    .wlp-helper-only-card { justify-content: flex-start; }
+    .wlp-helper-card strong { display: block; font-size: 13px; }
+    .wlp-helper-card span { display: block; margin-top: 3px; color: var(--wlp-muted-foreground); font-size: 12px; }
+    .wlp-helper-words { flex: 0 0 auto; border-radius: 999px; background: #fff; padding: 7px 10px; color: var(--wlp-primary); font-size: 13px; font-weight: 700; }
+    .wlp-practice-time { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; border: 1px solid var(--wlp-border); border-radius: 14px; padding: 12px 14px; }
+    .wlp-practice-time strong { display: block; font-size: 13px; }
+    .wlp-practice-time span { display: block; margin-top: 3px; color: var(--wlp-muted-foreground); font-size: 12px; }
+    .wlp-practice-time b { border-radius: 999px; background: var(--wlp-foreground); padding: 8px 12px; color: #fff; font-size: 13px; }
+    .wlp-practice-time-sheet { width: min(100%, 460px); margin: 0 auto; }
+    .wlp-practice-time-sheet .wlp-sheet-option { align-items: center; }
+    .wlp-practice-footer { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding: 10px 20px max(26px, env(safe-area-inset-bottom)); }
+    .wlp-practice-action { display: flex; min-height: 52px; width: 100%; align-items: center; justify-content: center; gap: 9px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: #fff !important; font-size: 16px; font-weight: 600; }
+    .wlp-practice-secondary { display: flex; min-height: 40px; width: 100%; align-items: center; justify-content: center; color: var(--wlp-muted-foreground); font-size: 14px; }
+    .wlp-practice-record { width: min(100%, 760px); margin: auto; padding: 20px; }
+    .wlp-practice-record .wlp-practice-slide-art { min-height: 220px; }
+    .wlp-practice-record-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 8px; font-size: 13px; }
+    .wlp-practice-record-status strong { font-size: 15px; }
+    .wlp-practice-progress { height: 7px; overflow: hidden; border-radius: 99px; background: var(--wlp-border); }
+    .wlp-practice-progress span { display: block; height: 100%; border-radius: inherit; background: var(--wlp-primary); transition: width .2s ease; }
+    .wlp-practice-record-note { margin: 12px 0 0; color: var(--wlp-muted-foreground); font-size: 13px; line-height: 1.45; }
+    .wlp-practice-record-dock { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+    .wlp-practice-stop { display: flex; min-height: 50px; flex: 1; align-items: center; justify-content: center; gap: 8px; border-radius: 999px !important; background: var(--wlp-foreground) !important; color: #fff !important; font-size: 15px; font-weight: 600; }
+    .wlp-practice-finish { display: flex; min-height: 50px; align-items: center; justify-content: center; border: 1px solid var(--wlp-border) !important; border-radius: 999px; padding: 0 15px; font-size: 13px; font-weight: 600; }
+    .wlp-practice-finish:hover { background: var(--wlp-muted); }
+    /* RecordingRoadmap / RecordingStrip surface from the real app. The
+       recording state is deliberately flatter than the project picker: the
+       slide owns the room, helper words are loose orange text, and the strip
+       plus Back/Next controls stay pinned at the bottom. */
+    .wlp-practice-recording-overlay { overflow: hidden; }
+    .wlp-practice-recording-overlay .wlp-practice-head { min-height: 54px; flex: 0 0 auto; border-bottom: 0; padding: 10px 12px 0; }
+    .wlp-practice-recording-overlay .wlp-practice-head-actions { margin-left: auto; }
+    .wlp-practice-recording-where { margin: 0; color: var(--wlp-muted-foreground); font-size: 13px; font-weight: 600; letter-spacing: .01em; }
+    .wlp-practice-recording-overlay .wlp-practice-record { display: flex; min-height: 0; width: min(100%, 800px); flex: 1; flex-direction: column; margin: 0 auto; padding: 6px 20px 0; }
+    .wlp-practice-recording-overlay .wlp-practice-kicker { display: none; }
+    .wlp-practice-recording-overlay .wlp-practice-slide { flex: 0 0 auto; border: 0; border-radius: 0; background: transparent; }
+    .wlp-practice-recording-overlay .wlp-practice-slide-art { aspect-ratio: 16 / 9; min-height: 0; align-items: center; justify-content: center; border-radius: 16px; background: #162342; padding: 30px 34px; text-align: center; }
+    .wlp-practice-recording-overlay .wlp-practice-slide-art::after { display: none; }
+    .wlp-practice-recording-overlay .wlp-practice-slide-line { display: none; }
+    .wlp-practice-recording-overlay .wlp-practice-slide-art strong { font-size: clamp(30px, 5vw, 45px); }
+    .wlp-practice-recording-overlay .wlp-practice-slide-art > span:not(.wlp-practice-slide-line) { max-width: 86%; margin-top: 14px; color: rgba(255,255,255,.62); font-size: clamp(15px, 2.1vw, 20px); }
+    .wlp-practice-slide-number-row { position: relative; z-index: 1; display: flex; gap: 10px; margin-top: 23px; }
+    .wlp-practice-slide-number-row i { display: flex; height: 42px; width: 42px; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,.13); color: rgba(255,255,255,.88); font-size: 22px; font-style: normal; font-weight: 700; }
+    .wlp-practice-recording-overlay .wlp-practice-slide-meta { display: none; }
+    .wlp-practice-helper-area { display: flex; min-height: 0; flex: 1; align-items: center; justify-content: center; overflow-y: auto; padding: 24px 0; }
+    .wlp-practice-helper-display { margin: 0; color: var(--wlp-primary); font-size: clamp(24px, 4.1vw, 38px); font-weight: 600; line-height: 1.35; text-align: center; }
+    .wlp-practice-recording-footer { flex: 0 0 auto; padding: 14px 0 max(0px, env(safe-area-inset-bottom)); }
+    .wlp-practice-recording-strip { display: flex; min-height: 64px; align-items: center; gap: 12px; border-radius: 16px; background: var(--wlp-muted); padding: 12px 16px; }
+    .wlp-practice-recording-strip .wlp-record-dot { height: 12px; width: 12px; flex: 0 0 12px; background: #f3a19b; }
+    .wlp-practice-recording-clock { flex: 0 0 auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .wlp-practice-recording-track { height: 5px; flex: 1; overflow: hidden; border-radius: 99px; background: var(--wlp-border); }
+    .wlp-practice-recording-track span { display: block; height: 100%; border-radius: inherit; background: var(--wlp-primary); transition: width .2s ease; }
+    .wlp-practice-recording-strip.is-overrun .wlp-practice-recording-clock { color: var(--wlp-record); }
+    .wlp-practice-recording-strip.is-overrun .wlp-practice-recording-track span { background: var(--wlp-record); }
+    .wlp-practice-recording-nav { display: flex; gap: 10px; margin-top: 10px; }
+    .wlp-practice-recording-nav button { display: flex; height: 48px; flex: 1; align-items: center; justify-content: center; border-radius: 16px; font-size: 15px; font-weight: 600; }
+    .wlp-practice-recording-nav .wlp-practice-back { border: 1.5px solid var(--wlp-border) !important; background: var(--wlp-background) !important; color: var(--wlp-foreground) !important; }
+    .wlp-practice-recording-nav .wlp-practice-back:disabled { cursor: default; opacity: .35; }
+    .wlp-practice-recording-nav .wlp-practice-next { background: var(--wlp-foreground) !important; color: var(--wlp-background) !important; }
+    .wlp-practice-recording-nav .wlp-practice-finish-button { background: var(--wlp-record) !important; color: #fff !important; }
+    .wlp-practice-finish-square { height: 12px; width: 12px; flex: 0 0 12px; border-radius: 2px; background: currentColor; }
+    @media (max-width: 560px) {
+      .wlp-practice-recording-overlay .wlp-practice-head { padding-left: 12px; padding-right: 12px; }
+      .wlp-practice-recording-overlay .wlp-practice-record { padding-left: 14px; padding-right: 14px; }
+      .wlp-practice-recording-overlay .wlp-practice-slide-art { padding: 24px; }
+      .wlp-practice-recording-footer { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+    }
+    .wlp-ideal-overlay { overflow: hidden; }
+    .wlp-ideal-head { flex: 0 0 auto; }
+    .wlp-ideal-page-body { width: min(100%, 760px); min-height: 0; flex: 1; margin: 0 auto; overflow-y: auto; padding: 34px 22px 12px; }
+    .wlp-ideal-slide-preview { position: relative; display: flex; min-height: 250px; flex-direction: column; justify-content: center; overflow: hidden; border-radius: 9px; background: linear-gradient(135deg, #2454d8, #163b98); padding: 34px; color: #fff; }
+    .wlp-ideal-slide-preview::after { position: absolute; right: -50px; bottom: -90px; height: 260px; width: 260px; border-radius: 999px; background: rgba(255,255,255,.08); content: ""; }
+    .wlp-ideal-slide-preview .wlp-slide-line { position: relative; z-index: 1; display: block; width: 44px; height: 5px; margin-bottom: 28px; border-radius: 999px; background: rgba(255,255,255,.9); }
+    .wlp-ideal-slide-preview strong { position: relative; z-index: 1; font-size: 44px; line-height: 1; letter-spacing: -.05em; }
+    .wlp-ideal-slide-preview span { position: relative; z-index: 1; margin-top: 20px; color: rgba(255,255,255,.9); font-size: 21px; }
+    .wlp-ideal-copy { font-size: 18px; line-height: 1.55; }
+    .wlp-ideal-copy p { margin: 0 0 28px; }
+    .wlp-ideal-fragment + .wlp-ideal-fragment { margin-top: 34px; }
+    .wlp-ideal-slide-orange { position: relative; display: flex; min-height: 260px; flex-direction: column; justify-content: center; overflow: hidden; border-radius: 9px; background: linear-gradient(135deg, #ff7a1a, #ee4e0e); padding: 34px; color: #fff; }
+    .wlp-ideal-slide-orange::after { position: absolute; right: -50px; bottom: -90px; height: 260px; width: 260px; border-radius: 999px; background: rgba(255,255,255,.08); content: ""; }
+    .wlp-ideal-slide-orange .wlp-slide-line { position: relative; z-index: 1; display: block; width: 44px; height: 5px; margin-bottom: 25px; border-radius: 999px; background: rgba(255,255,255,.9); }
+    .wlp-ideal-slide-orange strong { position: relative; z-index: 1; font-size: 42px; line-height: 1; letter-spacing: -.05em; }
+    .wlp-ideal-slide-orange .wlp-orange-numbers { position: relative; z-index: 1; display: flex; gap: 12px; margin-top: 27px; }
+    .wlp-orange-numbers i { display: flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,.24); font-size: 24px; font-style: normal; font-weight: 700; }
+    .wlp-ideal-actions { position: static; flex: 0 0 auto; background: #fff; }
+    @media (max-width: 560px) {
+      .wlp-practice-body, .wlp-practice-record, .wlp-ideal-page-body { padding-left: 18px; padding-right: 18px; }
+      .wlp-practice-footer { padding-left: 18px; padding-right: 18px; }
+      .wlp-practice-slide-art { min-height: 170px; }
+      .wlp-practice-slide-art strong { font-size: 30px; }
+      .wlp-ideal-page-body { padding-top: 24px; }
+      .wlp-ideal-slide-preview { min-height: 190px; padding: 24px; }
+      .wlp-ideal-slide-preview strong { font-size: 34px; }
+      .wlp-ideal-slide-preview span { font-size: 15px; }
+      .wlp-ideal-copy { font-size: 16px; }
+      .wlp-ideal-slide-orange { min-height: 200px; padding: 24px; }
+      .wlp-ideal-slide-orange strong { font-size: 32px; }
+    }
+    .wlp-ideal-overlay { position: absolute; inset: 0; z-index: 8; display: flex; min-height: 0; flex-direction: column; background: var(--wlp-background); }
+    .wlp-ideal-head { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--wlp-border); padding: 10px 20px; }
+    .wlp-ideal-heading { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+    .wlp-ideal-heading strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }
+    .wlp-ideal-heading span { font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-ideal-head-actions { display: flex; align-items: center; gap: 6px; }
+    .wlp-ideal-menu { display: flex; height: 28px; width: 28px; align-items: center; justify-content: center; border-radius: 999px; color: var(--wlp-muted-foreground); font-size: 19px; }
+    .wlp-ideal-menu:hover { background: var(--wlp-muted); color: var(--wlp-foreground); }
+    .wlp-ideal-text { min-height: 0; flex: 1; overflow-y: auto; padding: 22px 20px 12px; font-size: 17px; line-height: 1.55; }
+    .wlp-ideal-text p { margin: 0 0 18px; }
+    .wlp-ideal-text .wlp-slide-label { margin-bottom: 6px; color: var(--wlp-muted-foreground); font-size: 13px; }
+    .wlp-ideal-actions { display: flex; flex-direction: column; gap: 4px; padding: 8px 20px max(30px, env(safe-area-inset-bottom)); }
+    .wlp-ideal-copy p strong { display: block; margin-bottom: 5px; font-size: 13px; }
+    .wlp-ideal-menu-pop { position: absolute; right: 20px; top: 50px; z-index: 2; width: 190px; overflow: hidden; border: 1px solid var(--wlp-border); border-radius: 16px; background: #fff; padding: 5px 0; box-shadow: 0 12px 32px rgba(0,0,0,.14); }
+    .wlp-ideal-menu-pop button { display: block; width: 100%; padding: 10px 14px; text-align: left; font-size: 14px; }
+    .wlp-ideal-menu-pop button:hover { background: var(--wlp-muted); }
+    .wlp-moment-card[data-open-walk] { width: 100%; text-align: left; cursor: pointer; }
+    .wlp-moment-card[data-open-walk]:hover { border-color: #d2d2d2; box-shadow: 0 4px 14px rgba(0,0,0,.04); }
+    @keyframes wlp-walk-open { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes wlp-walk-next { from { transform: translateX(26px); opacity: .45; } to { transform: translateX(0); opacity: 1; } }
+    .wlp-walk-motion-open { animation: wlp-walk-open .34s ease-out both; }
+    .wlp-walk-motion-next { animation: wlp-walk-next .28s ease-out both; }
+    .wlp-sheet-backdrop { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; justify-content: flex-end; background: rgba(0,0,0,.28); }
+    .wlp-sheet { border-radius: 24px 24px 0 0; background: #fff; padding: 10px 18px 22px; box-shadow: 0 -14px 40px rgba(0,0,0,.12); }
+    .wlp-grabber { height: 5px; width: 40px; margin: 0 auto 18px; border-radius: 999px; background: #e0e0e0; }
+    .wlp-sheet h2 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.03em; }
+    .wlp-sheet p { margin: 0 0 16px; font-size: 14px; line-height: 1.4; color: var(--wlp-muted-foreground); }
+    .wlp-sheet-option { display: flex; width: 100%; align-items: center; justify-content: space-between; border-top: 1px solid var(--wlp-border); padding: 15px 0; text-align: left; }
+    .wlp-sheet-option strong { font-size: 15px; }
+    .wlp-sheet-option span { display: block; margin-top: 3px; font-size: 12px; color: var(--wlp-muted-foreground); }
+    .wlp-sheet-footer { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+    .wlp-create-input { width: 100%; border: 1px solid var(--wlp-border); border-radius: 14px; padding: 12px 13px; outline: none; font-size: 15px; }
+    .wlp-create-input:focus { border-color: var(--wlp-primary); }
+    .wlp-hidden { display: none !important; }
+    @media (max-width: 720px) {
+      #willab-chat-prototype { min-height: 660px; border-radius: 0; border-right: 0; border-left: 0; }
+      .wlp-shell { min-height: 660px; }
+      .wlp-rail { width: 270px; flex-basis: 270px; }
+      .wlp-thread { padding-left: 16px; padding-right: 16px; }
+    }
+    @media (max-width: 560px) {
+      .wlp-shell { display: block; }
+      #willab-chat-prototype[data-view="list"] .wlp-rail { display: block; width: 100%; min-height: 660px; border-right: 0; }
+      #willab-chat-prototype[data-view="list"] .wlp-chat-pane { display: none; }
+      #willab-chat-prototype:not([data-view="list"]) .wlp-rail { display: none; }
+      #willab-chat-prototype:not([data-view="list"]) .wlp-chat-pane { display: flex; min-height: 660px; }
+      .wlp-walk-body, .wlp-walk-dock, .wlp-ideal-text, .wlp-ideal-actions { padding-left: 20px; padding-right: 20px; }
+      .wlp-setup-screen { padding-left: 18px; padding-right: 18px; }
+      .wlp-setup-body { padding-top: 28px; }
+      .wlp-picker-content { padding-left: 0; padding-right: 0; }
+    }
+  </style>
+
+  <div class="wlp-shell">
+    <aside class="wlp-rail" aria-label="Your chats">
+      <div class="wlp-brand">
+        <span class="wlp-brand-name">WillpowerLab</span>
+        <span class="wlp-brand-note">Your chats</span>
+      </div>
+      <div class="wlp-list-title">Chats</div>
+      <div class="wlp-chat-list" id="wlp-chat-list"></div>
+    </aside>
+
+    <section class="wlp-chat-pane" aria-label="Chat">
+      <div id="wlp-chat-view"></div>
+      <div id="wlp-overlay"></div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("willab-chat-prototype");
+      if (!root) return;
+      const list = document.getElementById("wlp-chat-list");
+      const view = document.getElementById("wlp-chat-view");
+      const overlay = document.getElementById("wlp-overlay");
+      if (!list || !view || !overlay) return;
+
+      const icons = {
+        back: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>',
+        pin: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 17 5 5v-6.5a7 7 0 1 0-10 0V22l5-5Z"/></svg>',
+        layers: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
+        mic: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></svg>',
+        send: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+        play: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7V5Z"/></svg>',
+        feedback: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M8 9h8M8 12h5"/></svg>',
+        present: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18v11H3zM8 21h8M12 16v5"/><path d="m17 10 3 3-3 3"/></svg>',
+        pause: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>',
+        check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>',
+        arrow: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
+        plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+        upload: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>',
+        timer: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6M12 2v3"/></svg>',
+        x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>'
+      };
+
+      const chats = [
+        { id: "project-1", title: "testingg", subtitle: "", preview: "Pick up at slide 1 &middot; 5 minutes left", time: "Now", letter: "T", paused: true, trainingState: "paused", sessionCount: 1, checkpoint: "slide 1 &middot; opening", duration: "5 minutes", timeLimitMinutes: 40, processing: false, questionAnswered: false, moment: "practice", idealFragmentStart: 1, idealFragmentEnd: 2 },
+        { id: "project-2", title: "Board meeting", subtitle: "", preview: "Five practice chunks ready", time: "Today", letter: "B", paused: true, trainingState: "paused", sessionCount: 5, checkpoint: "slide 1 · opening", duration: "5 minutes", timeLimitMinutes: 40, processing: false, questionAnswered: false, moment: "practice", idealFragmentStart: 1, idealFragmentEnd: 2 },
+      ];
+      let current = new URLSearchParams(window.location.search).get("project") || "will";
+      let overlayState = null;
+      let newProjectCount = 0;
+      let idealMenuOpen = false;
+      let idealCopied = false;
+      let onboardingStep = 0;
+      let onboardingConsent = false;
+      let onboardingCountry = "";
+      let setupFeeling = null;
+      let setupTopic = "";
+      let setupLength = 300;
+      let setupLengthOther = false;
+      let setupCustomMinutes = "";
+      let setupSlidesAttached = false;
+      let practiceMode = "continue";
+      let practiceSlide = 1;
+      let practiceElapsedSeconds = 0;
+      let practiceDurationSeconds = 240;
+      let practiceReturnState = "practice-picker";
+      let practicePartial = true;
+      let practiceSaved = false;
+      let projectResearch = { projectId: null, targetSlide: 3, step: 0, answers: [], decisionPending: false };
+      let feedbackWalkExpanded = false;
+      let feedbackWalkTitle = "";
+      const feedbackHistory = [
+        { attempts: 2, slideRange: "1-5", date: "2 Nov", score: 48, quality: "Not yet there", tone: "needs-work" },
+        { attempts: 4, slideRange: "6-12", date: "5 Nov", score: 57, quality: "Almost", tone: "almost" },
+        { attempts: 6, slideRange: "13-18", date: "8 Nov", score: 63, quality: "Good", tone: "good" },
+        { attempts: 8, slideRange: "19-24", date: "10 Nov", score: 69, quality: "Good", tone: "good" },
+        { attempts: 10, slideRange: "25-30", date: "12 Nov", score: 74, quality: "Strong delivery", tone: "strong" },
+      ];
+      const feedbackSingle = [{ attempts: 10, slideRange: "1-5", date: "12 Nov", score: 10, quality: "Not yet there", tone: "needs-work" }];
+      let feedbackWagons = feedbackHistory;
+      function feedbackWagonsForChat(chat = currentProject()) {
+        const state = new URLSearchParams(window.location.search).get("state");
+        if (state === "single" || String(chat?.title || "").toLowerCase() === "testingg") return feedbackSingle.map((chunk) => ({ ...chunk }));
+        return feedbackHistory;
+      }
+      let presentationSlideIndex = 0;
+      let presentationTheme = "blue";
+      const presentationThemes = {
+        blue: { label: "Blue", surface: "#e9ebf4", slide: "#2148be", ink: "#fff", accent: "#ffb083" },
+        warm: { label: "Warm", surface: "#f4ece6", slide: "#e4c7ad", ink: "#271f1a", accent: "#c2613e" },
+        light: { label: "Light", surface: "#f1f1ef", slide: "#fff", ink: "#201e1c", accent: "#ff6727" },
+      };
+      const presentationExamples = [
+        { label: "Opening", title: "Make the idea easy to follow.", copy: "One thought at a time, with room for the listener to stay with you." },
+        { label: "The point", title: "Start with the change you want.", copy: "Give the audience a reason to care before you add the detail." },
+        { label: "The proof", title: "Show one useful example.", copy: "A small, concrete moment makes the bigger idea believable." },
+        { label: "The ask", title: "Make the next step clear.", copy: "End with one action that feels simple to take." },
+        { label: "Close", title: "Leave them with the line.", copy: "Repeat the idea they should remember after the room goes quiet." },
+      ];
+      let sundayNote = {
+        status: "offered",
+        step: "bug",
+        rows: [],
+        principle: "State your point without weakening it first.",
+        editingError: false,
+        editingPrinciple: false,
+      };
+
+      const mark = (chat) => chat.id === "will"
+        ? '<span class="wlp-will-mark" aria-hidden><i></i><i></i><i></i></span>'
+        : `<span class="wlp-project-mark" aria-hidden>${chat.letter}</span>`;
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+      }
+
+      function chatRow(chat) {
+        const selected = current === chat.id ? " is-selected" : "";
+        const subtitle = chat.id === "will" ? "Speaking Coach" : chat.subtitle;
+        const preview = chat.preview || (chat.id === "will" ? "AI audio is ready" : "");
+        return `<div class="wlp-chat-row${selected}${chat.paused ? " is-paused" : ""}" role="button" tabindex="0" data-open-chat="${chat.id}">
+          ${mark(chat)}
+          <span class="wlp-chat-main">
+            <span class="wlp-chat-line"><strong class="wlp-chat-title">${chat.title}</strong><span class="wlp-chat-subtitle">${subtitle}</span><span class="wlp-chat-time">${chat.time || ""}</span></span>
+            <span class="wlp-chat-preview">${preview}</span>
+          </span>
+          <span class="wlp-row-actions">${chat.id === "will" ? `<span class="wlp-pin" title="Pinned">${icons.pin}</span>` : `<button class="wlp-row-menu" type="button" data-chat-menu="${chat.id}" aria-label="Project actions">&middot;&middot;&middot;</button>`}</span>
+        </div>`;
+      }
+
+      function renderList() {
+        list.innerHTML = chatRow({ id: "will", title: "Will", time: "", preview: "AI audio is ready" }) + chats.filter((chat) => !chat.archived).map(chatRow).join("");
+        list.querySelectorAll("[data-open-chat]").forEach((row) => {
+          const open = () => {
+            current = row.getAttribute("data-open-chat") || "will";
+            render();
+          };
+          row.addEventListener("click", (event) => { if (!event.target.closest("[data-chat-menu]")) open(); });
+          row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
+        });
+        list.querySelectorAll("[data-chat-menu]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); openProjectActions(button.getAttribute("data-chat-menu")); }));
+      }
+
+      function topbar(title, subtitle) {
+        const isWill = title === "Will" || title === "Speaking coach";
+        const topMark = isWill ? '<span class="wlp-will-mark wlp-top-mark" aria-hidden><i></i><i></i><i></i></span>' : mark({ id: "project", title, letter: title[0] });
+        return `<header class="wlp-topbar"><button class="wlp-back" type="button" data-back aria-label="Back">${icons.back}</button>${topMark}<span class="wlp-top-title"><strong>${title}</strong>${subtitle ? `<span>${subtitle}</span>` : ""}</span></header>`;
+      }
+
+      function feedbackWalkCard(openAttribute = "data-open-walk") {
+        feedbackWagons = feedbackWagonsForChat();
+        const hidden = feedbackWagons.length - 1;
+        const inferredTitle = currentProject()?.title || "Presentation";
+        const displayTitle = feedbackWalkTitle || inferredTitle;
+        const overallProgress = feedbackWagons[feedbackWagons.length - 1]?.score || 0;
+        const isSingleChunk = feedbackWagons.length === 1;
+        const visible = feedbackWalkExpanded ? feedbackWagons : feedbackWagons.slice(-1);
+        const wagons = visible.map((wagon, index) => {
+          const latest = index === visible.length - 1;
+          const label = `Slides ${wagon.slideRange}`;
+          const meta = latest ? `${wagon.date} - next: strengthen` : `${wagon.date} - practice`;
+          return `<div class="wlp-feedback-wagon ${latest ? "wlp-feedback-wagon-latest" : "wlp-feedback-wagon-old"}" data-feedback-wagon-index="${feedbackWagons.indexOf(wagon)}">
+            <button class="wlp-feedback-wagon-thumb" type="button" data-open-presentation aria-label="Open slide image"><span class="wlp-feedback-wagon-thumb-image" aria-hidden="true"></span></button>
+            <div class="wlp-feedback-wagon-copy"><div class="wlp-feedback-wagon-row"><span class="wlp-feedback-range-wrap"><span class="wlp-feedback-wagon-name" data-feedback-range contenteditable="true" spellcheck="false" title="Click to edit slides" aria-label="Edit slide range">${escapeHtml(label)}</span><span class="wlp-feedback-edit-hint" aria-hidden="true">Edit</span></span><span class="wlp-feedback-wagon-stats"><span class="wlp-feedback-wagon-take">${wagon.attempts} ${wagon.attempts === 1 ? "attempt" : "attempts"}</span></span></div><div class="wlp-feedback-wagon-quality-row"><span class="wlp-feedback-quality ${wagon.tone}"><span class="wlp-feedback-quality-icon" aria-hidden="true"></span>${wagon.quality}</span></div></div>
+          </div>`;
+        }).join("");
+        return `<div class="wlp-feedback-walk-card${isSingleChunk ? " is-single-chunk" : ""}">
+          <div class="wlp-feedback-walk-card-head"><div class="wlp-feedback-title-line"><div class="wlp-feedback-walk-title" data-feedback-walk-title contenteditable="true" spellcheck="false" title="Click to rename presentation" aria-label="Edit presentation name">${escapeHtml(displayTitle)}</div><span class="wlp-feedback-edit-hint" aria-hidden="true">Click to edit</span></div></div>
+          <div class="wlp-feedback-general"><div class="wlp-feedback-general-row"><span>Progress</span><b>${overallProgress}%</b></div><div class="wlp-feedback-general-track" aria-label="${overallProgress}% progress"><span style="width:${overallProgress}%"></span></div></div>
+          ${hidden > 0 ? `<button class="wlp-feedback-walk-toggle" type="button" data-feedback-walk-toggle aria-expanded="${feedbackWalkExpanded}">${feedbackWalkExpanded ? "Hide earlier chunks" : `Show ${hidden} earlier chunks`}</button>` : ""}
+          <div class="wlp-feedback-chain">${wagons}</div>
+          <div class="wlp-feedback-walk-actions"><button class="primary" type="button" ${openAttribute}>${icons.feedback}Feedback</button><button class="secondary" type="button" data-open-presentation>${icons.present}Ideal text</button></div>
+        </div>`;
+      }
+
+      function composer() {
+        // Lounge.tsx: Layers | textarea | conditional Send. There is no
+        // microphone in the real off-task Lounge composer.
+        return `<form class="wlp-composer" id="wlp-composer"><button class="wlp-icon-button" id="wlp-projects" type="button" aria-label="Your projects">${icons.layers}</button><span class="wlp-input-wrap"><textarea class="wlp-input" rows="1" placeholder="Message Will" aria-label="Message Will"></textarea><button class="wlp-send is-hidden" id="wlp-send" type="submit" aria-label="Send">${icons.send}</button></span></form>`;
+      }
+
+      function willChat() {
+        const planHello = `<div class="wlp-bubble-row wlp-plan-row"><div class="wlp-plan-bubble">Hi Artur, good to see you back!<strong>Make it yours</strong><div class="wlp-plan-bar" aria-label="Three practices completed"><i class="done"></i><i class="done"></i><i class="done"></i><i></i></div><button type="button" class="wlp-plan-link" data-open-plan>See your plan</button></div></div>`;
+        const sundayRows = sundayNote.rows.map((row) => `<div class="wlp-bubble-row${row.role === "user" ? " me" : ""}"><div class="wlp-bubble${row.role === "user" ? " me" : ""}">${escapeHtml(row.body)}</div></div>`).join("");
+        const waiting = sundayNote.status === "offered" || sundayNote.status === "investigating";
+        const dock = sundayNote.status === "offered"
+          ? `<div class="wlp-sunday-offer-dock"><button type="button" class="outline" data-sunday-dismiss>Not now</button><button type="button" class="dark" data-sunday-investigate>Investigate</button></div>`
+          : composer();
+        return `${topbar("Speaking coach", "")}
+          <div class="wlp-thread wlp-lounge-thread">
+            <div class="wlp-date-line">Friday 13 November</div>
+            ${planHello}
+            <div class="wlp-bubble-row wlp-screenshot-message wlp-long wlp-one-thing"><div class="wlp-bubble">Today, one thing: say it like your best moment. You've got this &#x1F4AA;</div></div>
+            <div class="wlp-date-line">Saturday 14 November</div>
+            ${planHello}
+            <div class="wlp-bubble-row wlp-screenshot-message wlp-long wlp-one-thing"><div class="wlp-bubble">Today, one thing: say it like your best moment. You've got this &#x1F4AA;</div></div>
+            <div class="wlp-date-line">Sunday 15 November</div>
+            <div class="wlp-bubble-row"><button type="button" class="wlp-sunday-head${waiting ? " is-waiting" : ""}" data-sunday-open>We spotted a pattern!<span aria-hidden="true">&rsaquo;</span></button></div>
+            <div class="wlp-bubble-row wlp-screenshot-message wlp-long"><div class="wlp-bubble">Across your recent projects, you often begin important points with &ldquo;I don&rsquo;t know, but I think&hellip;&rdquo;, which weakens your case before you make it.</div></div>
+            ${sundayRows}
+          </div>${dock}`;
+      }
+
+      function sundaySay(role, body) {
+        sundayNote.rows.push({ role, body });
+      }
+
+      function openSundayLens() {
+        if (sundayNote.status === "offered") sundayNote.status = "investigating";
+        if (sundayNote.step === "bug" && !sundayNote.rows.some((row) => row.body === "What kind of error is it?")) sundaySay("bot", "What kind of error is it?");
+        renderSundayLens();
+      }
+
+      function finishSundayPrinciple(choice, editedText = "") {
+        if (choice === "not_now") {
+          sundaySay("user", "Not now");
+          sundaySay("bot", "Noted.");
+          sundayNote.status = "declined";
+        } else {
+          if (choice === "edit" && editedText.trim()) sundayNote.principle = editedText.trim();
+          sundaySay("user", choice === "accept" ? "Accept" : `\u269C\uFE0F ${sundayNote.principle}`);
+          sundaySay("bot", "Noted. Added to your principles.");
+          sundayNote.status = "done";
+        }
+        sundayNote.step = "done";
+        sundayNote.editingPrinciple = false;
+        renderSundayLens();
+      }
+
+      function renderSundayLens() {
+        overlayState = "sunday-note";
+        const rows = sundayNote.rows.map((row) => `<div class="wlp-walk-row${row.role === "user" ? " me" : ""}"><div class="wlp-walk-bubble${row.body.startsWith("\u269C") ? " wlp-sunday-principle" : ""}">${escapeHtml(row.body)}</div></div>`).join("");
+        let dock = "";
+        if (sundayNote.step === "bug" && sundayNote.editingError) {
+          dock = `<div class="wlp-sunday-field-group"><label for="wlp-sunday-error-name">Name the error</label><input class="wlp-sunday-field" id="wlp-sunday-error-name" aria-label="Name the error" autofocus></div><div class="wlp-sunday-field-group"><label for="wlp-sunday-error-definition">What is measured?</label><textarea class="wlp-sunday-field" id="wlp-sunday-error-definition" rows="2" aria-label="What is measured?"></textarea></div><div class="wlp-sunday-field-group"><label for="wlp-sunday-error-question">The single question it asks</label><input class="wlp-sunday-field" id="wlp-sunday-error-question" aria-label="The single question it asks"></div><p class="wlp-sunday-observed-note">A new error is observed only. It routes no exercise until a detector can hear it.</p><button type="button" class="wlp-walk-pill dark" data-sunday-add-error disabled>Add</button><button type="button" class="wlp-walk-link" data-sunday-back-error>Back</button>`;
+        } else if (sundayNote.step === "bug") {
+          const speakingErrors = [
+            ["Rushing", "Too little silence between words for a listener to keep up."],
+            ["Ending compression", "The last words of a sentence are swallowed or hurried."],
+            ["Hedging", "Softening words that take the weight off a claim."],
+            ["Word compression", "Words run together so single words are lost."],
+            ["Filler words", "Um, like or you know between ideas."],
+          ];
+          dock = `${speakingErrors.map(([label, definition]) => `<button type="button" class="wlp-sunday-choice" data-sunday-error="${label}"><span class="wlp-sunday-choice-copy"><strong>${label}</strong><small>${definition}</small></span></button>`).join("")}<button type="button" class="wlp-sunday-choice add" data-sunday-new-error>Something else &middot; Name a new error<span aria-hidden="true">+</span></button>`;
+        } else if (sundayNote.step === "applied") {
+          dock = `${["Say what you mean without apologising first.", "Lead with what you know.", "None yet"].map((label) => `<button type="button" class="wlp-sunday-choice" data-sunday-applied="${label}">${label === "None yet" ? "" : "&#x269C;&#xFE0F; "}${label}</button>`).join("")}`;
+        } else if (sundayNote.step === "reflection") {
+          dock = `<textarea class="wlp-sunday-field" id="wlp-sunday-reflection" rows="3" aria-label="Your reflection"></textarea><button type="button" class="wlp-walk-pill dark" data-sunday-next disabled>Next</button><button type="button" class="wlp-walk-link" data-sunday-skip>Skip</button>`;
+        } else if (sundayNote.step === "principle" && sundayNote.editingPrinciple) {
+          dock = `<input class="wlp-sunday-field" id="wlp-sunday-principle" value="${escapeHtml(sundayNote.principle)}" aria-label="Edit principle" autofocus><button type="button" class="wlp-walk-pill dark" data-sunday-add-principle>Add principle</button><button type="button" class="wlp-walk-link" data-sunday-back-principle>Back</button>`;
+        } else if (sundayNote.step === "principle") {
+          dock = `<button type="button" class="wlp-walk-pill dark" data-sunday-accept>Accept</button><button type="button" class="wlp-walk-pill outline" data-sunday-edit>Edit</button><button type="button" class="wlp-walk-link" data-sunday-decline>Not now</button>`;
+        } else {
+          dock = `<button type="button" class="wlp-walk-pill dark" data-sunday-close>Close</button>`;
+        }
+        overlay.innerHTML = `<div class="wlp-full-overlay wlp-sunday-lens" role="dialog" aria-modal="true" aria-label="Sunday note"><div class="wlp-walk-top"><div class="wlp-walk-nav"><button type="button" data-sunday-close aria-label="Back">${icons.back}</button><span>Sunday note</span><span aria-hidden="true">&rsaquo;</span></div><button type="button" class="wlp-overlay-close" data-sunday-close aria-label="Close">${icons.x}</button></div><div class="wlp-walk-body"><div class="wlp-walk-thread"><div class="wlp-walk-row"><div class="wlp-walk-bubble">We spotted a pattern!</div></div><div class="wlp-walk-row"><div class="wlp-walk-bubble">Across your recent projects, you often begin important points with &ldquo;I don&rsquo;t know, but I think&hellip;&rdquo;, which weakens your case before you make it.</div></div>${rows}</div></div><div class="wlp-sunday-lens-dock">${dock}</div></div>`;
+        overlay.querySelectorAll("[data-sunday-close]").forEach((button) => button.addEventListener("click", () => { closeOverlay(); current = "will"; render(); }));
+        overlay.querySelectorAll("[data-sunday-error]").forEach((button) => button.addEventListener("click", () => {
+          sundaySay("user", button.getAttribute("data-sunday-error"));
+          sundaySay("bot", "Did you have a principle in place already?");
+          sundayNote.step = "applied";
+          renderSundayLens();
+        }));
+        overlay.querySelector("[data-sunday-new-error]")?.addEventListener("click", () => { sundayNote.editingError = true; renderSundayLens(); });
+        overlay.querySelector("[data-sunday-back-error]")?.addEventListener("click", () => { sundayNote.editingError = false; renderSundayLens(); });
+        const errorName = overlay.querySelector("#wlp-sunday-error-name");
+        const errorDefinition = overlay.querySelector("#wlp-sunday-error-definition");
+        const errorQuestion = overlay.querySelector("#wlp-sunday-error-question");
+        const addError = overlay.querySelector("[data-sunday-add-error]");
+        const validateError = () => { if (addError) addError.disabled = !errorName?.value.trim() || !errorDefinition?.value.trim() || !errorQuestion?.value.trim(); };
+        [errorName, errorDefinition, errorQuestion].forEach((field) => field?.addEventListener("input", validateError));
+        addError?.addEventListener("click", () => {
+          if (!errorName?.value.trim() || !errorDefinition?.value.trim() || !errorQuestion?.value.trim()) return;
+          sundaySay("user", errorName.value.trim());
+          sundaySay("bot", "Did you have a principle in place already?");
+          sundayNote.editingError = false;
+          sundayNote.step = "applied";
+          renderSundayLens();
+        });
+        overlay.querySelectorAll("[data-sunday-applied]").forEach((button) => button.addEventListener("click", () => {
+          const answer = button.getAttribute("data-sunday-applied") || "None yet";
+          sundaySay("user", answer === "None yet" ? answer : `\u269C\uFE0F ${answer}`);
+          sundaySay("bot", "Reflections: what do you take from this?");
+          sundayNote.step = "reflection";
+          renderSundayLens();
+        }));
+        const reflection = overlay.querySelector("#wlp-sunday-reflection");
+        const next = overlay.querySelector("[data-sunday-next]");
+        reflection?.addEventListener("input", () => { if (next) next.disabled = !reflection.value.trim(); });
+        const keepReflection = (text) => {
+          sundaySay("user", text || "Skip");
+          sundaySay("bot", "Will suggests a new principle:");
+          sundaySay("bot", `\u269C\uFE0F ${sundayNote.principle}`);
+          sundayNote.step = "principle";
+          renderSundayLens();
+        };
+        next?.addEventListener("click", () => keepReflection(reflection?.value.trim()));
+        overlay.querySelector("[data-sunday-skip]")?.addEventListener("click", () => keepReflection(""));
+        overlay.querySelector("[data-sunday-accept]")?.addEventListener("click", () => finishSundayPrinciple("accept"));
+        overlay.querySelector("[data-sunday-edit]")?.addEventListener("click", () => { sundayNote.editingPrinciple = true; renderSundayLens(); });
+        overlay.querySelector("[data-sunday-back-principle]")?.addEventListener("click", () => { sundayNote.editingPrinciple = false; renderSundayLens(); });
+        overlay.querySelector("[data-sunday-add-principle]")?.addEventListener("click", () => {
+          const field = overlay.querySelector("#wlp-sunday-principle");
+          if (field?.value.trim()) finishSundayPrinciple("edit", field.value);
+        });
+        overlay.querySelector("[data-sunday-decline]")?.addEventListener("click", () => finishSundayPrinciple("not_now"));
+      }
+
+      function projectChat(chat) {
+        const active = chat.trainingState === "active";
+        const hasPractice = Boolean(chat.moment || chat.sessionCount);
+        const isResearching = projectResearch.projectId === chat.id;
+        const answers = isResearching ? projectResearch.answers : [];
+        const safeAnswers = answers.map(escapeHtml);
+        const researchRows = isResearching ? `<div class="wlp-project-context">
+          <div class="wlp-bubble-row"><div class="wlp-bubble">Ok, now let's understand the context behind that moment.</div></div>
+          <div class="wlp-bubble-row"><div class="wlp-bubble">We just worked on &ldquo;Even if it's so light, it's barely visible, it's just shining like, like a diamond. Like a diamond&rdquo;. Who were you talking to? &#x1F3AF;</div></div>
+          ${answers[0] ? `<div class="wlp-bubble-row me"><div class="wlp-bubble me">${safeAnswers[0]}</div></div><div class="wlp-bubble-row"><div class="wlp-bubble">What did you want the person listening to feel or do after hearing this part? &#x1F914;</div></div>` : ""}
+          ${answers[1] ? `<div class="wlp-bubble-row me"><div class="wlp-bubble me">${safeAnswers[1]}</div></div><div class="wlp-bubble-row"><div class="wlp-bubble">We read this moment as gentle and reassuring, rather than persuasive. Does that match what you wanted?</div></div>` : ""}
+          ${answers[2] ? `<div class="wlp-bubble-row me"><div class="wlp-bubble me">${safeAnswers[2]}</div></div><div class="wlp-bubble-row"><div class="wlp-bubble">Got it. I&rsquo;ll keep that as context for ${escapeHtml(chat.title)}.</div></div><div class="wlp-bubble-row"><div class="wlp-bubble">Ready to choose what you want to practise next?</div></div>` : ""}
+          ${projectResearch.step < 3 ? `<div class="wlp-project-answer-options">${(projectResearch.step === 0 ? ["Myself", "A client", "My team"] : projectResearch.step === 1 ? ["Reassure them", "Help them decide", "Make it memorable"] : ["Yes, reassuring", "Not quite"]).map((answer) => `<button type="button" data-project-answer="${answer}">${answer}</button>`).join("")}</div>` : ""}
+        </div>` : "";
+        const history = hasPractice ? `
+            <div class="wlp-project-pair">
+              ${feedbackWalkCard("data-open-walk")}
+              <span data-open-ideal-text hidden aria-hidden="true"></span>
+            </div>
+            ${researchRows}
+          ` : "";
+        const actionLabel = active ? "Stop and see feedback" : hasPractice ? "Continue recording" : "Start recording";
+        const needsAnswer = isResearching && projectResearch.step < 3;
+        const dock = needsAnswer
+          ? `<form class="wlp-project-answer-composer wlp-composer" id="wlp-project-answer-form"><button class="wlp-icon-button" id="wlp-projects" type="button" aria-label="Your projects">${icons.layers}</button><span class="wlp-input-wrap"><textarea class="wlp-input" id="wlp-project-answer-input" rows="1" placeholder="Or type your answer" aria-label="Answer about this take"></textarea><button class="wlp-send is-hidden" id="wlp-project-answer-send" type="submit" aria-label="Send answer">${icons.send}</button></span></form>`
+          : `<div class="wlp-project-composer wlp-composer"><button class="wlp-icon-button" id="wlp-projects" type="button" aria-label="Your projects">${icons.layers}</button><button class="wlp-record-dock-button" id="${active ? "wlp-pause" : "wlp-continue"}" type="button"><span class="wlp-record-dot"></span>${actionLabel}</button></div>`;
+        return `${topbar(chat.title, "")}
+          <div class="wlp-thread wlp-lounge-thread wlp-project-thread">
+            ${history}
+          </div>${dock}`;
+      }
+
+      function listView() {
+        return "";
+      }
+
+      function answerProjectResearch(chat, answer) {
+        const value = String(answer || "").trim();
+        if (!chat || projectResearch.projectId !== chat.id || projectResearch.step >= 3 || !value) return;
+        projectResearch.answers[projectResearch.step] = value;
+        projectResearch.step += 1;
+        chat.preview = projectResearch.step === 3 ? `Ready to continue from slide ${projectResearch.targetSlide}` : value;
+        chat.time = "Now";
+        render();
+      }
+
+      function render() {
+        root.dataset.view = current;
+        renderList();
+        const chat = chats.find((item) => item.id === current);
+        view.innerHTML = current === "list" ? listView() : current === "will" ? willChat() : projectChat(chat || chats[0]);
+        if (current === "will" || projectResearch.projectId === current) requestAnimationFrame(() => { const thread = view.querySelector(".wlp-thread"); if (thread) thread.scrollTop = thread.scrollHeight; });
+        view.querySelector("[data-back]")?.addEventListener("click", () => { current = "list"; render(); });
+        view.querySelector("#wlp-projects")?.addEventListener("click", () => openProjectSheet());
+        view.querySelectorAll("[data-open-plan]").forEach((button) => button.addEventListener("click", () => openPlanSheet()));
+        view.querySelector("[data-sunday-open]")?.addEventListener("click", openSundayLens);
+        view.querySelector("[data-sunday-investigate]")?.addEventListener("click", openSundayLens);
+        view.querySelector("[data-sunday-dismiss]")?.addEventListener("click", () => {
+          sundayNote.status = "declined";
+          sundayNote.step = "done";
+          sundaySay("user", "Not now");
+          sundaySay("bot", "Noted.");
+          render();
+        });
+        view.querySelectorAll("[data-ref-project]").forEach((button) => button.addEventListener("click", () => { current = button.getAttribute("data-ref-project") || "project-1"; render(); }));
+        view.querySelectorAll("[data-open-walk]").forEach((button) => button.addEventListener("click", () => openPracticeFeedbackWalk(false)));
+        view.querySelectorAll("[data-open-ideal-text]").forEach((button) => button.addEventListener("click", openIdealText));
+        view.querySelectorAll("[data-open-presentation]").forEach((button) => button.addEventListener("click", openIdealText));
+        view.querySelector("[data-feedback-walk-toggle]")?.addEventListener("click", () => {
+          feedbackWalkExpanded = !feedbackWalkExpanded;
+          render();
+        });
+        const feedbackTitle = view.querySelector("[data-feedback-walk-title]");
+        feedbackTitle?.addEventListener("input", (event) => {
+          feedbackWalkTitle = event.currentTarget.textContent?.trim() || currentProject()?.title || "Presentation";
+        });
+        feedbackTitle?.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            feedbackTitle.blur();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            feedbackWalkTitle = "";
+            render();
+          }
+        });
+        view.querySelectorAll("[data-feedback-range]").forEach((field) => {
+          const row = field.closest("[data-feedback-wagon]");
+          const index = Number(row?.getAttribute("data-feedback-wagon-index"));
+          const cleanRange = (value) => String(value || "").replace(/^slides\s*/i, "").trim() || "1-5";
+          field.addEventListener("input", (event) => {
+            if (feedbackWagons[index]) feedbackWagons[index].slideRange = cleanRange(event.currentTarget.textContent);
+          });
+          field.addEventListener("blur", () => {
+            if (!feedbackWagons[index]) return;
+            feedbackWagons[index].slideRange = cleanRange(field.textContent);
+            field.textContent = `Slides ${feedbackWagons[index].slideRange}`;
+          });
+          field.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              field.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              field.textContent = `Slides ${feedbackWagons[index]?.slideRange || "1-5"}`;
+              field.blur();
+            }
+          });
+        });
+        view.querySelectorAll("[data-processing-answer]").forEach((button) => button.addEventListener("click", () => { if (chat) { chat.questionAnswered = true; chat.preview = "Processing question answered"; chat.time = "Now"; } render(); }));
+        view.querySelectorAll("[data-project-answer]").forEach((button) => button.addEventListener("click", () => answerProjectResearch(chat, button.getAttribute("data-project-answer"))));
+        view.querySelector("#wlp-pause")?.addEventListener("click", () => { if (chat) { practiceMode = "continue"; practiceSlide = Number((chat.checkpoint || "").match(/slide (\d+)/i)?.[1] || 1); openPracticeRecording(chat); } });
+        view.querySelector("#wlp-continue")?.addEventListener("click", () => {
+          if (!chat) return;
+          if (projectResearch.projectId === chat.id && projectResearch.step >= 3 && projectResearch.decisionPending) openIdealText();
+          else if (chat.sessionCount) openPracticePicker(chat, false);
+          else openProjectSetup(chat);
+        });
+        const composerForm = view.querySelector("#wlp-composer");
+        const input = composerForm?.querySelector(".wlp-input");
+        const send = composerForm?.querySelector("#wlp-send");
+        const resize = () => {
+          if (!input) return;
+          input.style.height = "auto";
+          input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+          send?.classList.toggle("is-hidden", !input.value.trim());
+        };
+        input?.addEventListener("input", resize);
+        input?.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            composerForm?.requestSubmit();
+          }
+        });
+        composerForm?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const text = input?.value.trim();
+          if (!text) return;
+          if (chat) { chat.lastMessage = text; chat.preview = text; chat.time = "Now"; }
+          render();
+        });
+        const projectAnswerForm = view.querySelector("#wlp-project-answer-form");
+        const projectAnswerInput = projectAnswerForm?.querySelector("#wlp-project-answer-input");
+        const projectAnswerSend = projectAnswerForm?.querySelector("#wlp-project-answer-send");
+        const resizeProjectAnswer = () => {
+          if (!projectAnswerInput) return;
+          projectAnswerInput.style.height = "auto";
+          projectAnswerInput.style.height = `${Math.min(projectAnswerInput.scrollHeight, 120)}px`;
+          projectAnswerSend?.classList.toggle("is-hidden", !projectAnswerInput.value.trim());
+        };
+        projectAnswerInput?.addEventListener("input", resizeProjectAnswer);
+        projectAnswerInput?.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); projectAnswerForm?.requestSubmit(); }
+        });
+        projectAnswerForm?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          answerProjectResearch(chat, projectAnswerInput?.value);
+        });
+      }
+
+      function openPlanSheet() {
+        overlayState = "plan";
+        overlay.innerHTML = `<div class="wlp-sheet-backdrop" data-close-overlay><div class="wlp-sheet" role="dialog" aria-label="Your plan" data-stop-close><div class="wlp-grabber"></div><h2>Your plan</h2><p>This week's level</p><strong style="display:block;margin-bottom:12px">Make it yours</strong><div class="wlp-plan-bar"><i class="done"></i><i class="done"></i><i class="done"></i><i></i></div><ul style="margin:18px 0 0;padding-left:20px;font-size:14px;line-height:1.6"><li>15 minutes, 3 times a week</li><li>Your deadline: 30 November</li></ul><div class="wlp-sheet-footer"><button class="wlp-button outline" type="button" data-close-button>Close</button></div></div></div>`;
+        overlay.querySelector("[data-stop-close]")?.addEventListener("click", (event) => event.stopPropagation());
+        overlay.querySelectorAll("[data-close-overlay], [data-close-button]").forEach((el) => el.addEventListener("click", closeOverlay));
+      }
+
+      const practiceSlides = [
+        { name: "Opening", helper: "What you&apos;ll talk about, in one line.", words: "Even if it&apos;s so light...", numbers: [] },
+        { name: "Main points", helper: "", words: "like a diamond. Like", numbers: [1, 2, 3] },
+        { name: "Close", helper: "", words: "", numbers: [] },
+      ];
+
+      const practiceFragments = [
+        { name: "Opening", text: "Well, I will talk about the weather today, which is surprisingly awful, but feels nice, feels cosy, even though it&apos;s mostly outside." },
+        { name: "Main points", text: "It&apos;s this kind of Scottish, mysterious weather, when you don&apos;t know what to do, try to go out, try to stay and enjoy the cosy bed." },
+        { name: "Close", text: "The point is simple: choose what your obligations require, and make that decision clear." },
+      ];
+
+      function currentPracticeFragmentText() {
+        return practiceFragments[Math.max(0, Math.min(practiceFragments.length - 1, practiceSlide - 1))].text;
+      }
+
+      function practiceIsLongPresentation() {
+        return practiceDurationSeconds >= 300;
+      }
+
+      function currentProject() {
+        return chats.find((item) => item.id === current) || chats.find((item) => item.id === "project-1") || chats[0];
+      }
+
+      function practiceSlideData() {
+        return practiceSlides[Math.max(0, Math.min(practiceSlides.length - 1, practiceSlide - 1))];
+      }
+
+      function practiceTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainder = String(seconds % 60).padStart(2, "0");
+        return `${minutes}:${remainder}`;
+      }
+
+      function practiceClock(seconds, targetSeconds) {
+        if (!targetSeconds) return { label: practiceTime(seconds), overrun: false };
+        const overrun = seconds > targetSeconds;
+        const magnitude = overrun ? seconds - targetSeconds : Math.max(0, targetSeconds - seconds);
+        return { label: `${overrun ? "-" : ""}${practiceTime(magnitude)}`, overrun };
+      }
+
+      function practiceDurationLabel(seconds) {
+        if (!seconds) return "No limit";
+        return `${Math.round(seconds / 60)} min`;
+      }
+
+      function practiceDurationDetail(seconds) {
+        if (!seconds) return "Stop whenever you choose";
+        return `${practiceTime(seconds)} of active practice`;
+      }
+
+      function feedbackWave(seed = 0) {
+        const heights = [8, 14, 20, 11, 24, 16, 27, 13, 22, 9, 25, 17, 28, 12, 19, 26, 10, 23, 15, 29, 18, 11, 25, 14, 21, 9, 24, 16, 27, 12, 20, 8];
+        return heights.map((height, index) => `<i style="height:${heights[(index + seed) % heights.length]}px"></i>`).join("");
+      }
+
+      function projectPracticeDuration(chat) {
+        const duration = String(chat?.duration || "");
+        if (/until\s+i\s+stop/i.test(duration)) return 0;
+        const minutes = duration.match(/(\d+)\s*minutes?/i);
+        return minutes ? Number(minutes[1]) * 60 : 300;
+      }
+
+      function returnToPracticeSurface() {
+        const chat = currentProject();
+        if (practiceReturnState === "practice-recording") renderPracticeRecording(chat);
+        else renderPracticePicker(chat);
+      }
+
+      function openPracticeTimeSheet() {
+        practiceReturnState = overlayState === "practice-recording" ? "practice-recording" : "practice-picker";
+        const options = [[60, "1 min"], [120, "2 min"], [180, "3 min"], [240, "4 min"], [300, "5 min"], [0, "No limit"]];
+        overlayState = "practice-time";
+        overlay.innerHTML = `<div class="wlp-sheet-backdrop" data-practice-time-close><div class="wlp-sheet wlp-practice-time-sheet" role="dialog" aria-label="Choose practice time" data-stop-close><div class="wlp-grabber"></div><h2>Practice time</h2><p>Choose how long this practice can run. Only active speaking time counts.</p>${options.map(([seconds, label]) => `<button class="wlp-sheet-option" type="button" data-practice-duration="${seconds}"><span><strong>${label}</strong><span>${practiceDurationDetail(seconds)}</span></span>${practiceDurationSeconds === seconds ? icons.check : icons.arrow}</button>`).join("")}<div class="wlp-sheet-footer"><button class="wlp-button outline" type="button" data-practice-time-close>Cancel</button></div></div></div>`;
+        overlay.querySelector("[data-stop-close]")?.addEventListener("click", (event) => event.stopPropagation());
+        overlay.querySelectorAll("[data-practice-time-close]").forEach((element) => element.addEventListener("click", returnToPracticeSurface));
+        overlay.querySelectorAll("[data-practice-duration]").forEach((button) => button.addEventListener("click", () => {
+          practiceDurationSeconds = Number(button.getAttribute("data-practice-duration"));
+          const chat = currentProject();
+          if (chat) chat.duration = practiceDurationSeconds ? `${Math.round(practiceDurationSeconds / 60)} minutes` : "Until I stop";
+          returnToPracticeSurface();
+        }));
+      }
+
+      function openProjectSetup(chat) {
+        current = chat.id;
+        setupFeeling = null;
+        setupTopic = chat.title;
+        setupLength = 300;
+        setupLengthOther = false;
+        setupCustomMinutes = "";
+        setupSlidesAttached = false;
+        onboardingStep = 3;
+        renderOnboarding();
+      }
+
+      function openPracticePicker(chat, firstTime = false) {
+        current = chat.id;
+        practiceMode = firstTime ? "first" : "continue";
+        practiceDurationSeconds = 300;
+        practiceSlide = firstTime ? 1 : Number((chat.checkpoint || "").match(/slide (\d+)/i)?.[1] || 1);
+        practiceElapsedSeconds = 0;
+        practiceSaved = false;
+        renderPracticePicker(chat);
+      }
+
+      function renderPracticePicker(chat) {
+        const firstTime = practiceMode === "first";
+        const slide = practiceSlideData();
+        overlayState = "practice-picker";
+        overlay.innerHTML = `<div class="wlp-practice-overlay" role="dialog" aria-modal="true" aria-label="${firstTime ? "Start first practice" : "Continue practice"}">
+          <div class="wlp-practice-head wlp-practice-picker-head"><div class="wlp-practice-head-actions"><button type="button" class="wlp-practice-close" data-practice-close aria-label="Close">${icons.x}</button></div></div>
+          <div class="wlp-practice-body">
+            <div class="wlp-practice-slide">
+              <div class="wlp-practice-slide-art"><span class="wlp-practice-slide-line"></span><strong>${slide.name}</strong><span>${slide.helper}</span></div>
+              <div class="wlp-practice-slide-meta wlp-practice-picker-meta"><span>Slide ${practiceSlide} of ${practiceSlides.length}</span><span>${firstTime ? "Not started" : "Saved point"}</span></div>
+            </div>
+            ${firstTime ? "" : `<div class="wlp-helper-card wlp-helper-only-card"><b class="wlp-helper-words">${slide.words}</b></div>`}
+          </div>
+          <div class="wlp-practice-footer"><button type="button" class="wlp-practice-action" data-practice-start><span class="wlp-record-dot"></span>${firstTime ? "Start first practice" : `Continue from slide ${practiceSlide}`}</button><button type="button" class="wlp-practice-secondary" data-practice-close>Back to chat</button></div>
+        </div>`;
+        overlay.querySelectorAll("[data-practice-close]").forEach((button) => button.addEventListener("click", () => { closeOverlay(); render(); }));
+        overlay.querySelector("[data-practice-start]")?.addEventListener("click", () => openPracticeRecording(chat));
+      }
+
+      function openPracticeRecording(chat) {
+        practiceElapsedSeconds = practiceMode === "continue" ? (practiceSlide === 1 ? 112 : practiceSlide === 2 ? 22 : 0) : 0;
+        overlayState = "practice-recording";
+        renderPracticeRecording(chat);
+      }
+
+      function renderPracticeRecording(chat) {
+        const slide = practiceSlideData();
+        const firstTime = practiceMode === "first";
+        const clock = practiceClock(practiceElapsedSeconds, practiceDurationSeconds);
+        const progress = practiceDurationSeconds ? Math.min(100, Math.max(3, Math.round((practiceElapsedSeconds / practiceDurationSeconds) * 100))) : 3;
+        const helperWords = firstTime ? "" : slide.words;
+        const takeNumber = firstTime ? 1 : 2;
+        overlay.innerHTML = `<div class="wlp-practice-overlay wlp-practice-recording-overlay" role="dialog" aria-modal="true" aria-label="Practice recording">
+          <div class="wlp-practice-head"><p class="wlp-practice-recording-where">Take ${takeNumber} &middot; Slide ${practiceSlide} of ${practiceSlides.length}</p><div class="wlp-practice-head-actions"><button type="button" class="wlp-practice-close" data-practice-leave aria-label="Leave and see feedback">${icons.x}</button></div></div>
+          <div class="wlp-practice-record">
+            <p class="wlp-practice-kicker">Live practice</p>
+            <div class="wlp-practice-slide"><div class="wlp-practice-slide-art"><span class="wlp-practice-slide-line"></span><strong>${slide.name}</strong>${slide.helper ? `<span>${slide.helper}</span>` : ""}${slide.numbers?.length ? `<div class="wlp-practice-slide-number-row">${slide.numbers.map((number) => `<i>${number}</i>`).join("")}</div>` : ""}</div><div class="wlp-practice-slide-meta"><span>Slide ${practiceSlide} of ${practiceSlides.length}</span><span>${practiceElapsedSeconds ? "Resumed" : "Ready"}</span></div></div>
+            <div class="wlp-practice-helper-area">${helperWords ? `<p class="wlp-practice-helper-display">${helperWords}</p>` : ""}</div>
+            <div class="wlp-practice-recording-footer">
+              <div class="wlp-practice-recording-strip${clock.overrun ? " is-overrun" : ""}" aria-label="Practice recording progress"><span class="wlp-record-dot"></span><span class="wlp-practice-recording-clock">${clock.label}</span><div class="wlp-practice-recording-track" aria-hidden="true"><span style="width:${clock.overrun ? 100 : progress}%"></span></div></div>
+              <div class="wlp-practice-recording-nav"><button type="button" class="wlp-practice-back" data-practice-back ${practiceSlide === 1 ? "disabled" : ""}>Back</button>${practiceSlide < practiceSlides.length ? `<button type="button" class="wlp-practice-next" data-practice-next>Next slide</button>` : `<button type="button" class="wlp-practice-next wlp-practice-finish-button" data-practice-finish aria-label="Finish take"><span class="wlp-practice-finish-square"></span>Finish take</button>`}</div>
+            </div>
+          </div>
+        </div>`;
+        overlay.querySelector("[data-practice-leave]")?.addEventListener("click", () => openPracticeFeedbackWalk(true));
+        overlay.querySelector("[data-practice-back]")?.addEventListener("click", () => { practiceSlide = Math.max(1, practiceSlide - 1); practiceElapsedSeconds = practiceSlide === 1 ? 112 : 22; renderPracticeRecording(chat); });
+        overlay.querySelectorAll("[data-practice-finish]").forEach((button) => button.addEventListener("click", () => openPracticeFeedbackWalk(false)));
+        overlay.querySelector("[data-practice-next]")?.addEventListener("click", () => { practiceSlide = Math.min(practiceSlides.length, practiceSlide + 1); practiceElapsedSeconds = practiceSlide === 2 ? 22 : practiceSlide === 3 ? practiceDurationSeconds + 19 : practiceElapsedSeconds + 52; renderPracticeRecording(chat); });
+      }
+
+      function savePracticeCheckpoint(partial) {
+        const chat = currentProject();
+        if (!chat) return;
+        const slide = practiceSlideData();
+        const durationLabel = practiceDurationSeconds ? `${Math.round(practiceDurationSeconds / 60)} minutes` : "Until I stop";
+        if (!practiceSaved) chat.sessionCount = (chat.sessionCount || 0) + 1;
+        practiceSaved = true;
+        chat.trainingState = "paused";
+        chat.paused = true;
+        chat.duration = durationLabel;
+        chat.checkpoint = `slide ${practiceSlide} &middot; ${slide.name.toLowerCase()}`;
+        chat.preview = partial ? `Pick up at slide ${practiceSlide} &middot; ${durationLabel} chunk` : `Presentation complete &middot; continue from slide ${practiceSlide}`;
+        chat.time = "Now";
+        chat.moment = "practice";
+        chat.feedbackStatus = partial ? "partial" : "complete";
+      }
+
+      function openPracticeFeedbackWalk(partial) {
+        practicePartial = partial;
+        savePracticeCheckpoint(partial);
+        renderPracticeFeedbackWalk();
+      }
+
+      function openProjectConversationAfterWalk() {
+        const chat = currentProject();
+        if (!chat) { closeOverlay(); render(); return; }
+        const fragmentEnd = Math.min(practiceSlides.length, Math.max(1, Number(chat.idealFragmentEnd || practiceSlide)));
+        projectResearch = { projectId: chat.id, targetSlide: Math.min(practiceSlides.length, fragmentEnd + 1), step: 0, answers: [], decisionPending: true };
+        closeOverlay();
+        current = chat.id;
+        render();
+      }
+
+      function renderPracticeFeedbackWalk() {
+        overlayState = "practice-feedback";
+        overlay.innerHTML = `<div class="wlp-full-overlay wlp-walk-motion-open" role="dialog" aria-modal="true" aria-label="Feedback walk">
+          <div class="wlp-walk-top"><nav class="wlp-walk-nav" aria-label="Main points"><button type="button" aria-label="Previous moment" disabled>${icons.back}</button><span>Main points</span><button type="button" aria-label="Next moment" disabled>${icons.arrow}</button></nav><button type="button" class="wlp-overlay-close" data-practice-walk-close aria-label="Close">${icons.x}</button></div>
+          <div class="wlp-walk-body"><div class="wlp-walk-thread wlp-walk-motion-next">
+            <span class="wlp-walk-mark">Slide 2</span>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">And here's one moment to try another way:</div></div>
+            <div class="wlp-walk-audio"><div class="wlp-walk-audio-copy">Even if it's so light, it's barely visible, it's just shining like, <strong>like a diamond. Like a diamond.</strong></div><div class="wlp-walk-player"><button type="button" class="wlp-walk-play" aria-label="Play the spotted moment">${icons.play}</button><span class="wlp-walk-wave" aria-hidden="true">${feedbackWave(0)}</span><span class="wlp-walk-duration">0:08</span></div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">Say this one like your confident moment:</div></div>
+            <div class="wlp-walk-audio compact"><div class="wlp-walk-player"><button type="button" class="wlp-walk-play" aria-label="Play the confident version">${icons.play}</button><span class="wlp-walk-wave" aria-hidden="true">${feedbackWave(7)}</span><span class="wlp-walk-duration">0:07</span></div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">Pause before <strong>&ldquo;like a diamond. Like&rdquo;</strong>.</div></div>
+            <div class="wlp-walk-audio"><div class="wlp-walk-audio-copy">Even if it's so light, it's barely visible, it's just shining like, <strong>like a diamond. Like a diamond.</strong></div><div class="wlp-walk-player"><button type="button" class="wlp-walk-play" aria-label="Play the improved version">${icons.play}</button><span class="wlp-walk-wave" aria-hidden="true">${feedbackWave(13)}</span><span class="wlp-walk-duration">0:08</span></div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">Yes. That's it.</div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">These are your helper words. They'll appear on screen during your next take, to remind you of what you learned here.</div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble"><span class="wlp-walk-helper">like a diamond. Like</span></div></div>
+            <div class="wlp-walk-row"><div class="wlp-walk-bubble">Lesson done.</div></div>
+          </div></div>
+          <div class="wlp-walk-dock"><button type="button" class="wlp-walk-pill dark" data-practice-walk-next>Next</button></div>
+        </div>`;
+        overlay.querySelector("[data-practice-walk-close]")?.addEventListener("click", () => { closeOverlay(); render(); });
+        overlay.querySelector("[data-practice-walk-next]")?.addEventListener("click", openProjectConversationAfterWalk);
+      }
+
+      function openOnboarding() {
+        onboardingStep = 0;
+        onboardingConsent = false;
+        onboardingCountry = "";
+        setupFeeling = null;
+        setupTopic = "";
+        setupLength = 300;
+        setupLengthOther = false;
+        setupCustomMinutes = "";
+        setupSlidesAttached = false;
+        renderOnboarding();
+      }
+
+      function renderOnboarding() {
+        overlayState = "onboarding";
+        const setupDots = (active) => Array.from({ length: 4 }, (_, i) => `<i class="${i === active ? "active" : i < active ? "done" : ""}"></i>`).join("");
+        const setupHeader = (active, back, closeClass = "plain") => `<div class="wlp-setup-progress"><div class="wlp-setup-progress-side">${back ? `<button type="button" class="wlp-setup-back" data-setup-back>&larr; Back</button>` : ""}</div><div class="wlp-setup-dots" aria-label="Setup step ${active + 1} of 4">${setupDots(active)}</div><div class="wlp-setup-progress-side right"><button type="button" class="wlp-setup-close ${closeClass}" data-onboarding-close aria-label="Close">${icons.x}</button></div></div>`;
+        const setupHead = (title, helper = "") => `<div class="wlp-setup-head"><h2>${icons.mic}<span>${title}</span></h2>${helper ? `<p>${helper}</p>` : ""}</div>`;
+        let content = "";
+
+        if (onboardingStep === 0) {
+          content = `<div class="wlp-onboarding-content"><div class="wlp-breath-mark" aria-hidden><span class="wlp-breath-dots"><i></i><i></i><i></i></span></div><h1>WillpowerLab</h1><p>Great presentations aren't about slides.<br>They're about a dream and the guts to deliver it.</p><p>You bring the dream.<br>We'll help you sound brave until you are.</p><div class="wlp-onboarding-actions"><button type="button" class="wlp-onboarding-primary" data-onboarding-next>Enter the lab</button><button type="button" class="wlp-onboarding-secondary" data-onboarding-next>See an example</button></div></div>`;
+        } else if (onboardingStep === 1) {
+          content = `<div class="wlp-onboarding-content"><div class="wlp-consent-card"><div class="wlp-breath-mark wlp-consent-mark" aria-hidden><span class="wlp-breath-dots"><i></i><i></i><i></i></span></div><p style="text-align:center">By tapping Agree and continue you accept the Terms of Service.</p><div class="wlp-consent-links" style="justify-content:center"><button type="button">Terms of Service</button><button type="button">Privacy Policy</button><button type="button">How AI is used here</button></div><select class="wlp-consent-country" id="wlp-consent-country" aria-label="Country of residence"><option value="" ${onboardingCountry ? "" : "selected"} disabled>Choose your country *</option><option value="PL" ${onboardingCountry === "PL" ? "selected" : ""}>Poland</option><option value="GB" ${onboardingCountry === "GB" ? "selected" : ""}>United Kingdom</option><option value="US" ${onboardingCountry === "US" ? "selected" : ""}>United States</option></select><button type="button" class="wlp-consent-tick${onboardingConsent ? " is-selected" : ""}" id="wlp-consent-tick"><span>${onboardingConsent ? icons.check : ""}</span><b>I agree that WillpowerLab may process my recordings. *</b></button><div class="wlp-onboarding-actions"><button type="button" class="wlp-onboarding-primary" data-consent-continue ${onboardingConsent && onboardingCountry ? "" : "disabled"}>Agree and continue</button><button type="button" class="wlp-onboarding-secondary" data-onboarding-close>Do not agree</button></div></div></div>`;
+        } else if (onboardingStep === 2) {
+          content = `<div class="wlp-setup-screen"><div class="wlp-picker-header"><h2>What are you recording?</h2><button type="button" class="wlp-setup-close" data-onboarding-close aria-label="Close">${icons.x}</button></div><div class="wlp-picker-content"><button type="button" class="wlp-picker-new" data-picker-new>${icons.plus}<span>Start a new project</span></button><p class="wlp-picker-label">Or another take of:</p><button type="button" class="wlp-picker-row" data-picker-draft><span><strong>lol</strong><em>Draft</em></span><span class="wlp-picker-more" aria-hidden>&middot;&middot;&middot;</span></button><button type="button" class="wlp-picker-row" data-picker-existing><span><strong>testingg</strong></span><span class="wlp-picker-more" aria-hidden>&middot;&middot;&middot;</span></button></div></div>`;
+        } else if (onboardingStep === 3) {
+          content = `<div class="wlp-setup-screen"><div class="wlp-setup-progress-wrap">${setupHeader(0, false)}</div><div class="wlp-setup-body">${setupHead("How do you feel?", "Before you step on stage")}<div class="wlp-setup-chip-grid">${[["nervous", "Nervous"], ["excited", "Excited"], ["calm", "Calm"], ["unsure", "Not sure"]].map(([key, label]) => `<button type="button" class="wlp-setup-choice${setupFeeling === key ? " is-selected" : ""}" data-feeling="${key}" ${setupFeeling && setupFeeling !== key ? "disabled" : ""} aria-pressed="${setupFeeling === key}">${label}</button>`).join("")}<button type="button" class="wlp-setup-skip" data-feelings-skip ${setupFeeling ? "disabled" : ""}>Skip</button></div></div></div>`;
+        } else if (onboardingStep === 4) {
+          content = `<div class="wlp-setup-screen"><div class="wlp-setup-progress-wrap">${setupHeader(1, false)}</div><div class="wlp-setup-body">${setupHead("What is the topic?")}<input id="wlp-setup-topic" class="wlp-setup-input" value="${setupTopic.replace(/"/g, "&quot;")}" placeholder="e.g. my Q3 results pitch" aria-label="Topic" autofocus></div><div class="wlp-setup-footer"><button type="button" class="wlp-setup-primary" data-setup-next ${setupTopic.trim() ? "" : "disabled"}>Next</button></div></div>`;
+        } else if (onboardingStep === 5) {
+          const lengths = [["3 min", 180], ["5 min", 300], ["10 min", 600], ["30 min", 1800], ["60 min", 3600], ["No time limit", 0]];
+          const otherReady = !setupLengthOther || Number(setupCustomMinutes) > 0;
+          content = `<div class="wlp-setup-screen"><div class="wlp-setup-progress-wrap">${setupHeader(2, true)}</div><div class="wlp-setup-body">${setupHead("Do you have a time limit?")}<div class="wlp-setup-lengths">${lengths.map(([label, seconds]) => `<button type="button" class="wlp-setup-length${!setupLengthOther && setupLength === seconds ? " is-selected" : ""}" data-setup-length="${seconds}" aria-pressed="${!setupLengthOther && setupLength === seconds}">${label}</button>`).join("")}<button type="button" class="wlp-setup-length${setupLengthOther ? " is-selected" : ""}" data-setup-other aria-pressed="${setupLengthOther}">Other</button></div>${setupLengthOther ? `<label class="wlp-setup-other"><input id="wlp-setup-custom-minutes" class="wlp-setup-input" type="number" min="1" step="1" inputmode="numeric" value="${escapeHtml(setupCustomMinutes)}" placeholder="Minutes" aria-label="Other time limit in minutes" autofocus><span>min</span></label>` : ""}</div><div class="wlp-setup-footer"><button type="button" class="wlp-setup-primary" data-setup-next ${otherReady ? "" : "disabled"}>Next</button></div></div>`;
+        } else if (onboardingStep === 6) {
+          content = `<div class="wlp-setup-screen"><div class="wlp-setup-progress-wrap">${setupHeader(3, true)}</div><div class="wlp-setup-body">${setupHead("Have slides to go with it?")}<button type="button" class="wlp-setup-upload${setupSlidesAttached ? " is-attached" : ""}" data-upload-deck>${setupSlidesAttached ? icons.check : icons.upload}<span>${setupSlidesAttached ? "Deck attached" : "Upload your deck (PDF)"}</span></button>${setupSlidesAttached ? `<button type="button" class="wlp-setup-replace" data-upload-deck>Replace the deck</button>` : ""}</div><div class="wlp-setup-footer"><button type="button" class="wlp-setup-primary" data-setup-finish>${setupSlidesAttached ? "Start recording" : "Skip for now"}</button></div></div>`;
+        }
+
+        const isWizard = onboardingStep >= 3;
+        overlay.innerHTML = `<div class="${isWizard ? "wlp-setup-overlay" : "wlp-onboarding-overlay"}" role="dialog" aria-modal="true" aria-label="${isWizard ? "Recording setup" : "First-run onboarding"}">${content}</div>`;
+        overlay.querySelectorAll("[data-onboarding-close]").forEach((button) => button.addEventListener("click", closeOverlay));
+        overlay.querySelectorAll("[data-onboarding-next]").forEach((button) => button.addEventListener("click", () => { onboardingStep = 1; renderOnboarding(); }));
+        overlay.querySelector("#wlp-consent-tick")?.addEventListener("click", () => { onboardingConsent = !onboardingConsent; renderOnboarding(); });
+        overlay.querySelector("#wlp-consent-country")?.addEventListener("change", (event) => { onboardingCountry = event.target.value; renderOnboarding(); });
+        overlay.querySelector("[data-consent-continue]")?.addEventListener("click", () => { onboardingStep = 2; renderOnboarding(); });
+        overlay.querySelector("[data-picker-new]")?.addEventListener("click", () => { setupFeeling = null; onboardingStep = 3; renderOnboarding(); });
+        overlay.querySelector("[data-picker-draft]")?.addEventListener("click", () => { setupTopic = "lol"; setupFeeling = null; onboardingStep = 3; renderOnboarding(); });
+        overlay.querySelector("[data-picker-existing]")?.addEventListener("click", () => { closeOverlay(); current = "project-1"; render(); });
+        overlay.querySelectorAll("[data-feeling]").forEach((button) => button.addEventListener("click", () => {
+          if (setupFeeling) return;
+          setupFeeling = button.getAttribute("data-feeling");
+          renderOnboarding();
+          window.setTimeout(() => { onboardingStep = 4; renderOnboarding(); }, 450);
+        }));
+        overlay.querySelector("[data-feelings-skip]")?.addEventListener("click", () => { onboardingStep = 4; renderOnboarding(); });
+        const topicInput = overlay.querySelector("#wlp-setup-topic");
+        topicInput?.addEventListener("input", () => {
+          setupTopic = topicInput.value;
+          const next = overlay.querySelector("[data-setup-next]");
+          if (next) next.disabled = !setupTopic.trim();
+        });
+        topicInput?.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && setupTopic.trim()) { event.preventDefault(); onboardingStep = 5; renderOnboarding(); }
+        });
+        overlay.querySelector("[data-setup-back]")?.addEventListener("click", () => { onboardingStep = Math.max(3, onboardingStep - 1); renderOnboarding(); });
+        overlay.querySelector("[data-setup-next]")?.addEventListener("click", () => {
+          if (onboardingStep === 4 && !setupTopic.trim()) return;
+          if (onboardingStep === 5 && setupLengthOther && !(Number(setupCustomMinutes) > 0)) return;
+          onboardingStep = Math.min(6, onboardingStep + 1);
+          renderOnboarding();
+        });
+        overlay.querySelectorAll("[data-setup-length]").forEach((button) => button.addEventListener("click", () => { setupLengthOther = false; setupLength = Number(button.getAttribute("data-setup-length")); renderOnboarding(); }));
+        overlay.querySelector("[data-setup-other]")?.addEventListener("click", () => { setupLengthOther = true; setupLength = null; renderOnboarding(); });
+        const customMinutes = overlay.querySelector("#wlp-setup-custom-minutes");
+        customMinutes?.addEventListener("input", () => {
+          setupCustomMinutes = customMinutes.value;
+          const next = overlay.querySelector("[data-setup-next]");
+          if (next) next.disabled = !(Number(setupCustomMinutes) > 0);
+        });
+        overlay.querySelectorAll("[data-upload-deck]").forEach((button) => button.addEventListener("click", () => { setupSlidesAttached = true; renderOnboarding(); }));
+        overlay.querySelector("[data-setup-finish]")?.addEventListener("click", () => {
+          const chat = currentProject();
+          const targetMinutes = setupLengthOther ? Number(setupCustomMinutes) : setupLength ? Math.round(setupLength / 60) : null;
+          practiceDurationSeconds = 300;
+          if (chat) {
+            chat.timeLimitMinutes = targetMinutes;
+            chat.duration = "5 minutes";
+            chat.preview = "Ready for first practice &middot; 5-minute maximum";
+            chat.time = "Now";
+          }
+          practiceMode = "first";
+          practiceSlide = 1;
+          practiceElapsedSeconds = 0;
+          practiceSaved = false;
+          openPracticeRecording(chat);
+        });
+      }
+
+      function openPresentationPreview() {
+        presentationSlideIndex = 0;
+        presentationTheme = "blue";
+        renderPresentationPreview();
+      }
+
+      function renderPresentationPreview() {
+        overlayState = "presentation-preview";
+        const theme = presentationThemes[presentationTheme] || presentationThemes.blue;
+        const example = presentationExamples[presentationSlideIndex];
+        overlay.innerHTML = `<div class="wlp-presentation-overlay" role="dialog" aria-modal="true" aria-label="Example presentation">
+          <header class="wlp-presentation-top"><button type="button" data-presentation-close aria-label="Back">${icons.back}</button><div class="wlp-presentation-heading"><strong>testingg</strong><span>Example presentation - Slides 1-5</span></div><button type="button" data-presentation-close aria-label="Close">${icons.x}</button></header>
+          <main class="wlp-presentation-stage" style="--presentation-surface:${theme.surface};--presentation-slide:${theme.slide};--presentation-ink:${theme.ink};--presentation-accent:${theme.accent}">
+            <section class="wlp-presentation-slide"><div class="wlp-presentation-slide-top"><span>${escapeHtml(example.label)}</span><span>${String(presentationSlideIndex + 1).padStart(2, "0")} / 05</span></div><div><span class="wlp-presentation-slide-line"></span><h1>${escapeHtml(example.title)}</h1><p>${escapeHtml(example.copy)}</p></div><div class="wlp-presentation-slide-foot"><span>Opening - Take 12.0</span><span>74% ready</span></div></section>
+            <div class="wlp-presentation-caption">Example presentation preview - try a different background</div>
+            <div class="wlp-presentation-controls"><button type="button" data-presentation-prev aria-label="Previous slide" ${presentationSlideIndex === 0 ? "disabled" : ""}>${icons.back}</button><div class="wlp-presentation-dots" aria-label="Slide ${presentationSlideIndex + 1} of ${presentationExamples.length}">${presentationExamples.map((_, index) => `<i class="${index === presentationSlideIndex ? "active" : ""}"></i>`).join("")}</div><button type="button" data-presentation-next aria-label="Next slide" ${presentationSlideIndex === presentationExamples.length - 1 ? "disabled" : ""}>${icons.arrow}</button></div>
+            <div class="wlp-presentation-themes"><span>Background</span>${Object.entries(presentationThemes).map(([key, value]) => `<button type="button" class="${key === presentationTheme ? "is-selected" : ""}" data-presentation-theme="${key}" aria-label="${value.label} background" aria-pressed="${key === presentationTheme}"><span class="wlp-presentation-theme-dot ${key}"></span></button>`).join("")}</div>
+          </main>
+        </div>`;
+        overlay.querySelectorAll("[data-presentation-close]").forEach((button) => button.addEventListener("click", () => { closeOverlay(); render(); }));
+        overlay.querySelector("[data-presentation-prev]")?.addEventListener("click", () => { presentationSlideIndex = Math.max(0, presentationSlideIndex - 1); renderPresentationPreview(); });
+        overlay.querySelector("[data-presentation-next]")?.addEventListener("click", () => { presentationSlideIndex = Math.min(presentationExamples.length - 1, presentationSlideIndex + 1); renderPresentationPreview(); });
+        overlay.querySelectorAll("[data-presentation-theme]").forEach((button) => button.addEventListener("click", () => { presentationTheme = button.getAttribute("data-presentation-theme") || "blue"; renderPresentationPreview(); }));
+      }
+
+      function openIdealText() {
+        idealMenuOpen = false;
+        idealCopied = false;
+        renderIdealText();
+      }
+
+      function continueAfterIdeal(chat, targetSlide) {
+        const safeTarget = Math.max(1, Math.min(practiceSlides.length, targetSlide));
+        const target = practiceSlides[safeTarget - 1];
+        practiceMode = "continue";
+        practiceSlide = safeTarget;
+        practiceSaved = false;
+        practiceElapsedSeconds = 0;
+        if (chat) {
+          chat.trainingState = "paused";
+          chat.paused = true;
+          chat.checkpoint = `slide ${safeTarget} &middot; ${target.name.toLowerCase()}`;
+          chat.preview = `Pick up at slide ${safeTarget} &middot; ${chat.duration || "5 minutes"}`;
+        }
+        if (projectResearch.projectId === chat?.id) {
+          projectResearch.targetSlide = safeTarget;
+          projectResearch.decisionPending = false;
+        }
+        current = chat?.id || "project-1";
+        overlayState = "practice-recording";
+        renderPracticeRecording(chat || currentProject());
+      }
+
+      function renderIdealText() {
+        overlayState = "ideal-text";
+        const chat = currentProject();
+        const fragmentStart = Math.max(1, Number(chat?.idealFragmentStart || practiceSlide));
+        const fragmentEnd = Math.min(practiceSlides.length, Math.max(fragmentStart, Number(chat?.idealFragmentEnd || practiceSlide)));
+        const visibleFragments = practiceFragments.slice(fragmentStart - 1, fragmentEnd);
+        const canContinue = fragmentEnd < practiceSlides.length;
+        overlay.innerHTML = `<div class="wlp-ideal-overlay" role="dialog" aria-modal="true" aria-label="Your ideal text">
+          <div class="wlp-ideal-head"><div class="wlp-ideal-heading"><strong>${chat?.title || "testingg"}</strong><span>AI-generated text &middot; Take 1</span></div><div class="wlp-ideal-head-actions"><button type="button" class="wlp-ideal-menu" data-ideal-menu aria-label="More">&hellip;</button><button type="button" class="wlp-overlay-close" data-ideal-close aria-label="Close">${icons.x}</button></div>${idealMenuOpen ? `<div class="wlp-ideal-menu-pop" role="menu"><button type="button" data-ideal-copy>${idealCopied ? "Copied" : "Copy the text"}</button><button type="button" data-ideal-save>Save the ideal text</button></div>` : ""}</div>
+          <div class="wlp-ideal-page-body">
+            ${visibleFragments.map((fragment, offset) => {
+              const slideNumber = fragmentStart + offset;
+              const slide = practiceSlides[slideNumber - 1];
+              const visual = slide.numbers?.length
+                ? `<div class="wlp-ideal-slide-orange"><span class="wlp-slide-line"></span><strong>${slide.name}</strong><span class="wlp-orange-numbers">${slide.numbers.map((number) => `<i>${number}</i>`).join("")}</span></div>`
+                : `<div class="wlp-ideal-slide-preview"><span class="wlp-slide-line"></span><strong>${slide.name}</strong><span>${slide.helper || "Practised fragment"}</span></div>`;
+              return `<section class="wlp-ideal-fragment">${visual}<div class="wlp-ideal-copy"><p><strong>Slide ${slideNumber} &middot; ${fragment.name}</strong>${fragment.text}</p></div></section>`;
+            }).join("")}
+          </div>
+          <div class="wlp-ideal-actions"><button type="button" class="wlp-walk-pill dark" data-continue-fragment>${canContinue ? "Continue to next fragment" : "Finish presentation"}</button><button type="button" class="wlp-walk-link" data-repeat-fragment>Repeat this fragment</button></div>
+        </div>`;
+        overlay.querySelectorAll("[data-ideal-close]").forEach((button) => button.addEventListener("click", () => { closeOverlay(); render(); }));
+        overlay.querySelector("[data-ideal-menu]")?.addEventListener("click", () => { idealMenuOpen = !idealMenuOpen; renderIdealText(); });
+        overlay.querySelector("[data-ideal-copy]")?.addEventListener("click", () => {
+          idealCopied = true;
+          const text = visibleFragments.map((fragment) => fragment.text.replace(/&apos;/g, "'")).join("\n\n");
+          if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(text).catch(() => undefined);
+          renderIdealText();
+        });
+        overlay.querySelector("[data-ideal-save]")?.addEventListener("click", () => { idealMenuOpen = false; renderIdealText(); });
+        overlay.querySelector("[data-repeat-fragment]")?.addEventListener("click", () => continueAfterIdeal(chat, fragmentStart));
+        overlay.querySelector("[data-continue-fragment]")?.addEventListener("click", () => {
+          if (canContinue) {
+            continueAfterIdeal(chat, fragmentEnd + 1);
+            return;
+          }
+          if (projectResearch.projectId === chat?.id) projectResearch.decisionPending = false;
+          closeOverlay();
+          current = chat?.id || "project-1";
+          render();
+        });
+      }
+
+      function openProjectSheet() {
+        overlayState = "projects";
+        overlay.innerHTML = `<div class="wlp-setup-overlay" role="dialog" aria-modal="true" aria-label="What are you recording?"><div class="wlp-setup-screen"><div class="wlp-picker-header"><h2>What are you recording?</h2><button type="button" class="wlp-setup-close" data-close-button aria-label="Close">${icons.x}</button></div><div class="wlp-picker-content"><button type="button" class="wlp-picker-new" data-sheet-new>${icons.plus}<span>Start a new project</span></button><p class="wlp-picker-label">Or another take of:</p>${chats.filter((chat) => !chat.archived).map((chat) => `<button type="button" class="wlp-picker-row" data-sheet-project="${chat.id}"><span><strong>${chat.title}</strong>${chat.sessionCount ? "" : "<em>Draft</em>"}</span><span class="wlp-picker-more" aria-hidden>&middot;&middot;&middot;</span></button>`).join("")}</div></div></div>`;
+        overlay.querySelector("[data-close-button]")?.addEventListener("click", closeOverlay);
+        overlay.querySelectorAll("[data-sheet-project]").forEach((el) => el.addEventListener("click", () => { current = el.getAttribute("data-sheet-project") || "project-1"; closeOverlay(); render(); }));
+        overlay.querySelector("[data-sheet-new]")?.addEventListener("click", openCreateSheet);
+      }
+
+      function openProjectActions(id) {
+        const chat = chats.find((item) => item.id === id);
+        if (!chat) return;
+        overlayState = "actions";
+        overlay.innerHTML = `<div class="wlp-sheet-backdrop" data-close-overlay><div class="wlp-sheet" role="dialog" aria-label="Project actions" data-stop-close><div class="wlp-grabber"></div><h2>${chat.title}</h2><button class="wlp-sheet-option" type="button" data-project-archive><span><strong>Archive project</strong><span>Hide it from the active chat list; keep its history and checkpoint.</span></span>${icons.arrow}</button><button class="wlp-sheet-option wlp-action-danger" type="button" data-project-delete><span><strong>Delete project</strong><span>Delete this project and its saved history.</span></span>${icons.arrow}</button><div class="wlp-sheet-footer"><button class="wlp-button outline" type="button" data-close-button>Cancel</button></div></div></div>`;
+        overlay.querySelector("[data-stop-close]")?.addEventListener("click", (event) => event.stopPropagation());
+        overlay.querySelectorAll("[data-close-overlay], [data-close-button]").forEach((el) => el.addEventListener("click", closeOverlay));
+        overlay.querySelector("[data-project-archive]")?.addEventListener("click", () => { chat.archived = true; chat.preview = "Archived &middot; available to restore"; closeOverlay(); current = "list"; render(); });
+        overlay.querySelector("[data-project-delete]")?.addEventListener("click", () => { const index = chats.findIndex((item) => item.id === id); if (index >= 0) chats.splice(index, 1); closeOverlay(); current = "list"; render(); });
+      }
+
+      function openCreateSheet() {
+        overlayState = "create";
+        overlay.innerHTML = `<div class="wlp-sheet-backdrop" data-close-overlay><div class="wlp-sheet" role="dialog" aria-label="Start a new project" data-stop-close><div class="wlp-grabber"></div><h2>Start a new project</h2><p>The project will have its own chat and its own saved training point.</p><input class="wlp-create-input" id="wlp-project-name" value="New presentation" aria-label="Project name"><div class="wlp-sheet-footer"><button class="wlp-button outline" type="button" data-close-button>Cancel</button><button class="wlp-button dark" type="button" data-create-confirm>Create project chat</button></div></div></div>`;
+        overlay.querySelector("[data-stop-close]")?.addEventListener("click", (event) => event.stopPropagation());
+        overlay.querySelectorAll("[data-close-overlay], [data-close-button]").forEach((el) => el.addEventListener("click", closeOverlay));
+        overlay.querySelector("[data-create-confirm]")?.addEventListener("click", () => {
+          const input = overlay.querySelector("#wlp-project-name");
+          const title = input && input.value.trim() ? input.value.trim() : "New presentation";
+          newProjectCount += 1;
+          const id = `project-${newProjectCount + 1}`;
+          chats.unshift({ id, title, subtitle: "", preview: "Not started", time: "New", letter: title[0].toUpperCase(), paused: false, trainingState: "idle", sessionCount: 0, checkpoint: null, processing: false, questionAnswered: false, moment: null });
+          current = id;
+          closeOverlay();
+          render();
+        });
+      }
+
+      function closeOverlay() { overlayState = null; overlay.innerHTML = ""; }
+      current = "will";
+      render();
+    })();
+  </script>
+</div>
