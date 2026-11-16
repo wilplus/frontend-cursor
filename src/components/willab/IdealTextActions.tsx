@@ -15,6 +15,14 @@ import {
 } from "@/lib/willab/nextTakeShare";
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
+import type { PracticeDeliveryLabel } from "@/services/api/trainings";
+
+const PRACTICE_STATUS_COLOR: Record<PracticeDeliveryLabel, string> = {
+  "Not yet there": "#b66d4c",
+  Almost: "#d6a048",
+  Good: "#6e9c6c",
+  "Strong delivery": "#3f7fbd",
+};
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -81,6 +89,7 @@ export default function IdealTextActions({
   confirmFirst?: ((go: () => void) => void) | null;
   /** Project practice: the text is the decision point before recording. */
   practiceDecision?: {
+    deliveryLabel?: PracticeDeliveryLabel;
     continueLabel?: string;
     onContinue: () => void;
     onRepeat: () => void;
@@ -123,6 +132,12 @@ export default function IdealTextActions({
   if (practiceDecision) {
     return (
       <div data-practice-decision className="flex flex-col gap-2">
+        {practiceDecision.deliveryLabel ? (
+          <div data-practice-status className="mb-0.5 flex min-h-6 items-center justify-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: PRACTICE_STATUS_COLOR[practiceDecision.deliveryLabel] }} />
+            {practiceDecision.deliveryLabel}
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={practiceDecision.onContinue}

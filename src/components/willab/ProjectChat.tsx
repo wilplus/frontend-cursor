@@ -7,7 +7,7 @@ import { postWillQuestion } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { messagesForProject, openProjectQuestion } from "@/lib/willab/projectChat";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
-import IdealTextCard from "./IdealTextCard";
+import FeedbackWalkCard from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
 import TypingDots from "./TypingDots";
 import { useBackDismiss } from "./useBackDismiss";
@@ -35,6 +35,7 @@ export default function ProjectChat({
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const [opened, setOpened] = useState<Opened>(null);
+  const [openedTake, setOpenedTake] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [slideCount, setSlideCount] = useState<number | null>(null);
@@ -53,6 +54,18 @@ export default function ProjectChat({
   const checkpoint = readPracticeCheckpoint(userId, project.arcId);
   const finalFragment =
     slideCount !== null && checkpoint >= slideCount - 1;
+  const practiceChunks = project.practiceChunks.length > 0
+    ? project.practiceChunks
+    : hasPractice
+      ? [{
+          startSlide: 1,
+          endSlide: Math.max(1, checkpoint + 1),
+          attempts: Math.max(1, project.takeCount),
+          deliveryLabel: "Not yet there" as const,
+          latestSessionId: latestTake?.sessionId ?? `${project.arcId}:latest`,
+        }]
+      : [];
+  const latestPractice = practiceChunks.at(-1) ?? null;
 
   useEffect(() => {
     let active = true;
@@ -95,6 +108,7 @@ export default function ProjectChat({
 
   const closeResult = () => {
     setOpened(null);
+    setOpenedTake(null);
     void thread.reload();
   };
 
@@ -143,22 +157,16 @@ export default function ProjectChat({
           {sending ? <TypingDots label="Will is replying" /> : null}
 
           {hasPractice ? (
-            <div data-project-results className="mt-3 flex flex-col gap-2">
-              <button
-                type="button"
-                data-project-feedback-walk
-                onClick={() => setOpened("walk")}
-                className="flex min-h-[76px] w-full items-center justify-between rounded-[18px] bg-muted px-5 text-left text-[17px]"
-              >
-                <span>Feedback walk</span><span aria-hidden className="text-[24px] text-muted-foreground">›</span>
-              </button>
-              <IdealTextCard
+            <div data-project-results className="mt-3 w-full max-w-[384px] self-start">
+              <FeedbackWalkCard
                 title={project.topic}
-                version={latestTake?.takeIndex ?? project.takeCount}
-                slideRef={project.coverRef}
-                arcId={project.arcId}
-                latest
-                onOpen={() => setOpened("ideal")}
+                progress={project.practiceProgress}
+                chunks={practiceChunks}
+                onFeedback={(chunk) => {
+                  setOpenedTake(chunk.latestSessionId);
+                  setOpened("walk");
+                }}
+                onIdealText={() => setOpened("ideal")}
               />
             </div>
           ) : null}
@@ -198,11 +206,13 @@ export default function ProjectChat({
       {opened ? (
         <IdealTextOverlay
           arcId={project.arcId}
+          coachTake={opened === "walk" ? openedTake : null}
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
           onClose={closeResult}
           onReadAloud={onRecord}
           practiceDecision={opened === "decision" ? {
+            deliveryLabel: latestPractice?.deliveryLabel,
             continueLabel: finalFragment
               ? "Finish presentation"
               : "Continue to next fragment",

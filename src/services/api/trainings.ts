@@ -23,6 +23,20 @@ export interface TrainingTake {
   uploadKey?: string | null;
 }
 
+export type PracticeDeliveryLabel =
+  | "Not yet there"
+  | "Almost"
+  | "Good"
+  | "Strong delivery";
+
+export interface PracticeChunk {
+  startSlide: number;
+  endSlide: number;
+  attempts: number;
+  deliveryLabel: PracticeDeliveryLabel;
+  latestSessionId: string;
+}
+
 export interface TrainingArc {
   arcId: string;
   topic: string;
@@ -45,6 +59,37 @@ export interface TrainingArc {
   /** When the project's newest Take was made (ISO); null = none or not
    *  sent. The project with the newest Take is the current one (N254). */
   lastTakeAt?: string | null;
+  /** Whole-presentation readiness. Per-chunk detector scores are never sent. */
+  practiceProgress: number;
+  /** Chronological exact slide-range practice history. */
+  practiceChunks: PracticeChunk[];
+}
+
+const DELIVERY_LABELS = new Set<PracticeDeliveryLabel>([
+  "Not yet there",
+  "Almost",
+  "Good",
+  "Strong delivery",
+]);
+
+function mapPracticeChunk(raw: unknown): PracticeChunk | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.start_slide !== "number" ||
+    typeof r.end_slide !== "number" ||
+    typeof r.attempts !== "number" ||
+    typeof r.latest_session_id !== "string" ||
+    typeof r.delivery_label !== "string" ||
+    !DELIVERY_LABELS.has(r.delivery_label as PracticeDeliveryLabel)
+  ) return null;
+  return {
+    startSlide: Math.max(1, Math.round(r.start_slide)),
+    endSlide: Math.max(1, Math.round(r.end_slide)),
+    attempts: Math.max(1, Math.round(r.attempts)),
+    deliveryLabel: r.delivery_label as PracticeDeliveryLabel,
+    latestSessionId: r.latest_session_id,
+  };
 }
 
 function mapTake(raw: unknown): TrainingTake | null {
@@ -71,6 +116,9 @@ function mapArc(raw: unknown): TrainingArc | null {
     .map(mapTake)
     .filter((t): t is TrainingTake => !!t)
     .sort((a, b) => a.takeIndex - b.takeIndex);
+  const practiceChunks = (Array.isArray(r.practice_chunks) ? r.practice_chunks : [])
+    .map(mapPracticeChunk)
+    .filter((chunk): chunk is PracticeChunk => chunk !== null);
   return {
     arcId: r.arc_id,
     topic:
@@ -102,6 +150,11 @@ function mapArc(raw: unknown): TrainingArc | null {
     archived: r.archived === true,
     lastTakeAt:
       typeof r.last_take_at === "string" && r.last_take_at ? r.last_take_at : null,
+    practiceProgress:
+      typeof r.practice_progress === "number" && Number.isFinite(r.practice_progress)
+        ? Math.max(0, Math.min(100, Math.round(r.practice_progress)))
+        : 0,
+    practiceChunks,
   };
 }
 

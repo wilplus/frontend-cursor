@@ -98,6 +98,18 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
     act(() => link()!.click());
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("reuses the chunk delivery status at the practice decision", () => {
+    render({
+      practiceDecision: {
+        deliveryLabel: "Good",
+        onContinue: vi.fn(),
+        onRepeat: vi.fn(),
+      },
+    });
+    expect(host.querySelector("[data-practice-status]")?.textContent).toContain("Good");
+    expect(labels()).toEqual(["Continue to next fragment", "Repeat this fragment"]);
+  });
 });
 
 const screen = () => host.querySelector('[data-testid="share-screen"]');
