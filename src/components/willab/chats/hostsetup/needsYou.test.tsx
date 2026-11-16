@@ -43,7 +43,8 @@ PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own word
          O8 -> "N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this"
          O7 -> "N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try"
 */
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
+import { useBackDismiss } from "../../useBackDismiss";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,6 +77,12 @@ import { forgetHostWork } from "./hostWork";
 import { OPEN_QUEUE_EVENT } from "@/lib/willab/coachDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Build stays under a row's chat, as Will's bar does, so a row's history entry is not the last one. */
+function Stay({ children }: { children: ReactNode }) {
+  useBackDismiss(() => undefined);
+  return createElement("div", null, children);
+}
 
 const RECIPE = {
   spec: "Trichologist",
@@ -167,6 +174,133 @@ describe("what needs you is in Will (backend N629)", () => {
     await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
     await flush();
     expect(chat("name").querySelector("textarea")!.value).toBe("kept in this chat");
+  });
+
+  it("typing Enter in a row's chat saves that part and shows the words", async () => {
+    const suggest = {
+      line: ["People come."], send: ["text"], out: ["answer"], hello: ["Hi."],
+      qs: ["How?"], taps: [["Ask"]], models: [{ q: "Ok?", opts: ["Yes", "No"], says: "" }], name: ["Ask Lena"],
+    };
+    const recipe = { ...RECIPE, spec: "Trichologist", suggest, line: "People come.", hello: "Hi.", name: "Ask Lena", live: true };
+    const parts = [{ part: "what", title: "What you do", value: "Trichologist" }];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, recipe, parts, can_try: false };
+    bff.routes["PUT /api/v2/chats/setup/what"] = (c: Call) => ({ recipe: { ...recipe, spec: (c.json as { value: string }).value }, cost: null });
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector('[data-build-part="what"]') as HTMLButtonElement).click());
+    await flush();
+    const chat = container.querySelector('[data-part-chat="what"]')!;
+    expect(chat.textContent).toContain("What do you do?");
+    expect(chat.textContent).not.toContain("Let's set up your chat");
+    expect(chat.textContent).not.toContain("five minutes");
+    const box = chat.querySelector("textarea")!;
+    expect(box.getAttribute("placeholder")).toBe("Speaking coach");
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+      set.call(box, "Dermatologist");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (box.closest("form") as HTMLFormElement).requestSubmit());
+    await flush();
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/what").map((c) => (c.json as { value: string }).value)).toEqual(["Dermatologist"]);
+    expect(chat.querySelector("[data-my-line]")?.textContent).toBe("Dermatologist");
+    expect(chat.querySelector("[data-part-bubble='what']")).not.toBeNull();
+  });
+
+  it("Keep, a kept Draw new one, and a typed answer open the next row's chat", async () => {
+    const suggest = {
+      line: ["People come."], send: ["text"], out: ["answer", "words"], hello: ["Hi.", "Welcome."],
+      qs: ["How?"], taps: [["Ask"]], models: [{ q: "Ok?", opts: ["Yes", "No"], says: "" }], name: ["Ask Lena", "Lena's chat"],
+    };
+    const recipe = {
+      ...RECIPE, spec: "Trichologist", suggest, line: "People come.", hello: "Hi.", name: "Ask Lena",
+      out: "answer", send: ["text"], live: true, questions: [],
+    };
+    const parts = [
+      { part: "name", title: "Name", value: "Ask Lena" },
+      { part: "hello", title: "Your hello", value: "Hi." },
+      { part: "out", title: "They get back", value: "An answer" },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, recipe, parts, can_try: false };
+    const kept = (part: string, key: string) => (c: Call) => ({ recipe: { ...recipe, [key]: (c.json as { value: string }).value }, cost: null });
+    bff.routes["PUT /api/v2/chats/setup/name"] = kept("name", "name");
+    bff.routes["PUT /api/v2/chats/setup/hello"] = kept("hello", "hello");
+    bff.routes["PUT /api/v2/chats/setup/out"] = kept("out", "out");
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
+    const shown = (id: string) => !chat(id).className.includes("hidden");
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    expect(shown("name")).toBe(true);
+    expect(chat("name").querySelector("[data-part-progress]")?.textContent).toBe("1 of 3");
+    const box = chat("name").querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "Lena's chat");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (box.closest("form") as HTMLFormElement).requestSubmit());
+    await flush();
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/name").map((c) => (c.json as { value: string }).value)).toEqual(["Lena's chat"]);
+    expect(shown("name")).toBe(false);
+    expect(shown("hello")).toBe(true);
+    expect(chat("hello").querySelector("[data-part-progress]")?.textContent).toBe("2 of 3");
+    expect(chat("hello").querySelector("[data-part-bubble]")?.textContent).toContain("Your hello");
+    const press = async (id: string, label: string) => {
+      const b = [...chat(id).querySelectorAll("button")].find((x) => x.textContent?.trim() === label);
+      if (!b) throw new Error(`no ${label} in ${id}`);
+      await act(async () => (b as HTMLButtonElement).click());
+      await flush();
+    };
+    await press("hello", "Draw new one");
+    await press("hello", "Keep");
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/hello").map((c) => (c.json as { value: string }).value)).toEqual(["Welcome."]);
+    expect(shown("hello")).toBe(false);
+    expect(shown("out")).toBe(true);
+    expect(chat("out").querySelector("[data-part-progress]")?.textContent).toBe("3 of 3");
+    expect(chat("out").textContent).toContain("They get back");
+    await press("out", "Keep");
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/out").map((c) => (c.json as { value: string }).value)).toEqual(["answer"]);
+    expect(shown("out")).toBe(false);
+    expect(container.querySelector("[data-part-search]")).not.toBeNull();
+  });
+
+  it("the header back arrow returns a row's chat to Your chat, and the browser's Back does too", async () => {
+    const parts = [{ part: "name", title: "Name", value: "Ask Lena" }];
+    const back = vi.fn();
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, own_chat: { title: "Artur's chat", line: "Hi." }, can_try: false };
+    act(() => root.render(createElement(Stay, null, createElement(WillBuild, { onBack: back }), createElement(HostSetupRows))));
+    await flush();
+    const header = () => container.querySelector<HTMLButtonElement>("[data-build-bar] button")!;
+    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Artur's chat");
+    await act(async () => header().click());
+    expect(back).toHaveBeenCalledTimes(1);
+    back.mockClear();
+    const open = async () => {
+      await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+      await flush();
+    };
+    const nameChat = () => container.querySelector("[data-part-chat='name']")!;
+    await open();
+    expect(nameChat().className).not.toContain("hidden");
+    expect((window.history.state as { __willabOverlay?: boolean }).__willabOverlay).toBe(true);
+    await act(async () => header().click());
+    await flush();
+    expect(back).not.toHaveBeenCalled();
+    expect(nameChat().className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).not.toBeNull();
+    await open();
+    await act(async () => {
+      const popped = new Promise((done) => window.addEventListener("popstate", done, { once: true }));
+      window.history.back();
+      await popped;
+    });
+    await flush();
+    expect(back).not.toHaveBeenCalled();
+    expect(nameChat().className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).not.toBeNull();
+    await act(async () => header().click());
+    expect(back).toHaveBeenCalledTimes(1);
   });
 
   it("N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice", async () => {

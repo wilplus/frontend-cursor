@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useBackDismiss } from "../useBackDismiss";
 import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
@@ -71,6 +72,12 @@ function Cover({ children }: { children: ReactNode }) {
   return <div data-build-cover="" className="absolute inset-0 z-10 flex flex-col bg-background">{children}</div>;
 }
 
+/** A row's chat is open: the browser's Back closes it, and leaves Build open. */
+function PartHistory({ onClose }: { onClose: () => void }) {
+  useBackDismiss(onClose);
+  return null;
+}
+
 export default function WillBuild({ onBack }: { onBack: () => void }) {
   const setup = useKnownSetup();
   // Opened, one's chat is Live when there is something to try, else Build
@@ -107,6 +114,11 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     setSeen((was) => (was.includes(id) ? was : [...was, id]));
     setActive(id);
   };
+  const closePart = () => setActive(null);
+  // The header arrow leaves Build only from the list. A row's chat goes back
+  // to that list, and so does the browser's Back (PartHistory).
+  const rowOpen = active !== null && tab === "chat";
+  const headerBack = () => (rowOpen ? closePart() : onBack());
   if (mode === "live" && canTry) {
     const bar = (
       <TopBar
@@ -126,7 +138,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const top = (
     <div data-build-bar="" className="shrink-0 bg-background pt-[env(safe-area-inset-top)]">
       <div className={ONE_BAR_ROW}>
-        <BackRow onBack={onBack} label={name} />
+        <BackRow onBack={headerBack} label={name} />
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
       <Tabs tab={tab} onTab={setTab} />
@@ -144,6 +156,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   return (
     <Cover>
       {top}
+      {rowOpen ? <PartHistory onClose={closePart} /> : null}
       <div className={active ? "hidden" : "no-scrollbar min-h-0 flex-1 overflow-y-auto"}>
         <WillNeedsYou page onPart={(part) => openPart(part.part)} />
       </div>
@@ -165,8 +178,8 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
             parts={setup.parts}
             cost={setup.cost}
             ownChat={setup.own_chat}
-            onBack={() => setActive(null)}
-            onNext={() => (last ? setActive(null) : openPart(order[index + 1].part))}
+            onBack={closePart}
+            onNext={() => (last ? closePart() : openPart(order[index + 1].part))}
           />
         );
       })}
@@ -211,6 +224,7 @@ function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, 
             ownChat={ownChat}
             part={part.part}
             onClose={onBack}
+            onDone={onNext}
           />
         </FrameBar.Provider>
       </FrameLead.Provider>

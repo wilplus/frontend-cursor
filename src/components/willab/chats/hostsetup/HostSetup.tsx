@@ -59,6 +59,8 @@ const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "w
 const THROUGH: Step[] = ["walk", "walkorder", "walkout", "q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
 const PART_STEP: Record<string, Step> = { what: "what", name: "name", line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
+/** Parts whose composer saves the typed words on Enter. */
+const SAVED_PARTS = new Set(["what", "line", "name", "hello", "taps", "out", "price"]);
 
 /** The parts with Will's line over them; null: the line of where the chat is. */
 type Parts = { line: string | null; parts: SetupPart[] };
@@ -168,7 +170,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   thinking: null,
   i: {},
   own: {},
-  qs: recipe ? recipe.questions.map((q) => q.q) : [],
+  qs: recipe?.questions?.map((q) => q.q) ?? [],
   sendSet: null,
   mi: 0,
   ownQ: null,
@@ -231,7 +233,7 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose, onDone }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
@@ -245,8 +247,19 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   /** Opened at this part from Build's "Your chat" (N642 item 3). */
   part?: string | null;
   onClose: () => void;
+  /** A row's chat: a finished step opens the next row, the same as Next. */
+  onDone?: () => void;
 }) {
-  const { S, paint } = useSetup(() => atPart(seeded({ ...fresh(recipe, parts, cost), ownChat }, name), part));
+  const { S, paint } = useSetup(() => {
+    // A row's chat: keep the recipe even when a suggestion list is empty.
+    // suggested() would drop it and every row would become the blank
+    // "What do you do?" screen, whose Enter starts a new setup.
+    if (part && recipe) {
+      const kept = start(recipe, parts ?? { line: null, parts: [] }, cost);
+      return atPart({ ...kept, ownChat: ownChat ?? null }, part);
+    }
+    return atPart(seeded({ ...fresh(recipe, parts, cost), ownChat }, name), part);
+  });
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -328,7 +341,11 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   /** An edit is over: the parts again; for a chat not open yet, "Open it
    *  to people?" first, so a "Not yet" is never final (N632 item 5). */
-  const editDone = () => (S.recipe && !S.recipe.live && S.at !== "live" ? go("live") : toParts());
+  const editDone = () => {
+    // A row's chat moves on when the step is kept. Back still closes.
+    if (S.onePart && onDone) return onDone();
+    return S.recipe && !S.recipe.live && S.at !== "live" ? go("live") : toParts();
+  };
   const next = () => {
     if (S.edit) {
       // After the models, sharing them and its price, as in the first run.
@@ -404,6 +421,10 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     if (!S.whatEdit) S.pending = { will: [...W.hi(name), W.whatDoYouDo], me: v };
     if (S.whatEdit) {
       // An edit of this one part: every other answer stays (N649 item 2).
+      // A row's chat stays open and shows the words. The parts list goes back.
+      S.log.push({ will: [], me: v });
+      paint();
+      if (S.onePart) return keep("what", spec);
       return keep("what", spec, () => {
         S.whatEdit = false;
         toParts();
@@ -445,7 +466,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   }
   // An edit of one part stands alone; the first run reads as a chat.
   const ctxLive: Ctx = { S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) };
-  const history = S.edit ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
+  const history = S.edit && !S.onePart ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
   return (
     <FrameHistory.Provider value={history}>
       <FrameNote.Provider value={S.failed ? <div role="alert" data-setup-failed="" className="max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">{W.notSaved}</div> : null}>
@@ -496,8 +517,8 @@ function SetupScreen({ S, R, name, guess, back, typeIn, begin, ctx }: {
   }
   if (!R || S.at === "what") {
     return (
-      <Frame onBack={back} dock={{ onSend: (v) => { begin(v); }, placeholder: W.whatPlaceholder, initial: guess ?? "" }}>
-        {W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
+      <Frame onBack={back} dock={{ onSend: (v) => { begin(v); }, placeholder: W.whatPlaceholder, initial: S.onePart ? "" : guess ?? "" }}>
+        {S.onePart || S.whatEdit ? null : W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
         <Say>{W.whatDoYouDo}</Say>
       </Frame>
     );
@@ -596,9 +617,15 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
       }, {
         placeholder: typeAsk,
         onSend: (typed) => {
-          if (!typeAsk) return false;
+          if (!typeAsk || !fromTyped) return false;
           S.own[id] = typed;
           S.refused = false;
+          if (S.onePart && SAVED_PARTS.has(id)) {
+            S.log.push({ will: [], me: typed });
+            c.paint();
+            c.keep(id, fromTyped(typed));
+            return;
+          }
           c.paint();
         },
       })}
