@@ -33,6 +33,7 @@ The backend's `main` is the one source of truth (backend N95).
 - [Life Panel FE — what shipped, what it assumes, what is still open](docs/life-panel-fe-status.md)
 - [Life Panel — source artifacts still outside the repo](docs/life-panel-sources/README.md)
 - [The Life Panel — implementation document](docs/life-panel-spec.md)
+- [Backend phase 1 of the Chat Builder, ready to apply](docs/chat-builder/APPLY.md) · Founder-Approved: the owner's cloud-agent task, 16 November 2026, "build the prototype"
 
 **Pointers to the backend's rules (In force)**
 
