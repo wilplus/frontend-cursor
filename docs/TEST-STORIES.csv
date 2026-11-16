@@ -898,10 +898,10 @@ O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
 src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
 O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
 O2 -> keeps a paste that calls eval as not live","The Chat Builder has to edit the coach in words, and a paste must not become running code (phase 1 of the Chat Builder)."
-src/components/willab/chats/devMode.test.tsx,Story,"As a host in Build, the panel under the tabs is the Speaking coach chip and nothing called Developer mode. That switch already sits elsewhere, so this panel does not draw a second one (backend N648 still draws its own screens when they are opened).","O1  Build's bar has the Speaking coach chip and no Developer mode row,
-whether or not the dev read answers.
+src/components/willab/chats/devMode.test.tsx,Story,"As a host in Build, the bar under the tabs is the two tabs and nothing else: no Speaking coach chip and no Developer mode row (backend N648 still draws its own screens when they are opened).","O1  Build's bar has neither a Speaking coach chip nor a Developer mode
+row, whether or not the dev read answers.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
-that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has the Speaking coach chip and no Developer mode row""
+that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
 O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to

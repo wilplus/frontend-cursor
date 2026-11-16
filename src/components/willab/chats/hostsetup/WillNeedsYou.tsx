@@ -90,6 +90,17 @@ export function groupParts(parts: SetupPart[]): { heading: string | null; parts:
   return groups.filter((g) => g.parts.length > 0);
 }
 
+/** The overview's order: top to bottom, group by group. Next follows this. */
+export function orderedParts(parts: SetupPart[]): SetupPart[] {
+  return groupParts(parts).flatMap((g) => g.parts);
+}
+
+function matches(part: SetupPart, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return `${part.title} ${part.value ?? ""}`.toLowerCase().includes(q);
+}
+
 type Icon = ComponentType<LucideProps>;
 
 /** A small picture for each part, from the app's icon set. */
@@ -159,30 +170,65 @@ function PartRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
   );
 }
 
-/** Build's "Your chat" (backend N642 item 3, N643 item 4), drawn in Will's
- *  chat above his field: Will's line, the chat's parts, then what needs you
- *  about the chat (the answers to send, a model left out, a changed price).
- *  What is taught (the moments, the examples, a model's check) is in the AI
- *  models tab (BuildModels). Without a chat yet, "Your chat" opens the setup
- *  at "What do you do?". Only for the ring `chat_builder`. */
-export default function WillNeedsYou() {
+/** The row as the first bubble of its own chat. */
+export function PartBubble({ part }: { part: SetupPart }) {
+  const Icon = PART_ICON[part.part] ?? CircleHelp;
+  return (
+    <div data-part-bubble={part.part} className="flex max-w-[86%] items-start gap-2 self-end rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] leading-snug text-primary-foreground">
+      <Icon aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+      <span className="min-w-0">
+        <b className="block font-semibold">{part.title}</b>
+        {part.value ? <span className="block">{part.value}</span> : null}
+      </span>
+    </div>
+  );
+}
+
+/** Build's "Your chat" (backend N642 item 3, N643 item 4): the parts, then
+ *  what needs you about the chat. On the stable page (`page`) it is the
+ *  whole screen, with a search, and a row opens that row's own chat.
+ *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
+ *  Only for the ring `chat_builder`. */
+export default function WillNeedsYou({ page = false, onPart }: { page?: boolean; onPart?: (part: SetupPart) => void }) {
   const { isCoach } = useUserProfile();
   const work = useHostWork(isCoach);
   const setup = useKnownSetup();
+  const [query, setQuery] = useState("");
   if (!work.ring) return null;
   const over = (detail: OpenDetail) => () => openOverList(detail);
+  const openPart = (part: SetupPart) => (onPart ? onPart(part) : openOverList({ part: part.part }));
   const recipe = setup?.recipe ?? null;
   const answers = work.lines.find((l) => l.kind === "answers");
   const needs = Boolean(answers) || work.skipped.length > 0 || work.priceChanges.length > 0;
+  const shown = (setup?.parts ?? []).filter((part) => matches(part, page ? query : ""));
+  const groups = groupParts(shown);
   return (
-    <div data-will-needs-you="" className="mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5">
+    <div data-will-needs-you="" className={page ? "flex w-full flex-col gap-3 px-4 py-4" : "mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5"}>
+      {page ? (
+        <form data-part-search="" className="relative" onSubmit={(e) => e.preventDefault()}>
+          <input
+            type="search"
+            value={query}
+            placeholder={W.search}
+            aria-label={W.search}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-16 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+          />
+          {query ? (
+            <button type="button" aria-label="Clear" onClick={() => setQuery("")} className="absolute right-2 top-1/2 min-h-8 -translate-y-1/2 px-2 text-[14px] font-medium text-muted-foreground">
+              Clear
+            </button>
+          ) : null}
+        </form>
+      ) : null}
       {recipe ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
             {recipe.live ? <span data-chat-open="" className="inline-flex rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#1F7A55]">{W.openBadge}</span> : null}
           </div>
-          {groupParts(setup?.parts ?? []).map((g) => {
+          {groups.length === 0 && page && query.trim() ? <p className="m-0 text-[15px] text-muted-foreground">{W.nothingMatches}</p> : null}
+          {groups.map((g) => {
             const SectionIcon = g.heading ? SECTION_ICON[g.heading] : null;
             return (
               <section key={g.heading ?? "more"} className="overflow-hidden rounded-2xl border border-border bg-background">
@@ -194,7 +240,7 @@ export default function WillNeedsYou() {
                 ) : null}
                 <div className="divide-y divide-border">
                   {g.parts.map((part) => (
-                    <PartRow key={part.part} part={part} onOpen={over({ part: part.part })} />
+                    <PartRow key={part.part} part={part} onOpen={() => openPart(part)} />
                   ))}
                 </div>
               </section>

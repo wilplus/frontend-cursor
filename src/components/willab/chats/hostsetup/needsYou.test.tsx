@@ -120,6 +120,55 @@ async function tap(label: string) {
 const posts = () => bff.calls.filter((c) => c.method === "POST" && c.path.startsWith("/api/v2/chats/setup/drafts/"));
 
 describe("what needs you is in Will (backend N629)", () => {
+  it("search filters the rows, Clear brings them back, and Next walks each row's own chat", async () => {
+    const parts = [
+      { part: "name", title: "Name", value: "Ask Lena" },
+      { part: "hello", title: "Your hello", value: "Hi." },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, can_try: false };
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    const search = container.querySelector<HTMLInputElement>("[data-part-search] input")!;
+    expect(search).not.toBeNull();
+    const set = async (value: string) => {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search, value);
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+    await set("hello");
+    expect([...container.querySelectorAll("[data-build-part]")].map((r) => r.getAttribute("data-build-part"))).toEqual(["hello"]);
+    await set("no such row");
+    expect(text()).toContain("Nothing matches");
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-part-search] button")!.click());
+    expect([...container.querySelectorAll("[data-build-part]")].map((r) => r.getAttribute("data-build-part"))).toEqual(["name", "hello"]);
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
+    expect(chat("name").className).not.toContain("hidden");
+    expect(chat("name").querySelector("[data-part-bubble]")?.textContent).toContain("Name");
+    expect(chat("name").querySelector("[data-part-bubble]")?.textContent).toContain("Ask Lena");
+    expect(chat("name").querySelector("[data-part-progress]")?.textContent).toBe("1 of 2");
+    const box = chat("name").querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "kept in this chat");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (chat("name").querySelector("[data-part-next]") as HTMLButtonElement).click());
+    await flush();
+    expect(chat("hello").className).not.toContain("hidden");
+    expect(chat("name").className).toContain("hidden");
+    expect(chat("hello").querySelector("[data-part-bubble]")?.textContent).toContain("Your hello");
+    expect(chat("hello").querySelector("[data-part-progress]")?.textContent).toBe("2 of 2");
+    await act(async () => (chat("hello").querySelector("[data-part-next]") as HTMLButtonElement).click());
+    await flush();
+    expect(chat("hello").className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).not.toBeNull();
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    expect(chat("name").querySelector("textarea")!.value).toBe("kept in this chat");
+  });
+
   it("N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice", async () => {
     bff.routes["GET /api/v2/chats/setup"] = SETUP;
     bff.routes["GET /api/v2/chats/setup/drafts"] = { drafts: DRAFTS };

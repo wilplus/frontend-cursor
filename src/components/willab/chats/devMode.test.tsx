@@ -1,15 +1,14 @@
 // @vitest-environment jsdom
 /*
-STORY    As a host in Build, the panel under the tabs is the Speaking coach
-         chip and nothing called Developer mode. That switch already sits
-         elsewhere, so this panel does not draw a second one (backend N648
-         still draws its own screens when they are opened).
+STORY    As a host in Build, the bar under the tabs is the two tabs and
+         nothing else: no Speaking coach chip and no Developer mode row
+         (backend N648 still draws its own screens when they are opened).
 OUTCOME
-  O1  Build's bar has the Speaking coach chip and no Developer mode row,
-      whether or not the dev read answers.
+  O1  Build's bar has neither a Speaking coach chip nor a Developer mode
+      row, whether or not the dev read answers.
   O2  A week with fewer than five people reads "fewer than 5", and a chart
       that could not be counted is drawn as not counted, never as zero.
-PROVES   O1 -> "Build has the Speaking coach chip and no Developer mode row"
+PROVES   O1 -> "Build has neither a Speaking coach chip nor a Developer mode row"
          O2 -> "N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero"
 */
 import { act, createElement } from "react";
@@ -72,14 +71,15 @@ async function open() {
 }
 
 describe("Developer mode (backend N648)", () => {
-  it("Build has the Speaking coach chip and no Developer mode row", async () => {
+  it("Build has neither a Speaking coach chip nor a Developer mode row", async () => {
     bff.routes["GET /api/v2/chats/setup/dev"] = DEV;
     await open();
     const bar = container.querySelector("[data-build-bar]")!;
     expect(bar.querySelector("[data-dev-switch]")).toBeNull();
     expect(bar.querySelector("[data-dev-row]")).toBeNull();
+    expect(bar.querySelector("[data-open-coach]")).toBeNull();
     expect(bar.textContent).not.toContain("Developer mode");
-    expect(bar.querySelector("[data-open-coach]")?.textContent).toContain("Speaking coach");
+    expect(bar.textContent).not.toContain("Speaking coach");
   });
 
   it("N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero", async () => {

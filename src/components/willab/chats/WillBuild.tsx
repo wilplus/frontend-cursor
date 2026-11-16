@@ -2,16 +2,19 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BackRow, ONE_BAR_ROW } from "../OneTopBar";
+import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import BuildModels from "./BuildModels";
-import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
+import type { HostRecipe, OwnChat, SetupPart } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
-import CoachBuild from "./coachbuild/CoachBuild";
+import HostSetup from "./hostsetup/HostSetup";
 import CoachLive from "./coachbuild/CoachLive";
 import { useCoachDraft } from "@/lib/willab/chatBuilder/useCoachDraft";
 import { W } from "./hostsetup/hostSetupCopy";
 import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
+import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
+import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -74,7 +77,9 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // (backend N642 item 3).
   const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
-  const [coachOpen, setCoachOpen] = useState(false);
+  const [active, setActive] = useState<string | null>(null);
+  const [seen, setSeen] = useState<string[]>([]);
+  const { profile } = useUserProfile();
   const draft = useCoachDraft();
   const own = setup?.own_chat ?? null;
   const name = own?.title ?? W.yourChatTitle;
@@ -97,13 +102,11 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     return () => window.removeEventListener(BUILD_MODE_EVENT, on);
   }, []);
   const swap = canTry ? <LiveBuildSwitch mode={mode} onMode={setMode} /> : null;
-  if (coachOpen) {
-    return (
-      <Cover>
-        <CoachBuild doc={draft.doc} onChange={(next) => void draft.save(next)} onClose={() => setCoachOpen(false)} />
-      </Cover>
-    );
-  }
+  const order = orderedParts(setup?.parts ?? []);
+  const openPart = (id: string) => {
+    setSeen((was) => (was.includes(id) ? was : [...was, id]));
+    setActive(id);
+  };
   if (mode === "live" && canTry) {
     const bar = (
       <TopBar
@@ -127,11 +130,6 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
       <Tabs tab={tab} onTab={setTab} />
-      {tab === "chat" ? (
-        <button type="button" data-open-coach="" onClick={() => setCoachOpen(true)} className="mx-4 my-2 min-h-11 rounded-2xl border border-border px-3 text-left text-[15px] font-semibold">
-          Speaking coach
-        </button>
-      ) : null}
     </div>
   );
   if (tab === "models") {
@@ -142,6 +140,80 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       </Cover>
     );
   }
-  // "Your chat": Will's chat itself, under the bar and the tabs.
-  return <div className="-mx-4">{top}</div>;
+  // "Your chat" is a settings page. A row opens that row's own chat.
+  return (
+    <Cover>
+      {top}
+      <div className={active ? "hidden" : "min-h-0 flex-1 overflow-y-auto"}>
+        <WillNeedsYou page onPart={(part) => openPart(part.part)} />
+      </div>
+      {seen.map((id) => {
+        const index = order.findIndex((part) => part.part === id);
+        const part = order[index];
+        if (!part || !setup?.recipe) return null;
+        const last = index === order.length - 1;
+        return (
+          <PartChat
+            key={id}
+            part={part}
+            index={index}
+            total={order.length}
+            shown={active === id}
+            last={last}
+            name={profile?.first_name ?? ""}
+            recipe={setup.recipe}
+            parts={setup.parts}
+            cost={setup.cost}
+            ownChat={setup.own_chat}
+            onBack={() => setActive(null)}
+            onNext={() => (last ? setActive(null) : openPart(order[index + 1].part))}
+          />
+        );
+      })}
+    </Cover>
+  );
+}
+
+/** One row's chat. It stays mounted, so coming back shows this thread, not another's. */
+function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, ownChat, onBack, onNext }: {
+  part: SetupPart;
+  index: number;
+  total: number;
+  shown: boolean;
+  last: boolean;
+  name: string;
+  recipe: HostRecipe;
+  parts: SetupPart[];
+  cost: import("@/services/api/hostSetup").ChatCost | null;
+  ownChat: OwnChat | null;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div data-part-chat={part.part} className={shown ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+      <FrameLead.Provider value={<PartBubble part={part} />}>
+        <FrameBar.Provider value={(stepBack) => (
+          <div data-part-chat-bar="" className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2">
+            <button type="button" aria-label="Back" onClick={() => (stepBack ? stepBack() : onBack())} className="min-h-11 px-2 text-[15px] font-semibold text-foreground">
+              {W.backPlain}
+            </button>
+            <span data-part-progress="" className="text-[13px] text-muted-foreground">{W.placeInList(index + 1, total)}</span>
+            <button type="button" data-part-next="" onClick={onNext} className="ml-auto min-h-11 px-3 text-[15px] font-semibold text-foreground">
+              {last ? W.done : W.next}
+            </button>
+          </div>
+        )}>
+          <HostSetup
+            name={name}
+            recipe={recipe}
+            parts={{ line: null, parts }}
+            cost={cost}
+            ownChat={ownChat}
+            part={part.part}
+            onClose={onBack}
+          />
+        </FrameBar.Provider>
+      </FrameLead.Provider>
+    </div>
+  );
 }

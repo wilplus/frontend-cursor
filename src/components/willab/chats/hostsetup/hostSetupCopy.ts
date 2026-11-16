@@ -270,6 +270,11 @@ export const W = {
   openBadge: "Open",
   /** An empty part in the overview table. */
   notSet: "Not set",
+  /** The overview's search, and what it says when no row fits. */
+  search: "Search",
+  nothingMatches: "Nothing matches",
+  /** Where you are in the list, inside a row's chat. */
+  placeInList: (n: number, of: number) => `${n} of ${of}`,
   partsSaved: "Your chat is saved. Nobody can see it yet. Tap a part to change it.",
   yourModels: "Your models, and everything you teach.",
   momentsTask: "Moments to answer",

@@ -263,7 +263,7 @@ export function BarBox({
               submit();
             }
           }}
-          className={`${field.className} block min-h-10 resize-none py-[9px] leading-snug`}
+          className={`${field.className} setup-composer block min-h-10 resize-none overflow-hidden break-words py-[9px] leading-snug placeholder:truncate`}
         />
       ) : (
         <input {...field} ref={ref} type="text" enterKeyHint="send" onChange={(e) => setWords(e.target.value)} className={`${field.className} h-10`} />

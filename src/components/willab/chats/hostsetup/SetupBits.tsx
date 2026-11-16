@@ -53,6 +53,9 @@ export type SetupDockSpec = {
 };
 export const FrameDock = createContext<SetupDockSpec | null>(null);
 
+/** The row that opened this chat, drawn as the first bubble. */
+export const FrameLead = createContext<ReactNode>(null);
+
 /** Two big taps, then the composer. One or two choices fill the bar; the
  *  last one is the one that keeps. */
 function BigChoices({ labels, onChoice, disabled }: { labels: string[]; onChoice: (label: string) => void; disabled?: boolean }) {
@@ -145,6 +148,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
   const makeBar = useContext(FrameBar);
   const dockFallback = useContext(FrameDock);
   const dockSpec = dock === null ? null : dock ?? dockFallback;
+  const lead = useContext(FrameLead);
   useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
@@ -168,6 +172,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
         makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
       <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
+        {lead}
         {history}
         {children}
         {note}
