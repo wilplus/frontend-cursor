@@ -9,8 +9,6 @@ import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import { archiveProject } from "@/services/api/projectArchive";
-import { currentProjectOf } from "@/lib/willab/oneProject";
-import { useOneProjectQuestion } from "./OneProjectQuestion";
 import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 import {
@@ -52,12 +50,9 @@ import {
 /*  With NO projects there is nothing to choose between, so the screen is a    */
 /*  single centred "Start your first project" — one thing, nothing competing.  */
 /*                                                                            */
-/*  2026-10-29 (founder, backend N254) — one project at a time. The current  */
-/*  project is the one with the newest Take. "Start a new project", or a     */
-/*  row that is not the current project, first asks "One project at a time"; */
-/*  Continue archives the current project, then goes on as before. The       */
-/*  current project's own row, a draft, and an account with no Take ask      */
-/*  nothing.                                                                 */
+/*  Founder-approved structure (2026-11-16): projects are concurrent.         */
+/*  Starting or opening one never archives another; Archive remains an        */
+/*  explicit action on the project row only.                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function ProjectPicker({
@@ -103,22 +98,8 @@ export default function ProjectPicker({
     return ok;
   }
 
-  // One project at a time (N254): leaving the current project asks first.
-  const question = useOneProjectQuestion();
-  const current = status === "ready" ? currentProjectOf(arcs) : null;
-  function leaveCurrent(then: () => void): void {
-    if (!current) {
-      then();
-      return;
-    }
-    const leaving = current;
-    question.ask({ current: leaving.topic, commit: () => archiveProject(leaving.arcId), then });
-  }
-  const startNew = () => leaveCurrent(onNewTopic);
-  const openProject = (arc: TrainingArc) => () => {
-    if (current?.arcId === arc.arcId) onContinue(arc);
-    else leaveCurrent(() => onContinue(arc));
-  };
+  const startNew = onNewTopic;
+  const openProject = (arc: TrainingArc) => () => onContinue(arc);
 
   async function deleteDraft(draft: SetupDraft): Promise<boolean> {
     deleteSetupDraft(ownerId, draft.id);
@@ -259,7 +240,6 @@ export default function ProjectPicker({
         </div>
       </div>
       )}
-      {question.sheet}
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function TopBar({
   return (
     <div
       data-chat-header
-      className="box-content flex h-[60px] shrink-0 items-center gap-1 border-b border-border pl-1 pr-4 pt-[env(safe-area-inset-top)]"
+      className="box-content flex h-[60px] shrink-0 items-center gap-1 border-b border-border px-[15px] pt-[env(safe-area-inset-top)]"
     >
       <button
         type="button"
@@ -87,7 +87,9 @@ export function WillTopBar({ onBack, place = "will", build = null }: {
   if (build) return <>{build}</>;
   return (
     <div className="-mx-4">
-      <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
+      <div className="mx-auto w-full max-w-4xl">
+        <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
+      </div>
     </div>
   );
 }
@@ -101,7 +103,9 @@ export function TakesChatBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () 
   useBackDismiss(onBack);
   return (
     <div className="-mx-4" data-takes-chat={chat.id}>
-      <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} onOpen={onOpen} />
+      <div className="mx-auto w-full max-w-4xl">
+        <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} onOpen={onOpen} />
+      </div>
     </div>
   );
 }

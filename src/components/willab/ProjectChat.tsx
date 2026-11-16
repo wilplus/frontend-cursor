@@ -128,18 +128,20 @@ export default function ProjectChat({
 
   return (
     <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
-      <div className="box-content flex h-[60px] shrink-0 items-center gap-2 border-b border-border px-2 pt-[env(safe-area-inset-top)]">
-        <button type="button" onClick={onBack} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full">
-          <ChevronLeft className="h-6 w-6" aria-hidden />
-        </button>
-        <span className="min-w-0">
-          <b className="block truncate text-[16px] leading-tight">{project.topic}</b>
-          <span className="text-[12.5px] text-muted-foreground">Project</span>
-        </span>
+      <div className="box-content flex h-[60px] shrink-0 items-center border-b border-border pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto flex w-full max-w-4xl items-center gap-2 px-2">
+          <button type="button" onClick={onBack} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full">
+            <ChevronLeft className="h-6 w-6" aria-hidden />
+          </button>
+          <span className="min-w-0">
+            <b className="block truncate text-[16px] leading-tight">{project.topic}</b>
+            <span className="text-[12.5px] text-muted-foreground">Project</span>
+          </span>
+        </div>
       </div>
 
       <div ref={scrollRef} className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-end gap-2">
+        <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-end gap-2">
           {messages
             .filter((message) => message.kind !== "walk_step" && message.kind !== "ideal_text" && message.kind !== "recording_summary")
             .map((message) => (
@@ -175,7 +177,7 @@ export default function ProjectChat({
 
       <div className="shrink-0 border-t border-border bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
         {question ? (
-          <div data-project-question className="mx-auto flex w-full max-w-2xl flex-col gap-2">
+          <div data-project-question className="mx-auto flex w-full max-w-4xl flex-col gap-2">
             {chips.length ? (
               <div className="flex flex-wrap justify-end gap-2">
                 {chips.map((chip) => (
@@ -196,7 +198,7 @@ export default function ProjectChat({
           <button type="button" data-project-record onClick={() => {
             if (hasPractice) setOpened("decision");
             else onRecord();
-          }} className="mx-auto flex h-[58px] w-full max-w-2xl items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background">
+          }} className="mx-auto flex h-[58px] w-full max-w-4xl items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background">
             <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
             {hasPractice ? "Continue recording" : "Start recording"}
           </button>

@@ -644,8 +644,7 @@ export default function Lounge({
     const project = readExploreArc(userId);
     if (action === "create_new_project") {
       postAnswerBubble(CHIP_LABEL[action]);
-      // One project at a time (N260): with a current project, the question
-      // takes the message box's place first.
+      // Starting a project is concurrent with every project already kept.
       newProjectAsk.begin(() => {
         clearExploreArc(userId);
         (onStartNewProject ?? onStart)();
@@ -2089,11 +2088,9 @@ export default function Lounge({
        composer. An empty slot takes no room (hidden; never the thread, which
        is empty while it loads), and the thread's -mb-1 leaves 8px of the
        gap under it: what scrolls stops 8px above the bar, as the bar keeps
-       8px from the sides and the bottom (N505). The column reaches 8px into
-       the shell's sides (-mx-2 px-2): its overflow-hidden clips at its
-       padding edge, so the bar's own -mx-2 shows whole instead of cut off on
-       the right (founder 2026-11-05: the record button ran off the screen). */
-    <div className="-mx-2 flex flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden">
+       8px from the sides and the bottom (N505). The column is the shared
+       max-w-4xl desktop shell, aligned with the logo and hamburger. */
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden">
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
           an empty <div>. Out of the column's flow, so their four gaps no
           longer push the thread down (founder 2026-10-30: "Please remove
