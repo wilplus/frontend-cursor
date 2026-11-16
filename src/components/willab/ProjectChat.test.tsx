@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want a project conversation with its two saved results,
-         contextual questions and one recording action, so that the next step
-         is clear without mixing project work into Will.
-OUTCOME  O1  Feedback walk and Ideal Text are the two durable results.
-         O2  An open question replaces recording with taps and typed reply.
-PROVES   O1 -> "has exactly two durable results and one continuation CTA"
-         O2 -> "replaces recording with taps and text while a project question is open"
-WHY      Founder-approved project-chat prototype, 2026-11-15.
+STORY    As a speaker, I want the project result first and the conversation in
+         human order, using the app's locked chat controls.
+OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
+         O2  The summary leads into the question; a held goodbye stays hidden
+             and, once released, follows the answer instead of jumping ahead.
+         O3  The project uses one chat top bar and the standard answer controls.
+PROVES   O1 -> "puts the result before the project conversation"
+         O2 -> "keeps the contextual exchange in human order"
+         O3 -> "uses the locked chat bar and answer controls"
+WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -92,15 +94,65 @@ afterEach(() => {
   host.remove();
 });
 
-function render(): void {
+function render(currentProject: TrainingArc = project): void {
   act(() => root.render(createElement(ProjectChat, {
-    project,
+    project: currentProject,
     onBack: vi.fn(),
     onRecord,
   })));
 }
 
+function message(
+  id: string,
+  body: string,
+  role: "user" | "bot",
+  metadata: Record<string, unknown>,
+): LoungeMessage {
+  return {
+    client_id: id,
+    client_created_at: `2026-11-16T00:00:${id.length.toString().padStart(2, "0")}.000Z`,
+    role,
+    kind: "text",
+    body,
+    metadata: { arc_id: "arc-a", take_session_id: "take-a", ...metadata },
+  };
+}
+
+function before(first: Element, second: Element): boolean {
+  return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
 describe("project conversation", () => {
+  it("shows the neutral result card as soon as the accepted Take reaches the thread", () => {
+    const accepted: LoungeMessage = {
+      client_id: "accepted-take",
+      client_created_at: "2026-11-16T00:00:00.000Z",
+      role: "system",
+      kind: "recording_summary",
+      body: "Readout · Board meeting",
+      metadata: {
+        arc_id: "arc-a",
+        session_id: "take-accepted",
+        take_index: 1,
+        topic: "Board meeting",
+      },
+    };
+    state.messages = [accepted];
+    render({
+      ...project,
+      takeCount: 0,
+      takes: [],
+      practiceProgress: 0,
+      practiceChunks: [],
+    });
+
+    expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
+    expect(host.textContent).toContain("Take 1");
+    expect(host.textContent).toContain("Processing");
+    expect(host.textContent).not.toContain("Not yet there");
+    expect(host.querySelector('[data-project-message="accepted-take"]')).toBeNull();
+  });
+
   it("combines practice history and Ideal text in one result card", () => {
     render();
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
@@ -120,25 +172,59 @@ describe("project conversation", () => {
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"durationSeconds":300');
   });
 
-  it("replaces recording with taps and text while a project question is open", () => {
-    state.messages = [{
-      client_id: "q1",
-      client_created_at: "2026-11-15T00:00:00.000Z",
-      role: "bot",
-      kind: "text",
-      body: "Who were you talking to?",
-      metadata: {
-        arc_id: "arc-a",
+  it("puts the result first and keeps the contextual exchange in human order", async () => {
+    state.messages = [
+      message("summary", "That was your most confident moment.", "bot", { summary: true }),
+      message("closing", "Good job. See you next time.", "bot", { next_take: true, held_for: "will_question" }),
+      message("bridge", "Now let's look at the content.", "bot", {}),
+      message("question", "Who were you talking to?", "bot", {
         offer: "will_question",
         will_question_step: "ask",
-        take_session_id: "take-a",
-        chips: ["Leadership", "My team"],
-      },
-    }];
+        chips: ["Leadership", "My team", "Customers"],
+      }),
+    ];
     render();
+
+    const card = host.querySelector("[data-project-results]")!;
+    const summary = host.querySelector('[data-project-message="summary"]')!;
+    const bridge = host.querySelector('[data-project-message="bridge"]')!;
+    const question = host.querySelector('[data-project-message="question"]')!;
+    expect(before(card, summary)).toBe(true);
+    expect(before(summary, bridge)).toBe(true);
+    expect(before(bridge, question)).toBe(true);
+    expect(host.textContent).not.toContain("Good job. See you next time.");
     expect(host.querySelector("[data-project-record]")).toBeNull();
-    expect(host.querySelector('input[aria-label="Answer about this take"]')).not.toBeNull();
+    expect(host.querySelector("[data-chat-header]")).not.toBeNull();
+    expect(host.querySelector("[data-will-answers]")).not.toBeNull();
+    expect(host.querySelector('textarea[aria-label="Answer about this take"]')).toBeNull();
     expect(host.textContent).toContain("Leadership");
     expect(host.textContent).toContain("My team");
+
+    const somethingElse = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Something else",
+    )!;
+    await act(async () => somethingElse.click());
+    expect(host.querySelector('textarea[aria-label="Answer about this take"]')).not.toBeNull();
+
+    state.messages = [
+      message("summary", "That was your most confident moment.", "bot", { summary: true }),
+      // The backend releases the stored closing without changing its original
+      // timestamp. Raw order is deliberately wrong here.
+      message("closing", "Good job. See you next time.", "bot", { next_take: true }),
+      message("bridge", "Now let's look at the content.", "bot", {}),
+      message("question", "Who were you talking to?", "bot", {
+        offer: "will_question",
+        will_question_step: "ask",
+        chips: ["Leadership", "My team", "Customers"],
+      }),
+      message("answer", "My team", "user", { will_question_step: "answer" }),
+      message("reply", "That helps me understand the context.", "bot", { will_question_step: "reply" }),
+    ];
+    render();
+
+    const reply = host.querySelector('[data-project-message="reply"]')!;
+    const closing = host.querySelector('[data-project-message="closing"]')!;
+    expect(before(reply, closing)).toBe(true);
+    expect(host.querySelector("[data-will-answers]")).toBeNull();
   });
 });

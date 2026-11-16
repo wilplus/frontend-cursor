@@ -269,7 +269,7 @@ export default function WillabSurface({
       {bare ? null : (
         // Hidden, not unmounted, while a person's chat draws its own top bar
         // in its place (ring 6, backend N321 item 1).
-        <div className="shrink-0" hidden={!chats.navbar}>
+        <div className="shrink-0" hidden={!chats.navbar || pickedProject !== null}>
           {/* A pull down from the top bar opens the dump screen (N517). */}
           <DumpPullBar>
             <DashboardHeader />
@@ -518,4 +518,4 @@ function shellPadding(flush: boolean, bare: boolean): string {
   return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }
 
-// Founder-Approved: project Takes return to their project conversation after Feedback walk and Ideal Text, 2026-11-15.
+// Founder-Approved: a project conversation replaces the site bar with its single locked chat top bar, 2026-11-16.

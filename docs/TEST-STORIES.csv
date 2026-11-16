@@ -507,9 +507,12 @@ consent screens instead of choosing for me.","O1 -> ""opens the app with the pro
 O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
 O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
 O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
-src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want a project conversation with its two saved results, contextual questions and one recording action, so that the next step is clear without mixing project work into Will.","O1  Feedback walk and Ideal Text are the two durable results.
-O2  An open question replaces recording with taps and typed reply.","O1 -> ""has exactly two durable results and one continuation CTA""
-O2 -> ""replaces recording with taps and text while a project question is open""","Founder-approved project-chat prototype, 2026-11-15."
+src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
+O2  The summary leads into the question; a held goodbye stays hidden
+and, once released, follows the answer instead of jumping ahead.
+O3  The project uses one chat top bar and the standard answer controls.","O1 -> ""puts the result before the project conversation""
+O2 -> ""keeps the contextual exchange in human order""
+O3 -> ""uses the locked chat bar and answer controls""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -833,9 +836,10 @@ O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Wil
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
-src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the record button; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has ""Start your first recording"", then ""Record
-Take 2"", its Take rows and the plan's dock; Will's chat has the text
-field and none of them; Principles its own rows and the text field.
+src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the text field by default; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has the normal text composer at rest, switching to a
+recording control only when a current task explicitly needs speech; its
+Take rows and plan dock remain. Will and Principles stay chats in words.
+Without the ring, the original record dock remains.
 O2  What I type or tap in a chat says which chat it is, so it lands there.
 O3  ""Copy my link ›"" and ""Your questions for people who join ›"" leave the
 way in's ""You're set."" row in the speaking chat and show in Will's.
@@ -1589,7 +1593,10 @@ O2 -> ""is unchanged when the Take has no praised most confident moment""","Foun
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.
+O3  Fixed recording chrome follows the app locale while speaker-authored
+slide words remain untouched.","O1, O2 -> ""is exactly the signed words, with no digit or score word""
+O3 -> ""serves approved English and Polish recording copy without translating a speaker's slide""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.

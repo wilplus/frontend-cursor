@@ -170,7 +170,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, askForChatThread, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, wordsShow } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, askForChatThread, barModeIn, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungeBarMode } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -213,6 +213,23 @@ const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: fals
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
 // An older Take's card (N375); a press on one warms it (pastIdealText).
 const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
+
+function barContents(
+  mode: LoungeBarMode,
+  words: ReactNode,
+  otherwise: ReactNode,
+): ReactNode {
+  if (mode === "words") return words;
+  if (mode === "quiet") return <div className="min-w-0 flex-1" />;
+  return otherwise;
+}
+
+function recordTargetIn(
+  mode: LoungeBarMode,
+  target: { arcId: string; takeIndex: number } | null,
+): { arcId: string; takeIndex: number } | null {
+  return mode === "record" ? target : null;
+}
 
 /** The page a card opened: an older Take's own version, or (none) the live
  *  page given as children (backend N375). */
@@ -1649,6 +1666,15 @@ export default function Lounge({
     composerRef,
     wordsWaitFor(feedbackCheckTarget([...shownMessages], "missing"), setupWaits, plan.wordsWait),
   );
+  const barHear = firstHear(plan.hear, keyLine.hear);
+  const barMode = barModeIn(
+    place,
+    words.show,
+    plan.barMiddle,
+    barHear,
+    plan.typingOff,
+    keyLine.asks,
+  );
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -2416,7 +2442,7 @@ export default function Lounge({
           <Layers className="h-5 w-5" aria-hidden />
         </button>
         </PlaceOnly>
-        {wordsShow(place, words.show) ? (
+        {barContents(barMode, (
         <div className="relative flex-1">
           <textarea
             ref={composerRef}
@@ -2473,17 +2499,17 @@ export default function Lounge({
             </button>
           ) : null}
         </div>
-        ) : (
+        ),
           orBarMiddle(
             plan.barMiddle,
             <WillBarMiddle
-              hear={firstHear(plan.hear, keyLine.hear)}
-              next={goodbye.recordNext ?? restingTake(messages, userId)}
+              hear={barHear}
+              next={recordTargetIn(barMode, goodbye.recordNext ?? restingTake(messages, userId))}
               held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
               onRecord={recordNext}
               onFirst={startFirst}
             />,
-          )
+          ),
         )}
       </form>
       </PolicyUpdateComposer>

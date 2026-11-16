@@ -59,7 +59,7 @@ import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
-import { RECORDING_COPY, answerWhere, recordingWhere } from "./recordingCopy";
+import { answerWhere, recordingText, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
   readExploreArc,
@@ -1705,7 +1705,7 @@ export default function LabOverlay({
         {showsMicWait(state, mic.state.status, rejectedMsg) ? (
           <LoadingState
             placement="surface"
-            label={RECORDING_COPY.micReady}
+            label={recordingText("micReady")}
             labelVisible
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
@@ -2070,7 +2070,7 @@ export function RecordingPhase({
   // itself once the mic is open (N70: the learning screen is deleted).
   if (micState.status === "idle") {
     if (micWaitShownByHost) return null;
-    return <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />;
+    return <LoadingState placement="surface" label={recordingText("micReady")} labelVisible />;
   }
 
   if (micState.status === "error") {
@@ -2257,8 +2257,8 @@ function enteringRecording(state: WillabState): boolean {
  *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4);
  *  then the earbuds line when the last Take was recorded through them (N372). */
 function micWaitNote(take: number, presentation: string | null): string[] {
-  const first = presentation ?? (take <= 1 ? RECORDING_COPY.micWhy : null);
-  const earbuds = lastMicWasEarbuds() ? RECORDING_COPY.earbuds : null;
+  const first = presentation ?? (take <= 1 ? recordingText("micWhy") : null);
+  const earbuds = lastMicWasEarbuds() ? recordingText("earbuds") : null;
   return [first, earbuds].filter((line): line is string => line !== null);
 }
 

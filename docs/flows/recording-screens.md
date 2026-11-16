@@ -426,10 +426,39 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
 - <https://claude.ai/artifact/6L2C5Uj7AiJbRaES4cxzb1>
 
+### Recording UI copy inventory (Polish)
+
+The app/system locale selects these fixed interface words. Transcript,
+speaker-authored slides and generated feedback keep the content language.
+The founder approved this exact Polish inventory on 2026-11-16.
+
+| EN source | Proposed PL | Screen/context | Status |
+| --- | --- | --- | --- |
+| Back | Wstecz | Recording slide navigation | Founder-approved 2026-11-16 |
+| Next slide | Następny slajd | Recording slide navigation | Founder-approved 2026-11-16 |
+| Finish take | Zakończ nagranie | Last recording slide | Founder-approved 2026-11-16 |
+| Take | Nagranie | Recording top-bar position | Founder-approved 2026-11-16 |
+| Slide | Slajd | Recording top-bar position | Founder-approved 2026-11-16 |
+| of | z | Recording top-bar position | Founder-approved 2026-11-16 |
+| To: | Do: | Recording an answer for someone | Founder-approved 2026-11-16 |
+| asks | pyta | Question slide | Founder-approved 2026-11-16 |
+| Speaking anchors for slide | Punkty wypowiedzi dla slajdu | Accessibility label | Founder-approved 2026-11-16 |
+| Getting your mic ready | Przygotowujemy mikrofon | Microphone wait | Founder-approved 2026-11-16 |
+| WillpowerLab uses your microphone to record your talks. | WillpowerLab używa mikrofonu do nagrywania Twoich wystąpień. | First microphone wait | Founder-approved 2026-11-16 |
+| Earbuds make you sound like a phone call. The built-in mic sounds like you. | Słuchawki sprawiają, że brzmisz jak przez telefon. Wbudowany mikrofon brzmi naturalniej. | Microphone advice | Founder-approved 2026-11-16 |
+| Slide preview unavailable | Podgląd slajdu jest niedostępny | PDF fallback | Founder-approved 2026-11-16 |
+| Retry loading slides | Spróbuj ponownie wczytać slajdy | PDF fallback action | Founder-approved 2026-11-16 |
+| Opening | Początek | Built-in default presentation | Founder-approved 2026-11-16 |
+| What you'll talk about, in one line. | O czym opowiesz — w jednym zdaniu. | Built-in default presentation | Founder-approved 2026-11-16 |
+| Main points | Główne punkty | Built-in default presentation | Founder-approved 2026-11-16 |
+| Summary | Podsumowanie | Built-in default presentation | Founder-approved 2026-11-16 |
+| What you said, and what's next. | Co zostało powiedziane i co dalej. | Built-in default presentation | Founder-approved 2026-11-16 |
+
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 
 - 2026-11-11 · N648 item 8 · no screen changes: a Take recorded in a host's chat that takes Takes goes up exactly as every Take does; the chat is noted at Finish (`keepTakeAtFinish`); once the server names it, `sendTake` (`lib/willab/takeOutbox.ts`) tags it with that chat once, best effort (POST /v2/chats/<id>/take {take}, backend #1961). A failed tag stops nothing. A Take made in the speaking chat posts no tag. The chat is kept with the Take's copy on the device (`KeptTake.chat`), so a Take sent again after a reload is tagged too · FE (this PR)

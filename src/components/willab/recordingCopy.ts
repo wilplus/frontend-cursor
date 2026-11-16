@@ -9,6 +9,13 @@
 /*  recordingCopy.test.ts holds the list.                                     */
 /* -------------------------------------------------------------------------- */
 
+import { DEFAULT_DECK, isDefaultDeckText } from "@/lib/willab/defaultDeck";
+import {
+  normalizeUiLocale,
+  storedUiLocale,
+  type UiLocale,
+} from "@/lib/uiLocale";
+
 export const RECORDING_COPY = {
   /** The two buttons under the strip (N70). On the last slide Next slide
    *  becomes Finish take. */
@@ -27,6 +34,110 @@ export const RECORDING_COPY = {
   earbuds: "Earbuds make you sound like a phone call. The built-in mic sounds like you.",
 } as const;
 
+type RecordingScreenCopy = {
+  [Key in keyof typeof RECORDING_COPY]: string;
+} & {
+  finishTake: string;
+  take: string;
+  slide: string;
+  of: string;
+  to: string;
+  asks: string;
+  speakingAnchors: string;
+  slidePreviewUnavailable: string;
+  retryLoadingSlides: string;
+};
+
+/**
+ * Fixed recording-screen words. They follow the app locale only; the words a
+ * speaker wrote or said never pass through this table.
+ */
+const RECORDING_SCREEN_COPY: Record<UiLocale, RecordingScreenCopy> = {
+  en: {
+    ...RECORDING_COPY,
+    finishTake: "Finish take",
+    take: "Take",
+    slide: "Slide",
+    of: "of",
+    to: "To",
+    asks: "asks",
+    speakingAnchors: "Speaking anchors for slide",
+    slidePreviewUnavailable: "Slide preview unavailable",
+    retryLoadingSlides: "Retry loading slides",
+  },
+  pl: {
+    back: "Wstecz",
+    nextSlide: "Następny slajd",
+    finishTake: "Zakończ nagranie",
+    take: "Nagranie",
+    slide: "Slajd",
+    of: "z",
+    to: "Do:",
+    asks: "pyta",
+    speakingAnchors: "Punkty wypowiedzi dla slajdu",
+    micReady: "Przygotowujemy mikrofon",
+    micWhy: "WillpowerLab używa mikrofonu do nagrywania Twoich wystąpień.",
+    earbuds: "Słuchawki sprawiają, że brzmisz jak przez telefon. Wbudowany mikrofon brzmi naturalniej.",
+    slidePreviewUnavailable: "Podgląd slajdu jest niedostępny",
+    retryLoadingSlides: "Spróbuj ponownie wczytać slajdy",
+  },
+};
+
+export type RecordingCopyKey = keyof RecordingScreenCopy;
+
+/**
+ * Read the app/system locale resolved by the existing locale foundation.
+ * The persisted manual choice wins, then the server-rendered html language;
+ * neither transcript nor coaching-content language is consulted.
+ */
+export function recordingUiLocale(): UiLocale {
+  const stored = storedUiLocale();
+  if (stored) return stored;
+  if (typeof document === "undefined") return "en";
+  return (
+    normalizeUiLocale(document.documentElement.lang) ??
+    normalizeUiLocale(document.documentElement.dataset.uiLocale) ??
+    "en"
+  );
+}
+
+export function recordingCopy(locale: UiLocale): RecordingScreenCopy {
+  return RECORDING_SCREEN_COPY[locale];
+}
+
+export function recordingText(
+  key: RecordingCopyKey,
+  locale: UiLocale = recordingUiLocale(),
+): string {
+  return recordingCopy(locale)[key];
+}
+
+const DEFAULT_POSTER_COPY: Record<
+  UiLocale,
+  readonly { title: string; body: string }[]
+> = {
+  en: DEFAULT_DECK.map(({ title, body }) => ({ title, body })),
+  pl: [
+    { title: "Początek", body: "O czym opowiesz — w jednym zdaniu." },
+    { title: "Główne punkty", body: "1\n2\n3" },
+    { title: "Podsumowanie", body: "Co zostało powiedziane i co dalej." },
+  ],
+};
+
+/**
+ * Localise only the built-in, fixed poster. A speaker's uploaded or typed
+ * slide is returned byte-for-byte unchanged, whatever the interface locale.
+ */
+export function recordingSlidesInLocale<
+  T extends { title: string; body: string },
+>(slides: readonly T[], locale: UiLocale = recordingUiLocale()): T[] {
+  if (!isDefaultDeckText(slides)) return [...slides];
+  return slides.map((slide, index) => {
+    const fixed = DEFAULT_POSTER_COPY[locale][index];
+    return fixed ? { ...slide, ...fixed } : { ...slide };
+  });
+}
+
 /** The top bar's line while recording: "Take N · Slide n of m". The only
  *  numbers are the Take's and the slide's position (AC-9). The /dev harness
  *  has no Take, so it reads "Slide n of m" alone. */
@@ -35,15 +146,23 @@ export function recordingWhere(
   slideIndex: number,
   slideCount: number,
   to: string | null = null,
+  locale: UiLocale = recordingUiLocale(),
 ): string {
-  const slide = `Slide ${slideIndex + 1} of ${slideCount}`;
+  const copy = recordingCopy(locale);
+  const slide = `${copy.slide} ${slideIndex + 1} ${copy.of} ${slideCount}`;
   // A question to someone: "To {name} · Slide n of m" (backend N483 item 6).
-  if (to) return `To ${to} · ${slide}`;
-  return take ? `Take ${take} · ${slide}` : slide;
+  if (to) return `${copy.to} ${to} · ${slide}`;
+  return take ? `${copy.take} ${take} · ${slide}` : slide;
 }
 
 /** An answer to someone's Take, over the Take's own slides (backend N493
  *  item 1): "{name} · Slide n of m". */
-export function answerWhere(name: string, slideIndex: number, slideCount: number): string {
-  return `${name} · Slide ${slideIndex + 1} of ${slideCount}`;
+export function answerWhere(
+  name: string,
+  slideIndex: number,
+  slideCount: number,
+  locale: UiLocale = recordingUiLocale(),
+): string {
+  const copy = recordingCopy(locale);
+  return `${name} · ${copy.slide} ${slideIndex + 1} ${copy.of} ${slideCount}`;
 }
