@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -12,6 +13,10 @@ import NativePush from "@/components/pwa/NativePush";
 import NativeLinks from "@/components/pwa/NativeLinks";
 import NativeKeyboard from "@/components/pwa/NativeKeyboard";
 import BookingReturn from "@/components/booking/BookingReturn";
+import {
+  resolveUiLocaleFromRequest,
+  UI_LOCALE_COOKIE,
+} from "@/lib/uiLocale";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
 // Serif Display via Tailwind's `font-heading`, whose stack reads
@@ -96,8 +101,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const requestHeaders = headers();
+  const persistedOverride = cookies().get(UI_LOCALE_COOKIE)?.value;
+  const uiLocale = resolveUiLocaleFromRequest(requestHeaders, persistedOverride);
+
   return (
-    <html lang="en" suppressHydrationWarning className={dmSerifDisplay.variable}>
+    <html lang={uiLocale} data-ui-locale={uiLocale} suppressHydrationWarning className={dmSerifDisplay.variable}>
       {/*
         Body owns the global viewport-locked column: content fills the
         remaining height (flex-1 + overflow-y-auto), Footer sits pinned at
@@ -106,7 +115,7 @@ export default function RootLayout({
       */}
       <body className="flex h-[100dvh] flex-col font-sans antialiased">
         <div className="flex-1 overflow-y-auto">{children}</div>
-        <Footer />
+        <Footer initialLocale={uiLocale} />
         <Toaster position="top-center" />
         <ServiceWorkerRegistrar />
         <HomeScreenReporter />
