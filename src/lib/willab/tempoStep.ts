@@ -30,7 +30,8 @@ export const TEMPO_PATH_EVERY_MS = 200;
  *  always clearly better than the Take. Shorter tries cannot land: the ball
  *  needs about 10 s of talk without a pause to leave the green. */
 const LAND_MIN_POINTS = 20_000 / TEMPO_PATH_EVERY_MS;
-const LAND_GREEN_SHARE = 0.8;
+/** Four fifths of the try in the green (N245). The coach seed pins this. */
+export const LAND_GREEN_SHARE = 0.8;
 
 /** The stretch the step practises: the one the scale reads furthest from
  *  the green (N166 item 1), what it was, and what it was about. */

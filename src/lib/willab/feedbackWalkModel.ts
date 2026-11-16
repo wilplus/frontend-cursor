@@ -24,8 +24,8 @@ import type { PraiseReason } from "@/lib/willab/praiseReason";
 import { clearerPieces, type ClearerPieces } from "./clearerPieces";
 import { phraseSelection, type PhraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import { planForWalk } from "./chatBuilder/runtime";
 import {
-  buildWalkPlan,
   stepForMoment,
   walkMomentGroups,
   walkMoments,
@@ -412,10 +412,12 @@ export function buildFeedbackWalk<R = unknown>(input: {
   /** The One thing walk judges one other speaker's moment: from Take 2
    *  (N309 item 2). */
   judge?: boolean;
+  /** A published coach document. Absent, or refused, is today's plan. */
+  coach?: import("./chatBuilder/types").CoachDefinition | null;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
-  const plan = buildWalkPlan({
+  const plan = planForWalk(input.coach, {
     // A rewrite the walk cannot draw is no Clearer version to the plan
     // either, so the fix falls to its voice (`voiceToo`, backend N548) or to
     // none, never to a Clearer version screen the walk then drops (4.4).

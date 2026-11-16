@@ -8,6 +8,9 @@ import BuildModels from "./BuildModels";
 import { DevParts, DevSwitch, useDev } from "./DevMode";
 import type { HostRecipe, OwnChat } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
+import CoachBuild from "./coachbuild/CoachBuild";
+import CoachLive from "./coachbuild/CoachLive";
+import { useCoachDraft } from "@/lib/willab/chatBuilder/useCoachDraft";
 import { W } from "./hostsetup/hostSetupCopy";
 import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 
@@ -95,6 +98,8 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // Developer mode (backend N648): the switch under the tabs, only where its read answers.
   const dev = useDev();
   const [devOn, setDevOn] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
+  const draft = useCoachDraft();
   const own = setup?.own_chat ?? null;
   const name = own?.title ?? W.yourChatTitle;
   const recipe = setup?.recipe ?? null;
@@ -108,6 +113,13 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     openOverList({});
   }, [setup]);
   const swap = canTry ? <Switch mode={mode} onMode={setMode} /> : null;
+  if (coachOpen) {
+    return (
+      <Cover>
+        <CoachBuild doc={draft.doc} onChange={(next) => void draft.save(next)} onClose={() => setCoachOpen(false)} />
+      </Cover>
+    );
+  }
   if (mode === "live" && canTry) {
     const bar = (
       <TopBar
@@ -120,7 +132,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     );
     return (
       <Cover>
-        <HostOwnChat key={name} name={name} recipe={live(recipe, own)} about={own?.about ?? []} onBack={onBack} bar={bar} />
+        {draft.doc ? <><>{bar}</><CoachLive doc={draft.doc} /></> : <HostOwnChat key={name} name={name} recipe={live(recipe, own)} about={own?.about ?? []} onBack={onBack} bar={bar} />}
       </Cover>
     );
   }
@@ -131,6 +143,11 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
         {swap ? <span className="ml-auto shrink-0 pl-2">{swap}</span> : null}
       </div>
       <Tabs tab={tab} onTab={(t) => { setTab(t); setDevOn(false); }} />
+      {tab === "chat" ? (
+        <button type="button" data-open-coach="" onClick={() => setCoachOpen(true)} className="mx-4 my-2 min-h-11 rounded-2xl border border-border px-3 text-left text-[15px] font-semibold">
+          Speaking coach
+        </button>
+      ) : null}
       {dev ? <DevSwitch on={devOn} onToggle={() => setDevOn((on) => !on)} /> : null}
     </div>
   );

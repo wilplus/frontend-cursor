@@ -10,6 +10,7 @@ import type { WalkIntervention, WalkStep } from "@/lib/willab/walkPlan";
 import { tipSaid, type WalkBankKey } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, type FeedbackWalkRequest, type FeedbackWalkTempoWords, type WalkAiShown } from "./walk/FeedbackWalk";
 import { useWalkVoiceOn } from "./walk/useWalkVoice";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
@@ -1089,6 +1090,7 @@ export function useDeckFeedbackWalk(args: {
      low; Take 1 judges no one. */
   const judgesOne = (args.takeIndex ?? 0) >= 2;
   const othersLevel = othersLevelFor(args.takeIndex ?? null);
+  const publishedCoach = usePublishedCoach();
   const model = useMemo(
     () =>
       buildFeedbackWalk({
@@ -1100,8 +1102,9 @@ export function useDeckFeedbackWalk(args: {
         guest: false,
         interventions,
         judge: judgesOne,
+        coach: publishedCoach,
       }),
-    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly, interventions, judgesOne],
+    [items, coachMessage, practiceOn, args.coachOnly, args.coachWordOnly, interventions, judgesOne, publishedCoach],
   );
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
@@ -1248,9 +1251,9 @@ export function useDeckFeedbackWalk(args: {
   const liveAll = useMemo(
     () =>
       replayReady
-        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, coachWordOnly: args.coachWordOnly === true, practiceOn, guest: false, interventions, judge: judgesOne })
+        ? buildFeedbackWalk({ items: replayItems, coachNote: coachMessage !== null, coachOnly: args.coachOnly === true, coachWordOnly: args.coachWordOnly === true, practiceOn, guest: false, interventions, judge: judgesOne, coach: publishedCoach })
         : null,
-    [replayReady, replayItems, coachMessage, args.coachOnly, args.coachWordOnly, practiceOn, interventions, judgesOne],
+    [replayReady, replayItems, coachMessage, args.coachOnly, args.coachWordOnly, practiceOn, interventions, judgesOne, publishedCoach],
   );
   const waitsOn = useCallback(
     (moment: FeedbackWalkMoment<DocumentSuggestion>) => walkStepForPart(model, moment.partId) !== null,

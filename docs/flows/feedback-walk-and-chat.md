@@ -2379,6 +2379,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · The walk reads a published speaking-coach document when this account has one, and otherwise the same plan as before (`planForWalk` in `feedbackWalkModel.ts`, `useDeckFeedbackWalk.tsx`). A missing or refused document changes nothing a speaker sees. The builder that edits the draft is the chat's Build screen, not this walk. · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 
 - 2026-11-11 · N651 · for the chat builder's ring, Build's "Your chat" draws the parts in four groups under headings ("About your chat": what, name, line, hello; "What comes in": send, questions, taps; "What goes back": out, walk, practice, who; "What makes it smart": models), a group with no part not drawn, a part the map does not know last with no heading; orange (`primary`) on exactly the on side of the Live · Build switch (Live view too), the line under the open tab, each heading and the "›" at the right of each part's row; "Off" and "None yet" values in muted grey; no icons (`WillNeedsYou.tsx`, `WillBuild.tsx`). The setup's own parts list (`HostSetup.tsx`) does not share the row and is unchanged. Nothing stops. · PR
