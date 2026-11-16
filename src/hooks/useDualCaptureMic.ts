@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hushVoices } from "@/lib/willab/oneVoice";
+import { uploadProxyBase } from "@/lib/api/uploadProxy";
+import { isAppUserAgent } from "@/lib/nativeAppAgent";
 
 function isPwaStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -170,6 +172,71 @@ function rememberMic(stream: MediaStream): void {
     window.localStorage.setItem(EARBUDS_KEY, BLUETOOTH_MIC.test(label) ? "1" : "0");
   } catch {
     /* no storage, or a stream without tracks: say nothing */
+  }
+}
+
+/**
+ * What the microphone really did on a Take, sent with it so the founder can
+ * see whether a phone (above all the iPhone app's web view) honours
+ * `TAKE_MIC_AUDIO` (backend N_MIC). Read from the browser after the mic
+ * opened, never asked of the speaker. The mic's kind only, never its name: a
+ * Bluetooth mic's name can carry a person's name.
+ */
+export interface TakeMic {
+  echo_cancellation?: boolean;
+  noise_suppression?: boolean;
+  auto_gain_control?: boolean;
+  sample_rate?: number;
+  channel_count?: number;
+  mime_type?: string;
+  bitrate?: number;
+  mic_kind: "built_in" | "bluetooth" | "wired" | "unknown";
+  app: boolean;
+}
+
+/** The Take recorder's bitrate. 48 kbps keeps a ~12 min Take under the
+ *  website lane's ~4.5 MB request ceiling (see the recorder below); through
+ *  the upload proxy, which has no such ceiling, the voice gets 64 kbps
+ *  (backend N_MIC). */
+export function takeBitrate(): number {
+  return uploadProxyBase() ? 64_000 : 48_000;
+}
+
+let lastTakeMic: TakeMic | null = null;
+
+/** The microphone of the Take recorded last on this page, or null. */
+export function lastTakeMicSettings(): TakeMic | null {
+  return lastTakeMic;
+}
+
+function micKind(label: string): TakeMic["mic_kind"] {
+  if (!label) return "unknown";
+  if (BLUETOOTH_MIC.test(label)) return "bluetooth";
+  if (/headset|usb|wired|external|lightning|line in/i.test(label)) return "wired";
+  if (/iphone|ipad|built-?in|internal|default|macbook|front|back|bottom/i.test(label)) return "built_in";
+  return "unknown";
+}
+
+/** Read what the mic applied. Never fails the recording. */
+function readTakeMic(stream: MediaStream, recorder: MediaRecorder, bitrate: number): TakeMic | null {
+  try {
+    const track = stream.getAudioTracks()[0];
+    const s = (track?.getSettings?.() ?? {}) as MediaTrackSettings;
+    const flag = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+    return {
+      echo_cancellation: flag(s.echoCancellation),
+      noise_suppression: flag(s.noiseSuppression),
+      auto_gain_control: flag(s.autoGainControl),
+      sample_rate: num(s.sampleRate),
+      channel_count: num(s.channelCount),
+      mime_type: recorder.mimeType || undefined,
+      bitrate: num(recorder.audioBitsPerSecond) ?? bitrate,
+      mic_kind: micKind(track?.label ?? ""),
+      app: typeof navigator !== "undefined" && isAppUserAgent(navigator.userAgent),
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -462,11 +529,14 @@ export function useDualCaptureMic(opts?: {
       // serverless functions cap a request at ~4.5 MB. The browser default
       // (~128 kbps ≈ 1 MB/min) blows past that after ~4 min and the upload 413s.
       // 48 kbps opus mono is ample for the acoustic read (pitch / rate / pauses
-      // / loudness) and keeps a ~12 min take under the limit.
+      // / loudness) and keeps a ~12 min take under the limit. Through the
+      // upload proxy, which has no such ceiling, 64 kbps (backend N_MIC).
+      const bitrate = takeBitrate();
       const recorder = new MediaRecorder(stream, {
         mimeType: mime,
-        audioBitsPerSecond: 48_000,
+        audioBitsPerSecond: bitrate,
       });
+      lastTakeMic = readTakeMic(stream, recorder, bitrate);
       // Fires when capture actually starts, which is what audio t=0 means.
       // Not first-chunk timing: the first chunk only arrives a timeslice
       // after start.

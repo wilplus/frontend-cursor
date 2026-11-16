@@ -39,6 +39,10 @@ export interface LabUploadInput {
   audience?: string;
   targetLengthSeconds?: number | null;
   domainVocabulary?: string[];
+  /** What the microphone really applied on this Take (backend N_MIC); rides
+   *  as the JSON field `mic_settings`. Optional: a Take without it uploads as
+   *  before. */
+  micSettings?: Record<string, unknown> | null;
   /** Slide-deck context (§S): title/body per slide, rides as a JSON field. */
   slides?: PresentationSlide[];
   /** The BE-served PDF url linking the rendered deck; omitted = manual-only. */
@@ -291,6 +295,7 @@ function buildLabUploadForm(input: LabUploadInput): FormData {
   form.append("audio_file", input.audioBlob, "lab.webm");
   form.append("topic", input.topic);
   appendPresentFields(form, [["audience", input.audience]]);
+  if (input.micSettings) form.append("mic_settings", JSON.stringify(input.micSettings));
 
   if (input.targetLengthSeconds != null) {
     form.append("target_length_seconds", String(input.targetLengthSeconds));

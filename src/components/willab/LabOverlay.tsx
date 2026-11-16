@@ -6,7 +6,7 @@ import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/wil
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
-import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { lastMicWasEarbuds, lastTakeMicSettings, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
@@ -897,6 +897,8 @@ export default function LabOverlay({
         guestOwnerToken: uploadGuestOwnerToken,
         uploadIdempotencyKey: uploadKeyFor(blob),
         durationSec: durationRef.current,
+        // What the mic really applied (backend N_MIC); never in the way.
+        micSettings: lastTakeMicSettings() as Record<string, unknown> | null,
         topic: context.topic,
         audience: context.audience || undefined,
         targetLengthSeconds: context.target_length_seconds,
