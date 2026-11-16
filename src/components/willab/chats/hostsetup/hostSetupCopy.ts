@@ -69,9 +69,13 @@ export const W = {
   nameSay: "Your chat is called:",
   nameAsk: "What should your chat be called?",
   sendSay: "What do people send you? Tick all that apply.",
+  /** One kind at a time (the host's words, 16 November 2026). */
+  sendOne: (name: string) => `Can they send ${name.charAt(0).toLowerCase()}${name.slice(1)}?`,
   outSay: "They get back:",
   // The feedback walk, kept and not run yet (N641).
   walkSay: ["After a recording, people get a feedback walk.", "What should yours hold? Tick all that apply."],
+  /** One part of the walk at a time. */
+  walkOne: (name: string) => `Should yours hold ${name.charAt(0).toLowerCase()}${name.slice(1)}?`,
   walkSteps: { best: "Their best moment", fix: "One moment to try another way", words: "The helper words" } as const,
   walkOrderSay: "Your walk goes in this order:",
   walkOutSay: "What do they get at the end?",

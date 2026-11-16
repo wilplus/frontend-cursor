@@ -297,6 +297,8 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.log.push(S.pending);
     S.pending = null;
     S.at = to;
+    if (to === "send") { S.i.send = 0; S.sendSet = null; }
+    if (to === "walk") { S.i.walk = 0; S.walkTicks = null; }
     S.walkItem = null;
     S.runHelped = false;
     if ((to === "walkhome" || to === "walkwant") && !S.walkRead) {
@@ -777,6 +779,33 @@ function skipWalk(id: Step, S: State, R: HostRecipe): boolean {
   return id === "walkorder" && walkSteps(S, R).length < 2;
 }
 
+/** One yes or no per item. The saved list is never empty. An edit saves each
+ *  answer; the first run saves once, on the last. */
+function yesNoEach<T extends string>(c: Ctx, key: string, list: T[], chosen: T[], ask: (item: T) => string, setChosen: (next: T[]) => void, save: (next: T[], leave: boolean) => void) {
+  const { S } = c;
+  const i = S.i[key] ?? 0;
+  const item = list[i];
+  if (!item) return null;
+  const pick = (on: boolean) => {
+    let next = on ? (chosen.includes(item) ? chosen : [...chosen, item]) : chosen.filter((x) => x !== item);
+    const leave = i + 1 >= list.length;
+    if (leave && !next.length) next = [item];
+    setChosen(next);
+    const move = () => {
+      if (!leave) { S.i[key] = i + 1; c.paint(); return; }
+      S.i[key] = 0;
+    };
+    if (S.edit) return save(next, leave);
+    move();
+    if (leave) save(next, true);
+  };
+  return (
+    <Frame onBack={() => { if (i > 0) { S.i[key] = i - 1; c.paint(); return; } c.back(); }} dock={yesNo(W.no, W.yes, () => pick(false), () => pick(true))}>
+      <Say>{ask(item)}</Say>
+    </Frame>
+  );
+}
+
 /** The feedback walk a host's chat holds (N641): what it holds, its order,
  *  what comes at the end, then the walk in blocks; the chat cannot run it
  *  yet, and "I want this" tells the founder once. */
@@ -784,42 +813,22 @@ function WalkStep(c: Ctx): ReactNode {
   const { S, R } = c;
   switch (S.at) {
     case "walk": {
-      if (S.edit) {
-        const on = new Set(walkSteps(S, R));
-        const save = (next: WalkStepId[]) => {
-          if (!next.length) return;
-          c.keep("walk", { steps: WALK_IDS.filter((id) => next.includes(id)), out: walkOut(R) }, c.paint);
-        };
-        return (
-          <Frame onBack={c.back} dock={{ onSend: () => false }}>
-            <Say>{W.walkSay[0]}</Say>
-            {WALK_IDS.map((k) => (
-              <BinaryRow
-                key={k}
-                title={W.walkSteps[k]}
-                on={on.has(k)}
-                onLabel={W.on}
-                offLabel={W.off}
-                onPick={(turnOn) => save(turnOn ? [...on, k] : [...on].filter((id) => id !== k))}
-              />
-            ))}
-          </Frame>
-        );
-      }
-      const ticks = S.walkTicks ?? walkSteps(S, R);
-      S.walkTicks = ticks;
-      // Any number of ticks; the last one stays, as on "What do people send you?".
-      const tick = (k: WalkStepId) => {
-        if (ticks.includes(k) && ticks.length === 1) return;
-        S.walkTicks = ticks.includes(k) ? ticks.filter((y) => y !== k) : [...ticks, k];
-        c.paint();
-      };
-      return (
-        <Frame onBack={c.back} dock={picks([W.done], () => { S.walk = ticks; S.walkTicks = null; c.next(); })}>
-          {W.walkSay.map((line) => <Say key={line}>{line}</Say>)}
-          {WALK_IDS.map((k) => <Opt key={k} title={W.walkSteps[k]} tick={ticks.includes(k)} onClick={() => tick(k)} />)}
-        </Frame>
-      );
+      const initial = walkSteps(S, R);
+      const ordered = (next: WalkStepId[]) => WALK_IDS.filter((id) => next.includes(id));
+      return yesNoEach(c, "walk", WALK_IDS, S.walkTicks ?? initial, (k) => W.walkOne(W.walkSteps[k]), (next) => { S.walkTicks = next; }, (next, leave) => {
+        const steps = ordered(next);
+        if (!S.edit) {
+          S.walk = steps;
+          S.walkTicks = null;
+          c.next();
+          return;
+        }
+        c.keep("walk", { steps, out: walkOut(R) }, () => {
+          if (!leave) { S.i.walk = (S.i.walk ?? 0) + 1; c.paint(); return; }
+          S.i.walk = 0;
+          c.next();
+        });
+      });
     }
     case "walkorder": {
       const steps = walkSteps(S, R);
@@ -1090,46 +1099,18 @@ function StepScreen(c: Ctx) {
   if (asked) return asked;
   switch (c.S.at) {
     case "send": {
-      if (S.edit) {
-        const chosen = new Set(R.send);
-        const save = (next: SendKind[]) => {
-          if (!next.length) return;
-          c.keep("send", R.suggest.send.filter((k) => next.includes(k)), c.paint);
-        };
-        return (
-          <Frame onBack={c.back} dock={{ onSend: () => false, placeholder: W.typeHere }}>
-            <Say>{W.sendSay}</Say>
-            {R.suggest.send.map((k) => (
-              <BinaryRow
-                key={k}
-                title={SEND[k][0]}
-                sub={SEND[k][1]}
-                on={chosen.has(k)}
-                onLabel={W.on}
-                offLabel={W.off}
-                onPick={(turnOn) => save(turnOn ? [...chosen, k] : [...chosen].filter((id) => id !== k))}
-              />
-            ))}
-          </Frame>
-        );
-      }
-      const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
-      S.sendSet = set;
-      // Each row ticks on its own, any number of them; the last tick stays,
-      // so the screen never drops to none (FIRST-04).
-      const tick = (k: SendKind) => {
-        if (set.includes(k) && set.length === 1) return;
-        S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k];
-        c.paint();
-      };
-      return (
-        <Frame onBack={c.back} dock={picks([W.done], () => c.keep("send", R.suggest.send.filter((k) => set.includes(k))), { disabled: !set.length })}>
-          <Say>{W.sendSay}</Say>
-          {R.suggest.send.map((k) => (
-            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => tick(k)} />
-          ))}
-        </Frame>
-      );
+      const list = R.suggest.send;
+      const initial = R.send.length ? R.send : [list[0]];
+      const ordered = (next: SendKind[]) => list.filter((k) => next.includes(k));
+      return yesNoEach(c, "send", list, S.sendSet ?? initial, (k) => W.sendOne(SEND[k][0]), (next) => { S.sendSet = next; }, (next, leave) => {
+        const value = ordered(next);
+        if (!S.edit) return c.keep("send", value);
+        c.keep("send", value, () => {
+          if (!leave) { S.i.send = (S.i.send ?? 0) + 1; c.paint(); return; }
+          S.i.send = 0;
+          c.next();
+        });
+      });
     }
     case "out":
       return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => c.keep("out", v));

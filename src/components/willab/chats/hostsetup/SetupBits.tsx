@@ -339,8 +339,6 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
           firstTime={false}
           onClose={() => setSheet(false)}
           onRecord={sent.takes.record ? () => setSheet(false) : undefined}
-          onPhoto={sent.takes.photo ? () => setSheet(false) : undefined}
-          onFile={sent.takes.file ? () => setSheet(false) : undefined}
         />
       ) : null}
     </div>

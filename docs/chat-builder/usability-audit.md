@@ -18,9 +18,9 @@
 2. The Build header did not look like the chat they left. Now it is that header. Applied.
 3. A row's bar was a different height. Now it matches. Applied.
 4. AI models rows used a slightly different type size (15.5px) and a tighter gap. Now 15px and the same gap as Your chat. Applied.
-5. The first-run wizard still says tick all that apply. The table a host opens does not. Left. Rebuilding the first run would change a path this pass did not open from the table.
-6. In a setup row, Send a photo and Send a file only close the sheet. Left. Those sends post from the visitor's chat, where a file can be attached.
+5. They send and the walk's contents asked a person to tick every row, then Done. That is more than two choices. Now each kind is its own step: "Can they send a recording?" Yes or No. The walk asks "Should yours hold their best moment?" and the same for the other two. The saved list is the one that was ticked, and it is never empty. Applied on the first run and in the row chats.
+6. In a setup row, Send a photo and Send a file closed the sheet and saved nothing. They are not in that sheet. People send a photo or a file from their own chat. Applied.
 
 ## Second pass
 
-Items 1 to 4 are in the build. Search, the table, Keep, Next, and the header back were clicked in the unit tests after the change. Items 5 and 6 stay written here so they are not forgotten. Nothing new appeared on the second pass.
+Items 1 to 6 are in the build. A send step is one question and two taps. The + sheet in a setup row has no Send a photo and no Send a file. Search, Keep, Next, and the header back still behave as before. Nothing new appeared on the second pass.

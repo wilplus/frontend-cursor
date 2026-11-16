@@ -65,6 +65,10 @@ On http://localhost:3100/chat, signed in as a host on the chat-builder ring.
 10. Open the feedback walk. You meet the best moment, one moment to try another way, Your turn, Try it or Keep mine. A try that lands says Yes. That's it. One miss says Close. Once more. The last miss says Good try. Take it with you. Then the helper words and Lesson done.
 11. Those sentences are on the fixture. They are not written onto production by this branch. Live shows them when that draft is the one loaded.
 
+## Yes or no, one at a time
+
+They send and the walk's contents no longer say tick all. Each item is its own step, Yes or No. The list that is saved is the same one, and it is never empty. In a setup row the + sheet does not offer Send a photo or Send a file.
+
 ## Commits tonight
 
 - `116aa12e` Write the speaking coach down as it already is.
