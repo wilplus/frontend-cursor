@@ -9,6 +9,7 @@ PROVES   O1 -> "keeps consent writes fail-closed when Phase 2 is disabled"
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchMlc2Consent,
   grantMlc2Consent,
   type Mlc2ConsentStatus,
 } from "./mlc2Consent";
@@ -36,6 +37,18 @@ const configuredStatus: Mlc2ConsentStatus = {
 };
 
 describe("MLC-2 consent status", () => {
+
+  it("does not block the current consent flow when the retired read route is absent", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      code: "NOT_FOUND",
+      error: "Not found.",
+    }), { status: 404, headers: { "Content-Type": "application/json" } })));
+
+    await expect(fetchMlc2Consent()).resolves.toMatchObject({
+      applicable: false,
+      granted: false,
+    });
+  });
 
   it("keeps consent writes fail-closed when Phase 2 is disabled", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({

@@ -48,6 +48,7 @@ export default function IdealTextActions({
   onClose = null,
   shareFirst = false,
   confirmFirst = null,
+  practiceDecision = null,
 }: {
   /** The project, for the sharing question's chat bubbles. */
   arcId?: string | null;
@@ -78,6 +79,12 @@ export default function IdealTextActions({
    *  Take (founder 2026-10-29, backend N254); `go` runs on Continue. null =
    *  the current project, which never asks (Never 3). */
   confirmFirst?: ((go: () => void) => void) | null;
+  /** Project practice: the text is the decision point before recording. */
+  practiceDecision?: {
+    continueLabel?: string;
+    onContinue: () => void;
+    onRepeat: () => void;
+  } | null;
 }) {
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
@@ -112,6 +119,27 @@ export default function IdealTextActions({
     onClick: confirmFirst ? () => confirmFirst(start) : start,
     disabled: canRecordTake === false,
   };
+
+  if (practiceDecision) {
+    return (
+      <div data-practice-decision className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={practiceDecision.onContinue}
+          className="h-[56px] w-full rounded-full bg-foreground text-[16px] font-semibold text-background"
+        >
+          {practiceDecision.continueLabel ?? "Continue to next fragment"}
+        </button>
+        <button
+          type="button"
+          onClick={practiceDecision.onRepeat}
+          className="h-[48px] w-full rounded-full text-[16px] text-muted-foreground"
+        >
+          Repeat this fragment
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div data-ideal-text-actions className="flex flex-col gap-1">

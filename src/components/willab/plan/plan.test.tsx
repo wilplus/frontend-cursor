@@ -497,13 +497,13 @@ it("the plan's rows are drawn as the prototype draws them", async () => {
     true, true, true, true,
   ]);
 
-  // The hello (G5): the signed line, then the bar it was written with, then
-  // "See your plan".
+  // The hello keeps the signed line and "See your plan"; progress belongs
+  // to Ideal Text plus the Feedback walk.
   const hello = row({ plan_hello: true, day_line: "Monday 16 November", plan_bar: { ...bar, level: "key_line", level_name: "Let your key line land", marks: 1 } },
     "Hi Artur, good to see you back!");
   act(() => root.render(<>{planRowFor(hello, c)}</>));
-  expect(host.textContent).toBe("Monday 16 NovemberHi Artur, good to see you back!Let your key line landSee your plan");
-  expect(host.querySelectorAll("[data-plan-hello-bar] [data-on]").length).toBe(1);
+  expect(host.textContent).toBe("Monday 16 NovemberHi Artur, good to see you back!See your plan");
+  expect(host.querySelector("[data-plan-hello-bar]")).toBeNull();
 });
 
 it("the plan's calls show only with their ring row", async () => {

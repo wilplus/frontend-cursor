@@ -14,12 +14,14 @@ OUTCOME
   O5  A signed-up guest is not asked to accept again: the claim comes first.
   O6  A refused identity blocks with Try again, which reads again; no active
       policy still passes (the gate fails open).
+  O7  A rejected startup read fails open instead of leaving the chat loading.
 PROVES   O1 -> "shows the ended state for a block, never the acceptance flow or the Lounge"
          O2 -> "switched off, a block does what it did before"
          O3 -> "a cancelled deletion reads the status again, and lets the person back in"
          O4 -> "a re-acceptance hands the flow the country given last time"
          O5 -> "a signed-up guest is not asked to accept again: the claim comes before the read"
          O6 -> "a refused identity blocks, and Try again reads the status again"
+         O7 -> "a rejected startup read opens the Lounge"
 WHY      Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18.
 */
 import { act, createElement } from "react";
@@ -201,5 +203,14 @@ describe("<Phase1AcceptanceGate>", () => {
     expect(host.textContent).toContain("THE LOUNGE");
     // No active policy is still nothing to accept: it passes, as before.
     expect(gateStateFor({ kind: "unavailable", code: "PROCESSING_POLICY_INACTIVE" }).kind).toBe("pass");
+  });
+
+  it("a rejected startup read opens the Lounge", async () => {
+    io.takeAuthorization.mockRejectedValue(new Error("offline"));
+    act(() => {
+      root.render(createElement(Phase1AcceptanceGate, null, createElement("p", null, "THE LOUNGE")));
+    });
+    await flush();
+    expect(host.textContent).toContain("THE LOUNGE");
   });
 });

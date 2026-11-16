@@ -62,7 +62,7 @@ export default function ProcessingResumeOverlay({
     <div
       ref={dialogRef}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex flex-col bg-background focus:outline-none"
+      className="willab-canvas fixed inset-0 z-50 flex flex-col bg-background focus:outline-none"
       role="dialog"
       aria-modal="true"
       /* The dialog's name is held to the same standard as the label inside it:

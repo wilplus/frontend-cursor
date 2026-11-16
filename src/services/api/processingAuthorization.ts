@@ -180,6 +180,7 @@ async function readAuthorizationRow(): Promise<Record<string, unknown> | null> {
     auth: "optional",
     headers: sent,
     cache: "no-store",
+    timeoutMs: 10_000,
   });
   if (result.kind !== "response") throw new Error("network");
   return asRecord(result.body);

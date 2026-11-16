@@ -46,7 +46,7 @@ export default function ConfidencePracticeOverlay({
 
   return (
     <MediaRefreshProvider refresh={media.refresh} payload={practice}>
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
+    <div className="willab-canvas fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
         <div>
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">

@@ -49,14 +49,13 @@ import {
   resumeSetupDraft,
 } from "@/lib/willab/setupDraft";
 import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
+import ProjectChat from "./ProjectChat";
+import type { TrainingArc } from "@/services/api/trainings";
 
 // The recording screens are not on first paint: they load after it (warmed
 // below), so a tap on Record finds them ready.
 const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
 const ProjectPicker = dynamic(() => import("./ProjectPicker"), { ssr: false });
-// The Ideal Text page too (founder 2026-10-16): off the boot bundle, warmed
-// by the Lounge once the thread has painted, so a tap still opens at once.
-const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -108,14 +107,29 @@ export default function WillabSurface({
   // Founder 2026-07-27 — picking an EXISTING project from the picker opens
   // that project, which is its ideal text. Only "Start a new project" (or
   // resuming its draft) goes into the recording onboarding.
-  const [pickedArcId, setPickedArcId] = useState<string | null>(null);
+  const [pickedProject, setPickedProject] = useState<TrainingArc | null>(null);
+  // A Take started inside a project returns to THAT project's conversation
+  // after the Lab's source Feedback walk and Ideal Text sequence closes. Will
+  // is the cross-project coach, never the destination for a project Take.
+  const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
+  const labWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (flow.labOverlayOpen) {
+      labWasOpenRef.current = true;
+      return;
+    }
+    if (!labWasOpenRef.current || !returnProject) return;
+    labWasOpenRef.current = false;
+    setPickedProject(returnProject);
+    setReturnProject(null);
+  }, [flow.labOverlayOpen, returnProject]);
   // The Take whose wait the Lab just handed to the Lounge, until the Lounge
   // shows it (founder 2026-10-21: "make it stay"; useWaitScreen).
   const [waitHandedOver, setWaitHandedOver] = useState<string | null>(null);
   // SPEC-lockin-loop §1 — the picker-mounted overlay's pending truth. Only
   // probing while that overlay is actually open; the Lounge and the Lab run
   // their own instances when they own the screen.
-  const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
+  const pickerSettle = useDocumentSettle({ enabled: pickedProject !== null });
   const signedIn = useSignedIn();
   // A Take sent to people before it was recorded whose send has not gone yet
   // is tried again at this open, signed in, once the thread has painted
@@ -236,7 +250,7 @@ export default function WillabSurface({
         </div>
       )}
       <div
-        className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden ${shellPadding(
+        className={`willab-canvas flex flex-1 flex-col overflow-hidden ${shellPadding(
           flush,
           bare,
         )}${flush && chats.front ? " relative" : ""}`}
@@ -400,8 +414,8 @@ export default function WillabSurface({
                 latest?.sessionId
               );
             }
-            setPickedArcId(arc.arcId);
-            flow.closeLab(); // dismiss the picker; the ideal text takes over
+            setPickedProject(arc);
+            flow.closeLab(); // dismiss the picker; the project chat takes over
           }}
           // Nothing to choose (no projects, or the list is unreachable) →
           // skip the question entirely rather than leave "Start a new project"
@@ -414,22 +428,17 @@ export default function WillabSurface({
           onClose={flow.closeLab}
         />
       )}
-      {/* The picked project's ideal text. Mounted here rather than in the
-          Lounge because the picker that opens it lives here too. */}
-      {pickedArcId && (
-        <IdealTextOverlay
-          arcId={pickedArcId}
-          // SPEC-lockin-loop §1 (handoff §6.4 S6) — this mount used to fetch
-          // with the pending gate hard-false regardless of the marker, so a
-          // take mid-analysis rendered the OLD document as current from this
-          // one route. Same blocking truth as every other mount now.
+      {/* An existing project opens its own conversation. Its two durable
+          results reopen the source Feedback walk and Ideal Text; recording
+          always starts from this project, never from Will. */}
+      {pickedProject && (
+        <ProjectChat
+          project={pickedProject}
           analysisPending={pickerSettle.pending}
-          onClose={() => setPickedArcId(null)}
-          // "Read it aloud" — the re-read is just the next take of THIS
-          // project. The arc was seeded when it was picked, so the Lab restores
-          // its full setup.
-          onReadAloud={() => {
-            setPickedArcId(null);
+          onBack={() => setPickedProject(null)}
+          onRecord={() => {
+            setReturnProject(pickedProject);
+            setPickedProject(null);
             flow.startRecordingSetup();
           }}
         />
@@ -481,3 +490,5 @@ function shellPadding(flush: boolean, bare: boolean): string {
   if (bare) return "";
   return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }
+
+// Founder-Approved: project Takes return to their project conversation after Feedback walk and Ideal Text, 2026-11-15.

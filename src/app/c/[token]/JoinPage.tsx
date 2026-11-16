@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { joinChatLink } from "@/services/api/chats";
 import { signUpWidgetChat } from "@/services/api/chatWidget";
 import { getAuthToken } from "@/lib/api/auth-client";
-import { JOIN_BUTTON, JOIN_ONLY_THE_TWO_OF_YOU, joinInvited } from "@/components/willab/chats/joinCopy";
+import {
+  ADMISSION_LINE,
+  ADMISSION_TITLE,
+  JOIN_BUTTON,
+  JOIN_ONLY_THE_TWO_OF_YOU,
+  joinInvited,
+} from "@/components/willab/chats/joinCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The join page (backend N308, N328, N335; rules:                            */
@@ -50,6 +56,7 @@ export default function JoinPage({
   name,
   finish,
   about = [],
+  admission = false,
 }: {
   token: string;
   name: string;
@@ -57,6 +64,8 @@ export default function JoinPage({
   /** What you'll learn in their chat, in the host's own words (N601 item
    *  1), as the backend sends it; nothing otherwise. */
   about?: readonly string[];
+  /** The fixed early-release door introduces WillpowerLab, not a personal chat. */
+  admission?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -120,15 +129,23 @@ export default function JoinPage({
       >
         {(Array.from(name.trim())[0] ?? "").toUpperCase()}
       </span>
-      <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">{joinInvited(name)}</h1>
-      {about.length > 0 ? (
+      <h1 className="text-balance text-[24px] font-bold leading-tight text-foreground">
+        {admission ? ADMISSION_TITLE : joinInvited(name)}
+      </h1>
+      {admission ? (
+        <p data-admission-line="" className="max-w-[390px] text-[16px] leading-relaxed text-muted-foreground">
+          {ADMISSION_LINE}
+        </p>
+      ) : about.length > 0 ? (
         <p data-join-learn="" className="text-[16px] leading-snug text-foreground">
           {about.join(" ")}
         </p>
       ) : null}
-      <p data-join-only-two="" className="text-[15px] leading-snug text-muted-foreground">
-        {JOIN_ONLY_THE_TWO_OF_YOU}
-      </p>
+      {!admission ? (
+        <p data-join-only-two="" className="text-[15px] leading-snug text-muted-foreground">
+          {JOIN_ONLY_THE_TWO_OF_YOU}
+        </p>
+      ) : null}
       <div className="flex-1" />
       <button
         type="button"

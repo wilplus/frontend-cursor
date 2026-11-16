@@ -20,15 +20,29 @@ import { createClient } from "@/lib/supabase/client";
 /* -------------------------------------------------------------------------- */
 
 let inFlight: Promise<Session | null> | null = null;
+export const SESSION_READ_TIMEOUT_MS = 5_000;
 
 /** The stored session, or null signed out. Rejects as getSession would. */
 export function readSession(): Promise<Session | null> {
   if (!inFlight) {
     let read: Promise<Session | null>;
     try {
-      read = createClient()
+      const sessionRead = createClient()
         .auth.getSession()
         .then(({ data }) => data.session ?? null);
+      read = new Promise<Session | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), SESSION_READ_TIMEOUT_MS);
+        void sessionRead.then(
+          (session) => {
+            clearTimeout(timer);
+            resolve(session);
+          },
+          () => {
+            clearTimeout(timer);
+            resolve(null);
+          },
+        );
+      });
     } catch (error) {
       return Promise.reject(error); // no client (missing env): as getSession's caller saw it
     }

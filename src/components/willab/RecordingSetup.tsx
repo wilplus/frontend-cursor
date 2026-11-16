@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, Mic, X } from "lucide-react";
+import { FileText, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StepHead, WizardCancel, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import PresentationInput from "./PresentationInput";
@@ -14,7 +14,6 @@ import {
   nonEmptySlides,
   type PresentationSlide,
 } from "./presentation";
-import { fetchRecordingConfig } from "@/services/api/recordingConfig";
 import RecordPriceNote from "@/components/tokens/RecordPriceNote";
 import {
   deleteSetupDraft,
@@ -37,17 +36,51 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const LENGTH_PRESETS = [
-  { label: "1 min", sec: 60 },
-  { label: "2 min", sec: 120 },
   { label: "3 min", sec: 180 },
   { label: "5 min", sec: 300 },
+  { label: "10 min", sec: 600 },
   { label: "30 min", sec: 1800 },
-  { label: "45 min", sec: 2700 },
   { label: "60 min", sec: 3600 },
 ] as const;
 
 const SETUP_INPUT_CLS =
   "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
+
+type LengthChoice = "preset" | "other" | "none" | null;
+
+function presentationMinutesToSeconds(value: string): number | null {
+  const minutes = Number(value);
+  return Number.isFinite(minutes) && minutes > 0 && minutes <= 120
+    ? Math.round(minutes * 60)
+    : null;
+}
+
+function isLengthSelectionReady(
+  choice: LengthChoice,
+  lengthSec: number | null,
+): boolean {
+  return choice !== null && (choice !== "other" || lengthSec !== null);
+}
+
+function recordingSetupPrimaryLabel(
+  current: StepKey,
+  hasSlides: boolean,
+  isLast: boolean,
+): string {
+  if (current === "slides" && !hasSlides) return "Skip for now";
+  return isLast ? "Start recording" : "Next";
+}
+
+function recordingSetupPrimaryDisabled(
+  current: StepKey,
+  topicReady: boolean,
+  lengthReady: boolean,
+): boolean {
+  return (
+    (current === "topic" && !topicReady) ||
+    (current === "length" && !lengthReady)
+  );
+}
 
 // "goal" ("What should this presentation achieve?") was removed 2026-09-15 on
 // founder instruction: it and "What should the audience do next?" were asking
@@ -118,6 +151,19 @@ export default function RecordingSetup({
   const [lengthSec, setLengthSec] = useState<number | null>(
     draft?.lengthSec ?? null
   );
+  const [lengthChoice, setLengthChoice] = useState<LengthChoice>(() => {
+    if (draft?.lengthChoice) return draft.lengthChoice;
+    if (draft?.lengthSec == null) return null;
+    return LENGTH_PRESETS.some((preset) => preset.sec === draft.lengthSec)
+      ? "preset"
+      : "other";
+  });
+  const [otherMinutes, setOtherMinutes] = useState(() =>
+    draft?.lengthSec &&
+    !LENGTH_PRESETS.some((preset) => preset.sec === draft.lengthSec)
+      ? String(Math.round(draft.lengthSec / 60))
+      : ""
+  );
   const [slides, setSlides] = useState<PresentationSlide[]>(() =>
     draft && draft.slides.length > 0 ? draft.slides : initialSlides()
   );
@@ -132,24 +178,6 @@ export default function RecordingSetup({
   const [step, setStep] = useState(() =>
     Math.min(draft?.step ?? 0, steps.length - 1)
   );
-  // FE-5 — the threshold, read from the server. Never a literal: the number is
-  // served precisely so it can move without a deploy.
-  const [cautionSec, setCautionSec] = useState<number | null>(null);
-  // The caution is shown ONCE PER SETUP FLOW, not on every re-tap of a length
-  // chip — it is advice, and advice that repeats becomes noise to click past.
-  const [cautionOpen, setCautionOpen] = useState(false);
-  const cautionShownRef = useRef(false);
-
-  useEffect(() => {
-    let active = true;
-    void fetchRecordingConfig().then((c) => {
-      if (active) setCautionSec(c.longTakeCautionSec);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const current = steps[step];
   const isLast = step === steps.length - 1;
 
@@ -163,9 +191,19 @@ export default function RecordingSetup({
     if (preloadDeck.audience) setAudience(preloadDeck.audience);
     if (preloadDeck.slides.length > 0) setSlides(preloadDeck.slides);
     setPresentationRef(preloadDeck.presentationRef);
-    // Restore the set length so the next take's timer counts down from it.
+    // Restore the whole-presentation target. Recording chunks have their own
+    // fixed cap and never inherit this number.
     if (preloadDeck.targetLengthSeconds != null) {
       setLengthSec(preloadDeck.targetLengthSeconds);
+      const isPreset = LENGTH_PRESETS.some(
+        (preset) => preset.sec === preloadDeck.targetLengthSeconds,
+      );
+      setLengthChoice(isPreset ? "preset" : "other");
+      if (!isPreset) {
+        setOtherMinutes(
+          String(Math.round(preloadDeck.targetLengthSeconds / 60)),
+        );
+      }
     }
   }, [preloadDeck]);
 
@@ -178,24 +216,11 @@ export default function RecordingSetup({
     },
     []
   );
-  /** FE-5 — a long take earns a soft caution: at or ABOVE the served threshold
-   *  (>=, so 10 minutes itself triggers it), and "No limit" triggers it too —
-   *  an unbounded take is the longest take there is. Nothing is enforced
-   *  server-side; a long take records, uploads and processes exactly as
-   *  before. This is advice. */
-  function isLongTake(sec: number | null): boolean {
-    if (cautionSec === null) return false; // threshold unknown → never guess
-    return sec === null || sec >= cautionSec;
-  }
-
-  function pickLength(sec: number | null) {
+  function pickLength(sec: number | null, choice: "preset" | "none") {
     setLengthSec(sec);
+    setLengthChoice(choice);
+    setOtherMinutes("");
     if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-    if (isLongTake(sec) && !cautionShownRef.current) {
-      cautionShownRef.current = true;
-      setCautionOpen(true);
-      return; // the modal owns the step until it is answered
-    }
     const lengthIdx = steps.indexOf("length");
     advanceTimer.current = window.setTimeout(() => {
       setStep((s) =>
@@ -203,16 +228,6 @@ export default function RecordingSetup({
       );
     }, 180);
   }
-
-  /** The caution's primary action: proceed with the long take, exactly as if
-   *  the chip had auto-advanced. Never a block, never a downgrade. */
-  function proceedFromCaution() {
-    setCautionOpen(false);
-    const lengthIdx = steps.indexOf("length");
-    setStep((s) => (s === lengthIdx && lengthIdx < steps.length - 1 ? s + 1 : s));
-  }
-
-
 
   // Every answer lands in the draft as it is typed, so any interruption —
   // the ✕, a closed tab, a crash — leaves the setup resumable from the picker.
@@ -226,6 +241,7 @@ export default function RecordingSetup({
       audience,
       desiredCallToAction,
       lengthSec,
+      lengthChoice,
       slides,
       presentationRef,
       strategicContext,
@@ -238,12 +254,14 @@ export default function RecordingSetup({
     audience,
     desiredCallToAction,
     lengthSec,
+    lengthChoice,
     slides,
     presentationRef,
     strategicContext,
   ]);
 
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
+  const lengthReady = isLengthSelectionReady(lengthChoice, lengthSec);
 
   // A project title is display copy, never identity. Same-named projects are
   // valid; authenticated owner + immutable arc UUID keep their data separate.
@@ -286,6 +304,7 @@ export default function RecordingSetup({
 
   function goNext() {
     if (current === "topic" && !topicReady) return;
+    if (current === "length" && !lengthReady) return;
     if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
     if (isLast) submit();
     else setStep((s) => Math.min(s + 1, steps.length - 1));
@@ -306,11 +325,7 @@ export default function RecordingSetup({
 
   // The slides step with none added says "Skip for now", the last step
   // included, where it starts the recording (backend N449 item 3).
-  const primaryLabel = current === "slides" && !hasSlides
-    ? "Skip for now"
-    : isLast
-      ? "Start recording"
-      : "Next";
+  const primaryLabel = recordingSetupPrimaryLabel(current, hasSlides, isLast);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -382,29 +397,24 @@ export default function RecordingSetup({
         )}
 
         {current === "length" && (
-          <div>
-            <StepHead icon={Mic} question="How long should it run?" />
-            <div className="flex flex-wrap gap-2">
-              {/* The chip WizardChip was extracted from — the Life Panel's due
-                  presets are the same control, so both render this one. */}
-              {LENGTH_PRESETS.map((p) => (
-                <WizardChip
-                  key={p.sec}
-                  active={lengthSec === p.sec}
-                  onClick={() => pickLength(p.sec)}
-                >
-                  {p.label}
-                </WizardChip>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => pickLength(null)}
-              className="mt-4 text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-            >
-              No limit
-            </button>
-          </div>
+          <LengthStep
+            choice={lengthChoice}
+            lengthSec={lengthSec}
+            otherMinutes={otherMinutes}
+            onPreset={(seconds) => pickLength(seconds, "preset")}
+            onOther={() => {
+              if (advanceTimer.current) {
+                window.clearTimeout(advanceTimer.current);
+              }
+              setLengthChoice("other");
+              setLengthSec(null);
+            }}
+            onOtherMinutes={(value) => {
+              setOtherMinutes(value);
+              setLengthSec(presentationMinutesToSeconds(value));
+            }}
+            onNoLimit={() => pickLength(null, "none")}
+          />
         )}
 
         {current === "slides" && (
@@ -412,7 +422,6 @@ export default function RecordingSetup({
             <StepHead
               icon={Mic}
               question="Have slides to go with it?"
-              helper="Adding slides makes the ideal text dramatically better."
             />
             <PresentationInput
               slides={slides}
@@ -457,19 +466,16 @@ export default function RecordingSetup({
         )}
       </div>
 
-      {cautionOpen ? (
-        <LongTakeCaution
-          onProceed={proceedFromCaution}
-          onBack={() => setCautionOpen(false)}
-        />
-      ) : null}
-
       {/* Footer CTA — the final tap starts the mic synchronously via onSubmit. */}
       <div className="mt-auto pt-6">
         <Button
           type="button"
           onClick={goNext}
-          disabled={current === "topic" && !topicReady}
+          disabled={recordingSetupPrimaryDisabled(
+            current,
+            topicReady,
+            lengthReady,
+          )}
           className="w-full rounded-full"
         >
           {primaryLabel}
@@ -484,73 +490,68 @@ export default function RecordingSetup({
   );
 }
 
-/** FE-5 — the long-take caution. SOFT, ALWAYS: the primary action proceeds
- *  with the long take, there is no forced downgrade, and Next is never
- *  disabled. Dismissible with Esc, the backdrop, or the ✕. Nothing server-side
- *  enforces any of this — a long take records, uploads and processes exactly
- *  as before. The modal is advice.
- *
- *  The copy is founder-authored and signed off; render it VERBATIM. */
-const LONG_TAKE_COPY =
-  "Preparing for a long workshop? It's often better to practice just the " +
-  "beginning and the ending. Consider recording a few 2-3 minute takes to " +
-  "practice those vulnerable moments instead of focusing on a long speech. " +
-  "Note: Analysis of long speeches might take considerably longer.";
-
-function LongTakeCaution({
-  onProceed,
-  onBack,
+function LengthStep({
+  choice,
+  lengthSec,
+  otherMinutes,
+  onPreset,
+  onOther,
+  onOtherMinutes,
+  onNoLimit,
 }: {
-  onProceed: () => void;
-  onBack: () => void;
+  choice: LengthChoice;
+  lengthSec: number | null;
+  otherMinutes: string;
+  onPreset: (seconds: number) => void;
+  onOther: () => void;
+  onOtherMinutes: (value: string) => void;
+  onNoLimit: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onBack();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onBack]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div>
+      <StepHead icon={Mic} question="Do you have a time limit?" />
+      <div className="flex flex-wrap gap-2">
+        {LENGTH_PRESETS.map((preset) => (
+          <WizardChip
+            key={preset.sec}
+            active={choice === "preset" && lengthSec === preset.sec}
+            onClick={() => onPreset(preset.sec)}
+          >
+            {preset.label}
+          </WizardChip>
+        ))}
+        <WizardChip active={choice === "other"} onClick={onOther}>
+          Other
+        </WizardChip>
+      </div>
+      {choice === "other" ? (
+        <div className="mt-4 max-w-[220px]">
+          <label
+            htmlFor="presentation-limit-minutes"
+            className="mb-1.5 block text-[13px] text-muted-foreground"
+          >
+            Minutes
+          </label>
+          <input
+            id="presentation-limit-minutes"
+            type="number"
+            min={1}
+            max={120}
+            inputMode="numeric"
+            value={otherMinutes}
+            onChange={(event) => onOtherMinutes(event.target.value)}
+            className={SETUP_INPUT_CLS}
+            autoFocus
+          />
+        </div>
+      ) : null}
       <button
         type="button"
-        aria-label="Dismiss"
-        onClick={onBack}
-        className="absolute inset-0 bg-foreground/20"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="About long takes"
-        className="relative z-10 m-3 w-full max-w-md rounded-3xl border border-border bg-background p-5 shadow-lg"
+        onClick={onNoLimit}
+        className="mt-4 text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
       >
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Dismiss"
-            className="-mr-1.5 -mt-1.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-5 w-5" aria-hidden />
-          </button>
-        </div>
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {LONG_TAKE_COPY}
-        </p>
-        <div className="mt-5 flex flex-col gap-2">
-          <Button type="button" onClick={onProceed} className="w-full rounded-full">
-            Continue with this length
-          </Button>
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-10 rounded-full text-[14px] text-muted-foreground transition hover:text-foreground"
-          >
-            Pick a different length
-          </button>
-        </div>
-      </div>
+        No time limit
+      </button>
     </div>
   );
 }
@@ -602,3 +603,5 @@ function BriefAttach({
     </>
   );
 }
+
+// Founder-Approved: whole-presentation time limit and fixed five-minute practice chunks, 2026-11-16.

@@ -85,6 +85,13 @@ import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
 import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
 import { takeUploadingUnwatched } from "@/lib/willab/takeUploading";
+import {
+  clearPracticeResume,
+  PRACTICE_CHUNK_SECONDS,
+  readPracticeResume,
+  type PracticeResumeSelection,
+  writePracticeCheckpoint,
+} from "@/lib/willab/practiceResume";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -383,6 +390,7 @@ export default function LabOverlay({
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
   const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(null);
+  const practiceResumeRef = useRef<PracticeResumeSelection | null>(null);
   // What the project's setup read says about its deck (N257): new slides
   // since the last Take, or the Take the deck in play was first used on.
   const [deckNews, setDeckNews] = useState<DeckNews>(null);
@@ -422,6 +430,8 @@ export default function LabOverlay({
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
     const cached = readExploreArc(userId);
+    const resume = readPracticeResume(userId, cached?.arcId);
+    practiceResumeRef.current = resume;
     setInitArc(cached);
     setArcId(cached?.arcId ?? null);
     setArcTakeIndex(cached?.nextTakeIndex ?? 1);
@@ -664,8 +674,14 @@ export default function LabOverlay({
       // already flipped to lab_recording on the Setup submit (optimistic), so
       // there is no dispatch here — this only pins t=0 to the real recording start.
       recordStartRef.current = performance.now();
-      setCurrentSlide(0);
-      slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
+      const chosenSlide = Math.min(
+        practiceResumeRef.current?.slideIndex ?? 0,
+        Math.max(recordingSlides.length - 1, 0),
+      );
+      setCurrentSlide(chosenSlide);
+      slideAdvancesRef.current = [{ index: chosenSlide, tMs: 0 }];
+      clearPracticeResume(userId, arcId);
+      practiceResumeRef.current = null;
     }
     // BE-2/R6-FE5 — no minimum-time gate: every stop submits. The BE analyzes
     // whatever arrived (its min-content 422 is retired server-side too).
@@ -686,11 +702,12 @@ export default function LabOverlay({
     ) {
       consumedBlobRef.current = s.audioBlob;
       durationRef.current = s.durationSec;
+      if (!answer && arcId) writePracticeCheckpoint(userId, arcId, currentSlide);
       setBlob(s.audioBlob);
       dispatch("recording_stopped");
       if (answer) answerRecorded(s.durationSec * 1000);
     }
-  }, [mic.state, state, dispatch]);
+  }, [mic.state, state, dispatch, recordingSlides.length, userId, arcId, currentSlide, answer]);
 
   // FE-2 GUARD (founder 2026-07-22) — the recording screen owns the foreground:
   // the mic must NEVER keep running once the screen has moved off it. The mic
@@ -1621,6 +1638,7 @@ export default function LabOverlay({
   retryProcessingRef.current = () => void retryProcessing();
 
   const look = answerLook(answer, state, uploadError, context?.target_length_seconds);
+  usePracticeChunkEnds(!answer, state, mic.state.status, elapsed, mic.stop);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -2355,6 +2373,27 @@ function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: u
     asks: answer && !answer.asks && !overTake ? answer.name : null,
     target: plannedSec ?? null,
   };
+}
+
+/** Presentation Takes are practised in short chunks. The target duration in
+ * setup remains the whole presentation's limit, not the recorder timer. */
+export function usePracticeChunkEnds(
+  enabled: boolean,
+  state: WillabState,
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
+  elapsed: number,
+  stop: () => unknown,
+) {
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  const over =
+    enabled &&
+    state === "lab_recording" &&
+    micStatus === "recording" &&
+    elapsed >= PRACTICE_CHUNK_SECONDS;
+  useEffect(() => {
+    if (over) void stopRef.current();
+  }, [over]);
 }
 
 /** Exported for tests, on the same grounds as RecordingPhase above: this

@@ -48,7 +48,7 @@ export default function SnippetScreenShell({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-background">
+    <div className="willab-canvas fixed inset-0 z-40 flex flex-col bg-background">
       {managed ? <BackDismissManager onClose={onClose} /> : null}
 
       {/* ── slide overlay: X + indicator floated over the slide. Rendered only

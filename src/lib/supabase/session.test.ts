@@ -7,15 +7,17 @@ OUTCOME
   O1  Asks made while a read of the session is out share that one read.
   O2  An ask after the read has answered reads again: a session that
       changed in between (signed out, a new token) is what it gets.
+  O3  A session read that never answers releases the app as signed out.
 PROVES   O1 -> "asks made while a read is out share it"
          O2 -> "an ask after the answer reads again, so a change is seen"
+         O3 -> "an unanswered auth read releases the app instead of loading forever"
 */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ getSession: vi.fn() }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth }) }));
 
-import { readSession } from "./session";
+import { readSession, SESSION_READ_TIMEOUT_MS } from "./session";
 import { getAuthToken } from "@/lib/api/auth-client";
 
 const signedIn = (token: string) => ({ data: { session: { access_token: token } }, error: null });
@@ -41,5 +43,17 @@ describe("the shared session read", () => {
     auth.getSession.mockResolvedValueOnce(signedIn("t2")); // signed in again, a new token
     expect((await readSession())?.access_token).toBe("t2");
     expect(auth.getSession).toHaveBeenCalledTimes(3);
+  });
+
+  it("an unanswered auth read releases the app instead of loading forever", async () => {
+    vi.useFakeTimers();
+    try {
+      auth.getSession.mockReturnValueOnce(new Promise(() => undefined));
+      const read = readSession();
+      await vi.advanceTimersByTimeAsync(SESSION_READ_TIMEOUT_MS);
+      expect(await read).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

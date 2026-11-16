@@ -34,7 +34,7 @@ vi.mock("./pdfSlides", () => ({
     createElement("div", { "data-testid": "slide", "data-asks": asks ?? "" }, `page ${pageIndex + 1}`),
 }));
 
-import { RecordingPhase, RecordingWhere } from "./LabOverlay";
+import { RecordingPhase, RecordingWhere, usePracticeChunkEnds } from "./LabOverlay";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -201,6 +201,23 @@ describe("the still frame", () => {
     expect(after.where.textContent).toBe("Take 2 · Slide 2 of 3");
     expect(host.querySelector('[data-testid="slide"]')!.textContent).toBe("page 2");
     expect(host.textContent).toContain("words for slide 2");
+  });
+});
+
+describe("the five-minute presentation-practice chunk", () => {
+  it("stops a presentation practice at five minutes without capping an answer", () => {
+    function Cap({ enabled, elapsed }: { enabled: boolean; elapsed: number }) {
+      usePracticeChunkEnds(enabled, "lab_recording", "recording", elapsed, () => {
+        stops += 1;
+      });
+      return null;
+    }
+    act(() => root.render(createElement(Cap, { enabled: true, elapsed: 299 })));
+    expect(stops).toBe(0);
+    act(() => root.render(createElement(Cap, { enabled: true, elapsed: 300 })));
+    expect(stops).toBe(1);
+    act(() => root.render(createElement(Cap, { enabled: false, elapsed: 1800 })));
+    expect(stops).toBe(1);
   });
 });
 

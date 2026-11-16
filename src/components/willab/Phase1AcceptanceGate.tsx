@@ -158,10 +158,18 @@ export default function Phase1AcceptanceGate({
       }
       return attempt === 0 ? takeAuthorization() : fetchAuthorization();
     };
-    void load().then((status) => {
-      if (!active.current) return;
-      setState(gateStateFor(status));
-    });
+    void load()
+      .then((status) => {
+        if (!active.current) return;
+        setState(gateStateFor(status));
+      })
+      .catch(() => {
+        // This gate is deliberately fail-open (see the boundary note above).
+        // A rejected guest claim or boot prefetch must not strand the whole
+        // chat on its loading surface.
+        if (!active.current) return;
+        setState({ kind: "pass" });
+      });
     return () => {
       active.current = false;
     };
