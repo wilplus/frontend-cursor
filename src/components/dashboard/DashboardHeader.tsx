@@ -4,14 +4,6 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
-import { useChatsOn } from "@/components/willab/chats/useChats";
-import { getMyChatLink } from "@/services/api/chats";
-
-/** The full link to copy: the backend gives its path (/c/<token>). */
-async function myLink(): Promise<string | null> {
-  const path = await getMyChatLink();
-  return path ? `${window.location.origin}${path}` : null;
-}
 
 /* -------------------------------------------------------------------------- */
 /*  DashboardHeader — the lab's chrome.                                        */
@@ -28,7 +20,6 @@ async function myLink(): Promise<string | null> {
 
 export default function DashboardHeader() {
   const menu = useAppMenuData();
-  const chatsOn = useChatsOn();
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
@@ -67,9 +58,6 @@ export default function DashboardHeader() {
             authState={menu.authState}
             userEmail={menu.userEmail}
             userName={menu.userName}
-            // Copy my link takes Lab's place at the top (backend N367):
-            // for every signed-in person, as the chats are (N456).
-            onCopyLink={chatsOn ? myLink : null}
             tokensLabel={menu.tokensLabel}
             lifeMenu={menu.lifeMenu}
             productMenu={menu.productMenu}

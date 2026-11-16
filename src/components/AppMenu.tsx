@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Coins, Home, Link as LinkIcon, LogOut, Menu, Settings, Sparkles } from "lucide-react";
+import { ChevronRight, Coins, Home, LogOut, Menu, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { TOKENS_COPY } from "@/components/tokens/copy";
 import type { ProductMenuEntry } from "@/lib/productDiscovery";
-import { AddSomeoneSheet } from "@/components/willab/chats/AddSomeoneSheet";
 
 /* -------------------------------------------------------------------------- */
 /*  AppMenu (FE-3) — ONE hamburger, mounted twice                              */
@@ -20,8 +19,8 @@ import { AddSomeoneSheet } from "@/components/willab/chats/AddSomeoneSheet";
 /*  mounts, NOT a copy. A copy is how they drifted apart the first time, and   */
 /*  it is what would let them drift again the next time an entry is added.     */
 /*                                                                            */
-/*  Signed in (backend N367, 2026-11-03): you, Copy my link, Settings, Tokens, */
-/*  Sign out, each with an iPhone-Settings icon; no Lab in the lab. Signed    */
+/*  Signed in (backend N367, 2026-11-03): you, Settings, Tokens, Sign out,    */
+/*  each with an iPhone-Settings icon; no Lab in the lab. Signed              */
 /*  out (the blog): Lab, then Log in — the way into the product is never      */
 /*  behind the sign-in.                                                        */
 /*                                                                            */
@@ -97,11 +96,6 @@ export interface AppMenuProps {
   dataConsentHref?: string | null;
   /** The account's name, when it has one; the email is shown under it. */
   userName?: string | null;
-  /** "Copy my link" (backend N308, N367): resolves to the full link, or
-   *  null. Passed only where the chats are on. Since N567 item 1 the row
-   *  opens "Add someone to chat with", as the list's "+" does, with its small
-   *  switch for the website; it no longer copies at once. */
-  onCopyLink?: (() => Promise<string | null>) | null;
 }
 
 export default function AppMenu({
@@ -115,14 +109,8 @@ export default function AppMenu({
   labHref = null,
   dataConsentHref = null,
   userName = null,
-  onCopyLink = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const copyLink = () => {
-    setOpen(false);
-    setAdding(true);
-  };
   const pathname = usePathname();
   // An in-app row for the current page: marked, and announced as the page.
   const current = (href: string) =>
@@ -237,17 +225,6 @@ export default function AppMenu({
                   <span className="flex-1">Lab</span>
                 </Link>
               ) : null}
-              {onCopyLink ? (
-                <button type="button" className={ROW_CLASS} onClick={copyLink}>
-                  <MenuIcon tone="blue">
-                    <LinkIcon className="h-[18px] w-[18px]" />
-                  </MenuIcon>
-                  <span className="flex-1">
-                    <span className="block">Copy my link</span>
-                    <span className="block text-[12.5px] font-normal text-muted-foreground">Whoever opens it joins you here</span>
-                  </span>
-                </button>
-              ) : null}
               {dataConsentHref ? (
                 <Link ref={firstRef()} href={dataConsentHref} {...row(dataConsentHref)} onClick={() => setOpen(false)}>
                   <MenuIcon tone="grey">
@@ -329,7 +306,6 @@ export default function AppMenu({
           )}
         </div>
       )}
-      {adding ? <AddSomeoneSheet fixed onClose={() => setAdding(false)} /> : null}
     </div>
   );
 }

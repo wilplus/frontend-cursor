@@ -86,8 +86,7 @@ up after asking to get the answer (N591). Made from their join link: no
 workspace, no form.
 
 8. **One link, two ways to share it.** "Add someone to chat with" (the list's
-   "+", and **Copy my link** in the ☰ menu, which opens the sheet instead of
-   copying at once) has under its title one card with a small switch: **Put
+   "+") has under its title one card with a small switch: **Put
    this chat on your website**, "Customers ask you there, and you answer here.
    Each answer teaches your chat, so it learns from real questions as they
    come in." Off: the link, **Copy my link**, and 🔒 "Only the two of you are
@@ -95,7 +94,7 @@ workspace, no form.
    `<script src="https://willpowerlab.com/w.js" data-link="<token>" async></script>`,
    "Paste this line just before </body> on your website, or send it to
    whoever builds your site.", **Copy my code**, and 🔒 "Each customer has a
-   chat of their own with you." (`AddSomeoneSheet.tsx`, `AppMenu.tsx`).
+   chat of their own with you." (`AddSomeoneSheet.tsx`).
 9. **It opens on any site** where the line is pasted; nothing to type. The
    line carries the link's token, so a new link stops every pasted line.
 10. **On the site** (`public/w.js`): one pill at the bottom right, the owner's
@@ -1030,6 +1029,7 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · N461 · the fixed early speaking-coach URL opens a WillpowerLab admission page; personal chat links retain their newer host-specific invitation pages · FE (this PR)
+- 2026-11-16 · the legacy personal-chat control leaves the shared menu; the list's chat-builder sharing sheet remains product sharing, not app admission · FE (this task)
 
 - 2026-11-11 · N647 item 9 · C1, B11: the bar's box has the send icon on its right once there are words in every chat, the website chat's included (`BarBox` in `ChatBar.tsx`). Was: the chat builder's ring and a ring host's chat only, Enter for everyone else. The box stays one line; the setup's box, the same bar box, grows to seven lines (N618 item 4). Nothing else in the bar changes · FE (this PR)
 - 2026-11-10 · N628 · C1: on a computer, the list of chats and a person's chat fill the column Will's chat and its bar fill (`useChatsDoor.tsx`), as the AI models overlay does since N618 item 10. On a phone nothing changes. Sheets from the bottom (Add someone) keep their width. No new words. Was: a 480 px column in the middle (N321, N322) · BE #1909, FE (this PR)
