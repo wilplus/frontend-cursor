@@ -512,9 +512,12 @@ O4 -> ""opens the full consent screens when the last country is no longer allowe
 src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
-O3  The project uses one chat top bar and the standard answer controls.","O1 -> ""puts the result before the project conversation""
+O3  The project uses one chat top bar and the standard answer controls.
+O4  Every route to the current Ideal Text preserves the decision to
+continue to the next fragment or repeat this fragment.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
-O3 -> ""uses the locked chat bar and answer controls""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
+O3 -> ""uses the locked chat bar and answer controls""
+O4 -> ""keeps the fragment decision when Ideal Text opens from the card""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.

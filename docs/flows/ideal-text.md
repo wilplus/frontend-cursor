@@ -493,6 +493,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · project fragment-decision repair · every route to a current project's source Ideal Text (the result card, Feedback walk, or Continue recording) keeps the project decision footer: Continue to next fragment / Finish presentation and Repeat this fragment. The generic Record Take N footer remains for non-project Ideal Text entry, never as a fallback that loses a project fragment choice (`ProjectChat.tsx`). Was: only Continue recording carried the decision, while the same text opened from its card or walk fell back to Record Take N · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · Ideal Text, history, presentation/export, editor states and bottom actions align with the locked 1080px app canvas used by the global logo/hamburger shell; full-page layers and thin separators remain viewport-wide; native scrollbars are hidden without disabling scrolling; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
 

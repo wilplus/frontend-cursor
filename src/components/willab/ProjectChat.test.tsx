@@ -6,9 +6,12 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O2  The summary leads into the question; a held goodbye stays hidden
              and, once released, follows the answer instead of jumping ahead.
          O3  The project uses one chat top bar and the standard answer controls.
+         O4  Every route to the current Ideal Text preserves the decision to
+             continue to the next fragment or repeat this fragment.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
+         O4 -> "keeps the fragment decision when Ideal Text opens from the card"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills.
 */
 import { act, createElement } from "react";
@@ -60,7 +63,12 @@ vi.mock("./IdealTextOverlay", () => ({
       "div",
       { "data-testid": practiceDecision ? "decision" : "result" },
       practiceDecision
-        ? createElement("button", { onClick: practiceDecision.onContinue }, "Continue to next fragment")
+        ? createElement(
+            "div",
+            null,
+            createElement("button", { onClick: practiceDecision.onContinue }, "Continue to next fragment"),
+            createElement("button", { onClick: practiceDecision.onRepeat }, "Repeat this fragment"),
+          )
         : "Result",
     ),
 }));
@@ -234,6 +242,26 @@ describe("project conversation", () => {
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"durationSeconds":300');
+  });
+
+  it("keeps the fragment decision when Ideal Text opens from the card", () => {
+    render();
+
+    const idealText = host.querySelector(
+      'button[aria-label="Open Ideal text"]',
+    ) as HTMLButtonElement;
+    act(() => idealText.click());
+
+    expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
+    expect(host.textContent).toContain("Continue to next fragment");
+    expect(host.textContent).toContain("Repeat this fragment");
+    expect(host.querySelector('[data-testid="result"]')).toBeNull();
+
+    act(() => [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Repeat this fragment",
+    )!.click());
+    expect(onRecord).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
   });
 
   it("puts the result first and keeps the contextual exchange in human order", async () => {

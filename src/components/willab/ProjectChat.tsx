@@ -531,7 +531,7 @@ export default function ProjectChat({
           initialMode={opened === "walk" ? "review" : undefined}
           onClose={closeResult}
           onReadAloud={onRecord}
-          practiceDecision={opened === "decision" ? {
+          practiceDecision={hasPractice ? {
             deliveryLabel: latestPractice?.deliveryLabel ?? undefined,
             continueLabel: finalFragment
               ? "Finish presentation"
