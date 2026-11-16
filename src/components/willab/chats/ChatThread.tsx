@@ -22,7 +22,7 @@ import {
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
 import AskSheet from "./AskSheet";
-import { BarMiddle, BarPlus, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, takesOf, thanksDue, usePhotoPicker, type Takes } from "./ChatBar";
+import { BarMiddle, BarPlus, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, recordInSheet, takesFor, thanksDue, useFilePicker, usePhotoPicker, type Takes } from "./ChatBar";
 import { photoForUpload } from "./photoForUpload";
 import {
   answerChatSetup,
@@ -33,6 +33,7 @@ import {
   setupOf,
   answerChatPhoto,
   sendChatEmoji,
+  sendChatFile,
   sendChatPhoto,
   sendChatText,
   type Chat,
@@ -776,6 +777,7 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
 function PeopleBar({
   chat,
   takes,
+  legacy,
   asked,
   status,
   fresh,
@@ -783,9 +785,12 @@ function PeopleBar({
   onRecordAnswer,
   onSay,
   onPhoto,
+  onFile,
 }: {
   chat: Chat;
   takes: Takes;
+  /** answer_with, not They send: a taps-only chat still records a question. */
+  legacy: boolean;
   /** What the chat asks of me now. */
   asked: { question: string | null; slides?: string[]; taps: boolean; photo: boolean };
   /** What stands in the middle for now: "Send", or "Sending to {name}…". */
@@ -797,16 +802,18 @@ function PeopleBar({
   /** Typed words; `answers`: they answer what the chat asks. */
   onSay: (words: string, answers: boolean) => Promise<boolean>;
   onPhoto: (photo: File) => void;
+  onFile: (file: File) => void;
 }) {
   const [sheet, setSheet] = useState(false);
   const [typing, setTyping] = useState(false);
   const picker = usePhotoPicker(onPhoto);
+  const files = useFilePicker(onFile);
   const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
   const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
   const answers = middle !== "ask" && middle !== "ask-box";
   // A chat that takes only typing has no recording in it.
   const recordQuestion =
-    onRecordAnswer && (takes.record || !takes.type)
+    onRecordAnswer && recordInSheet(takes, legacy)
       ? () => {
           // Always the default presentation (N483 item 4).
           setSheet(false);
@@ -835,6 +842,7 @@ function PeopleBar({
         />
       )}
       {picker.input}
+      {files.input}
       {sheet ? (
         <AskSheet
           name={chat.title}
@@ -850,10 +858,22 @@ function PeopleBar({
                 }
               : undefined
           }
-          onPhoto={() => {
-            setSheet(false);
-            picker.pick();
-          }}
+          onPhoto={
+            takes.photo
+              ? () => {
+                  setSheet(false);
+                  picker.pick();
+                }
+              : undefined
+          }
+          onFile={
+            takes.file
+              ? () => {
+                  setSheet(false);
+                  files.pick();
+                }
+              : undefined
+          }
         />
       ) : null}
     </>
@@ -1034,6 +1054,12 @@ export default function ChatThread({
   };
   // A photo, made smaller first when it is big (N351); a refused one shows
   // nothing. While the chat asks for one, it answers that question.
+  const sendFile = async (file: File) => {
+    const sent = await sendChatFile(chat.id, file, file.name);
+    if (!sent) return;
+    sendTick();
+    setMessages((list) => [...(list ?? []), sent]);
+  };
   const sendPhoto = async (photo: File, asked: string | null) => {
     const { blob, name } = await photoForUpload(photo);
     const one = async () => {
@@ -1054,8 +1080,10 @@ export default function ChatThread({
   // top, their assistant's messages labelled as its own. Null: as it was.
   const host = useHost(chat.id);
   const assistantName = host?.assistant ?? chat.assistant ?? null;
-  // How this chat takes what I send: the host's answer_with (N610).
-  const takes = takesOf(host?.answerWith ?? null);
+  // How this chat takes what I send: They send when the host's read has
+  // it, otherwise answer_with (N610). No `send` keeps the older bar.
+  const takes = takesFor(host?.send, host?.answerWith ?? null);
+  const legacy = !host?.send;
   const asks = [answer.question, answer.photo, setup.answers].some(Boolean);
   // Thanks, one tap, after a person's answer where nothing types (N610 item 5).
   const thanks = thanksDue(takes, messages, [pending, asks, safety.blocked]);
@@ -1117,6 +1145,7 @@ export default function ChatThread({
           <PeopleBar
             chat={chat}
             takes={takes}
+            legacy={legacy}
             asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo !== null }}
             status={
               setup.send ??
@@ -1130,6 +1159,7 @@ export default function ChatThread({
             onRecordAnswer={onRecordAnswer}
             onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
             onPhoto={(photo) => void sendPhoto(photo, answer.photo)}
+            onFile={(file) => void sendFile(file)}
           />
         )}
       </div>

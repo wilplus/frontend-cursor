@@ -28,6 +28,7 @@ import {
 } from "@/services/api/hostSetup";
 import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
 import { BinaryRow, Cap, Card, Chips, Dots, Frame, FrameDock, FrameHistory, FrameNote, Link, Mine, Opt, Say, type SetupDockSpec } from "./SetupBits";
+import { SendTakes, takesFromSend } from "../ChatBar";
 import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
@@ -467,7 +468,9 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   // An edit of one part stands alone; the first run reads as a chat.
   const ctxLive: Ctx = { S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) };
   const history = S.edit && !S.onePart ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
+  const sendTakes = R && Array.isArray(R.send) ? takesFromSend(R.send) : null;
   return (
+    <SendTakes.Provider value={sendTakes ? { takes: sendTakes, name } : null}>
     <FrameHistory.Provider value={history}>
       <FrameNote.Provider value={S.failed ? <div role="alert" data-setup-failed="" className="max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">{W.notSaved}</div> : null}>
       <div className="contents" onClickCapture={heard}>
@@ -477,6 +480,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
       </div>
       </FrameNote.Provider>
     </FrameHistory.Provider>
+    </SendTakes.Provider>
   );
 }
 

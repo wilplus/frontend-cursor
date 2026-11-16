@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { TypingGlyph } from "../../TypingDots";
 import { TapRow } from "../../WillQuestion";
 import { W } from "./hostSetupCopy";
-import { BarBox } from "../ChatBar";
+import AskSheet from "../AskSheet";
+import { BarBox, BarPlus, SendTakes } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
 
 /* -------------------------------------------------------------------------- */
@@ -155,7 +156,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
     if (el) el.scrollTop = el.scrollHeight;
   });
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {bar ? (
         bar
       ) : circle ? (
@@ -316,8 +317,11 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
   /** One thing on each line: Enter is a new line, only Send sends. */
   lines?: boolean;
 }) {
+  const sent = useContext(SendTakes);
+  const [sheet, setSheet] = useState(false);
   return (
     <div data-host-box="" data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+      {sent ? <BarPlus fresh={false} onClick={() => setSheet(true)} /> : null}
       {before}
       <BarBox
         hint={placeholder}
@@ -329,6 +333,16 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
         onSend={async (words) => onSend(words.trim()) !== false}
       />
       {after}
+      {sheet && sent ? (
+        <AskSheet
+          name={sent.name}
+          firstTime={false}
+          onClose={() => setSheet(false)}
+          onRecord={sent.takes.record ? () => setSheet(false) : undefined}
+          onPhoto={sent.takes.photo ? () => setSheet(false) : undefined}
+          onFile={sent.takes.file ? () => setSheet(false) : undefined}
+        />
+      ) : null}
     </div>
   );
 }

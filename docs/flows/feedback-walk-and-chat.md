@@ -2380,6 +2380,7 @@ The design is the prototype; the newest wins where two disagree.
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · The walk reads a published speaking-coach document when this account has one, and otherwise the same plan as before (`planForWalk` in `feedbackWalkModel.ts`, `useDeckFeedbackWalk.tsx`). A missing or refused document changes nothing a speaker sees. The builder that edits the draft is the chat's Build screen, not this walk. · FE (this PR)
+- 2026-11-16 · The chat bar follows They send (`rec` records, `text` types, `photo` and `file` sit behind +). A read with no `send` keeps answer_with: recordings, taps, Send a photo, no typing, no file. /dev/chat-bar shows every combination. · FE (this PR)
 - 2026-11-16 · In a row's chat, the header's back arrow returns to Your chat, the same as the row's Back. It goes on to the list of chats only from that page. The browser's Back does the same: opening a row pushes a history entry. · FE (this PR)
 - 2026-11-16 · In a row's chat, Keep, a kept Draw new one, and a typed answer that saves finish that row and open the next row's chat, in the same order as Next. The last row returns to the page. Back still returns to the page. · FE (this PR)
 - 2026-11-16 · Build's Your chat is a page, not Will's thread: a search, then the table. No Speaking coach chip. A row opens that row's own chat, the row as the first bubble, then its editor. Next opens the next row's chat in the same order ("1 of 9"). The last Next returns to the page. Back returns to the page. · FE (this PR)

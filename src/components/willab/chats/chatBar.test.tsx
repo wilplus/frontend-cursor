@@ -67,6 +67,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 
 import ChatThread from "./ChatThread";
+import ChatBarPreview from "@/app/dev/chat-bar/page";
+import { PEOPLE_TAKE, plusRows, sendCombos, takesFor, takesFromSend, takesOf } from "./ChatBar";
 import type { Chat } from "@/services/api/chats";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -129,13 +131,17 @@ const TO_TAP = theirs("m-t", { body: "What do you know better than most?", meta:
 const ANSWER = theirs("m-a", { kind: "voice", meta: { answer: true, duration_ms: 64000 } });
 
 /** Opens the chat: its messages and the host's answer_with (null: no
- *  host; "404": a backend without the host's route). */
-async function open(messages: unknown[], answerWith: With | null | "404" = null) {
+ *  host; "404": a backend without the host's route). `send` is They send. */
+async function open(messages: unknown[], answerWith: With | null | "404" = null, send?: string[]) {
   routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages });
   if (answerWith === "404") delete routes["GET /api/v2/chats/c-1/host"];
   else
     routes["GET /api/v2/chats/c-1/host"] = () =>
-      json({ host: answerWith ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith } : null });
+      json({
+        host: answerWith || send
+          ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith ?? { tap: true, record: true }, ...(send ? { send } : {}) }
+          : null,
+      });
   act(() => root.unmount());
   root = createRoot(container);
   await act(async () => root.render(createElement(ChatThread, { chat: CHAT, onBack: () => undefined, onRecordAnswer })));
@@ -375,5 +381,50 @@ describe("the bar in a host's chat and between people (N610)", () => {
     // host's chat; the founder's trial, item 1b).
     expect(inBar()).toEqual(["Add", "Type your answer", "Send"]);
     expect(box()?.value).toBe("The gentle one");
+  });
+
+  it("They send maps onto the bar, and a file sits behind the +", async () => {
+    const flag = (kinds: readonly string[], kind: string) => kinds.includes(kind);
+    expect(sendCombos()).toHaveLength(15);
+    for (const combo of sendCombos()) {
+      expect(takesFromSend(combo)).toEqual({
+        tap: true,
+        record: flag(combo, "rec"),
+        type: flag(combo, "text"),
+        photo: flag(combo, "photo"),
+        file: flag(combo, "file"),
+      });
+    }
+    expect(takesFromSend(null)).toBeNull();
+    expect(takesFromSend([])).toEqual({ tap: true, record: false, type: false, photo: false, file: false });
+    // No send: answer_with, with Send a photo and no file.
+    expect(takesOf(null)).toEqual(PEOPLE_TAKE);
+    expect(takesFor(null, { tap: true, type: true, record: false })).toEqual({ tap: true, type: true, record: false, photo: true, file: false });
+    expect(plusRows(takesFor(["rec", "photo"], null), { answer: false, taps: false, photo: false })).toEqual(["Record your question", "Send a photo"]);
+    expect(plusRows(takesFor(["text", "file"], null), { answer: true, taps: false, photo: false })).toEqual(["Send a file"]);
+
+    routes["POST /api/v2/chats/c-1/file"] = () =>
+      json({ message: { id: "m-f", mine: true, author: "", kind: "file", body: "notes.pdf", meta: null, created_at: "2026-11-10T10:08:00Z" } });
+    await open([], null, ["text", "file"]);
+    expect(box()?.getAttribute("placeholder")).toBe("Ask Tomek");
+    await tap(bar().querySelector("[data-chat-plus]"));
+    expect(sheetRows()).toEqual(["Send a file", "Cancel"]);
+    await tap(within("[data-ask-sheet]", "Send a file"));
+    const input = container.querySelector<HTMLInputElement>("[data-chat-file-pick]")!;
+    const file = new File(["notes"], "notes.pdf", { type: "application/pdf" });
+    await act(async () => {
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flush();
+    expect(((calls("POST /api/v2/chats/c-1/file").at(-1)?.[1]?.body as FormData).get("file") as File).name).toBe("notes.pdf");
+
+    act(() => root.render(createElement(ChatBarPreview)));
+    const cases = [...container.querySelectorAll("[data-bar-case]")];
+    expect(cases).toHaveLength(15 * 4);
+    const labels = cases.map((el) => el.querySelector("h2")?.textContent);
+    expect(labels).toContain("rec · text · photo · file · Nothing asked");
+    expect(labels).toContain("file · Thanks");
+    expect(cases.some((el) => el.querySelector("[data-plus-rows]")?.textContent === "+ Send a file")).toBe(true);
   });
 });
