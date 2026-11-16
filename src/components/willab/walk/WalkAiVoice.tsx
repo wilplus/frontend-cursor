@@ -227,6 +227,7 @@ export default function WalkAiVoice({
   bold = null,
   arrive = false,
   onPlay,
+  onError,
 }: {
   seed: string;
   lead?: string;
@@ -240,6 +241,8 @@ export default function WalkAiVoice({
   /** The Exercise screen: the typing dots first, then the bubble lands. */
   arrive?: boolean;
   onPlay?: () => void;
+  /** Re-read the signed AI-voice URL if this clip has expired. */
+  onError?: () => void;
 }) {
   const clip = state?.clip;
   const shown = useArrival(seed, arrive);
@@ -270,7 +273,15 @@ export default function WalkAiVoice({
       </span>
       {ready && clip?.url ? (
         <div onClickCapture={onPlay} className="mt-2">
-          <WalkPlayer look="bare" seed={seed} src={clip.url} durationMs={clip.durationMs} label={WALK_COPY.aiVoiceLabel} />
+          <WalkPlayer
+            look="bare"
+            seed={seed}
+            src={clip.url}
+            durationMs={clip.durationMs}
+            label={WALK_COPY.aiVoiceLabel}
+            onError={onError}
+            onPlayError={onError}
+          />
         </div>
       ) : (
         <div data-walk-ai-waiting className="mt-2 flex min-h-8 items-center justify-center">

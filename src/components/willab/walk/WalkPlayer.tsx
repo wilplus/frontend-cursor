@@ -37,6 +37,7 @@ export default function WalkPlayer({
   words,
   look = "box",
   onError,
+  onPlayError,
 }: {
   seed: string;
   src: string | null;
@@ -49,6 +50,8 @@ export default function WalkPlayer({
   /** Told when the clip errors; a fresh link is asked of the host's
    *  MediaRefreshProvider on its own. */
   onError?: () => void;
+  /** Used by AI voice players when play() rejects before media emits error. */
+  onPlayError?: () => void;
 }) {
   const player = (
     <SnippetWavePlayer
@@ -60,6 +63,7 @@ export default function WalkPlayer({
       tone={look === "me" || look === "chip" ? "me" : "ink"}
       label={label}
       onError={onError}
+      onPlayError={onPlayError}
       barCount={look === "chip" ? CHIP_BARS : undefined}
     />
   );

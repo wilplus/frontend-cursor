@@ -125,6 +125,7 @@ let uploadFails: boolean;
 /** The AI clip's ask: on its way (then ready), none coming, or none
  *  coming though the server chose what it would fix (N370). */
 let aiClip: "coming" | "none" | "chosen" | "late" | "video" | "error";
+let aiRefreshUrl: string;
 /** "late": the clip stays on its way, its fix named, until this is true. */
 let aiLateReady: boolean;
 let calls: { method: string; url: string; body: unknown }[];
@@ -179,7 +180,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
         json({
           demo: "ai_voice",
           clip: aiLateReady
-            ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, problem: "pause", phrase: AI_PHRASE }
+            ? { state: "ready", url: aiRefreshUrl, duration_ms: 3000, problem: "pause", phrase: AI_PHRASE }
             : { state: "pending", url: null, problem: "pause", phrase: AI_PHRASE },
         }),
       );
@@ -194,7 +195,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       json({
         demo: "ai_voice",
         clip: ready
-          ? { state: "ready", url: "https://media.example/ai.mp3", duration_ms: 3000, why: AI_WHY, problem: "pause", phrase: AI_PHRASE }
+          ? { state: "ready", url: aiRefreshUrl, duration_ms: 3000, why: AI_WHY, problem: "pause", phrase: AI_PHRASE }
           : { state: "pending", url: null },
       }),
     );
@@ -254,6 +255,7 @@ beforeEach(() => {
   uploadFails = false;
   aiClip = "coming";
   aiLateReady = false;
+  aiRefreshUrl = "https://media.example/ai.mp3";
   calls = [];
   ended = 0;
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
@@ -539,6 +541,23 @@ describe("the AI version of your voice on the Exercise (founder 2026-10-15)", ()
     expect(text).not.toContain("Now try saying it like that.");
     // In the bubble, the player's clock is the only figure.
     expect(spans.join(" ").replace(/\d+:\d{2}/g, "")).not.toMatch(/\d/);
+  });
+
+  it("re-reads a ready clip when play rejects its expired signed URL", async () => {
+    draw({ items: EXERCISE_ITEMS, at: 1 });
+    await settle(210);
+    const aiAudio = () => live()!.querySelector("[data-walk-ai-voice]")?.closest("[data-walk-message]")?.querySelector("audio");
+    expect(aiAudio()?.getAttribute("src")).toBe("https://media.example/ai.mp3");
+
+    aiRefreshUrl = "https://media.example/ai.mp3?fresh=1";
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(new Error("expired"));
+    click(live()!.querySelector(`button[aria-label="Play ${WALK_COPY.aiVoiceLabel}"]`));
+    await settle();
+
+    expect(calls.filter((c) => c.url.endsWith("/ai-voice") && c.method === "GET")).toHaveLength(2);
+    expect(aiAudio()?.getAttribute("src")).toBe("https://media.example/ai.mp3?fresh=1");
+    expect(live()!.querySelector(`button[aria-label="Play ${WALK_COPY.aiVoiceLabel}"]`)?.hasAttribute("disabled")).toBe(false);
+    play.mockRestore();
   });
 });
 
