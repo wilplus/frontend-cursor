@@ -54,6 +54,8 @@ function arc(over: Partial<TrainingArc> = {}): TrainingArc {
     coverRef: null,
     deletion: null,
     archived: false,
+    practiceProgress: 0,
+    practiceChunks: [],
     ...over,
   };
 }

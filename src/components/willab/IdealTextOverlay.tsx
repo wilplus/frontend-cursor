@@ -136,6 +136,7 @@ export default function IdealTextOverlay({
 }: {
   arcId: string;
   practiceDecision?: {
+    deliveryLabel?: import("@/services/api/trainings").PracticeDeliveryLabel;
     continueLabel?: string;
     onContinue: () => void;
     onRepeat: () => void;

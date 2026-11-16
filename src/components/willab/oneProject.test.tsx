@@ -62,6 +62,8 @@ function arc(arcId: string, topic: string, lastTakeAt: string | null): TrainingA
     deletion: null,
     archived: false,
     lastTakeAt,
+    practiceProgress: 0,
+    practiceChunks: [],
   };
 }
 const BOARD = arc("arc-board", "Board pitch", "2026-10-28T10:00:00Z");

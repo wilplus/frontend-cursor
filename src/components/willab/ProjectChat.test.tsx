@@ -63,6 +63,14 @@ const project: TrainingArc = {
   coverRef: null,
   deletion: null,
   archived: false,
+  practiceProgress: 45,
+  practiceChunks: [{
+    startSlide: 1,
+    endSlide: 2,
+    attempts: 1,
+    deliveryLabel: "Almost",
+    latestSessionId: "take-a",
+  }],
 };
 
 let root: Root;
@@ -93,11 +101,14 @@ function render(): void {
 }
 
 describe("project conversation", () => {
-  it("has exactly two durable results and one continuation CTA", () => {
+  it("combines practice history and Ideal text in one result card", () => {
     render();
-    expect(host.querySelectorAll("[data-project-results] button")).toHaveLength(2);
-    expect(host.textContent).toContain("Feedback walk");
-    expect(host.textContent).toContain("Ideal Text");
+    expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
+    expect(host.textContent).toContain("Progress");
+    expect(host.textContent).toContain("Slides 1-2");
+    expect(host.textContent).toContain("Almost");
+    expect(host.textContent).toContain("Feedback");
+    expect(host.textContent).toContain("Ideal text");
     expect(host.textContent).toContain("Continue recording");
     expect(host.querySelector("input")).toBeNull();
 
