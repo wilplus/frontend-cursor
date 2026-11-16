@@ -11,10 +11,11 @@ import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   ChatQueryRequestError,
   postChatQuery,
+  type ChatHistoryEntry,
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
-import { newestStamp, refreshNewCoachFeedback, stampLoungeMessage, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
+import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isRetiredLoungeMessage,
@@ -153,7 +154,14 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
-import { isProjectMessage } from "@/lib/willab/projectChat";
+import {
+  isProjectMessage,
+  openProjectQuestion,
+  projectConversationHistory,
+  projectMessageStaysInLounge,
+  typedProjectTurnMetadata,
+} from "@/lib/willab/projectChat";
+import { withOwnBubble, type RecoverableAppend } from "./useLoungeThread";
 import WillQuestionBubble, {
   AnswerPair,
   ChatLink,
@@ -362,6 +370,47 @@ export function chatFailureReply(err: unknown, signedIn: boolean, hasProject: bo
   };
 }
 
+type ProjectQuestionTurn = {
+  row: LoungeMessage;
+  arcId: string;
+  takeSessionId: string;
+};
+
+type FailedTypedTurn = {
+  body: string;
+  draft: string;
+  questionId: string | null;
+  question: LoungeMessage | null;
+  user: RecoverableAppend;
+  reply?: RecoverableAppend;
+};
+
+function projectQuestionTurn(question: LoungeMessage | null): ProjectQuestionTurn | null {
+  const arcId = question?.metadata?.arc_id;
+  const takeSessionId = question?.metadata?.take_session_id;
+  if (!question || typeof arcId !== "string" || typeof takeSessionId !== "string") return null;
+  return { row: question, arcId, takeSessionId };
+}
+
+function chatReplyBody(response: ChatQueryResponse, fallback: string | null): string | null {
+  if (response.bubbles && response.bubbles.length > 0) return response.bubbles.join("\n\n");
+  return response.answer?.trim() || fallback;
+}
+
+function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown> {
+  const suggested = coerceSuggestedAction(response.suggested_action);
+  const suggestedActions = coerceSuggestedActions(response.suggested_actions);
+  const productAction = productActionFromMetadata({ product_action: response.product_action });
+  return {
+    ...(suggestedActions.length > 0
+      ? { suggested_actions: suggestedActions }
+      : suggested
+        ? { suggested_action: suggested }
+        : {}),
+    ...(productAction ? { product_action: productAction } : {}),
+  };
+}
+
 /** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
  *  Take is processed is asked for an account; a Take still in flight shows
  *  its wait as before. */
@@ -549,7 +598,7 @@ export default function Lounge({
       if (isRetiredLoungeMessage(m)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
-      if (isProjectMessage(m)) continue;
+      if (isProjectMessage(m) && !projectMessageStaysInLounge(m)) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -1520,10 +1569,10 @@ export default function Lounge({
   // the "just recorded this session" signal. The joke onboarding and the
   // install offer that used to arm here are deleted (SD/FE-4, N391).
   const settleTimeRef = useRef<string | null>(null);
-  // FE-4 fix — a synchronous in-flight guard for runSend. botThinking only arms
-  // AFTER the awaited user-turn append (a network POST when signed in), leaving
-  // a window where a fast double-tap re-enters and double-sends.
+  // FE-4 fix — a synchronous in-flight guard for runSend. React state alone
+  // leaves a window where a fast double-tap re-enters and double-sends.
   const sendingRef = useRef(false);
+  const failedTypedTurnRef = useRef<FailedTypedTurn | null>(null);
   useEffect(() => {
     if (thread.loading) return;
     if (settleTimeRef.current === null) {
@@ -1672,7 +1721,7 @@ export default function Lounge({
   const barHear = firstHear(plan.hear, keyLine.hear);
   const barMode = barModeIn(
     place,
-    words.show,
+    words.show || openProjectQuestion(messages) !== null,
     plan.barMiddle,
     barHear,
     plan.typingOff,
@@ -1721,19 +1770,27 @@ export default function Lounge({
 
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
-    const q = draftText.trim();
+    const submittedDraft = draftText;
+    const q = submittedDraft.trim();
     // Guard BEFORE clearing the input so a send while the bot is busy keeps the
     // user's text rather than silently dropping it.
     if (!q || botThinking) return;
     setDraftText("");
     words.close();
+    // Free words under a Take's open Will question are a real chat turn. The
+    // tap endpoint accepts only its fixed choices and otherwise answers with
+    // a generic acknowledgement; typed words need the contextual model path.
+    const failedQuestion = failedTypedTurnRef.current;
+    const typedQuestion = openProjectQuestion(messages) ?? (
+      failedQuestion?.body === q ? failedQuestion.question : null
+    );
     // The way in waits for these words: "Something else", or Will's last
     // question after the walk (backend N573, N592 item 2).
-    if (plan.say(q)) {
+    if (!typedQuestion && plan.say(q)) {
       followAnswer();
       return;
     }
-    if (setupWaits) {
+    if (!typedQuestion && setupWaits) {
       // Refused or not sent: the words go back into the box, never lost.
       if ((await setupWaits.say(q)) === false) setDraftText(q);
       followAnswer();
@@ -1741,8 +1798,8 @@ export default function Lounge({
     }
     // A host who set up their chat asks to change it: its parts open again
     // (backend N618 item 8). No call for anyone without a set-up chat.
-    if (await sayToWill(q)) return;
-    await runSend(q);
+    if (!typedQuestion && await sayToWill(q)) return;
+    await runSend(q, typedQuestion, submittedDraft);
   }
 
   // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
@@ -1780,7 +1837,13 @@ export default function Lounge({
     if (choice === SOMETHING_ELSE) return words.start();
     setBotThinking(true);
     try {
-      if (await postWillQuestion(target.arcId, target.takeSessionId, choice)) await reload();
+      const accepted = await withOwnBubble(
+        thread.own,
+        choice,
+        () => postWillQuestion(target.arcId, target.takeSessionId, choice),
+        Boolean,
+      );
+      if (accepted) await reload();
     } finally {
       setBotThinking(false);
     }
@@ -1823,145 +1886,296 @@ export default function Lounge({
     }
   }
 
-  // The shared send core — used by the composer. Returns true when this call
-  // actually sent, false when it was a guarded no-op (empty / bot busy / an
-  // in-flight send). sendingRef closes the double-send window that botThinking
-  // alone leaves open (it only arms after the awaited user-turn append).
-  async function runSend(q: string): Promise<boolean> {
+  function failedTypedTurn(body: string, questionId: string | null): FailedTypedTurn | null {
+    const failed = failedTypedTurnRef.current;
+    return failed?.body === body && failed.questionId === questionId ? failed : null;
+  }
+
+  function currentPresentationContext() {
+    const activeProject = readExploreArc(userId);
+    return {
+      has_current_project: activeProject !== null,
+      completed_takes: activeProject ? Math.max(0, activeProject.nextTakeIndex - 1) : 0,
+      has_pdf: Boolean(activeProject?.deck?.presentationRef),
+    };
+  }
+
+  async function queryTypedTurn({
+    q,
+    history,
+    user,
+    stored,
+    project,
+  }: {
+    q: string;
+    history: ChatHistoryEntry[];
+    user: LoungeMessage;
+    stored: Promise<boolean>;
+    project: ProjectQuestionTurn | null;
+  }): Promise<[ChatQueryResponse, boolean]> {
+    return Promise.all([
+      postChatQuery({
+        question: q,
+        history,
+        historySource: thread.signedIn ? "screen" : undefined,
+        sessionId: project?.takeSessionId,
+        place,
+        // Signed-in turns are backend-owned. For a project question this is
+        // what runs finish_chat_turn, retains will_question.row_metadata and
+        // releases the held after-Take row.
+        persist: thread.signedIn,
+        clientId: user.client_id,
+        clientCreatedAt: user.client_created_at,
+        presentationContext: currentPresentationContext(),
+      }),
+      stored,
+    ]);
+  }
+
+  async function retryStoredTypedTurn(failed: FailedTypedTurn & { reply: RecoverableAppend }): Promise<boolean> {
+    setBotThinking(true);
+    try {
+      const [userStored, replyStored] = await Promise.all([failed.user.retry(), failed.reply.retry()]);
+      if (!userStored || !replyStored) {
+        setDraftText(failed.draft);
+        return false;
+      }
+      failedTypedTurnRef.current = null;
+      await reload();
+      return true;
+    } catch {
+      setDraftText(failed.draft);
+      return false;
+    } finally {
+      setBotThinking(false);
+      followAnswer();
+    }
+  }
+
+  function regularScreenHistory(screen: LoungeMessage[]): ChatHistoryEntry[] {
+    if (!thread.signedIn) return loungeToHistory(messages);
+    return screenHistory(screen, {
+      walkOf: (message) => {
+        const walk = walkAt.get(message.client_id);
+        return walk ? { take: walk.takeIndex, summary: summaries.get(walk.take) ?? null } : null;
+      },
+      cardOf: (message) => reviewCardOf(message, threadItems),
+      coachWaits: (message) =>
+        latestIdealIds.has(message.client_id) &&
+        newCoachFeedbackFor(typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null),
+    });
+  }
+
+  async function appendRegularReply(
+    response: ChatQueryResponse,
+    q: string,
+    screen: LoungeMessage[],
+    draft: LoungeMessageDraft,
+  ): Promise<void> {
+    if (!thread.signedIn) {
+      await thread.append(draft);
+      return;
+    }
+    const botMessage = thread.appendLocalOnly(draft);
+    rememberPlace(botMessage.client_id, place);
+    if (response.persisted) announceDiscoveriesFromPersistedMessages([botMessage]);
+
+    const chatOffer = readOfferType({ offer: response.offer });
+    settleAsks(response, q);
+    if (chatOffer) {
+      if (newestAsk(screen) !== chatOffer) thread.appendLocalOnly(offerDraft(chatOffer));
+      setActiveOffer(chatOffer);
+    }
+    const takeCard = response.take_card;
+    if (takeCard && typeof takeCard.arc_id === "string" && takeCard.arc_id) {
+      thread.appendLocalOnly(idealTextReadyDraft({
+        arcId: takeCard.arc_id,
+        version: typeof takeCard.version === "number" ? takeCard.version : null,
+        topic: takeCard.topic ?? undefined,
+      }));
+    }
+  }
+
+  async function runRegularTypedTurn(q: string, submittedDraft: string): Promise<boolean> {
+    const screen = shownItems.map((item) => item.message);
+    const history = regularScreenHistory(screen);
+    const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
+    const userDraft = withHint({ role: "user", kind: "text", body: q } as LoungeMessageDraft, hint);
+    const retrying = failedTypedTurn(q, null);
+    const recoverableDraft = retrying?.draft ?? submittedDraft;
+    const userTurn = retrying?.user ?? thread.appendRecoverable(userDraft);
+    rememberPlace(userTurn.message.client_id, place);
+    const stored = retrying ? userTurn.retry() : userTurn.stored;
+
+    setBotThinking(true);
+    try {
+      const [response] = await queryTypedTurn({ q, history, user: userTurn.message, stored, project: null });
+      const body = chatReplyBody(response, "I know nothing about that, at least yet 😏")!;
+      await appendRegularReply(response, q, screen, {
+        role: "bot",
+        kind: "text",
+        body,
+        metadata: chatReplyMetadata(response),
+      });
+      failedTypedTurnRef.current = null;
+      return true;
+    } catch (err) {
+      failedTypedTurnRef.current = {
+        body: q,
+        draft: recoverableDraft,
+        questionId: null,
+        question: null,
+        user: userTurn,
+      };
+      setDraftText(recoverableDraft);
+      await thread.append(withHint(
+        chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null),
+        hint,
+      ));
+      return false;
+    } finally {
+      setBotThinking(false);
+      followAnswer();
+    }
+  }
+
+  async function runProjectTypedTurn(
+    q: string,
+    project: ProjectQuestionTurn,
+    submittedDraft: string,
+  ): Promise<boolean> {
+    const questionId = project.row.client_id;
+    const failed = failedTypedTurn(q, questionId);
+    if (failed?.reply) return retryStoredTypedTurn({ ...failed, reply: failed.reply });
+
+    const recoverableDraft = failed?.draft ?? submittedDraft;
+    const metadata = {
+      ...(typedHint(place, project.arcId, openChat) ?? {}),
+      ...typedProjectTurnMetadata({
+        arcId: project.arcId,
+        takeSessionId: project.takeSessionId,
+        questionClientId: questionId,
+        role: "answer",
+        place,
+      }),
+    };
+    const userDraft: LoungeMessageDraft = {
+      role: "user",
+      kind: "text",
+      body: q,
+      metadata,
+    };
+    // One idempotent outbox row gives the speaker an immediate bubble and a
+    // durable retry key. The backend's persist:true write uses this same id,
+    // so its upsert and this write reconcile to one user row.
+    const userTurn = failed?.user ?? thread.appendRecoverable(userDraft);
+    rememberPlace(userTurn.message.client_id, place);
+    const stored = failed ? userTurn.retry() : userTurn.stored;
+
+    setBotThinking(true);
+    try {
+      const [response, userStored] = await queryTypedTurn({
+        q,
+        history: projectConversationHistory(
+          messages.filter((message) => message.client_id !== userTurn.message.client_id),
+          project.arcId,
+        ),
+        user: userTurn.message,
+        stored,
+        project,
+      });
+      if (thread.signedIn && response.persisted !== true) {
+        // The model can answer even when finish_chat_turn did not durably own
+        // the rows. Keep the exact outbox bubble and draft; retry with its same
+        // client id so the question can close and after_take can release.
+        failedTypedTurnRef.current = {
+          body: q,
+          draft: recoverableDraft,
+          questionId,
+          question: project.row,
+          user: userTurn,
+        };
+        setDraftText(recoverableDraft);
+        return false;
+      }
+      const body = chatReplyBody(response, null);
+      if (!body) throw new Error("Typed chat returned no reply");
+      const replyDraft: LoungeMessageDraft = {
+        role: "bot",
+        kind: "text",
+        body,
+        metadata: {
+          ...chatReplyMetadata(response),
+          ...typedProjectTurnMetadata({
+            arcId: project.arcId,
+            takeSessionId: project.takeSessionId,
+            questionClientId: questionId,
+            role: "reply",
+            place,
+          }),
+          ...(response.row_metadata ?? {}),
+        },
+      };
+      if (thread.signedIn) {
+        const reply = thread.appendLocalOnly(replyDraft);
+        rememberPlace(reply.client_id, place);
+        failedTypedTurnRef.current = null;
+        // Reload is authoritative for both rows and, when after_take is true,
+        // for the closing/next ask that finish_chat_turn just released.
+        await reload();
+        return true;
+      }
+
+      const reply = thread.appendRecoverable(replyDraft);
+      failedTypedTurnRef.current = {
+        body: q,
+        draft: recoverableDraft,
+        questionId,
+        question: project.row,
+        user: userTurn,
+        reply,
+      };
+      const replyStored = await reply.stored;
+      if (!userStored || !replyStored) {
+        setDraftText(recoverableDraft);
+        return false;
+      }
+      failedTypedTurnRef.current = null;
+      await reload();
+      return true;
+    } catch {
+      failedTypedTurnRef.current = {
+        body: q,
+        draft: recoverableDraft,
+        questionId,
+        question: project.row,
+        user: userTurn,
+      };
+      setDraftText(recoverableDraft);
+      return false;
+    } finally {
+      setBotThinking(false);
+      followAnswer();
+    }
+  }
+
+  // The shared send core dispatches the ordinary Lounge path or the project
+  // content path. Both put the own bubble on screen before model work begins.
+  async function runSend(
+    q: string,
+    question: LoungeMessage | null = null,
+    submittedDraft: string = q,
+  ): Promise<boolean> {
     if (!q || botThinking || sendingRef.current) return false;
     sendingRef.current = true;
-    // finally guarantees the guard clears on every exit, including a rejected
-    // append (else a throw would wedge sendingRef=true and block all sends).
     try {
-      // Track upload intent so the footer record button swaps to a file picker
-      // (and reverts the moment the user's next message is about something else).
       setUploadAskActive(isUploadAsk(q));
-      // A typed turn answers or passes "Did this feedback help you?"
-      // (feedbackCheck.ts): its pair goes, as a tap would close it.
       setActiveOffer((open) => (open === "feedback_check" ? null : open));
-      atBottomRef.current = true; // sending always scrolls to your own message
-      // Will reads the chat as it is drawn (founder 2026-10-20): every
-      // bubble on screen in its order, cards and asks included. A guest's
-      // thread lives on this device and keeps its plain turns.
-      const screen = shownItems.map((item) => item.message);
-      const history = thread.signedIn
-        ? screenHistory(screen, {
-            walkOf: (m) => {
-              const walk = walkAt.get(m.client_id);
-              return walk ? { take: walk.takeIndex, summary: summaries.get(walk.take) ?? null } : null;
-            },
-            cardOf: (m) => reviewCardOf(m, threadItems),
-            coachWaits: (m) =>
-              latestIdealIds.has(m.client_id) &&
-              newCoachFeedbackFor(typeof m.metadata?.arc_id === "string" ? m.metadata.arc_id : null),
-          })
-        : loungeToHistory(messages); // snapshot of prior turns (pre-append)
-      // The user turn always persists (optimistic + FE write); for signed-in the
-      // BE also writes it from the client_id we pass below, and the server dedups
-      // on (user_id, client_id) so it collapses to one row (#2). So the write
-      // and the question go out together, and the dots show at once.
-      // Typed in the speaking chat or Principles, it says so, and it is drawn
-      // there until the backend's copy is read (N636 items 1 and 2).
-      const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
-      const userDraft = withHint({ role: "user" as const, kind: "text" as const, body: q } as LoungeMessageDraft, hint);
-      const userMsg = stampLoungeMessage(userDraft, newestStamp(messages));
-      rememberPlace(userMsg.client_id, place);
-      const appended = thread.append({ ...userDraft, clientId: userMsg.client_id });
-
-      setBotThinking(true);
-      try {
-        const activeProject = readExploreArc(userId);
-        const [resp] = await Promise.all([postChatQuery({
-          question: q,
-          history,
-          historySource: thread.signedIn ? "screen" : undefined,
-          // The chat it was typed in, for the ring: the backend files both
-          // rows of the turn there (backend #1933).
-          place,
-          // #2 — let the BE own persistence for signed-in turns. It writes the
-          // user turn with our client_id (dedup) and the bot turn with the chip
-          // in its metadata; the FE then shows the bot turn optimistically only.
-          persist: thread.signedIn,
-          clientId: userMsg.client_id,
-          clientCreatedAt: userMsg.client_created_at,
-          presentationContext: {
-            has_current_project: activeProject !== null,
-            completed_takes: activeProject
-              ? Math.max(0, activeProject.nextTakeIndex - 1)
-              : 0,
-            has_pdf: Boolean(activeProject?.deck?.presentationRef),
-          },
-        }), appended]);
-        // B-1 — the one quick-action the BE suggests for this turn (S1),
-        // rendered as an in-bubble chip (trainings / audit).
-        const suggested = coerceSuggestedAction(resp.suggested_action);
-        const suggestedActions = coerceSuggestedActions(resp.suggested_actions);
-        const productAction = productActionFromMetadata({
-          product_action: resp.product_action,
-        });
-        const answer = (resp.answer ?? "").trim();
-        // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
-        // We persist the joined body and the thread re-splits on the same
-        // blank-line marker, so a reload shows exactly the bubbles that were sent.
-        const body =
-          resp.bubbles && resp.bubbles.length > 0
-            ? resp.bubbles.join("\n\n")
-            : answer || "I know nothing about that, at least yet 😏";
-        const botDraft = {
-          role: "bot" as const,
-          kind: "text" as const,
-          body,
-          // B-1 — the chip rides in the bot row's metadata so it survives reload
-          // and scroll-back. For signed-in, the BE persists this same row (chip
-          // included) — see #2; we show it optimistically without re-persisting
-          // to avoid a duplicate. Anonymous → the FE persists it locally.
-          metadata: {
-            ...(suggestedActions.length > 0
-              ? { suggested_actions: suggestedActions }
-              : suggested
-                ? { suggested_action: suggested }
-                : {}),
-            ...(productAction ? { product_action: productAction } : {}),
-          },
-        };
-        if (thread.signedIn) {
-          const botMessage = thread.appendLocalOnly(botDraft);
-          rememberPlace(botMessage.client_id, place);
-          if (resp.persisted) {
-            announceDiscoveriesFromPersistedMessages([botMessage]);
-          }
-          // The speaker asked Will for a feature the Lounge offers (founder
-          // 2026-10-14): the BE stored its offer bubble after the reply, so
-          // show it now and open its form, as a tap on the bubble would.
-          // An ask already showing last is not asked again (founder
-          // 2026-10-20): the reply opens its form under it.
-          const chatOffer = readOfferType({ offer: resp.offer });
-          settleAsks(resp, q);
-          if (chatOffer) {
-            if (newestAsk(screen) !== chatOffer) thread.appendLocalOnly(offerDraft(chatOffer));
-            setActiveOffer(chatOffer);
-          }
-          // "Show me my latest take" (founder 2026-10-16): the BE stored that
-          // Take's Ideal Text card after the reply; show it now, one tap away.
-          const takeCard = resp.take_card;
-          if (takeCard && typeof takeCard.arc_id === "string" && takeCard.arc_id) {
-            thread.appendLocalOnly(idealTextReadyDraft({
-              arcId: takeCard.arc_id,
-              version: typeof takeCard.version === "number" ? takeCard.version : null,
-              topic: takeCard.topic ?? undefined,
-            }));
-          }
-        } else {
-          await thread.append(botDraft);
-        }
-      } catch (err) {
-        // Will's reply that could not come stays in the chat it was asked in.
-        await thread.append(withHint(chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null), hint));
-      } finally {
-        setBotThinking(false);
-        followAnswer();
-      }
-      return true;
+      atBottomRef.current = true;
+      const project = projectQuestionTurn(question);
+      return project
+        ? await runProjectTypedTurn(q, project, submittedDraft)
+        : await runRegularTypedTurn(q, submittedDraft);
     } finally {
       sendingRef.current = false;
     }

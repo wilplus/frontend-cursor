@@ -3,11 +3,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import type { TrainingArc } from "@/services/api/trainings";
-import type { LoungeMessage } from "@/services/api/loungeMessages";
+import {
+  newestStamp,
+  stampLoungeMessage,
+  type LoungeMessage,
+} from "@/services/api/loungeMessages";
+import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import { openProjectQuestion, orderedProjectMessages } from "@/lib/willab/projectChat";
+import {
+  openProjectQuestion,
+  orderedProjectMessages,
+  projectConversationHistory,
+  typedProjectTurnMetadata,
+} from "@/lib/willab/projectChat";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
+import type { RecoverableAppend } from "./useLoungeThread";
 import FeedbackWalkCard, { type FeedbackWalkChunk } from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
 import TypingDots from "./TypingDots";
@@ -24,6 +35,26 @@ import {
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 type Opened = "walk" | "ideal" | "decision" | null;
+
+type PendingTypedTurn = {
+  question: LoungeMessage;
+  user: LoungeMessage;
+  outbox: RecoverableAppend;
+  draft: string;
+  phase: "sending" | "send_failed" | "store_failed";
+};
+
+type PendingTapTurn = {
+  question: LoungeMessage;
+  user: LoungeMessage;
+};
+
+type StoredTypedTurn = {
+  body: string;
+  draft: string;
+  user: RecoverableAppend;
+  reply: RecoverableAppend;
+};
 
 type AcceptedProjectTake = {
   sessionId: string;
@@ -111,6 +142,13 @@ function projectPracticeView(
   };
 }
 
+function replyBody(response: ChatQueryResponse): string | null {
+  const bubbles = response.bubbles?.map((bubble) => bubble.trim()).filter(Boolean) ?? [];
+  if (bubbles.length > 0) return bubbles.join("\n\n");
+  const answer = response.answer?.trim() ?? "";
+  return answer || null;
+}
+
 export default function ProjectChat({
   project,
   analysisPending = false,
@@ -130,6 +168,9 @@ export default function ProjectChat({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [typingQuestion, setTypingQuestion] = useState<string | null>(null);
+  const [pendingTyped, setPendingTyped] = useState<PendingTypedTurn | null>(null);
+  const [pendingTap, setPendingTap] = useState<PendingTapTurn | null>(null);
+  const storedTypedRef = useRef<StoredTypedTurn | null>(null);
   const [slideCount, setSlideCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(
@@ -140,8 +181,10 @@ export default function ProjectChat({
     (message) => message.kind !== "walk_step" && message.kind !== "ideal_text" && message.kind !== "recording_summary",
   );
   const question = openProjectQuestion(messages);
-  const typingAnswer = question !== null && typingQuestion === question.client_id;
-  const questionMeta = question?.metadata ?? {};
+  const pendingAnswer = pendingTyped ?? pendingTap;
+  const activeQuestion = question ?? pendingAnswer?.question ?? null;
+  const typingAnswer = activeQuestion !== null && typingQuestion === activeQuestion.client_id;
+  const questionMeta = activeQuestion?.metadata ?? {};
   const chips = Array.isArray(questionMeta.chips)
     ? questionMeta.chips.filter((chip): chip is string => typeof chip === "string" && chip.length > 0)
     : [];
@@ -169,12 +212,25 @@ export default function ProjectChat({
 
   async function answerChip(choice: string): Promise<void> {
     const take = questionMeta.take_session_id;
-    if (sending || typeof take !== "string") return;
+    if (sending || !activeQuestion || typeof take !== "string") return;
+    const optimistic = stampLoungeMessage({
+      role: "user",
+      kind: "text",
+      body: choice,
+      metadata: {
+        arc_id: project.arcId,
+        take_session_id: take,
+        will_question_step: "answer",
+      },
+    }, newestStamp(messages));
+    setPendingTap({ question: activeQuestion, user: optimistic });
     setSending(true);
     try {
-      await postWillQuestion(project.arcId, take, choice);
-      await thread.reload();
+      if (await postWillQuestion(project.arcId, take, choice)) {
+        await thread.reload();
+      }
     } finally {
+      setPendingTap(null);
       setSending(false);
     }
   }
@@ -182,26 +238,161 @@ export default function ProjectChat({
   async function answerChoice(choice: string): Promise<void> {
     if (choice === SOMETHING_ELSE) {
       setDraft("");
-      setTypingQuestion(question?.client_id ?? null);
+      setTypingQuestion(activeQuestion?.client_id ?? null);
       return;
     }
     await answerChip(choice);
   }
 
   async function answerText(): Promise<void> {
-    const answer = draft.trim();
+    const submittedDraft = draft;
+    const answer = submittedDraft.trim();
     const take = questionMeta.take_session_id;
-    if (!answer || sending || typeof take !== "string") return;
+    const arc = questionMeta.arc_id;
+    if (!answer || sending || !activeQuestion || typeof take !== "string" || typeof arc !== "string") return;
+
+    const stored = storedTypedRef.current;
+    if (pendingTyped?.phase === "store_failed" && stored?.body === answer) {
+      setDraft("");
+      setSending(true);
+      setPendingTyped((pending) => pending ? { ...pending, phase: "sending" } : pending);
+      const [userStored, replyStored] = await Promise.all([stored.user.retry(), stored.reply.retry()]);
+      if (userStored && replyStored) {
+        storedTypedRef.current = null;
+        await thread.reload();
+        setPendingTyped(null);
+        setTypingQuestion(null);
+      } else {
+        setDraft(stored.draft);
+        setPendingTyped((pending) => pending ? { ...pending, phase: "store_failed" } : pending);
+      }
+      setSending(false);
+      return;
+    }
+
+    const failedSend = pendingTyped?.phase === "send_failed" && pendingTyped.user.body === answer
+      ? pendingTyped
+      : null;
+    const turnQuestion = failedSend?.question ?? activeQuestion;
+    const retryDraft = failedSend?.draft ?? submittedDraft;
+    const metadata = typedProjectTurnMetadata({
+      arcId: arc,
+      takeSessionId: take,
+      questionClientId: turnQuestion.client_id,
+      role: "answer",
+      place: "speaking",
+    });
+    const outbox = failedSend?.outbox ?? thread.appendRecoverable({
+      role: "user",
+      kind: "text",
+      body: answer,
+      metadata,
+    });
+    const optimistic = outbox.message;
     setDraft("");
+    setTypingQuestion(null);
+    setPendingTyped({
+      question: turnQuestion,
+      user: optimistic,
+      outbox,
+      draft: retryDraft,
+      phase: "sending",
+    });
     setSending(true);
     try {
-      if (await postWillQuestion(project.arcId, take, answer)) {
-        setTypingQuestion(null);
-        await thread.reload();
+      const [response, userStored] = await Promise.all([
+        postChatQuery({
+          question: answer,
+          history: projectConversationHistory(
+            messages.filter((message) => message.client_id !== optimistic.client_id),
+            arc,
+          ),
+          historySource: "screen",
+          sessionId: take,
+          place: "speaking",
+          persist: thread.signedIn,
+          clientId: optimistic.client_id,
+          clientCreatedAt: optimistic.client_created_at,
+          presentationContext: {
+            has_current_project: true,
+            completed_takes: Math.max(project.takeCount, project.takes.length),
+            has_pdf: project.takes.some((projectTake) => projectTake.hasSlides),
+          },
+        }),
+        failedSend ? outbox.retry() : outbox.stored,
+      ]);
+      if (thread.signedIn && response.persisted !== true) {
+        // A 200 can still mean the backend did not durably own the turn. Keep
+        // the exact optimistic row and draft; retry reuses its idempotency key.
+        setDraft(retryDraft);
+        setPendingTyped({
+          question: turnQuestion,
+          user: optimistic,
+          outbox,
+          draft: retryDraft,
+          phase: "send_failed",
+        });
+        setTypingQuestion(turnQuestion.client_id);
+        return;
       }
+      const body = replyBody(response);
+      if (!body) throw new Error("Typed chat returned no reply");
+
+      const replyMetadata = {
+        ...typedProjectTurnMetadata({
+          arcId: arc,
+          takeSessionId: take,
+          questionClientId: turnQuestion.client_id,
+          role: "reply",
+          place: "speaking",
+        }),
+        ...(response.row_metadata ?? {}),
+      };
+      if (thread.signedIn) {
+        // The backend has already persisted both rows under the optimistic
+        // user's exact identity and may have released the held after-Take row.
+        // Keep its reply visible locally while the authoritative thread lands.
+        thread.appendLocalOnly({ role: "bot", kind: "text", body, metadata: replyMetadata });
+        storedTypedRef.current = null;
+        await thread.reload();
+        setPendingTyped(null);
+        return;
+      }
+
+      const reply = thread.appendRecoverable({
+        role: "bot",
+        kind: "text",
+        body,
+        metadata: replyMetadata,
+      });
+      storedTypedRef.current = { body: answer, draft: retryDraft, user: outbox, reply };
+      const replyStored = await reply.stored;
+      if (!userStored || !replyStored) {
+        setDraft(retryDraft);
+        setPendingTyped((pending) => pending ? { ...pending, phase: "store_failed" } : pending);
+        return;
+      }
+      storedTypedRef.current = null;
+      await thread.reload();
+      setPendingTyped(null);
+    } catch {
+      storedTypedRef.current = null;
+      setDraft(retryDraft);
+      setPendingTyped({
+        question: turnQuestion,
+        user: optimistic,
+        outbox,
+        draft: retryDraft,
+        phase: "send_failed",
+      });
+      setTypingQuestion(turnQuestion.client_id);
     } finally {
       setSending(false);
     }
+  }
+
+  async function submitTypedAnswer(): Promise<void> {
+    await answerText();
   }
 
   const closeResult = () => {
@@ -251,12 +442,12 @@ export default function ProjectChat({
           ) : null}
 
           {visibleMessages.map((message) => (
-            message.client_id === question?.client_id ? (
+            message.client_id === activeQuestion?.client_id ? (
               <div key={message.client_id} data-project-message={message.client_id} className="contents">
                 <WillQuestionBubble
                   body={message.body}
                   chips={chips}
-                  open
+                  open={pendingAnswer === null}
                   onAnswer={answerChoice}
                 />
               </div>
@@ -274,21 +465,29 @@ export default function ProjectChat({
               </div>
             )
           ))}
+          {pendingAnswer && !visibleMessages.some((message) => message.client_id === pendingAnswer.user.client_id) ? (
+            <div
+              data-project-pending-answer
+              className="ml-auto max-w-[86%] whitespace-pre-wrap rounded-[18px] bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-primary-foreground"
+            >
+              {pendingAnswer.user.body}
+            </div>
+          ) : null}
           {sending ? <TypingDots label="Will is replying" /> : null}
         </div>
       </div>
 
-      {question ? (
-        typingAnswer || chips.length === 0 ? (
+      {activeQuestion ? (
           <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
             <form
               data-project-question-composer
-              onSubmit={(event) => { event.preventDefault(); void answerText(); }}
+              onSubmit={(event) => { event.preventDefault(); void submitTypedAnswer(); }}
               className={`${WILLAB_CONTENT_RAIL} relative flex items-end`}
             >
               <textarea
-                autoFocus
+                autoFocus={typingAnswer || chips.length === 0 || pendingTyped?.phase === "store_failed"}
                 rows={1}
+                disabled={sending}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={(event) => {
@@ -312,7 +511,6 @@ export default function ProjectChat({
               ) : null}
             </form>
           </div>
-        ) : null
       ) : (
         <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
           <button type="button" data-project-record onClick={() => {
