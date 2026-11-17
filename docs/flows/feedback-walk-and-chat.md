@@ -385,6 +385,22 @@ step; the loop never waits for a coach.
   local reply merges the backend's authoritative `row_metadata`; then the
   thread reloads (required when `after_take:true`) so the backend-owned rows
   and released next-Take closing replace local state without duplicates.
+  **One turn at a time:** from the instant either surface accepts a send until
+  that turn settles, its text field, send control and quick choices are
+  disabled and the thread has exactly one typing-dots state. A second message
+  is never accepted behind the first. Every accepted send first pins its one
+  orange user bubble into view; the matched reply, structured response or the
+  existing recoverable-error line is pinned in turn. A chat request that does
+  not answer within 45 seconds is that same recoverable failure, with the exact
+  draft and optimistic identity retained for retry. The backend returning a
+  prior `next_take` terminal line as the new answer is also a failure, never a
+  reply; a later authoritative read cannot resurrect a duplicate of that line.
+  Reconciliation matches the optimistic row by its exact client identity or a
+  newly arrived server row, never an older same-body row, so deliberately
+  repeated words remain deliberately repeated. Cards and quick actions follow
+  their triggering typed bubble and reply; they never take the bubble's place
+  or reorder the turn. The response body and metadata remain backend-owned, so
+  English and Polish continue to follow the backend response language.
   Signed-out storage remains frontend-owned. `ProjectChat.tsx` owns the project
   surface and the switch to its next-Take action; `Lounge.tsx` owns the same
   open-question routing in the main speaking chat; `useLoungeThread.ts` owns
@@ -393,9 +409,13 @@ step; the loop never waits for a coach.
   `LoungeTypedAnswer.test.tsx` lock the outcome.
 - **B15** **The chat follows the newest bubble after an answer** (founder
   2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
-  the continue tap or an answer to the plan's question, the Lounge lands on
-  the newest bubble even when it was scrolled up. Bubbles that arrive on
-  their own move it as before.
+  the continue tap or an answer to the plan's question, both the Lounge and a
+  project conversation land on the speaker's new bubble even when scrolled up,
+  then on the matched reply or recoverable error. This applies to the desktop
+  and mobile scroll containers and keeps following while a bubble or card
+  grows. Older history loaded above keeps the place being read; that history
+  preservation never hides the speaker's own newly accepted send. Bubbles that
+  arrive on their own move it as before.
 - **B16** **A question is the last bubble, right above its answers**
   (founder 2026-11-06, backend N537), everywhere in the app: when Will
   asks something with answers to tap (the plan's own yes, the ratings, a
@@ -2411,6 +2431,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-17 · release-blocking chat reliability audit · B14, B15: an accepted typed or quick-choice turn draws exactly one durable orange bubble and brings it into view; the composer and choices disable behind one typing state until its contextual reply or the existing recoverable-error line arrives, with a 45-second request timeout. A stale `next_take` terminal line cannot answer or reappear as a new turn; structured replies stay after their typed trigger; authoritative reloads reconcile the exact optimistic identity without consuming an intentional repeated same-body message. Both the Lounge and project chat pin the send and settlement on desktop/mobile while history reads otherwise keep their place (`Lounge.tsx`, `ProjectChat.tsx`, `WillQuestion.tsx`, `useLoungeThread.ts`, `projectChat.ts`, `chatQuery.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 - 2026-11-16 · loader contract · the processing wait's centered frame is shared across the Lab, Lounge resume overlay and document wait; inline chat/lens typing dots remain distinct · FE (this PR)

@@ -8,11 +8,18 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O3  The project uses one chat top bar and the standard answer controls.
          O4  Every route to the current Ideal Text preserves the decision to
              continue to the next fragment or repeat this fragment.
+         O5  An accepted typed answer, its one pending state, and its matched
+             reply or recoverable error are always brought into view.
+         O6  A refused quick choice remains one durable user turn with one
+             recoverable error instead of disappearing.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "keeps the fragment decision when Ideal Text opens from the card"
-WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills.
+         O5 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
+         O6 -> "keeps a refused quick choice once with one recoverable error"
+WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
+         release-blocking chat audit, 2026-11-17.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -202,6 +209,13 @@ function submitAnswer(): void {
   act(() => {
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
+}
+
+function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next: number) => void } {
+  let scrollHeight = height;
+  Object.defineProperty(element, "scrollHeight", { configurable: true, get: () => scrollHeight });
+  Object.defineProperty(element, "clientHeight", { configurable: true, get: () => 320 });
+  return { setHeight: (next) => { scrollHeight = next; } };
 }
 
 describe("project conversation", () => {
@@ -556,6 +570,143 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-project-pending-answer]")).toBeNull();
     expect(host.textContent).toContain("Now I can tailor the opening to both groups.");
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
+  });
+
+  it("shows one pending turn, disables the composer, and scrolls the accepted send and reply into view", async () => {
+    const request = deferred<{ answer: string; persisted: boolean; row_metadata: Record<string, unknown> }>();
+    const reloaded = deferred<void>();
+    state.chatQuery.mockReturnValue(request.promise);
+    state.reload.mockReturnValue(reloaded.promise);
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+    ];
+    render();
+    const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
+    const metrics = scrollMetrics(scroller);
+    scroller.scrollTop = 0;
+    const field = enterAnswer("Keep the owner explicit.");
+    submitAnswer();
+    await flush();
+
+    expect(field.disabled).toBe(true);
+    expect(state.chatQuery).toHaveBeenCalledTimes(1);
+    expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Keep the owner explicit.",
+    )).toHaveLength(1);
+    expect(scroller.scrollTop).toBe(1_200);
+
+    scroller.scrollTop = 0;
+    metrics.setHeight(1_600);
+    await act(async () => request.resolve({
+      answer: "Then land that owner in the final sentence.",
+      persisted: true,
+      row_metadata: { will_question_step: "thanks" },
+    }));
+    await flush();
+    expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
+
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+      state.appendRecoverable.mock.results[0]!.value.message as LoungeMessage,
+      message("reply", "Then land that owner in the final sentence.", "bot", {
+        will_question_step: "thanks",
+      }),
+    ];
+    await act(async () => reloaded.resolve());
+    await flush();
+    expect(scroller.scrollTop).toBe(1_600);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
+    expect(host.textContent).toContain("Then land that owner in the final sentence.");
+  });
+
+  it("keeps the accepted bubble and exact draft with one explicit recoverable error", async () => {
+    const request = deferred<{ answer: string; persisted: boolean }>();
+    state.chatQuery.mockReturnValue(request.promise);
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+    ];
+    render();
+    const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
+    scrollMetrics(scroller, 1_400);
+    const exact = "  Keep the decision simple.  ";
+    enterAnswer(exact);
+    submitAnswer();
+    await flush();
+    scroller.scrollTop = 0;
+
+    await act(async () => request.reject(new Error("offline")));
+    await flush();
+
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
+    expect(host.textContent).toContain("I'm having trouble reaching the lab right now.");
+    expect((host.querySelector('textarea[aria-label="Answer about this take"]') as HTMLTextAreaElement).value)
+      .toBe(exact);
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Keep the decision simple.",
+    )).toHaveLength(1);
+    expect(scroller.scrollTop).toBe(1_400);
+  });
+
+  it("keeps a refused quick choice once with one recoverable error", async () => {
+    state.messages = [
+      message("question", "Who were you talking to?", "bot", {
+        offer: "will_question",
+        will_question_step: "ask",
+        chips: ["Leadership", "My team"],
+      }),
+    ];
+    state.willQuestion.mockResolvedValue(false);
+    render();
+    const leadership = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Leadership",
+    )!;
+    await act(async () => leadership.click());
+    await flush();
+
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Leadership",
+    )).toHaveLength(1);
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
+    expect(state.appendRecoverable).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses stale terminal walk copy returned for a fresh project question", async () => {
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+      message("closing", "Good job. See you next time.", "bot", {
+        next_take: true,
+        held_for: "will_question",
+      }),
+    ];
+    state.chatQuery.mockResolvedValue({
+      answer: "Good job. See you next time.",
+      persisted: true,
+      row_metadata: { will_question_step: "thanks" },
+    });
+    render();
+    enterAnswer("What should I practise next?");
+    submitAnswer();
+    await flush();
+
+    expect(host.textContent).not.toContain("Good job. See you next time.");
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
   });
 
   it("restores and retries the exact draft with the same client identity after a request failure", async () => {

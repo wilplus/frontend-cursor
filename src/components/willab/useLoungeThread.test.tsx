@@ -19,10 +19,16 @@ OUTCOME
       client id, and the authoritative reload replaces rather than duplicates it.
   O6  A short user turn stays beside a structured response while the server
       read is eventually consistent, then reconciles to one row.
+  O7  Intentionally repeated identical sends remain two turns; an older equal
+      quick answer cannot consume the optimistic new one during reconciliation.
 PROVES   O1 -> "a failed read again keeps the chat on screen, an answered one replaces it"
          O4 -> "N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again"
          O2 -> "an open with no answer waits and reads again, never an empty chat"
          O3 -> "an older page with no answer keeps the button"
+         O5 -> "N655 keeps a failed optimistic row retryable and reconciles the same client id once"
+         O6 -> "N655 keeps a short user turn beside a structured response until reconciliation"
+         O7 -> "keeps intentionally repeated identical sends as separate idempotent rows"
+         O7 -> "does not reconcile a repeated quick answer against an older identical row"
 WHY      The walk's end reads the chat again whatever the summary's answer
          (C9, D4, B8), and on a dropped connection that read fails too. A
          returning speaker opening the iPhone app offline saw the new
@@ -181,6 +187,78 @@ describe("the chat read again (C9, B8)", () => {
     await act(async () => box.thread!.reload());
     expect(ids()).toEqual(["pattern-card", clientId]);
     expect(ids().filter((id) => id === clientId)).toHaveLength(1);
+    await act(async () => root.unmount());
+  });
+
+  it("keeps intentionally repeated identical sends as separate idempotent rows", async () => {
+    let stored: LoungeMessage[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).includes("/lounge/messages")) return new Response("{}", { status: 404 });
+      if (init?.method === "POST") {
+        const payload = JSON.parse(String(init.body)) as { messages: LoungeMessage[] };
+        stored = [...stored, ...payload.messages];
+        return new Response(JSON.stringify({ messages: payload.messages }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ messages: stored, has_more: false, oldest_cursor: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }));
+    const { box, root } = await mountThread();
+    let first!: RecoverableAppend;
+    let second!: RecoverableAppend;
+    await act(async () => {
+      first = box.thread!.appendRecoverable({ role: "user", kind: "text", body: "Again" });
+      await first.stored;
+      second = box.thread!.appendRecoverable({ role: "user", kind: "text", body: "Again" });
+      await second.stored;
+    });
+    expect(first.message.client_id).not.toBe(second.message.client_id);
+    await act(async () => box.thread!.reload());
+    expect(box.thread!.messages.filter((message) => message.body === "Again")).toHaveLength(2);
+    await act(async () => root.unmount());
+  });
+
+  it("does not reconcile a repeated quick answer against an older identical row", async () => {
+    const older: LoungeMessage = {
+      client_id: "older-no",
+      client_created_at: "2026-11-17T09:00:00.000Z",
+      role: "user",
+      kind: "text",
+      body: "No",
+      metadata: null,
+    };
+    let serverRows = [older];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (!String(input).includes("/lounge/messages")) return new Response("{}", { status: 404 });
+      return new Response(JSON.stringify({ messages: serverRows, has_more: false, oldest_cursor: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }));
+    const { box, root } = await mountThread();
+    let optimistic!: ReturnType<UseLoungeThreadReturn["own"]>;
+    act(() => {
+      optimistic = box.thread!.own("No");
+      optimistic.settle();
+    });
+    await act(async () => box.thread!.reload());
+    expect(box.thread!.messages.filter((message) => message.body === "No")).toHaveLength(2);
+
+    const optimisticRow = box.thread!.messages.find((message) => message.client_id !== older.client_id)!;
+    serverRows = [
+      older,
+      {
+        ...optimisticRow,
+        client_id: "new-no",
+        client_created_at: "2026-11-17T10:00:00.000Z",
+      },
+    ];
+    await act(async () => box.thread!.reload());
+    expect(box.thread!.messages.filter((message) => message.body === "No")).toHaveLength(2);
     await act(async () => root.unmount());
   });
 });

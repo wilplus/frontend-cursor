@@ -388,12 +388,16 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
 
   const own = useCallback<OwnBubble>((body) => {
     const msg = stampLoungeMessage({ role: "user", kind: "text", body }, newestStamp(messagesRef.current));
+    const existingIds = new Set(messagesRef.current.map((message) => message.client_id));
     keptRef.current.set(msg.client_id, {
       message: msg,
       settledAt: null,
       keepUntilMatch: true,
       matches: (page) => page.some((candidate) =>
-        candidate.role === "user" && candidate.kind === "text" && candidate.body === msg.body,
+        candidate.role === "user" &&
+        candidate.kind === "text" &&
+        candidate.body === msg.body &&
+        !existingIds.has(candidate.client_id),
       ),
     });
     setMessages((prev) => [...prev, msg]);

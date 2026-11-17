@@ -432,8 +432,16 @@ comes shows the step's plain words (founder 2026-10-20).","O1 -> ""draws the pla
 asked for the clip, short, with its ›""
 O2 -> ""a clip still being made comes in when it lands, and one
 that never comes shows the plain words""",
-src/components/willab/LoungeTypedAnswer.test.tsx,Story,"As a speaker answering Will in the main speaking chat, I see my own words immediately and never lose them to a slow or failed model call.","The open project question keeps its composer, uses contextual chat,
-preserves project/place identity, and reconciles one own bubble.",,"Founder lock N655, 2026-11-16."
+src/components/willab/LoungeTypedAnswer.test.tsx,Story,"As a speaker answering Will in the main speaking chat, I see my own words immediately and never lose them to a slow or failed model call.","O1  The open project question keeps its composer, uses contextual
+chat, preserves project/place identity, and reconciles one bubble.
+O2  Typed and tapped turns have one unambiguous pending state; a
+refusal keeps the accepted words and shows a recoverable error.
+O3  The accepted bubble and reply are scrolled into view, structured
+replies cannot replace the turn, and stale terminal walk copy is
+rejected as a new answer.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
+O2 -> ""keeps a refused quick choice once with an explicit recoverable error""
+O3 -> ""keeps a structured contextual turn ordered through refresh and scrolls both sides into view""
+O3 -> ""does not replay an old terminal walk line as the answer to a new message""","Founder lock N655, 2026-11-16; release-blocking chat audit, 2026-11-17."
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, with sending on, I want the people in my chats listed with everyone ticked, the one I sent to last on top, so that one Continue sends my Take to them, and I want the line under it to let me add people later but never unsend. With sending off, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O3  With sending on: the three bubbles, Select all and one row per
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
@@ -518,10 +526,16 @@ O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
 O4  Every route to the current Ideal Text preserves the decision to
-continue to the next fragment or repeat this fragment.","O1 -> ""puts the result before the project conversation""
+continue to the next fragment or repeat this fragment.
+O5  An accepted typed answer, its one pending state, and its matched
+reply or recoverable error are always brought into view.
+O6  A refused quick choice remains one durable user turn with one
+recoverable error instead of disappearing.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
-O4 -> ""keeps the fragment decision when Ideal Text opens from the card""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
+O4 -> ""keeps the fragment decision when Ideal Text opens from the card""
+O5 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
+O6 -> ""keeps a refused quick choice once with one recoverable error""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -1737,10 +1751,16 @@ thread again, with nothing of the other kept.
 O5  A failed optimistic write keeps one exact bubble; retry reuses its
 client id, and the authoritative reload replaces rather than duplicates it.
 O6  A short user turn stays beside a structured response while the server
-read is eventually consistent, then reconciles to one row.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+read is eventually consistent, then reconciles to one row.
+O7  Intentionally repeated identical sends remain two turns; an older equal
+quick answer cannot consume the optimistic new one during reconciliation.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
 O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
-O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
+O3 -> ""an older page with no answer keeps the button""
+O5 -> ""N655 keeps a failed optimistic row retryable and reconciles the same client id once""
+O6 -> ""N655 keeps a short user turn beside a structured response until reconciliation""
+O7 -> ""keeps intentionally repeated identical sends as separate idempotent rows""
+O7 -> ""does not reconcile a repeated quick answer against an older identical row""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
 src/components/willab/useReadoutPartHandlers.test.ts,Story,"As a speaker, I want Delete on the landing text to lift the paragraph's lock, and words from an earlier Take to save there too, so that the landing copy acts like the main page.","O1  Delete lifts the lock on that paragraph and the text is read again.
 O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old
@@ -2460,6 +2480,8 @@ O3  The members check is one request at a time; a member is kept for the
 page, a waitlist answer is asked again.","O1 -> ""a returning member's chat starts its reads with the members check, each read once""
 O2 -> ""an account not let in here starts only its thread; signed out starts nothing""
 O3 -> ""the members check is asked once at a time; a member is kept, the waitlist asked again""",Loading time (2026-11-05): the members check (backend N471) put a whole round trip in front of every boot read.
+src/services/api/chatQuery.test.ts,Story,"As a speaker whose assistant request stalls, I get a recoverable result instead of an endless ambiguous loading state.","O1  A chat request that reaches the assistant deadline aborts and
+reports the explicit timeout class used by the chat surfaces.","O1 -> ""turns a hung assistant request into an explicit recoverable timeout""","Release-blocking conversational chat audit, 2026-11-17."
 src/services/api/coachExercises.test.ts,Story,"As a coach, I want a new exercise video saved together with its definition at the exercise's own address, so that the exercise and its video never get out of step.","O1  The video file and the exercise definition go in one upload to that
 exercise's address, and the old video link is not sent.","O1 -> ""posts the file and the definition together, to the exercise's own address""",
 src/services/api/coachPanel.test.ts,Story,"As a coach, I want a coach-panel feature that is switched off or offline to show as empty, not as an error, so that the panel keeps working.","O1  A switched-off feature (not found) or no connection gives ""nothing"",

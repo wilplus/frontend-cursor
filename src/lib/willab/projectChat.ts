@@ -4,6 +4,38 @@ import { afterTakeOrder } from "@/components/willab/afterTake";
 
 export const TYPED_PROJECT_TURN = "typed_project_turn";
 
+/** Existing signed failure copy. Reliability fixes reuse it rather than
+ * inventing another line on the locked chat surface. */
+export const CHAT_FAILURE_BODY =
+  "I'm having trouble reaching the lab right now. Give it another try in a moment.";
+
+const comparableBody = (body: string) => body.trim().replace(/\s+/g, " ");
+
+/** A terminal after-Take line is product state, not a contextual reply. */
+export function isReplayedTerminalReply(
+  body: string,
+  messages: readonly Pick<LoungeMessage, "body" | "metadata">[],
+): boolean {
+  const reply = comparableBody(body);
+  return reply.length > 0 && messages.some(
+    (message) => message.metadata?.next_take === true && comparableBody(message.body) === reply,
+  );
+}
+
+/** A later history read must not resurrect a stale answer suppressed live. */
+export function isPersistedTerminalReplay(
+  message: Pick<LoungeMessage, "client_id" | "role" | "body" | "metadata">,
+  messages: readonly Pick<LoungeMessage, "client_id" | "role" | "body" | "metadata">[],
+): boolean {
+  if (message.role !== "bot" || message.metadata?.next_take === true) return false;
+  return messages.some(
+    (candidate) => candidate.client_id !== message.client_id &&
+      candidate.role === "bot" &&
+      candidate.metadata?.next_take === true &&
+      comparableBody(candidate.body) === comparableBody(message.body),
+  );
+}
+
 export function projectIdOf(message: Pick<LoungeMessage, "metadata">): string | null {
   const id = message.metadata?.arc_id;
   return typeof id === "string" && id.length > 0 ? id : null;
@@ -44,6 +76,28 @@ export function typedProjectTurnMetadata({
     will_question_step: role,
     reply_to: questionClientId,
     [TYPED_PROJECT_TURN]: true,
+    ...(place ? { place } : {}),
+  };
+}
+
+/** A failed contextual turn belongs beside its question but must not carry a
+ * reply/thanks step that would falsely close that question. */
+export function typedProjectErrorMetadata({
+  arcId,
+  takeSessionId,
+  questionClientId,
+  place,
+}: {
+  arcId: string;
+  takeSessionId: string;
+  questionClientId?: string | null;
+  place?: string | null;
+}): Record<string, unknown> {
+  return {
+    arc_id: arcId,
+    take_session_id: takeSessionId,
+    [TYPED_PROJECT_TURN]: true,
+    ...(questionClientId ? { reply_to: questionClientId } : {}),
     ...(place ? { place } : {}),
   };
 }

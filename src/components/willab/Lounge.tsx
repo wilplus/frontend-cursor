@@ -155,13 +155,17 @@ import {
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import {
+  CHAT_FAILURE_BODY,
+  isPersistedTerminalReplay,
   isProjectMessage,
+  isReplayedTerminalReply,
   openProjectQuestion,
   projectConversationHistory,
   projectMessageStaysInLounge,
+  typedProjectErrorMetadata,
   typedProjectTurnMetadata,
 } from "@/lib/willab/projectChat";
-import { withOwnBubble, type RecoverableAppend } from "./useLoungeThread";
+import type { RecoverableAppend } from "./useLoungeThread";
 import WillQuestionBubble, {
   AnswerPair,
   ChatLink,
@@ -366,7 +370,7 @@ export function chatFailureReply(err: unknown, signedIn: boolean, hasProject: bo
   return {
     role: "bot" as const,
     kind: "text" as const,
-    body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
+    body: CHAT_FAILURE_BODY,
   };
 }
 
@@ -596,6 +600,7 @@ export default function Lounge({
     const items: ThreadItem[] = [];
     for (const m of messages) {
       if (isRetiredLoungeMessage(m)) continue;
+      if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
       if (isProjectMessage(m) && !projectMessageStaysInLounge(m)) continue;
@@ -1835,17 +1840,44 @@ export default function Lounge({
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
     // "Something else", the first of his answers, opens the box (N483 item 2).
     if (choice === SOMETHING_ELSE) return words.start();
+    if (botThinking || sendingRef.current) return;
+    sendingRef.current = true;
+    const optimistic = thread.own(choice);
     setBotThinking(true);
     try {
-      const accepted = await withOwnBubble(
-        thread.own,
-        choice,
-        () => postWillQuestion(target.arcId, target.takeSessionId, choice),
-        Boolean,
-      );
-      if (accepted) await reload();
+      const accepted = await postWillQuestion(target.arcId, target.takeSessionId, choice);
+      if (!accepted) throw new Error("Will question was not accepted");
+      optimistic.settle();
+      await reload();
+    } catch (err) {
+      // The choice endpoint owns successful rows but cannot take an idempotency
+      // key. If it did not accept the turn, replace the transient row with one
+      // frontend-owned recoverable row and keep the question open.
+      optimistic.drop();
+      const hint = typedHint(place, target.arcId, openChat);
+      thread.appendRecoverable(withHint({
+        role: "user",
+        kind: "text",
+        body: choice,
+        metadata: {
+          take_session_id: target.takeSessionId,
+          will_question_step: "answer",
+        },
+      } as LoungeMessageDraft, hint));
+      thread.appendRecoverable(withHint(
+        {
+          ...chatFailureReply(err, thread.signedIn, true),
+          metadata: typedProjectErrorMetadata({
+            arcId: target.arcId,
+            takeSessionId: target.takeSessionId,
+            place,
+          }),
+        },
+        hint,
+      ));
     } finally {
       setBotThinking(false);
+      sendingRef.current = false;
     }
     followAnswer();
   }
@@ -2010,7 +2042,13 @@ export default function Lounge({
     setBotThinking(true);
     try {
       const [response] = await queryTypedTurn({ q, history, user: userTurn.message, stored, project: null });
+      if (thread.signedIn && response.persisted !== true) {
+        throw new Error("Chat turn was not persisted");
+      }
       const body = chatReplyBody(response, "I know nothing about that, at least yet 😏")!;
+      if (isReplayedTerminalReply(body, messages)) {
+        throw new Error("Chat returned stale terminal copy");
+      }
       await appendRegularReply(response, q, screen, {
         role: "bot",
         kind: "text",
@@ -2096,10 +2134,25 @@ export default function Lounge({
           user: userTurn,
         };
         setDraftText(recoverableDraft);
+        await thread.append(withHint(
+          {
+            ...chatFailureReply(new Error("Chat turn was not persisted"), thread.signedIn, true),
+            metadata: typedProjectErrorMetadata({
+              arcId: project.arcId,
+              takeSessionId: project.takeSessionId,
+              questionClientId: questionId,
+              place,
+            }),
+          },
+          typedHint(place, project.arcId, openChat),
+        ));
         return false;
       }
       const body = chatReplyBody(response, null);
       if (!body) throw new Error("Typed chat returned no reply");
+      if (isReplayedTerminalReply(body, messages)) {
+        throw new Error("Typed chat returned stale terminal copy");
+      }
       const replyDraft: LoungeMessageDraft = {
         role: "bot",
         kind: "text",
@@ -2143,7 +2196,7 @@ export default function Lounge({
       failedTypedTurnRef.current = null;
       await reload();
       return true;
-    } catch {
+    } catch (err) {
       failedTypedTurnRef.current = {
         body: q,
         draft: recoverableDraft,
@@ -2152,6 +2205,18 @@ export default function Lounge({
         user: userTurn,
       };
       setDraftText(recoverableDraft);
+      await thread.append(withHint(
+        {
+          ...chatFailureReply(err, thread.signedIn, true),
+          metadata: typedProjectErrorMetadata({
+            arcId: project.arcId,
+            takeSessionId: project.takeSessionId,
+            questionClientId: questionId,
+            place,
+          }),
+        },
+        typedHint(place, project.arcId, openChat),
+      ));
       return false;
     } finally {
       setBotThinking(false);
@@ -2312,6 +2377,7 @@ export default function Lounge({
         activeOffer={activeOffer}
         onOpenOffer={setActiveOffer}
         willOpen={i === shownItems.length - 1}
+        willBusy={botThinking}
         onWillAnswer={answerWillQuestion}
         onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
         onOpenSunday={openSunday}
@@ -2635,6 +2701,7 @@ export default function Lounge({
       <VoiceNoteFixBar notebook={notebook} />
       <form
         onSubmit={handleSend}
+        aria-busy={botThinking}
         // 8px from the sides (N505): out of the shell's 16px.
         className={`${barDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
       >
@@ -2665,6 +2732,7 @@ export default function Lounge({
             ref={composerRef}
             rows={1}
             value={draftText}
+            disabled={botThinking}
             onChange={(e) => setDraftText(e.target.value)}
             onKeyDown={(e) => {
               // R4-12 — Enter sends; Shift+Enter inserts a newline.
@@ -3170,6 +3238,7 @@ function askBubble(
     activeOffer,
     onOpenOffer,
     willOpen,
+    willBusy,
     onWillAnswer,
     onOpenLifeGoal,
     onOpenSunday,
@@ -3181,6 +3250,7 @@ function askBubble(
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
     willOpen: boolean;
+    willBusy: boolean;
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
     onOpenSunday?: (noteId: string) => void;
@@ -3212,6 +3282,7 @@ function askBubble(
         body={message.body}
         chips={will.chips}
         open={willOpen}
+        disabled={willBusy}
         onAnswer={(choice) => onWillAnswer?.(will, choice)}
       />
     );
@@ -3267,6 +3338,7 @@ function BubbleBody({
   activeOffer,
   onOpenOffer,
   willOpen = false,
+  willBusy = false,
   onWillAnswer,
   onOpenLifeGoal,
   onOpenSunday,
@@ -3310,6 +3382,7 @@ function BubbleBody({
   onOpenOffer?: (type: OfferType) => void;
   /** N82 — the newest bubble: Will's question shows its answers to tap. */
   willOpen?: boolean;
+  willBusy?: boolean;
   onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** A set life goal's ladder: its › opens the lens on it (N172 M10). */
   onOpenLifeGoal?: (goalId: string) => void;
@@ -3327,7 +3400,7 @@ function BubbleBody({
   animate?: boolean;
 }) {
   const ask = askBubble(message, {
-    activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
+    activeOffer, onOpenOffer, willOpen, willBusy, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
   });
   if (ask) return ask;
   if (

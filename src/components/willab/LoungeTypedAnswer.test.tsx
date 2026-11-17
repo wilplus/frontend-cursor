@@ -2,9 +2,19 @@
 /*
 STORY    As a speaker answering Will in the main speaking chat, I see my own
          words immediately and never lose them to a slow or failed model call.
-OUTCOME  The open project question keeps its composer, uses contextual chat,
-         preserves project/place identity, and reconciles one own bubble.
-WHY      Founder lock N655, 2026-11-16.
+OUTCOME  O1  The open project question keeps its composer, uses contextual
+             chat, preserves project/place identity, and reconciles one bubble.
+         O2  Typed and tapped turns have one unambiguous pending state; a
+             refusal keeps the accepted words and shows a recoverable error.
+         O3  The accepted bubble and reply are scrolled into view, structured
+             replies cannot replace the turn, and stale terminal walk copy is
+             rejected as a new answer.
+PROVES   O1 -> "uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once"
+         O2 -> "keeps a refused quick choice once with an explicit recoverable error"
+         O3 -> "keeps a structured contextual turn ordered through refresh and scrolls both sides into view"
+         O3 -> "does not replay an old terminal walk line as the answer to a new message"
+WHY      Founder lock N655, 2026-11-16; release-blocking chat audit,
+         2026-11-17.
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -19,6 +29,7 @@ const harness = vi.hoisted(() => ({
   reads: 0,
   query: vi.fn(),
   willQuestion: vi.fn(),
+  thread: null as ReturnType<typeof import("./useLoungeThread").useLoungeThread> | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -104,7 +115,8 @@ function ownWords(body: string): Element[] {
 }
 
 function ThreadProbe(): null {
-  harness.visible = useLoungeThreadCtx().messages;
+  harness.thread = useLoungeThreadCtx();
+  harness.visible = harness.thread.messages;
   return null;
 }
 
@@ -114,6 +126,7 @@ beforeEach(() => {
   harness.visible = [];
   harness.reloadGate = null;
   harness.reads = 0;
+  harness.thread = null;
   harness.query.mockReset();
   harness.willQuestion.mockReset().mockResolvedValue(true);
   localStorage.clear();
@@ -160,6 +173,13 @@ async function renderLounge(): Promise<HTMLTextAreaElement> {
     </LoungeThreadProvider>,
   ));
   return waitForComposer();
+}
+
+function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next: number) => void } {
+  let scrollHeight = height;
+  Object.defineProperty(element, "scrollHeight", { configurable: true, get: () => scrollHeight });
+  Object.defineProperty(element, "clientHeight", { configurable: true, get: () => 320 });
+  return { setHeight: (next) => { scrollHeight = next; } };
 }
 
 describe("typed answer in the main Will/Lounge chat", () => {
@@ -209,12 +229,31 @@ describe("typed answer in the main Will/Lounge chat", () => {
 
     expect(ownWords("Leadership")).toHaveLength(1);
     expect(host.querySelector('textarea[aria-label="Message Will"]')).not.toBeNull();
+    expect(host.querySelector("[data-will-answers]")).toBeNull();
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
     expect(harness.willQuestion).toHaveBeenCalledWith("arc-a", "take-a", "Leadership");
 
     await act(async () => request.resolve(true));
     await flush();
     expect(ownWords("Leadership")).toHaveLength(1);
     expect(host.textContent).toContain("That helps me understand the context.");
+  });
+
+  it("keeps a refused quick choice once with an explicit recoverable error", async () => {
+    harness.willQuestion.mockResolvedValue(false);
+    await renderLounge();
+    const leadership = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Leadership",
+    )!;
+    act(() => leadership.click());
+    await flush();
+
+    expect(ownWords("Leadership")).toHaveLength(1);
+    expect(harness.appended.filter(
+      (message) => message.role === "user" && message.body === "Leadership",
+    )).toHaveLength(1);
+    expect(host.textContent).toContain("I'm having trouble reaching the lab right now.");
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
   });
 
   it("uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once", async () => {
@@ -236,6 +275,8 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
 
     expect(ownWords("The leadership team needs to decide")).toHaveLength(1);
+    expect(field.disabled).toBe(true);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
     const query = harness.query.mock.calls[0]![0] as {
       clientId: string;
       clientCreatedAt: string;
@@ -300,6 +341,7 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
     expect(ownWords("The leadership team needs to decide")).toHaveLength(1);
     expect(host.textContent).toContain("Then name that decision explicitly.");
+    expect((host.querySelector('textarea[aria-label="Message Will"]') as HTMLTextAreaElement).disabled).toBe(false);
 
     expect(optimistic.metadata).toEqual(expect.objectContaining({
       arc_id: "arc-a",
@@ -308,6 +350,91 @@ describe("typed answer in the main Will/Lounge chat", () => {
       place: "speaking",
       typed_project_turn: true,
     }));
+  });
+
+  it("keeps a structured contextual turn ordered through refresh and scrolls both sides into view", async () => {
+    harness.rows = [];
+    setOpenPlace("will");
+    const request = deferred<{
+      answer: string;
+      persisted: boolean;
+      suggested_action: "trainings";
+    }>();
+    harness.query.mockReturnValue(request.promise);
+    const field = await renderLounge();
+    const thread = host.querySelector("[data-thread]") as HTMLDivElement;
+    const metrics = scrollMetrics(thread);
+    thread.scrollTop = 0;
+
+    enter(field, "did you spot any patterns?");
+    send(field);
+    await flush();
+
+    expect(ownWords("did you spot any patterns?")).toHaveLength(1);
+    expect(thread.scrollTop).toBe(1_200);
+    expect(harness.query).toHaveBeenCalledTimes(1);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
+
+    thread.scrollTop = 0;
+    metrics.setHeight(1_600);
+    await act(async () => request.resolve({
+      answer: "Yes, actually—we did spot a pattern.",
+      persisted: true,
+      suggested_action: "trainings",
+    }));
+    await flush();
+
+    const own = ownWords("did you spot any patterns?")[0]!;
+    const reply = [...host.querySelectorAll("[data-row='app']")].find(
+      (node) => node.textContent === "Yes, actually—we did spot a pattern.",
+    )!;
+    expect(Boolean(own.compareDocumentPosition(reply) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(host.textContent).toContain("Your presentations");
+    expect(thread.scrollTop).toBe(1_600);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
+
+    const optimistic = harness.appended.find((message) => message.role === "user")!;
+    harness.rows = [
+      optimistic,
+      {
+        client_id: "pattern-reply",
+        client_created_at: "2026-11-17T10:00:02.000Z",
+        role: "bot",
+        kind: "text",
+        body: "Yes, actually—we did spot a pattern.",
+        metadata: { suggested_action: "trainings", place: "will" },
+      },
+    ];
+    await act(async () => harness.thread!.reload());
+    await flush();
+    expect(ownWords("did you spot any patterns?")).toHaveLength(1);
+    expect(host.textContent).toContain("Yes, actually—we did spot a pattern.");
+  });
+
+  it("does not replay an old terminal walk line as the answer to a new message", async () => {
+    setOpenPlace("will");
+    harness.rows = [{
+      client_id: "old-goodbye",
+      client_created_at: "2026-11-17T09:00:00.000Z",
+      role: "bot",
+      kind: "text",
+      body: "Good job. See you next time.",
+      metadata: { next_take: true, arc_id: "arc-a", take_session_id: "take-a" },
+    }];
+    harness.query.mockResolvedValue({
+      answer: "Good job. See you next time.",
+      persisted: true,
+    });
+    const field = await renderLounge();
+    enter(field, "What should I practise next?");
+    send(field);
+    await flush();
+
+    expect(ownWords("What should I practise next?")).toHaveLength(1);
+    expect(host.textContent).not.toContain("Good job. See you next time.");
+    expect(host.textContent).toContain("I'm having trouble reaching the lab right now.");
+    expect((host.querySelector('textarea[aria-label="Message Will"]') as HTMLTextAreaElement).value)
+      .toBe("What should I practise next?");
   });
 
   it("restores and retries the exact words with the same client identity after failure", async () => {

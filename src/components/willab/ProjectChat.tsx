@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Send } from "lucide-react";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import {
@@ -12,6 +12,9 @@ import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery"
 import { postWillQuestion } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import {
+  CHAT_FAILURE_BODY,
+  isPersistedTerminalReplay,
+  isReplayedTerminalReply,
   openProjectQuestion,
   orderedProjectMessages,
   projectConversationHistory,
@@ -44,6 +47,7 @@ import {
   writePracticeResume,
 } from "@/lib/willab/practiceResume";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { usePinThreadBottom } from "./usePinThreadBottom";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -58,7 +62,60 @@ type PendingTypedTurn = {
 type PendingTapTurn = {
   question: LoungeMessage;
   user: LoungeMessage;
+  phase: "sending" | "send_failed";
 };
+
+function projectTurnKey(
+  visibleMessages: readonly LoungeMessage[],
+  pendingAnswer: PendingTypedTurn | PendingTapTurn | null,
+  pendingTyped: PendingTypedTurn | null,
+  sending: boolean,
+): string {
+  let state = "idle";
+  if (pendingTyped && pendingTyped.phase !== "sending") state = pendingTyped.phase;
+  else if (sending) state = "thinking";
+  return [
+    visibleMessages.at(-1)?.client_id ?? "empty",
+    pendingAnswer?.user.client_id ?? "settled",
+    state,
+  ].join(":");
+}
+
+function useProjectChatScroll(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  projectId: string,
+  turnKey: string,
+): () => void {
+  const didInitScrollRef = useRef(false);
+  const pinBottom = usePinThreadBottom(scrollRef, turnKey, false, didInitScrollRef);
+  useEffect(() => {
+    didInitScrollRef.current = true;
+    const element = scrollRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [projectId, scrollRef]);
+  return pinBottom;
+}
+
+function ProjectChatTurnError({
+  pendingTyped,
+  pendingTap,
+}: {
+  pendingTyped: PendingTypedTurn | null;
+  pendingTap: PendingTapTurn | null;
+}) {
+  const typedFailed = pendingTyped !== null && pendingTyped.phase !== "sending";
+  const tapFailed = pendingTap?.phase === "send_failed";
+  if (!typedFailed && !tapFailed) return null;
+  return (
+    <div
+      data-project-chat-error
+      role="alert"
+      className="mr-auto max-w-[86%] whitespace-pre-wrap rounded-[18px] bg-muted px-4 py-2.5 text-[15px] leading-relaxed text-foreground"
+    >
+      {CHAT_FAILURE_BODY}
+    </div>
+  );
+}
 
 function PendingProjectAnswer({
   pending,
@@ -376,7 +433,9 @@ export default function ProjectChat({
   const [slideCount, setSlideCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(
-    () => orderedProjectMessages(thread.messages, activeProject.arcId),
+    () => orderedProjectMessages(thread.messages, activeProject.arcId).filter(
+      (message) => !isPersistedTerminalReplay(message, thread.messages),
+    ),
     [thread.messages, activeProject.arcId],
   );
   const visibleMessages = messages.filter(
@@ -398,6 +457,11 @@ export default function ProjectChat({
   );
   const finalFragment =
     slideCount !== null && checkpoint >= slideCount - 1;
+  const pinBottom = useProjectChatScroll(
+    scrollRef,
+    activeProject.arcId,
+    projectTurnKey(visibleMessages, pendingAnswer, pendingTyped, sending),
+  );
 
   useEffect(() => {
     let active = true;
@@ -424,14 +488,27 @@ export default function ProjectChat({
         will_question_step: "answer",
       },
     }, newestStamp(messages));
-    setPendingTap({ question: activeQuestion, user: optimistic });
+    setPendingTap({ question: activeQuestion, user: optimistic, phase: "sending" });
     setSending(true);
+    pinBottom();
     try {
-      if (await postWillQuestion(activeProject.arcId, take, choice)) {
-        await thread.reload();
-      }
-    } finally {
+      const accepted = await postWillQuestion(activeProject.arcId, take, choice);
+      if (!accepted) throw new Error("Will question was not accepted");
+      await thread.reload();
       setPendingTap(null);
+    } catch {
+      const durable = thread.appendRecoverable({
+        role: "user",
+        kind: "text",
+        body: choice,
+        metadata: optimistic.metadata,
+      });
+      setPendingTap({
+        question: activeQuestion,
+        user: durable.message,
+        phase: "send_failed",
+      });
+    } finally {
       setSending(false);
     }
   }
@@ -500,6 +577,7 @@ export default function ProjectChat({
       phase: "sending",
     });
     setSending(true);
+    pinBottom();
     try {
       const [response, userStored] = await Promise.all([
         postChatQuery({
@@ -538,6 +616,9 @@ export default function ProjectChat({
       }
       const body = replyBody(response);
       if (!body) throw new Error("Typed chat returned no reply");
+      if (isReplayedTerminalReply(body, thread.messages)) {
+        throw new Error("Typed chat returned stale terminal copy");
+      }
 
       const replyMetadata = {
         ...typedProjectTurnMetadata({
@@ -624,7 +705,7 @@ export default function ProjectChat({
         onBack={onBack}
       />
 
-      <div ref={scrollRef} className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
           {hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
@@ -648,6 +729,7 @@ export default function ProjectChat({
                   body={message.body}
                   chips={chips}
                   open={pendingAnswer === null}
+                  disabled={sending}
                   onAnswer={answerChoice}
                 />
               </div>
@@ -666,6 +748,7 @@ export default function ProjectChat({
             )
           ))}
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
+          <ProjectChatTurnError pendingTyped={pendingTyped} pendingTap={pendingTap} />
           {recordingActive && !failed ? (
             <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
               <div

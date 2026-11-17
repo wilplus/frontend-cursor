@@ -55,19 +55,22 @@ export default function WillQuestionBubble({
   body,
   chips,
   open,
+  disabled = false,
   onAnswer,
 }: {
   body: string;
   chips: string[];
   /** The newest bubble: its answers are there to tap. */
   open: boolean;
+  /** Another answer is already on its way. */
+  disabled?: boolean;
   onAnswer?: (choice: string) => Promise<void> | void;
 }) {
   // One tap at a time: a second tap before the thread reads again is dropped.
   const sending = useRef(false);
   const [busy, setBusy] = useState(false);
   const tap = (choice: string) => {
-    if (sending.current || !onAnswer) return;
+    if (disabled || sending.current || !onAnswer) return;
     sending.current = true;
     setBusy(true);
     void Promise.resolve(onAnswer(choice)).finally(() => {
@@ -86,7 +89,7 @@ export default function WillQuestionBubble({
         // The backend lists the most likely first; the rule puts it nearest the
         // thumb (N371). "Something else" is the first of them, at the top: it
         // opens the box for your own words (N483 item 2).
-        <TapRow labels={[SOMETHING_ELSE, ...[...chips].reverse()]} disabled={busy} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
+        <TapRow labels={[SOMETHING_ELSE, ...[...chips].reverse()]} disabled={busy || disabled} onTap={tap} dataAttr={{ "data-will-answers": "" }} />
       ) : null}
     </>
   );
