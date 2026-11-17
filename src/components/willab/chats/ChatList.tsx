@@ -136,13 +136,43 @@ export function AssistantMark({ label, inline = false }: { label: string; inline
   );
 }
 
-/** A person's circle, with the assistant's mark when one answers for them. */
-export function PersonCircle({ id, name, size, assistant = null }: { id: string; name: string; size: 36 | 48; assistant?: string | null }) {
-  if (!assistant) return <LetterCircle id={id} name={name} size={size} />;
+/** The WillpowerLab mark on a host's circle: about 40% of the avatar, a white
+ *  ring, sitting on the bottom-right the way a group-chat badge does. */
+export function WillBadge({ px }: { px: number }) {
+  const dot = Math.max(2, Math.round(px * 0.18));
+  const mid = Math.max(3, Math.round(px * 0.26));
+  return (
+    <span
+      aria-hidden
+      data-will-badge=""
+      className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full border-2 border-white bg-muted"
+      style={{ width: px, height: px, gap: 1 }}
+    >
+      <i className="rounded-full bg-foreground" style={{ width: dot, height: dot }} />
+      <i className="rounded-full bg-foreground" style={{ width: mid, height: mid }} />
+      <i className="rounded-full bg-foreground" style={{ width: dot, height: dot }} />
+    </span>
+  );
+}
+
+/** A person's circle, with the assistant's mark when one answers for them.
+ *  `badge` adds the WillpowerLab mark. `mark` is a host-picked face; without
+ *  one, the circle is their initial. */
+export function PersonCircle({ id, name, size, assistant = null, badge = false, mark = null }: {
+  id: string;
+  name: string;
+  size: 36 | 48;
+  assistant?: string | null;
+  badge?: boolean;
+  mark?: ReactNode | null;
+}) {
+  const face = mark ?? <LetterCircle id={id} name={name} size={size} />;
+  if (!assistant && !badge) return <>{face}</>;
   return (
     <span className="relative shrink-0">
-      <LetterCircle id={id} name={name} size={size} />
-      <AssistantMark label={assistant} />
+      {face}
+      {assistant ? <AssistantMark label={assistant} /> : null}
+      {badge ? <WillBadge px={Math.round(size * 0.4)} /> : null}
     </span>
   );
 }

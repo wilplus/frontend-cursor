@@ -5,7 +5,8 @@ import { TapRow } from "@/components/willab/WillQuestion";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { LetterCircle } from "@/components/willab/chats/ChatList";
 import { VoiceWords, setupWaits } from "@/components/willab/chats/ChatThread";
-import { BarBox, BarButton, BarPlus, ThanksTaps, middleOf, thanksDue } from "@/components/willab/chats/ChatBar";
+import AskSheet from "@/components/willab/chats/AskSheet";
+import { BarMiddle, BarPlus, ThanksTaps, middleOf, plusRows, takesFromSend, thanksDue } from "@/components/willab/chats/ChatBar";
 import type { ChatEmoji, ChatMessage } from "@/services/api/chats";
 import {
   answerWidgetSetup,
@@ -178,22 +179,44 @@ function SignUpCard({ name, onSignUp, onLater }: { name: string; onSignUp: () =>
  *  host's that waits is answered by the taps above the bar, so the middle
  *  stays "Ask {name}" (item 4: the widget's typed words are a question, not
  *  an answer to it). No emoji in the bar and no mic on the right. */
-function WriteBar({ name, writes, onType, onAsk, onPlus }: {
+function WriteBar({ name, writes, send, onType, onAsk, onPlus }: {
   name: string;
   writes: WidgetWrites;
+  /** They send, when the widget read has it. Null keeps `writes`. */
+  send: string[] | null;
   onType: (words: string) => Promise<boolean>;
   onAsk: () => void;
   onPlus: () => void;
 }) {
-  const middle = middleOf(writes, { answer: false, taps: false, photo: false });
+  const [sheet, setSheet] = useState(false);
+  const takes = send ? takesFromSend(send) : { tap: writes.tap, type: writes.type, record: writes.record, photo: false, file: false };
+  const asked = { answer: false, taps: false, photo: false };
+  const middle = middleOf(takes ?? writes, asked);
+  // No `send`: the "+" keeps its own path (the app, or the sign-up).
+  const rows = send && takes ? plusRows(takes, asked, false) : [];
   return (
     <div data-widget-bar="" className="flex items-center gap-2 px-3 pb-1.5">
-      <BarPlus fresh={false} onClick={onPlus} />
-      {middle === "ask-box" ? (
-        <BarBox hint={askName(name)} onSend={onType} />
-      ) : (
-        <BarButton label={askName(name)} onClick={onAsk} dataAttr={{ "data-chat-ask": "" }} />
-      )}
+      <BarPlus fresh={false} onClick={() => (rows.length ? setSheet(true) : onPlus())} />
+      <BarMiddle
+        middle={middle}
+        name={name}
+        typing={false}
+        onAsk={onAsk}
+        onRecordAnswer={onAsk}
+        onPhoto={onPlus}
+        onType={onType}
+        onTypingDone={() => undefined}
+      />
+      {sheet && takes ? (
+        <AskSheet
+          name={name}
+          firstTime={false}
+          onClose={() => setSheet(false)}
+          onRecord={takes.record ? () => { setSheet(false); onPlus(); } : undefined}
+          onPhoto={takes.photo ? () => { setSheet(false); onPlus(); } : undefined}
+          onFile={takes.file ? () => { setSheet(false); onPlus(); } : undefined}
+        />
+      ) : null}
     </div>
   );
 }
@@ -239,6 +262,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   const [guest, setGuest] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [writes, setWrites] = useState<WidgetWrites>(firstWrites);
+  const [kinds, setKinds] = useState<string[] | null>(null);
   const [state, setState] = useState(NOTHING_YET);
   const [later, setLater] = useState(false);
   // "Not now" under a question's taps leaves it until the chat is opened again.
@@ -252,6 +276,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   const took = useCallback((chat: WidgetChatRead) => {
     setMessages(chat.messages);
     setWrites(chat.writes);
+    setKinds(chat.send);
     setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered, noticeTo: chat.noticeTo });
   }, []);
 
@@ -480,6 +505,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
         <WriteBar
           name={name}
           writes={writes}
+          send={kinds}
           onType={(words) => send("text", words.trim())}
           onAsk={state.signedUp ? () => void inTheApp() : signUpToAsk}
           onPlus={plus}

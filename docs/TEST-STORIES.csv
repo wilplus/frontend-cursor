@@ -112,6 +112,12 @@ service unavailable."" as before.
 O3  A path that is not a tool is a 404 and nothing is sent.","O1 -> ""%s"" (one test per tool path)
 O2 -> ""%s"" (one test per tool path)
 O3 -> ""does not forward a path that is not a tool""",Fifteen one-file routes became one route (founder 2026-10-12).
+src/app/api/v2/chats/setup/models/route.test.ts,Guard,"Teach it, and keeping or dropping a model at a new price, save with PUT /api/v2/chats/setup/models. A static models folder hides the setup's [part] route, so that PUT has to be exported here or Next answers 405 and the host sees ""That didn't save. Try again.""","The models route dropping PUT, or any other setup part the host
+saves (Keep on ""what"", ""walk"", ""models"", …) whose static folder
+does not export the PUT the client sends.","the models PUT reaches /v2/chats/setup/models with the JSON body
+-> ""PUT /api/v2/chats/setup/models is proxied to the backend""
+every saved setup part has a route that exports PUT
+-> ""every setup part the host saves has a PUT route""","If removed: Teach it fails again with a 405 that never reaches the backend, and the next static setup folder can do the same with nothing failing."
 src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker, I want my uploaded slide deck to reach the slide reader with my guest pass, so that my deck is used for my Take.","O1  The upload goes to the backend's slide-reading route with the guest
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
@@ -748,13 +754,14 @@ O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
 O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
 src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want the home to lead with my Speaking coach and projects, so the older people-chat list does not define my practice IA.","The door waits for auth, preserves the people-chat read, and then
 paints Speaking coach, active projects and Start a new project.",No general Will destination or floating add button is part of home.,
-src/components/willab/chats/devMode.test.tsx,Story,"As a host with the chat builder's ring, I switch on Developer mode under Build's two tabs and see in plain numbers how close my chat is to the speaking coach, what it notices, what it says, charts by week and my training data to keep; off the ring I see none of it (backend N648).","O1  With the ring, Build has a ""Developer mode"" switch; on, it shows the
-five parts, each opening its screen.
+src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
+O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
+O2 -> keeps a paste that calls eval as not live","The Chat Builder has to edit the coach in words, and a paste must not become running code (phase 1 of the Chat Builder)."
+src/components/willab/chats/devMode.test.tsx,Story,"As a host in Build, the bar under the tabs is the two tabs and nothing else: no Speaking coach chip and no Developer mode row (backend N648 still draws its own screens when they are opened).","O1  Build's bar has neither a Speaking coach chip nor a Developer mode
+row, whether or not the dev read answers.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
-that could not be counted is drawn as not counted, never as zero.
-O3  Off the ring (the read is 404) there is no switch and nothing else.","O1 -> ""N648 Developer mode: the switch under the tabs shows the five parts, each opening its screen""
-O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""
-O3 -> ""N648 off the ring nothing of Developer mode shows""",
+that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
+O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -831,17 +838,33 @@ O6 -> ""N642-5 someone who is not a coach has no moments line in AI models""
 O7 -> ""N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own""
 O8 -> ""N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this""
 O7 -> ""N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try""",
-src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the one
-bar: the arrow and ""Your chat"", no ""Back"" word, no circle, no close
-(a new account: its first screen, ""What do you do?"");
-the arrow on its first screen brings me back to Will's chat, and so
-does the phone's Back.
+src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the
+chat's own header: back, the circle, ""Lena's chat"", ""You run this
+chat."", and Live / Build. The arrow on its first screen brings me
+back to Will's chat, and so does the phone's Back.
 O2  The drafted answers say ""Answers to send"" in that bar, and Back
 returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
 O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
+src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Fifteen taps build the Speaking Coach, then Say go. The saved
+document matches the fixture, and the screens read it.
+O2  A shop chat sets all four sends, an assistant, price 1, a training
+machine, the hedge model, another model and a checked paste.
+O3  You decide, Just build it, a targeted edit, chips and Publish stay
+on this device.
+O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fifteen taps build the Speaking Coach""
+O2 -> ""the shop chat sets price, model and paste, and the mic transcribes""
+O3 -> ""express, you decide, a targeted edit, chips, and publish stay on this device""
+O4 -> ""prints the technical score from the fixture and the shop fields""",
+src/components/willab/chats/hostsetup/talkBuild.test.tsx,Story,"As a host, I build my chat by talking or tapping, one step at a time, and I can undo a version and open the list of parts.","O1  Brief starts from a quoted ""Speaking coach"", saves Brief v1, and
+Undo takes that version away.
+O2  Yes and no walk They send one kind at a time. See the list closes
+the talk.","O1 -> ""a quoted suggestion saves Brief v1 and Undo restores it""
+O2 -> ""Yes and No walk the send kinds, and See the list closes the talk""",
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
+src/components/willab/chats/lockedBars.test.ts,Story,"Build, a row's chat and the talk wear the same top bar and the same bottom bar as every other chat.","O1  The locked bar is the content rail, 60px, with the chat's own
+composer. The builder does not draw a second one.","O1 -> ""the builder uses the locked top bar and the locked composer""",
 src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the text field by default; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has the normal text composer at rest, switching to a
 recording control only when a current task explicitly needs speech; its
 Take rows and plan dock remain. Will and Principles stay chats in words.
@@ -857,6 +880,17 @@ without the ring, it only opens the sheet. (The door's side, that it
 opens the chat asked for: chats.test.tsx ""N636-1"".)
 O6  A row of a host's chat that takes Takes (place ""chat"", N648 item 8)
 shows only in that chat, never in Will, Speaking coach or Principles.","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""; O5 -> ""N636-5""; O6 -> ""N648-8""",
+src/components/willab/chats/ownChatHome.test.tsx,Story,"As a host, I want to start my own chat from the list, pick its icon, and copy its link, so people I share it with can use it.","O1  Start your own chat sits at the bottom of the chat rows, above
+Start a new project. Close leaves the list as it was.
+O2  Yes opens Build, pins the chat at the top under its name, and
+hides the starter row. Back returns to that list.
+O3  The share control copies /c/<id>, or the host's join path when
+one already exists, and says Link copied.
+O4  The circle starts as the initial, can be an emoji, and wears the
+three-dots badge at about 40% of the avatar.","O1 -> ""the starter row sits above Start a new project, and Close changes nothing""
+O2 -> ""Yes pins the chat at the top and Back returns to the list""
+O3 -> ""Share copies the public link""
+O4 -> ""the icon defaults to the initial and the badge is forty percent""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.
@@ -2100,6 +2134,21 @@ O2  Finish take: ""Sending to {name}…"" with Undo for 5 seconds; as soon as it
 O3  Undo within the 5 seconds takes it back on the backend, before or after it got there; a Take that never uploads, or screens closed before the Take arrived, send nothing.","O1 -> the question becomes its own one-slide project and mine comes back
 O2 -> the answer goes as soon as its Take is up, held for the rest of the 5 seconds, once
 O3 -> undo takes it back on the backend; a failed upload or closing early sends nothing",
+src/lib/willab/chatBuilder/parity.test.ts,Story,"As the founder, I want the speaking-coach document to describe the walk I already have, so that building from it does not change a speaker's steps, words, or the pace step.","O1  The seed's lines, try caps and pinned pace numbers are the ones the
+walk already uses.
+O2  Praise only, a moment fix, and the sniper each produce the same plan
+from the document as from the hardcoded walk.
+O3  A fixed line on the walk carries no digit. The card's progress is not
+a walk line.
+O4  A document that moves a pinned number, the clock, or names an unknown
+screen is refused, and the seed is unchanged.
+O5  A paste that calls eval or the network is rejected, and no loader runs.",,
+src/lib/willab/chatBuilder/surfaceParity.test.ts,Story,"As the founder, I want Artur's chat, built from the document, to meet a speaker with the same lines, the same walk order and the same bar as the speaking coach already does.","O1  The document's lines, the practise taps and the three walks match
+the signed walk. A missing line is a gap, not a pass.
+O2  They send is a recording and typing. Nothing asked is the box. The
+chat asking records. A photo asked is Add a photo. Thanks stays off
+because typing is on.","O1 -> ""the document matches the speaking coach line for line""
+O2 -> ""They send puts the box, the recorder and Add a photo in the right states""",
 src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
 O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
 O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).

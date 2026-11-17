@@ -16,7 +16,7 @@ export type Said = { will: string[]; me: string };
 
 /** Taps that answer nothing: they change the screen on show, or open the
  *  typing, whose words are the answer. */
-const NOT_ANSWERS = new Set<string>([W.change, W.typeOwn, W.answer, W.startAgain, W.backPlain]);
+const NOT_ANSWERS = new Set<string>([W.change, W.drawNew, W.typeOwn, W.answer, W.startAgain, W.backPlain]);
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? "").trim();
 const outsideHistory = (el: Element) => !el.closest("[data-setup-history]");
@@ -42,7 +42,7 @@ function valueOf(value: Element): string {
 /** What a tap answered on `screen`, or null for a tap that answers nothing
  *  (Change, a tick, the bar's back arrow). */
 export function answerOf(screen: Element, button: HTMLElement): string | null {
-  if (button.closest("[data-one-top-bar], [data-setup-history]")) return null;
+  if (button.closest("[data-one-top-bar], [data-chat-header], [data-setup-history], form")) return null;
   if (button.getAttribute("role") === "checkbox") return null;
   const label = text(button);
   if (NOT_ANSWERS.has(label)) return null;

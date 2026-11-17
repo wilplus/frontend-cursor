@@ -1,0 +1,344 @@
+{
+  "schema": 1,
+  "id": "speaking-coach",
+  "name": "Speaking coach",
+  "version": 1,
+  "chat": {
+    "spec": "Speaking coach",
+    "name": null,
+    "line": "People come to you to speak so others listen.",
+    "hello": "Hi. Record a short talk, and I'll tell you what worked.",
+    "questions": [
+      {
+        "q": "What talk are you getting ready for?"
+      },
+      {
+        "q": "Who will be listening?"
+      },
+      {
+        "q": "What is the one thing they should remember?"
+      }
+    ],
+    "taps": [
+      "Practise a talk",
+      "Get ready for a pitch",
+      "Answer a hard question"
+    ],
+    "send": [
+      "rec",
+      "text"
+    ],
+    "out": "words",
+    "who": "shadow",
+    "care": false,
+    "live": false
+  },
+  "shell": {
+    "surfaces": [
+      "feedback_walk",
+      "ideal_text"
+    ],
+    "primaryAction": {
+      "beforePractice": "Start recording",
+      "afterPractice": "Continue recording"
+    },
+    "recordingClockSeconds": 300,
+    "presentationLimitChoices": [
+      3,
+      5,
+      10,
+      30,
+      60,
+      "other",
+      "none"
+    ],
+    "checkpoint": "slide_and_step",
+    "postWalk": "project_questions",
+    "publicLink": "hardcoded_will",
+    "invite": "Tell me what you'd like to do, and I'll show you where.",
+    "subtitle": "You run this chat.",
+    "historyCard": {
+      "showProgress": true
+    },
+    "questions": []
+  },
+  "will": {
+    "composer": "text",
+    "recording": false,
+    "readsAllProjects": true,
+    "principles": "propose_then_accept",
+    "patterns": {
+      "minProjects": 3,
+      "cadence": "weekly"
+    }
+  },
+  "walk": {
+    "steps": [
+      {
+        "key": "page",
+        "screen": "walk.page",
+        "when": "always",
+        "fixed": ""
+      },
+      {
+        "key": "coachnote",
+        "screen": "walk.message",
+        "when": "has_coach_note",
+        "fixed": ""
+      },
+      {
+        "key": "praise",
+        "screen": "walk.audio",
+        "when": "has_strongest",
+        "fixed": "To our ears, this one sounded really sure.",
+        "voice": "praise"
+      },
+      {
+        "key": "clearer",
+        "screen": "walk.clearer",
+        "when": "one_fix_is_moment",
+        "fixed": "Say it straight:",
+        "lines": [
+          "And here's one moment to try another way:",
+          "Say it straight:"
+        ],
+        "voice": "try"
+      },
+      {
+        "key": "exVideo",
+        "screen": "walk.aiVoice",
+        "when": "one_fix_is_moment",
+        "fixed": "Say this one like your confident moment:"
+      },
+      {
+        "key": "practise",
+        "screen": "walk.practise",
+        "when": "practice_on",
+        "fixed": "Your turn.",
+        "lines": [
+          "Your turn."
+        ],
+        "choices": [
+          "Try it",
+          "Keep mine"
+        ]
+      },
+      {
+        "key": "tempo",
+        "screen": "walk.tempo",
+        "when": "one_fix_is_tempo",
+        "fixed": "You rushed here. Let it breathe.",
+        "variants": [
+          {
+            "id": "slow",
+            "fixed": "You slowed down here. Keep it moving."
+          }
+        ],
+        "speaker": "stretch"
+      },
+      {
+        "key": "coach",
+        "screen": "walk.message",
+        "when": "always",
+        "fixed": ""
+      },
+      {
+        "key": "others",
+        "screen": "walk.others",
+        "when": "from_take_2",
+        "fixed": "Let's see how you find this voice. It helps us understand you and serve you better."
+      },
+      {
+        "key": "words",
+        "screen": "walk.words",
+        "when": "always",
+        "fixed": "These are your helper words. They'll appear on screen during your next take, to remind you of what you learned here.",
+        "speaker": "fix"
+      },
+      {
+        "key": "done",
+        "screen": "walk.done",
+        "when": "always",
+        "fixed": "Lesson done."
+      },
+      {
+        "key": "summary",
+        "screen": "walk.message",
+        "when": "legacy_take",
+        "fixed": ""
+      },
+      {
+        "key": "end",
+        "screen": "walk.end",
+        "when": "always",
+        "fixed": ""
+      }
+    ],
+    "maxTries": {
+      "oneThing": 2,
+      "legacy": 3
+    },
+    "voice": {
+      "rulesId": "walk_voice.system",
+      "maxSentences": 2,
+      "maxChars": 220,
+      "forbidNumbers": true
+    }
+  },
+  "noticing": {
+    "dials": [
+      {
+        "name": "tempo_stretch.MIN_OUTSIDE",
+        "default": 0.25
+      },
+      {
+        "name": "verbal_cues.FILLER_MIN_COUNT",
+        "default": 2
+      },
+      {
+        "name": "verbal_cues.FILLER_MIN_PER_100_WORDS",
+        "default": 5
+      },
+      {
+        "name": "verbal_cues.HEDGE_MIN_COUNT",
+        "default": 2
+      },
+      {
+        "name": "verbal_cues.RESTART_MIN_COUNT",
+        "default": 2
+      },
+      {
+        "name": "rewrite_gate.REPEATS_PER_100",
+        "default": 2
+      },
+      {
+        "name": "rewrite_gate.MIN_REPEATS",
+        "default": 2
+      },
+      {
+        "name": "rewrite_gate.WORD_SIGNAL_FLOOR",
+        "default": 0.7
+      },
+      {
+        "name": "moment_pick.FLOOR",
+        "default": 0.6
+      },
+      {
+        "name": "take_context.MATCH",
+        "default": 0.6
+      }
+    ],
+    "pinned": [
+      {
+        "name": "tempo_stretch.GREEN_LOW",
+        "value": 0.275
+      },
+      {
+        "name": "tempo_stretch.GREEN_HIGH",
+        "value": 0.725
+      },
+      {
+        "name": "tempo_land.MIN_MS",
+        "value": 20000
+      },
+      {
+        "name": "tempo_land.GREEN_SHARE",
+        "value": 0.8
+      }
+    ]
+  },
+  "plugins": [],
+  "screens": [
+    {
+      "id": "recording",
+      "states": [
+        {
+          "id": "before",
+          "lines": [
+            "Start recording"
+          ]
+        },
+        {
+          "id": "after",
+          "lines": [
+            "Continue recording"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ideal",
+      "states": [
+        {
+          "id": "empty",
+          "lines": [
+            "Your ideal text"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "processing",
+      "states": [
+        {
+          "id": "wait",
+          "lines": [
+            "Processing your recording",
+            "Transcribing your take",
+            "Building your Ideal Text",
+            "Finding feedback moments",
+            "Finding your anchors"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tries",
+      "states": [
+        {
+          "id": "landed",
+          "lines": [
+            "Yes. That's it."
+          ]
+        },
+        {
+          "id": "once",
+          "lines": [
+            "Close. Once more."
+          ]
+        },
+        {
+          "id": "done",
+          "lines": [
+            "Good try. Take it with you."
+          ]
+        },
+        {
+          "id": "skip",
+          "lines": [
+            "Okay, we'll skip this one."
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "canvasMaxPx": 1080,
+    "color": {
+      "background": "#ffffff",
+      "foreground": "#121212",
+      "muted": "#f5f5f5",
+      "mutedForeground": "#737373",
+      "border": "#ebebeb",
+      "primary": "#ff6a14",
+      "primaryForeground": "#ffffff",
+      "record": "#e23b32"
+    },
+    "radius": {
+      "bubble": 16,
+      "card": 20,
+      "chunk": 13,
+      "dock": 999
+    }
+  }
+}

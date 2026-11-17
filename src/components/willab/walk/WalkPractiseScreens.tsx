@@ -11,6 +11,8 @@ import RecordingBar from "../RecordingBar";
 import { maxTries, type WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft, triesRecorded } from "@/lib/willab/walkPractise";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 import type { AiVoiceState } from "@/services/api/aiVoice";
@@ -190,9 +192,14 @@ function Checking() {
   return <WalkLoading />;
 }
 
+function useTries() {
+  return tryCopy(usePublishedCoach());
+}
+
 function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  const tries = useTries();
   // The One thing walk's try that lands is its one line (N309 item 1).
-  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={improvedLine(ctx.plan, ctx.at(step), ctx.say)} />;
+  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={improvedLine(ctx.plan, ctx.at(step), ctx.say, tries.landed)} />;
   return (
     <WalkMessage>
       <span>{COPY.titlePraise}</span>
@@ -261,9 +268,15 @@ function QuoteShown({ quote, quotes, readOnly }: { quote: WalkQuote; quotes?: Wa
 
 /** The "not yet": the AI clip in the voice Exercise or after a clearer
  *  version (founder 2026-10-18), else the encouragement. */
+function ThanksMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  const tries = useTries();
+  return <OneTryLine ctx={ctx} step={step} signed={thanksLine(ctx.plan, ctx.at(step), ctx.say, tries.takeItWithYou)} />;
+}
+
 function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
   // The One thing walk's one miss: "Close. Once more." (N309 item 1).
-  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={encourageLine(ctx.plan, ctx.at(step), ctx.say)} />;
+  const tries = useTries();
+  if (step.one) return <OneTryLine ctx={ctx} step={step} signed={encourageLine(ctx.plan, ctx.at(step), ctx.say, tries.onceMore)} />;
   return (
     aiInstead(ctx, step, moment) ?? (
       <WalkMessage>
@@ -400,7 +413,7 @@ export function practiseThreadItem(
       return <EncourageMessage ctx={ctx} step={step} moment={moment} />;
     case "thanks":
       return step.one ? (
-        <OneTryLine ctx={ctx} step={step} signed={thanksLine(ctx.plan, ctx.at(step), ctx.say)} />
+        <ThanksMessage ctx={ctx} step={step} />
       ) : (
         <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
       );

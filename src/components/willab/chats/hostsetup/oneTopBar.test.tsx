@@ -4,11 +4,10 @@ STORY    As a host with the chat builder's ring, what I open from Will's
          lines has one top bar, the back arrow and its name, and Back brings
          me back to Will's chat, where I came from (backend N639).
 OUTCOME
-  O1  "Your chat" opened from Will's chat opens over his chat, under the one
-      bar: the arrow and "Your chat", no "Back" word, no circle, no close
-      (a new account: its first screen, "What do you do?");
-      the arrow on its first screen brings me back to Will's chat, and so
-      does the phone's Back.
+  O1  "Your chat" opened from Will's chat opens over his chat, under the
+      chat's own header: back, the circle, "Lena's chat", "You run this
+      chat.", and Live / Build. The arrow on its first screen brings me
+      back to Will's chat, and so does the phone's Back.
   O2  The drafted answers say "Answers to send" in that bar, and Back
       returns to Will's chat.
 PROVES   O2 -> "N639 Your chat opened from Will has the one bar, and Back returns to Will's chat"
@@ -73,13 +72,16 @@ describe("one top bar for what opens from Will's lines (backend N639)", () => {
     // Over Will's chat, not over the list of chats.
     expect(overWill()?.textContent).toContain("What do you do?");
     expect(front.querySelector("[data-host-setup]")).toBeNull();
-    // The arrow and "Your chat": no "Back" word, no circle, no close, not what the person does.
-    expect(bar()?.textContent).toBe("Your chat");
-    expect([...bar()!.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Back"]);
+    const chat = overWill()?.querySelector("[data-chat-header]");
+    expect(chat?.textContent).toContain("Lena's chat");
+    expect(chat?.textContent).toContain("You run this chat.");
+    expect(chat?.querySelector("[data-live-build]")).not.toBeNull();
+    expect(chat?.textContent).not.toContain("Back");
+    expect(chat?.querySelector("button")?.getAttribute("aria-label")).toBe("Back");
     expect(overWill()?.querySelector("[data-host-back]")).toBeNull();
     expect(overWill()?.querySelector('button[aria-label="Close"]')).toBeNull();
 
-    await act(async () => bar()!.querySelector<HTMLButtonElement>("button")!.click());
+    await act(async () => chat!.querySelector<HTMLButtonElement>("button")!.click());
     await flush();
     expect(overWill()).toBeNull();
     // Will's chat is still the one open: nothing took it to the list.
@@ -88,7 +90,7 @@ describe("one top bar for what opens from Will's lines (backend N639)", () => {
     // The phone's Back does the same.
     act(() => openOverList({ open: "parts" }));
     await flush();
-    expect(bar()?.textContent).toBe("Your chat");
+    expect(overWill()?.querySelector("[data-chat-header]")?.textContent).toContain("Lena's chat");
     await act(async () => window.dispatchEvent(new PopStateEvent("popstate")));
     await flush();
     expect(overWill()).toBeNull();

@@ -8,6 +8,30 @@ import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { W } from "./hostsetup/hostSetupCopy";
+
+/** Live or Build, the same switch on a chat and on the setup. */
+export const BUILD_MODE_EVENT = "willab:build-mode";
+
+export function LiveBuildSwitch({ mode, onMode }: { mode: "live" | "build"; onMode: (mode: "live" | "build") => void }) {
+  const one = (m: "live" | "build", label: string) => (
+    <button
+      type="button"
+      data-switch={m}
+      aria-pressed={mode === m}
+      onClick={() => onMode(m)}
+      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span data-live-build="" className="flex items-center rounded-full border border-border p-0.5">
+      {one("live", W.live)}
+      {one("build", W.build)}
+    </span>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /*  The chats' top bars, apart from the chat itself (ChatThread.tsx): Will's   */
@@ -68,7 +92,7 @@ export function TopBar({
         ) : (
           <span className="flex min-w-0 items-center gap-2.5">{who}</span>
         )}
-        {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
+        {right ? <span className="relative z-30 ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
       </div>
       {/* This bar replaces the global bar and sits at the viewport's top. A
           fixed rule spans the viewport without a 100vw-wide box that can

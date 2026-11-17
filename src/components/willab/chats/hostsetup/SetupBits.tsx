@@ -1,9 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { TypingGlyph } from "../../TypingDots";
+import { TapRow } from "../../WillQuestion";
 import { W } from "./hostSetupCopy";
-import { BarBox } from "../ChatBar";
+import AskSheet from "../AskSheet";
+import { BarBox, BarPlus, SendTakes } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
 
 /* -------------------------------------------------------------------------- */
@@ -34,30 +36,127 @@ export const FrameHistory = createContext<ReactNode>(null);
  *  item 1); null otherwise. */
 export const FrameNote = createContext<ReactNode>(null);
 
+/** The chats' own top bar, in place of the one bar, on the setup (the host's
+ *  chat). Null everywhere else that opens from Will's lines. */
+export const FrameBar = createContext<((onBack?: () => void) => ReactNode) | null>(null);
+
+/** The shared bottom bar: tap-to-choose answers, then the chat's composer.
+ *  A screen passes its own; otherwise the setup's default (the composer).
+ *  `null` on a screen that already has its own box. */
+export type SetupDockSpec = {
+  choices?: string[];
+  onChoice?: (label: string) => void;
+  onSend: (text: string) => void | boolean;
+  placeholder?: string;
+  lines?: boolean;
+  disabled?: boolean;
+  initial?: string;
+};
+export const FrameDock = createContext<SetupDockSpec | null>(null);
+
+/** The row that opened this chat, drawn as the first bubble. */
+export const FrameLead = createContext<ReactNode>(null);
+
+/** Two big taps, then the composer. One or two choices fill the bar; the
+ *  last one is the one that keeps. */
+function BigChoices({ labels, onChoice, disabled }: { labels: string[]; onChoice: (label: string) => void; disabled?: boolean }) {
+  return (
+    <div data-setup-dock-choices="" className="flex gap-2 px-4 pt-3">
+      {labels.map((label, i) => (
+        <button
+          key={label}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChoice(label)}
+          className={`min-h-12 flex-1 rounded-full px-3 text-[16px] font-semibold disabled:opacity-40 ${
+            i === labels.length - 1 && labels.length > 1 ? "bg-foreground text-background" : "border-[1.5px] border-border bg-background text-foreground"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** One item with exactly two taps (On/Off, Keep/Remove). */
+export function BinaryRow({ title, sub, on, onLabel, offLabel, onPick }: {
+  title: string;
+  sub?: string;
+  on: boolean;
+  onLabel: string;
+  offLabel: string;
+  onPick: (on: boolean) => void;
+}) {
+  const one = (label: string, chosen: boolean, pick: boolean) => (
+    <button
+      type="button"
+      data-choice={pick ? "on" : "off"}
+      aria-pressed={chosen}
+      onClick={() => onPick(pick)}
+      className={`min-h-11 flex-1 rounded-full px-3 text-[15px] font-semibold ${chosen ? "bg-foreground text-background" : "border-[1.5px] border-border bg-background text-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div data-binary="" className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-border px-3.5 py-3">
+      <b className="text-[16px] font-semibold text-foreground">{title}</b>
+      {sub ? <span className="text-[16px] text-foreground">{sub}</span> : null}
+      <div className="flex gap-2">
+        {one(offLabel, !on, false)}
+        {one(onLabel, on, true)}
+      </div>
+    </div>
+  );
+}
+
+/** One bar for every setup screen: two big taps when the step has a pair,
+ *  then the chat's composer, always open. */
+export function SetupDock({ choices, onChoice, onSend, placeholder, lines, disabled, initial }: SetupDockSpec) {
+  const pair = choices && choices.length > 0 && choices.length <= 2 && onChoice;
+  return (
+    <div data-setup-dock="" className="shrink-0 border-t border-border bg-background">
+      {pair ? <BigChoices labels={choices} onChoice={onChoice} disabled={disabled} /> : choices?.length && onChoice ? (
+        <div className="px-4 pt-2">
+          <TapRow even={false} disabled={disabled} labels={choices} onTap={onChoice} dataAttr={{ "data-setup-dock-choices": "" }} />
+        </div>
+      ) : null}
+      <Box key={`${placeholder ?? ""}:${initial ?? ""}`} placeholder={placeholder ?? W.typeHere} onSend={onSend} lines={lines} initial={initial} />
+    </div>
+  );
+}
+
 /** One screen: its top bar, Will's lines, and what to tap at the foot. The
  *  bar is the one bar (N639): the back arrow and the surface's name. With a
  *  `circle`, a chat's own bar instead ("Test my chat": back, the circle and
  *  the name), as a chat keeps. */
-export function Frame({ title, onBack, circle, foot, bar = null, children }: {
+export function Frame({ title, onBack, circle, foot, bar = null, dock, children }: {
   /** A bar of its own in place of the header (Live's, backend N642 item 3). */
   bar?: ReactNode;
   title?: ReactNode;
   onBack?: () => void;
   circle?: ReactNode;
   foot?: ReactNode;
+  /** The shared bottom bar. Omit to use the setup's default; null to draw none. */
+  dock?: SetupDockSpec | null;
   children: ReactNode;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   const named = useContext(FrameTitle);
   const history = useContext(FrameHistory);
   const note = useContext(FrameNote);
+  const makeBar = useContext(FrameBar);
+  const dockFallback = useContext(FrameDock);
+  const dockSpec = dock === null ? null : dock ?? dockFallback;
+  const lead = useContext(FrameLead);
   useBarBack(onBack);
   useEffect(() => {
     const el = body.current;
     if (el) el.scrollTop = el.scrollHeight;
   });
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {bar ? (
         bar
       ) : circle ? (
@@ -71,14 +170,15 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
           <b className="text-[17px] font-semibold text-foreground">{title ?? W.will}</b>
         </div>
       ) : (
-        <OneTopBar onBack={onBack} title={title ?? named} />
+        makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
-      <div ref={body} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
+      <div ref={body} className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
+        {lead}
         {history}
         {children}
         {note}
       </div>
-      {foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
+      {dockSpec ? <SetupDock {...dockSpec} /> : foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
     </div>
   );
 }
@@ -86,7 +186,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
 export function Say({ children, by }: { children: ReactNode; by?: string }) {
   return (
     <>
-      <div data-will-line="" className="max-w-[86%] self-start whitespace-pre-wrap rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">
+      <div data-will-line="" className="max-w-[86%] min-w-0 self-start whitespace-pre-wrap break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">
         {children}
       </div>
       {by ? (
@@ -217,8 +317,11 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
   /** One thing on each line: Enter is a new line, only Send sends. */
   lines?: boolean;
 }) {
+  const sent = useContext(SendTakes);
+  const [sheet, setSheet] = useState(false);
   return (
     <div data-host-box="" data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+      {sent ? <BarPlus fresh={false} onClick={() => setSheet(true)} /> : null}
       {before}
       <BarBox
         hint={placeholder}
@@ -230,6 +333,14 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
         onSend={async (words) => onSend(words.trim()) !== false}
       />
       {after}
+      {sheet && sent ? (
+        <AskSheet
+          name={sent.name}
+          firstTime={false}
+          onClose={() => setSheet(false)}
+          onRecord={sent.takes.record ? () => setSheet(false) : undefined}
+        />
+      ) : null}
     </div>
   );
 }

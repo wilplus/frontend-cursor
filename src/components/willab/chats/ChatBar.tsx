@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Image as ImageIcon, Plus, Send } from "lucide-react";
 import { TYPE_YOUR_ANSWER } from "@/components/willab/WillQuestion";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import type { AnswerWith } from "@/services/api/assistants";
 import type { ChatEmoji, ChatMessage } from "@/services/api/chats";
-import { askName } from "./AskSheet";
+import type { SendKind } from "@/services/api/hostSetup";
+import { RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, askName } from "./AskSheet";
 import { EMOJI_MEANING } from "./ChatList";
 
 /* -------------------------------------------------------------------------- */
@@ -38,21 +39,78 @@ import { EMOJI_MEANING } from "./ChatList";
  *  and "Ask {name}" were signed before). */
 export const RECORD_YOUR_ANSWER = PLAN_COPY.recordAnswer;
 export const ADD_A_PHOTO = "Add a photo";
+export { SEND_A_FILE };
 /** The "+"'s own name, for a screen reader (the locked page's label). */
 export const PLUS_LABEL = "Add";
 export { TYPE_YOUR_ANSWER };
 
-/** How a chat takes what you send. A chat with no host takes recordings and
- *  taps, as it always has; a host's chat follows the host's answer_with. */
-export type Takes = AnswerWith;
-export const PEOPLE_TAKE: Takes = { tap: true, type: false, record: true };
+/** How a chat takes what you send. `tap`, `type` and `record` are the host's
+ *  answer_with. `photo` and `file` are They send: they sit behind the "+". */
+export type Takes = AnswerWith & { photo: boolean; file: boolean };
+/** A chat with no host, and a host whose read has no `send`: recordings and
+ *  taps, no typing, Send a photo behind the "+", no file. */
+export const PEOPLE_TAKE: Takes = { tap: true, type: false, record: true, photo: true, file: false };
 
-/** What a chat takes: the host's answer_with (GET /v2/chats/<id>/host).
- *  Typing is on where the host chose it; a chat with no host, or a backend
- *  without the host's route (404), has none. */
+/** What a chat takes from answer_with alone. Typing is on where the host
+ *  chose it; a chat with no host, or a backend without the host's route
+ *  (404), has none. Photo stays behind the "+", as the locked bar has it;
+ *  a file does not, until They send says so. */
 export function takesOf(answerWith: AnswerWith | null): Takes {
-  return answerWith ?? PEOPLE_TAKE;
+  const base = answerWith ?? { tap: true, type: false, record: true };
+  return { tap: base.tap, type: base.type, record: base.record, photo: true, file: false };
 }
+
+const SEND_KIND: readonly SendKind[] = ["rec", "text", "photo", "file"];
+
+/** They send, as the recipe stores it (`rec` a recording, `text` typing,
+ *  `photo` and `file` behind the "+"). Null when the read has no `send`,
+ *  so the caller keeps answer_with. An empty list takes none of the four.
+ *  Taps stay on: a question's answers are not one of these four. */
+export function takesFromSend(send: readonly string[] | null | undefined): Takes | null {
+  if (!send) return null;
+  const has = (kind: SendKind) => send.includes(kind);
+  return { tap: true, record: has("rec"), type: has("text"), photo: has("photo"), file: has("file") };
+}
+
+/** The bar for one chat: They send when the read has it, otherwise answer_with. */
+export function takesFor(send: readonly string[] | null | undefined, answerWith: AnswerWith | null): Takes {
+  return takesFromSend(send) ?? takesOf(answerWith);
+}
+
+/** Every non-empty combination of the four kinds, in a stable order. */
+export function sendCombos(): SendKind[][] {
+  const out: SendKind[][] = [];
+  for (let mask = 1; mask < 1 << SEND_KIND.length; mask += 1) {
+    out.push(SEND_KIND.filter((_, i) => (mask & (1 << i)) !== 0));
+  }
+  return out;
+}
+
+/** What the chat is waiting for, the four states of the bar. */
+export type BarAsked = { answer: boolean; taps: boolean; photo: boolean };
+
+/** "Record your question" in the "+". A They-send bar shows it only for
+ *  `rec`. The older answer_with bar also shows it when typing is off, which
+ *  is how a taps-only chat still records a question. */
+export function recordInSheet(takes: Takes, legacy: boolean): boolean {
+  return legacy ? takes.record || !takes.type : takes.record;
+}
+
+/** The rows behind the "+", in the sheet's order. */
+export function plusRows(takes: Takes, asked: BarAsked, legacy = false): string[] {
+  const middle = middleOf(takes, asked);
+  const answers = middle !== "ask" && middle !== "ask-box";
+  const rows: string[] = [];
+  if (!answers && recordInSheet(takes, legacy)) rows.push(RECORD_YOUR_QUESTION);
+  if (answers && takes.type && middle === "record-answer") rows.push(TYPE_YOUR_ANSWER);
+  if (takes.photo) rows.push(SEND_A_PHOTO);
+  if (takes.file) rows.push(SEND_A_FILE);
+  return rows;
+}
+
+/** A setup row's chat: the same "+" as every other chat, from this recipe's
+ *  They send. Null on the first screen, before there is a recipe. */
+export const SendTakes = createContext<{ takes: Takes; name: string } | null>(null);
 
 /** The one thing in the middle (N610 items 2 to 4). */
 export type Middle = "ask" | "ask-box" | "record-answer" | "answer-box" | "add-photo";
@@ -60,7 +118,7 @@ export type Middle = "ask" | "ask-box" | "record-answer" | "answer-box" | "add-p
 /** `answer`: a question or a Take that takes a recorded answer waits;
  *  `taps`: a question with answers to tap waits, which typed words answer
  *  too, but a recording does not. */
-export function middleOf(takes: Takes, asked: { answer: boolean; taps: boolean; photo: boolean }): Middle {
+export function middleOf(takes: Pick<Takes, "record" | "type">, asked: BarAsked): Middle {
   if (asked.photo) return "add-photo";
   if (asked.answer && takes.record) return "record-answer";
   if ((asked.answer || asked.taps) && takes.type) return "answer-box";
@@ -94,7 +152,7 @@ export function thanksFor(messages: readonly ChatMessage[] | null): ChatMessage 
 /** Whether the three thanks show: a person's answer is the newest message,
  *  the chat takes no typing (there you type your thanks), and nothing else
  *  holds the bar (`held`: something asked, an answer going, a block). */
-export function thanksDue(takes: Takes, messages: readonly ChatMessage[] | null, held: readonly unknown[]): boolean {
+export function thanksDue(takes: Pick<Takes, "type">, messages: readonly ChatMessage[] | null, held: readonly unknown[]): boolean {
   return !takes.type && !held.some(Boolean) && thanksFor(messages) !== null;
 }
 
@@ -263,7 +321,7 @@ export function BarBox({
               submit();
             }
           }}
-          className={`${field.className} block min-h-10 resize-none py-[9px] leading-snug`}
+          className={`${field.className} setup-composer block min-h-10 resize-none overflow-hidden break-words py-[9px] leading-snug placeholder:truncate`}
         />
       ) : (
         <input {...field} ref={ref} type="text" enterKeyHint="send" onChange={(e) => setWords(e.target.value)} className={`${field.className} h-10`} />
@@ -283,6 +341,27 @@ export function BarBox({
       ) : null}
     </form>
   );
+}
+
+/** "Send a file" opens the device's own picker; the file picked goes at once. */
+export function useFilePicker(onFile: (file: File) => void): { pick: () => void; input: ReactNode } {
+  const ref = useRef<HTMLInputElement>(null);
+  return {
+    pick: () => ref.current?.click(),
+    input: (
+      <input
+        ref={ref}
+        type="file"
+        hidden
+        data-chat-file-pick=""
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onFile(file);
+        }}
+      />
+    ),
+  };
 }
 
 /** "Add a photo" and "Send a photo" open the device's own picker; the

@@ -1,0 +1,462 @@
+diff --git a/routes/v2/__init__.py b/routes/v2/__init__.py
+index 40d2291..74d361b 100644
+--- a/routes/v2/__init__.py
++++ b/routes/v2/__init__.py
+@@ -33,6 +33,7 @@ DOMAIN_MODULES = (
+     "account_security", "signup_count", "first_visit", "login_code", "whatsapp_webhook",
+     "roadmap_admin", "chats", "push_devices", "take_matches", "learning_models", "model_setup",
+     "silent_tries",
++    "coaches",
+ )
+ 
+ 
+diff --git a/routes/v2/coaches.py b/routes/v2/coaches.py
+new file mode 100644
+index 0000000..0e7ecdf
+--- /dev/null
++++ b/routes/v2/coaches.py
+@@ -0,0 +1,100 @@
++"""The speaking-coach document (services/coach_definition.py).
++
++Behind the chat_builder ring, like the rest of the builder. Publish is
++the founder's. Preview writes nothing.
++"""
++from __future__ import annotations
++
++import logging
++
++from flask import jsonify, request
++
++from auth import require_auth
++from routes.admin import require_founder
++from routes.v2.blueprint import v2_bp
++from services import assistants, coach_definition as coach
++from services.db import db
++
++logger = logging.getLogger(__name__)
++
++
++def _ring():
++    if not assistants.on(db, str(request.user_id)):
++        return jsonify({"code": "NOT_FOUND", "error": "Not found."}), 404
++    return None
++
++
++def _refused(error: coach.CoachRefused):
++    return jsonify({"code": error.code}), 400
++
++
++@v2_bp.route("/coaches/speaking-coach", methods=["GET"])
++@require_auth
++def v2_coach_draft():
++    blocked = _ring()
++    if blocked:
++        return blocked
++    return jsonify({"document": coach.read_draft(db, str(request.user_id))}), 200
++
++
++@v2_bp.route("/coaches/speaking-coach/draft", methods=["PUT"])
++@require_auth
++def v2_coach_save():
++    blocked = _ring()
++    if blocked:
++        return blocked
++    body = request.get_json(silent=True) or {}
++    try:
++        saved = coach.save_draft(db, str(request.user_id), body.get("document"))
++    except coach.CoachRefused as error:
++        return _refused(error)
++    return jsonify({"document": saved["document"], "version": saved["version"]}), 200
++
++
++@v2_bp.route("/coaches/speaking-coach/preview", methods=["POST"])
++@require_auth
++def v2_coach_preview():
++    blocked = _ring()
++    if blocked:
++        return blocked
++    body = request.get_json(silent=True) or {}
++    try:
++        # preview() does not take the database.
++        return jsonify(coach.preview(body.get("document"))), 200
++    except coach.CoachRefused as error:
++        return _refused(error)
++
++
++@v2_bp.route("/coaches/speaking-coach/plugins", methods=["POST"])
++@require_auth
++def v2_coach_plugin():
++    blocked = _ring()
++    if blocked:
++        return blocked
++    body = request.get_json(silent=True) or {}
++    try:
++        return jsonify(coach.keep_plugin(db, str(request.user_id), body.get("source"))), 200
++    except Exception as error:  # noqa: BLE001
++        logger.warning("coach plugin not stored: %s", type(error).__name__)
++        return jsonify(coach.check_plugin(body.get("source"))), 200
++
++
++@v2_bp.route("/coaches/speaking-coach/publish", methods=["POST"])
++@require_auth
++@require_founder
++def v2_coach_publish():
++    blocked = _ring()
++    if blocked:
++        return blocked
++    try:
++        coach.publish(db, str(request.user_id))
++    except coach.CoachRefused as error:
++        return _refused(error)
++    return jsonify({"published": True}), 200
++
++
++@v2_bp.route("/coaches/speaking-coach/active", methods=["GET"])
++@require_auth
++def v2_coach_active():
++    document = coach.read_active(db, str(request.user_id))
++    return jsonify({"document": document}), 200
+diff --git a/services/coach_definition.py b/services/coach_definition.py
+new file mode 100644
+index 0000000..2d987be
+--- /dev/null
++++ b/services/coach_definition.py
+@@ -0,0 +1,223 @@
++"""A speaking-coach document (frontend docs/chat-builder/DESIGN.md).
++
++The walk keeps today's constants unless a document for this person was
++published. A paste is stored and checked. It is not imported and not run.
++Preview validates and returns. It does not write.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++import re
++from typing import Any, Optional
++
++SCHEMA = 1
++SLUG = "speaking-coach"
++CLOCK = 300
++PLUGIN_TYPES = ("REWRITE", "EMPHASISE", "ADD", "NOTICE")
++SCREENS = {
++    "walk.page", "walk.message", "walk.audio", "walk.clearer", "walk.practise",
++    "walk.tempo", "walk.aiVoice", "walk.others", "walk.words", "walk.done",
++    "walk.end", "shell.historyCard", "shell.idealText", "shell.recording",
++    "shell.picker", "will.composer", "will.sunday", "will.plan",
++}
++PINNED = {
++    "tempo_stretch.GREEN_LOW": 0.275,
++    "tempo_stretch.GREEN_HIGH": 0.725,
++    "tempo_land.MIN_MS": 20000,
++    "tempo_land.GREEN_SHARE": 0.8,
++}
++_BANNED = (
++    (re.compile(r"\beval\s*\("), "eval"),
++    (re.compile(r"\bexec\s*\("), "exec"),
++    (re.compile(r"\bsubprocess\b"), "subprocess"),
++    (re.compile(r"\bfetch\s*\("), "network"),
++    (re.compile(r"\bXMLHttpRequest\b"), "network"),
++    (re.compile(r"\bimport\s+(?:os|socket|http|urllib|requests)\b"), "network"),
++    (re.compile(r"\bfrom\s+['\"]react['\"]"), "component"),
++    (re.compile(r"<[A-Z][A-Za-z0-9]*(\s|/>|>)"), "component"),
++)
++_DIGIT = re.compile(r"\d")
++_MANIFEST = re.compile(r"^(?:#\s*|//\s*)?(id|role|interventionType|hears|step):\s*(\S.*?)\s*$")
++
++
++class CoachRefused(Exception):
++    def __init__(self, code: str):
++        super().__init__(code)
++        self.code = code
++
++
++def refuse(document: Any) -> Optional[str]:
++    """None when the document may be stored. A code when it may not."""
++    if not isinstance(document, dict) or document.get("schema") != SCHEMA:
++        return "COACH_UNKNOWN"
++    if document.get("id") != SLUG:
++        return "COACH_UNKNOWN"
++    shell = document.get("shell") or {}
++    if shell.get("recordingClockSeconds") != CLOCK:
++        return "COACH_CLOCK"
++    if shell.get("publicLink") != "hardcoded_will":
++        return "COACH_PUBLIC_LINK"
++    surfaces = shell.get("surfaces")
++    if surfaces != ["feedback_walk", "ideal_text"]:
++        return "COACH_SURFACES"
++    will = document.get("will") or {}
++    if will.get("recording") or will.get("composer") != "text":
++        return "COACH_WILL"
++    theme = document.get("theme") or {}
++    if theme.get("canvasMaxPx") != 1080:
++        return "COACH_CANVAS"
++    pinned = {row.get("name"): row.get("value") for row in (document.get("noticing") or {}).get("pinned") or [] if isinstance(row, dict)}
++    for name, value in PINNED.items():
++        if pinned.get(name) != value:
++            return "COACH_PINNED"
++    for step in (document.get("walk") or {}).get("steps") or []:
++        if not isinstance(step, dict):
++            return "COACH_UNKNOWN_SCREEN"
++        if step.get("screen") not in SCREENS:
++            return "COACH_UNKNOWN_SCREEN"
++        if step.get("key") == "tempo" and step.get("voice"):
++            return "COACH_SNIPER_VOICE"
++        fixed = step.get("fixed") or ""
++        if isinstance(fixed, str) and _DIGIT.search(fixed):
++            return "COACH_NUMBER"
++    for plugin in document.get("plugins") or []:
++        if not isinstance(plugin, dict) or plugin.get("interventionType") not in PLUGIN_TYPES:
++            return "COACH_PLUGIN_TYPE"
++    return None
++
++
++def check_plugin(source: Any) -> dict:
++    """Store-and-check. Does not import, exec, or eval the source."""
++    text = source if isinstance(source, str) else ""
++    reasons: list[str] = []
++    if len(text.encode("utf-8")) > 32 * 1024:
++        reasons.append("too_long")
++    for pattern, reason in _BANNED:
++        if pattern.search(text):
++            reasons.append(reason)
++    found: dict[str, str] = {}
++    for line in text.splitlines()[:30]:
++        match = _MANIFEST.match(line)
++        if match:
++            found[match.group(1)] = match.group(2)
++    manifest = None
++    if all(key in found for key in ("id", "role", "interventionType", "hears", "step")):
++        manifest = {key: found[key] for key in ("id", "role", "interventionType", "hears", "step")}
++        if manifest["role"] != "detector":
++            reasons.append("role")
++        if manifest["interventionType"] not in PLUGIN_TYPES:
++            reasons.append("type")
++        step = manifest["step"]
++        if not (step.startswith("walk.") or step.startswith("shell.") or step.startswith("will.")):
++            reasons.append("screen")
++    else:
++        reasons.append("manifest")
++    if not reasons:
++        status = "checked"
++    elif reasons == ["manifest"]:
++        status = "draft"
++    else:
++        status = "rejected"
++    return {
++        "status": status,
++        "hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
++        "source": text,
++        "reasons": reasons,
++        "manifest": manifest,
++    }
++
++
++def _key(user_id: str) -> str:
++    return f"coach_definition:{user_id}:{SLUG}"
++
++
++def _read(database: Any, user_id: str) -> Optional[dict]:
++    raw = database.get_runtime_config(_key(user_id))
++    if not raw:
++        return None
++    try:
++        loaded = json.loads(raw)
++    except (TypeError, ValueError):
++        return None
++    return loaded if isinstance(loaded, dict) else None
++
++
++def _write(database: Any, user_id: str, record: dict) -> None:
++    key = _key(user_id)
++    entry = database.get_runtime_config_entry(key) if hasattr(database, "get_runtime_config_entry") else None
++    expected = entry.get("updated_at") if isinstance(entry, dict) else None
++    database.put_runtime_config_entry(key, json.dumps(record), updated_by=user_id, expected_updated_at=expected)
++
++
++def read_draft(database: Any, user_id: str) -> Optional[dict]:
++    record = _read(database, user_id)
++    if not record:
++        return None
++    return record.get("document")
++
++
++def save_draft(database: Any, user_id: str, document: Any) -> dict:
++    reason = refuse(document)
++    if reason:
++        raise CoachRefused(reason)
++    record = _read(database, user_id) or {"versions": []}
++    version = int(record.get("version") or 0) + 1
++    document = {**document, "version": version}
++    versions = list(record.get("versions") or [])
++    versions.append({"version": version, "status": "draft"})
++    saved = {"status": "draft", "version": version, "document": document, "versions": versions[-20:]}
++    _write(database, user_id, saved)
++    return saved
++
++
++def publish(database: Any, user_id: str) -> dict:
++    record = _read(database, user_id)
++    if not record or not record.get("document"):
++        raise CoachRefused("COACH_UNKNOWN")
++    reason = refuse(record["document"])
++    if reason:
++        raise CoachRefused(reason)
++    record = {**record, "status": "published"}
++    _write(database, user_id, record)
++    return record
++
++
++def dial_value(database: Any, user_id: str, name: str) -> Optional[float]:
++    """A published dial, or None so the caller keeps noticing_settings."""
++    try:
++        document = read_active(database, user_id)
++    except Exception:  # noqa: BLE001 -- a missing store is today's constants
++        return None
++    if not document:
++        return None
++    for row in (document.get("noticing") or {}).get("dials") or []:
++        if isinstance(row, dict) and row.get("name") == name and isinstance(row.get("default"), (int, float)) and not isinstance(row.get("default"), bool):
++            return float(row["default"])
++    return None
++
++
++def read_active(database: Any, user_id: str) -> Optional[dict]:
++    record = _read(database, user_id)
++    if not record or record.get("status") != "published":
++        return None
++    return record.get("document")
++
++
++def preview(document: Any) -> dict:
++    """Validate only. Callers must not write around this."""
++    reason = refuse(document)
++    if reason:
++        raise CoachRefused(reason)
++    keys = [step.get("key") for step in (document.get("walk") or {}).get("steps") or [] if isinstance(step, dict)]
++    return {"ok": True, "keys": keys, "wrote": False}
++
++
++def keep_plugin(database: Any, user_id: str, source: Any) -> dict:
++    checked = check_plugin(source)
++    record = _read(database, user_id) or {"status": "draft", "version": 0, "document": None, "versions": []}
++    plugins = [row for row in record.get("plugins") or [] if row.get("hash") != checked["hash"]]
++    plugins.append({key: checked[key] for key in ("status", "hash", "reasons", "manifest")})
++    record = {**record, "plugins": plugins[-20:]}
++    _write(database, user_id, record)
++    return checked
+diff --git a/services/tempo_stretch.py b/services/tempo_stretch.py
+index 3cf123c..c14c094 100644
+--- a/services/tempo_stretch.py
++++ b/services/tempo_stretch.py
+@@ -144,7 +144,7 @@ def _shares(path: list[float], first: int, s: dict) -> Optional[tuple[float, flo
+             sum(1 for v in frames if v < GREEN_LOW) / len(frames))
+ 
+ 
+-def pick(snippets: list[dict]) -> Optional[dict]:
++def pick(snippets: list[dict], *, min_outside: Optional[float] = None) -> Optional[dict]:
+     """The clip furthest from the green and which side it leaned to, or None
+     when no clip spends ``MIN_OUTSIDE`` of its time outside it. ``outside``
+     is its share of time on that side. Pure."""
+@@ -159,7 +159,8 @@ def pick(snippets: list[dict]) -> Optional[dict]:
+             continue
+         rushed, slow = shares
+         outside = max(rushed, slow)
+-        if outside >= ns.value("tempo_stretch.MIN_OUTSIDE") and (best is None or outside > best["outside"]):
++        bar = ns.value("tempo_stretch.MIN_OUTSIDE") if min_outside is None else min_outside
++        if outside >= bar and (best is None or outside > best["outside"]):
+             best = {"index": index, "outside": outside, "reading": "rushed" if rushed >= slow else "slow"}
+     return best
+ 
+@@ -264,7 +265,8 @@ def tempo_for_take(database: Any, *, take: str, user_id: str, arc_id: str,
+             _CACHE.move_to_end(take)
+             return _CACHE[take]
+     snippets = database.get_snippets_by_session(take) or []
+-    chosen = pick(snippets)
++    from services.coach_definition import dial_value
++    chosen = pick(snippets, min_outside=dial_value(database, user_id, "tempo_stretch.MIN_OUTSIDE"))
+     result: Optional[dict] = None
+     if chosen:
+         said = said_around(snippets, chosen["index"])
+diff --git a/tests/test_coach_definition.py b/tests/test_coach_definition.py
+new file mode 100644
+index 0000000..3b3ddf6
+--- /dev/null
++++ b/tests/test_coach_definition.py
+@@ -0,0 +1,76 @@
++"""The speaking-coach document is stored and checked, and a preview writes nothing."""
++from services import coach_definition as coach
++
++
++class _Store:
++    def __init__(self):
++        self.rows = {}
++        self.writes = 0
++
++    def get_runtime_config(self, key):
++        return self.rows.get(key)
++
++    def get_runtime_config_entry(self, key):
++        if key not in self.rows:
++            return None
++        return {"value": self.rows[key], "updated_at": "t"}
++
++    def put_runtime_config_entry(self, key, value, *, updated_by, expected_updated_at):
++        self.rows[key] = value
++        self.writes += 1
++        return True
++
++
++def _document():
++    return {
++        "schema": 1,
++        "id": "speaking-coach",
++        "shell": {
++            "recordingClockSeconds": 300,
++            "publicLink": "hardcoded_will",
++            "surfaces": ["feedback_walk", "ideal_text"],
++        },
++        "will": {"composer": "text", "recording": False},
++        "theme": {"canvasMaxPx": 1080},
++        "noticing": {"pinned": [{"name": name, "value": value} for name, value in coach.PINNED.items()]},
++        "walk": {"steps": [
++            {"key": "page", "screen": "walk.page", "fixed": ""},
++            {"key": "tempo", "screen": "walk.tempo", "fixed": "You rushed here. Let it breathe."},
++            {"key": "done", "screen": "walk.done", "fixed": "Lesson done."},
++        ]},
++        "plugins": [],
++    }
++
++
++def test_a_bad_clock_is_refused_and_preview_does_not_write():
++    store = _Store()
++    bad = _document()
++    bad["shell"]["recordingClockSeconds"] = 240
++    assert coach.refuse(bad) == "COACH_CLOCK"
++    try:
++        coach.preview(bad)
++    except coach.CoachRefused:
++        pass
++    assert store.writes == 0
++
++
++def test_a_paste_that_calls_eval_is_rejected_and_not_executed():
++    checked = coach.check_plugin("eval(source)\nid: x\nrole: detector\ninterventionType: NOTICE\nhears: hedging\nstep: walk.message\n")
++    assert checked["status"] == "rejected"
++    assert "eval" in checked["reasons"]
++    clean = coach.check_plugin("# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n")
++    assert clean["status"] == "checked"
++
++
++def test_preview_of_a_good_document_lists_the_steps_and_writes_nothing():
++    store = _Store()
++    assert coach.preview(_document()) == {"ok": True, "keys": ["page", "tempo", "done"], "wrote": False}
++    assert store.writes == 0
++
++
++def test_a_saved_draft_is_not_active_until_it_is_published():
++    store = _Store()
++    coach.save_draft(store, "founder", _document())
++    assert coach.read_active(store, "founder") is None
++    coach.publish(store, "founder")
++    assert coach.read_active(store, "founder")["id"] == "speaking-coach"

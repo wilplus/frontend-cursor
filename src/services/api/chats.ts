@@ -314,6 +314,15 @@ export async function answerChatPhoto(chatId: string, messageId: string, photo: 
   return body && Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : null;
 }
 
+/** A file sent in a chat: multipart `file` to the chat's file route,
+ *  answering {"message"}. The backend route is POST /v2/chats/<id>/file,
+ *  the same shape as the photo route. */
+export async function sendChatFile(chatId: string, file: Blob, name: string): Promise<ChatMessage | null> {
+  const form = new FormData();
+  form.append("file", file, name);
+  return messageOf(await call(`/api/v2/chats/${encodeURIComponent(chatId)}/file`, { method: "POST", timeoutMs: 60_000, body: form }));
+}
+
 /** A photo sent in a chat (backend N351): multipart `file` to the chat's
  *  photo route, answering {"message"}. */
 export async function sendChatPhoto(chatId: string, photo: Blob, name: string): Promise<ChatMessage | null> {

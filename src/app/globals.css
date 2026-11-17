@@ -273,6 +273,27 @@ button,
   height: 0;
 }
 
+/* Build's pages scroll, without a visible bar (Your chat, AI models, a row's chat). */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The setup composer's box grows with its words and never draws a bar.
+   A long placeholder stays on one line. Typed words wrap; nothing scrolls
+   sideways. */
+.setup-composer {
+  overflow: hidden;
+  scrollbar-width: none;
+  overflow-wrap: anywhere;
+}
+.setup-composer::-webkit-scrollbar {
+  display: none;
+}
+
 /* Welcome voice mark — three dots pulse vertically (EQ-style) while three faint
    rings breathe outward; the outer ring is the only colour. NOTE: namespaced
    `welcome-voice-dot` because the bare `voice-dot` keyframe above is already the

@@ -83,12 +83,15 @@ export default function FeedbackWalkCard({
   chunks,
   onFeedback,
   onIdealText,
+  showProgress = true,
 }: {
   title: string;
   progress: number;
   chunks: FeedbackWalkChunk[];
   onFeedback: (chunk: FeedbackWalkChunk) => void;
   onIdealText: (chunk: FeedbackWalkChunk) => void;
+  /** The founder may hide the bar. It stays on the card and off the walk. */
+  showProgress?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [displayTitle, setDisplayTitle] = useState(title);
@@ -122,14 +125,16 @@ export default function FeedbackWalkCard({
         </div>
       </header>
 
-      <div className="mb-2 mt-[9px]">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-[#737373]">
-          <span>Progress</span><b className="text-[12px] text-[#121212]">{safeProgress}%</b>
+      {showProgress ? (
+        <div className="mb-2 mt-[9px]">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-[#737373]">
+            <span>Progress</span><b className="text-[12px] text-[#121212]">{safeProgress}%</b>
+          </div>
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
+            <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
+          </div>
         </div>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
-          <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
-        </div>
-      </div>
+      ) : null}
 
       {hidden > 0 ? (
         <button

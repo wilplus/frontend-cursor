@@ -33,6 +33,8 @@ export interface WidgetChat {
    *  item 2: "email" when the account has one, else "phone"); null when the
    *  backend doesn't say. */
   noticeTo: "phone" | "email" | null;
+  /** They send, when the widget read includes it. Null keeps `writes`. */
+  send: string[] | null;
 }
 
 export const NO_WRITES: WidgetWrites = { tap: true, type: false, record: false };
@@ -65,8 +67,9 @@ async function call(url: string, guest: string | null, init: { method?: string; 
 }
 
 function chatOf(body: unknown): WidgetChat | null {
-  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice_to?: unknown } | null;
+  const b = body as { name?: unknown; writes?: unknown; messages?: unknown; signed_up?: unknown; sign_up?: unknown; answered?: unknown; notice_to?: unknown; send?: unknown } | null;
   if (!b || typeof b.name !== "string" || !Array.isArray(b.messages)) return null;
+  const send = Array.isArray(b.send) ? b.send.filter((k): k is string => typeof k === "string") : null;
   return {
     name: b.name,
     writes: writesOf(b.writes),
@@ -75,6 +78,7 @@ function chatOf(body: unknown): WidgetChat | null {
     signUp: b.sign_up === true,
     answered: b.answered === true,
     noticeTo: b.notice_to === "phone" || b.notice_to === "email" ? b.notice_to : null,
+    send,
   };
 }
 
