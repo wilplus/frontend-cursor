@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
-import { Archive, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Archive, Pencil, Trash2 } from "lucide-react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
 import type { TrainingArc } from "@/services/api/trainings";
 import { archiveProject } from "@/services/api/projectArchive";
 import { requestProjectDeletion } from "@/services/api/projectDeletion";
+import { renameProject } from "@/services/api/projectRename";
 import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
 import { takeTrainings } from "@/services/api/bootPrefetch";
 import LoadingState, { VoiceMark } from "../LoadingState";
@@ -42,6 +44,7 @@ export default function ProductHome({
   const [projects, setProjects] = useState<TrainingArc[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [attempt, setAttempt] = useState(0);
+  const [editingProject, setEditingProject] = useState<TrainingArc | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -102,7 +105,12 @@ export default function ProductHome({
                         <ProjectRowMenu
                           label={project.topic}
                           menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: project.topic })}
-                          actions={projectActions(project, locale, setProjects)}
+                          actions={projectActions(
+                            project,
+                            locale,
+                            setProjects,
+                            setEditingProject,
+                          )}
                         />
                       )
                   }
@@ -121,6 +129,21 @@ export default function ProductHome({
           </button>
         </div>
       </div>
+      {editingProject ? (
+        <RenameProjectDialog
+          project={editingProject}
+          locale={locale}
+          onCancel={() => setEditingProject(null)}
+          onRenamed={(displayName) => {
+            setProjects((list) => list.map((item) =>
+              item.arcId === editingProject.arcId
+                ? { ...item, topic: displayName }
+                : item,
+            ));
+            setEditingProject(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -129,8 +152,18 @@ function projectActions(
   project: TrainingArc,
   locale: UiLocale,
   setProjects: Dispatch<SetStateAction<TrainingArc[]>>,
+  setEditingProject: Dispatch<SetStateAction<TrainingArc | null>>,
 ): RowMenuAction[] {
   return [
+    {
+      label: uiText(locale, "projectEdit"),
+      icon: Pencil,
+      failedLabel: uiText(locale, "projectEditFailed"),
+      onRun: async () => {
+        setEditingProject(project);
+        return true;
+      },
+    },
     {
       label: uiText(locale, "projectArchive"),
       icon: Archive,
@@ -301,5 +334,100 @@ function ProjectsLoading({ locale }: { locale: UiLocale }) {
       <VoiceMark size={20} />
       <span>{uiText(locale, "projectLoading")}</span>
     </div>
+  );
+}
+
+function RenameProjectDialog({
+  project,
+  locale,
+  onCancel,
+  onRenamed,
+}: {
+  project: TrainingArc;
+  locale: UiLocale;
+  onCancel: () => void;
+  onRenamed: (displayName: string) => void;
+}) {
+  const [value, setValue] = useState(project.topic);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rename-project-title"
+    >
+      <form
+        className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (busy || !value.trim()) return;
+          setBusy(true);
+          setFailed(false);
+          void renameProject(project.arcId, value)
+            .then((displayName) => {
+              if (displayName) {
+                onRenamed(displayName);
+                return;
+              }
+              setFailed(true);
+              setBusy(false);
+            })
+            .catch(() => {
+              setFailed(true);
+              setBusy(false);
+            });
+        }}
+      >
+        <h2 id="rename-project-title" className="text-[18px] font-semibold text-foreground">
+          {uiText(locale, "projectEdit")}
+        </h2>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          aria-label={`${uiText(locale, "projectEdit")} ${project.topic}`}
+          className="mt-4 h-12 w-full rounded-2xl border border-border bg-background px-4 text-[16px] text-foreground outline-none focus:border-foreground"
+          disabled={busy}
+        />
+        {failed ? (
+          <p role="alert" className="mt-2 text-[13px] text-record">
+            {uiText(locale, "projectEditFailed")}
+          </p>
+        ) : null}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="h-11 rounded-full border border-border text-[14px] font-medium"
+          >
+            {uiText(locale, "cancel")}
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !value.trim()}
+            className="h-11 rounded-full bg-foreground text-[14px] font-semibold text-background disabled:opacity-50"
+          >
+            {uiText(locale, "projectEdit")}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }

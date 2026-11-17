@@ -1790,6 +1790,8 @@ O5  Under ""Which step did it stall at?"" the sale's four steps take the message
 O6  The notebook rests (N483 item 7): opening the Lounge no longer asks Will to open it from my Takes, and ""Keep a voice notebook?"" no longer opens its answers.","O2 -> keeps a note that cannot go and sends it once when back online
 O5 -> opens the four steps under the sales question and answers with the one tapped
 O6 -> the notebook rests: no intro and no ask","Founder 2026-10-20: the voice notebook; 2026-11-04 (N483): ""I am ready to give up the option to record short messages in the chat and find for it another place""."
+src/components/willab/walk/WalkSummary.test.tsx,Story,"As a speaker, I want an absent closing summary to disappear cleanly, so that the Feedback Walk does not suggest that anything is loading.","O1 A summary with no fetch source renders no idle typing loader and
+advances the walk.","O1 -> ""omits the loader when the summary step has no fetch source""","Founder-approved Feedback Walk loading correction, 2026-11-17."
 src/components/willab/walk/coachUpdateLens.test.tsx,Story,"As a speaker, I want my coach's changed word to wait for me in the chat under ""Later · from your coach"" and open the walk at my coach's place when I tap it, the same way every bubble opens its step, so that I watch exactly what my coach sent, where it belongs.","O1  The coach's bubble rings while the server says the word is new; a tap
 opens the Take's walk at the coach's step (Step 0 for a general word),
 not a screen of its own; nothing is marked watched by the tap.
@@ -2629,6 +2631,7 @@ shows the pending deletion.
 O2  A refusal or no connection changes nothing; signed out, nothing is
 sent at all.","O1 -> ""asks with an idempotency key and reads the open request""
 O2 -> ""changes nothing when refused, offline or signed out""",Deletion is on the critical path.
+src/services/api/projectRename.test.ts,Story,"As a speaker, I can rename only the project I selected without changing the list when the server refuses or I am signed out.",One authenticated PATCH carries the new name; failure changes nothing.,,
 src/services/api/projects.test.ts,Story,"As a guest who later signs up, I want my projects kept under a guest key and moved to my account, with the key forgotten only after the move, so that I never lose my work.","O1  The guest key the server issues is kept and sent with my later
 requests.
 O2  Signing up moves my projects using both my login and the guest key,

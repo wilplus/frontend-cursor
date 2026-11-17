@@ -22,6 +22,7 @@ const api = vi.hoisted(() => ({
   takeTrainings: vi.fn(),
   archiveProject: vi.fn(),
   requestProjectDeletion: vi.fn(),
+  renameProject: vi.fn(),
 }));
 const pdf = vi.hoisted(() => ({ page: vi.fn() }));
 const thread = vi.hoisted(() => ({ loading: true, messages: [] as LoungeMessage[] }));
@@ -29,6 +30,7 @@ vi.mock("@/services/api/trainings", () => ({ fetchTrainings: api.fetchTrainings 
 vi.mock("@/services/api/bootPrefetch", () => ({ takeTrainings: api.takeTrainings }));
 vi.mock("@/services/api/projectArchive", () => ({ archiveProject: api.archiveProject }));
 vi.mock("@/services/api/projectDeletion", () => ({ requestProjectDeletion: api.requestProjectDeletion }));
+vi.mock("@/services/api/projectRename", () => ({ renameProject: api.renameProject }));
 vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => thread }));
 vi.mock("../pdfSlides", () => ({
   PdfPage: (props: { url: string; pageIndex: number }) => {
@@ -95,6 +97,7 @@ beforeEach(() => {
   api.takeTrainings.mockReset().mockImplementation(() => api.fetchTrainings());
   api.archiveProject.mockReset();
   api.requestProjectDeletion.mockReset();
+  api.renameProject.mockReset();
   pdf.page.mockReset();
   intersectionCallback = null;
   observe.mockReset();
@@ -193,6 +196,30 @@ describe("Speaking coach home", () => {
     expect(api.archiveProject).toHaveBeenCalledWith("a");
     expect(host.querySelector('[data-chat-row="a"]')).toBeNull();
     expect(host.querySelector('[data-chat-row="b"]')).not.toBeNull();
+  });
+
+  it("renames the selected project in place after the server accepts it", async () => {
+    api.renameProject.mockResolvedValue("Customer keynote");
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Edit")?.click());
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Edit Board pitch"]');
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(input, "Customer keynote");
+      input?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => button("Edit")?.click());
+    await flush();
+
+    expect(api.renameProject).toHaveBeenCalledWith("a", "Customer keynote");
+    expect(host.textContent).toContain("Customer keynote");
+    expect(host.textContent).not.toContain("Board pitch");
   });
 
   it("keeps the project row and announces an archive failure", async () => {
