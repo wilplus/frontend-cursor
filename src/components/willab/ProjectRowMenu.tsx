@@ -2,16 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { Archive, MoreHorizontal, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
-/*  ProjectRowMenu — the ⋯ on the right of a row in the project picker        */
-/*  (founder 2026-09-25). One action: a draft row's Delete, behind a          */
-/*  confirmation, or a project row's Archive (N14, 2026-09-26), which needs   */
-/*  none. Deleting a project lives in Data & consent, never here. A second,  */
-/*  confirmed action may follow the first: the founder's Delete of a training */
-/*  import under its Edit (founder 2026-10-19).                               */
+/*  ProjectRowMenu — the ⋯ on the right of a manageable row. Existing callers */
+/*  may still provide one action plus a secondary action; newer rows pass an  */
+/*  explicit action list so each owner-authorized operation can carry its own  */
+/*  icon and confirmation.                                                     */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
 /*  landed: on failure the dialog stays open and says so. It is drawn on the  */
@@ -24,6 +22,18 @@ export interface SecondaryAction {
   label: string;
   confirm: ConfirmCopy;
   onRun: () => Promise<boolean>;
+  icon?: LucideIcon;
+  failedLabel?: string;
+}
+
+/** One owner-authorized action shown in a row's menu. */
+export interface RowMenuAction {
+  label: string;
+  onRun: () => Promise<boolean>;
+  confirm?: ConfirmCopy | null;
+  failedLabel?: string;
+  icon?: LucideIcon;
+  destructive?: boolean;
 }
 
 export interface ConfirmCopy {
@@ -48,13 +58,14 @@ export default function ProjectRowMenu({
   confirm = DRAFT_CONFIRM,
   failedLabel = "Couldn't save that. Try again.",
   secondary,
+  actions,
   menuAlign = "right",
   menuAriaLabel,
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
   /** Resolves true once done; false keeps the dialog open with an error. */
-  onDelete: () => Promise<boolean>;
+  onDelete?: () => Promise<boolean>;
   /** The menu item's words. */
   actionLabel?: string;
   /** The confirmation's words; null runs the action straight away. */
@@ -63,17 +74,43 @@ export default function ProjectRowMenu({
   failedLabel?: string;
   /** A second, confirmed action below the first. */
   secondary?: SecondaryAction;
+  /** Full action list for rows with more than the legacy two actions. */
+  actions?: RowMenuAction[];
   /** Which edge of the ⋯ the open menu lines up with: "left" when the ⋯ sits
    *  on a row's left edge (the coach panel's lists, founder 2026-10-20). */
   menuAlign?: "left" | "right";
   /** Localised accessible name for the row's menu trigger. */
   menuAriaLabel?: string;
 }) {
-  const [failedDirect, setFailedDirect] = useState(false);
+  const [failedDirect, setFailedDirect] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [confirmingSecondary, setConfirmingSecondary] = useState(false);
+  const [pendingAction, setPendingAction] = useState<RowMenuAction | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const menuActions: RowMenuAction[] = actions ?? [
+    {
+      label: actionLabel,
+      confirm,
+          onRun: onDelete ?? (() => Promise.resolve(false)),
+          failedLabel,
+          icon: confirm
+            ? Trash2
+            : actionLabel.toLowerCase().includes("edit")
+              ? Pencil
+              : Archive,
+      destructive: Boolean(confirm),
+    },
+    ...(secondary
+      ? [{
+          label: secondary.label,
+          confirm: secondary.confirm,
+          onRun: secondary.onRun,
+          failedLabel: secondary.failedLabel,
+          icon: secondary.icon ?? Trash2,
+          destructive: true,
+        }]
+      : []),
+  ];
 
   useEffect(() => {
     if (!open) return;
@@ -108,41 +145,35 @@ export default function ProjectRowMenu({
           role="menu"
           className={`absolute ${menuAlign === "left" ? "left-0" : "right-0"} top-full z-10 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg`}
         >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              if (confirm) {
-                setConfirming(true);
-                return;
-              }
-              setFailedDirect(false);
-              void onDelete()
-                .catch(() => false)
-                .then((ok) => setFailedDirect(!ok));
-            }}
-            className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] transition hover:bg-muted ${
-              confirm ? "text-record" : "text-foreground"
-            }`}
-          >
-            {confirm ? <Trash2 className="h-4 w-4" aria-hidden /> : null}
-            {actionLabel}
-          </button>
-          {secondary ? (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                setConfirmingSecondary(true);
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] text-record transition hover:bg-muted"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-              {secondary.label}
-            </button>
-          ) : null}
+          {menuActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  if (action.confirm) {
+                    setPendingAction(action);
+                    return;
+                  }
+                  setFailedDirect(null);
+                  void action.onRun()
+                    .catch(() => false)
+                    .then((ok) =>
+                      setFailedDirect(ok ? null : action.failedLabel ?? failedLabel),
+                    );
+                }}
+                className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] transition hover:bg-muted ${
+                  action.destructive ? "text-record" : "text-foreground"
+                }`}
+              >
+                {Icon ? <Icon className="h-4 w-4" aria-hidden /> : null}
+                {action.label}
+              </button>
+            );
+          })}
         </div>
       ) : null}
       {failedDirect ? (
@@ -150,21 +181,14 @@ export default function ProjectRowMenu({
           role="alert"
           className="absolute right-0 top-full mt-1 whitespace-nowrap text-[12px] text-record"
         >
-          {failedLabel}
+          {failedDirect}
         </p>
       ) : null}
-      {confirming && confirm ? (
+      {pendingAction?.confirm ? (
         <ConfirmDelete
-          copy={confirm}
-          onCancel={() => setConfirming(false)}
-          onDelete={onDelete}
-        />
-      ) : null}
-      {confirmingSecondary && secondary ? (
-        <ConfirmDelete
-          copy={secondary.confirm}
-          onCancel={() => setConfirmingSecondary(false)}
-          onDelete={secondary.onRun}
+          copy={pendingAction.confirm}
+          onCancel={() => setPendingAction(null)}
+          onDelete={pendingAction.onRun}
         />
       ) : null}
     </div>

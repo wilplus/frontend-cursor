@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { Archive, Trash2 } from "lucide-react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
-import { uiText, type UiLocale } from "@/lib/uiLocale";
+import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
 import type { TrainingArc } from "@/services/api/trainings";
+import { archiveProject } from "@/services/api/projectArchive";
+import { requestProjectDeletion } from "@/services/api/projectDeletion";
+import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
 import { takeTrainings } from "@/services/api/bootPrefetch";
 import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { PdfPage } from "../pdfSlides";
 import { ChatListRow, WillMark } from "./ChatList";
+import ProjectRowMenu, { type RowMenuAction } from "../ProjectRowMenu";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
@@ -85,6 +90,19 @@ export default function ProductHome({
                 id={project.arcId}
                 title={project.topic}
                 circle={<ProjectCircle project={project} />}
+                subtitle={project.deletion ? uiText(locale, "projectDeletionPending") : null}
+                disabled={Boolean(project.deletion)}
+                actions={
+                  project.deletion
+                    ? null
+                    : (
+                      <ProjectRowMenu
+                        label={project.topic}
+                        menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: project.topic })}
+                        actions={projectActions(project, locale, setProjects)}
+                      />
+                    )
+                }
                 onOpen={() => onOpenProject(project)}
               />
             ))
@@ -101,6 +119,60 @@ export default function ProductHome({
       </div>
     </div>
   );
+}
+
+function projectActions(
+  project: TrainingArc,
+  locale: UiLocale,
+  setProjects: Dispatch<SetStateAction<TrainingArc[]>>,
+): RowMenuAction[] {
+  return [
+    {
+      label: uiText(locale, "projectArchive"),
+      icon: Archive,
+      failedLabel: uiText(locale, "projectArchiveFailed"),
+      onRun: async () => {
+        const ok = await archiveProject(project.arcId);
+        if (ok) {
+          setProjects((list) => list.filter((item) => item.arcId !== project.arcId));
+        }
+        return ok;
+      },
+    },
+    {
+      label: uiText(locale, "delete"),
+      icon: Trash2,
+      destructive: true,
+      failedLabel: uiText(locale, "deleteFailed"),
+      confirm: {
+        title: PROJECT_DELETION_COPY.title(project.topic),
+        body: PROJECT_DELETION_COPY.body,
+        confirmLabel: PROJECT_DELETION_COPY.confirm,
+        cancelLabel: uiText(locale, "cancel"),
+        failedLabel: uiText(locale, "deleteFailed"),
+      },
+      onRun: async () => {
+        const result = await requestProjectDeletion(project.arcId);
+        if (result.ok) {
+          setProjects((list) =>
+            list.map((item) =>
+              item.arcId === project.arcId
+                ? {
+                    ...item,
+                    deletion: result.deletion ?? {
+                      state: "pending",
+                      dueAt: null,
+                      cancellable: true,
+                    },
+                  }
+                : item,
+            ),
+          );
+        }
+        return result.ok;
+      },
+    },
+  ];
 }
 
 const PROJECT_ICON_TONES = ["#244FC5", "#FF6A14", "#E8A317"] as const;
@@ -176,11 +248,17 @@ function HomeRow({
   id,
   title,
   circle,
+  subtitle = null,
+  actions = null,
+  disabled = false,
   onOpen,
 }: {
   id: string;
   title: string;
   circle?: ReactNode;
+  subtitle?: string | null;
+  actions?: ReactNode;
+  disabled?: boolean;
   onOpen: () => void;
 }) {
   return (
@@ -189,6 +267,10 @@ function HomeRow({
         id={id}
         circle={circle ?? <span aria-hidden className="h-12 w-12 shrink-0 rounded-full bg-muted" />}
         title={title}
+        subtitle={subtitle}
+        actions={actions}
+        disabled={disabled}
+        paddingClassName="pl-0"
         onOpen={onOpen}
       />
     </div>

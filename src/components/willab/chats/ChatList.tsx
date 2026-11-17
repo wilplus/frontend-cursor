@@ -186,6 +186,9 @@ export function ChatListRow({
   isNew = false,
   pinned = false,
   cameFrom = false,
+  actions = null,
+  paddingClassName = "pl-4",
+  disabled = false,
   onOpen,
 }: {
   id: string;
@@ -198,16 +201,28 @@ export function ChatListRow({
   pinned?: boolean;
   /** Just come back from this chat: lit for a moment (backend N378 item 5). */
   cameFrom?: boolean;
+  /** Optional row actions. When present, the action control sits beside the
+   * row button rather than inside it, so the row never contains nested
+   * interactive elements. */
+  actions?: ReactNode;
+  /** The default chat-list inset is kept for the people-chat lists. The
+   * speaking-coach home passes no inset so its project icons share the
+   * header logo's safe-gutter edge. */
+  paddingClassName?: string;
+  /** A project with a pending deletion is visible but locked. */
+  disabled?: boolean;
   onOpen: () => void;
 }) {
-  return (
+  const rowButton = (
     <button
       type="button"
       data-chat-row={id}
       data-chat-new={isNew ? "" : undefined}
       data-chat-came-from={cameFrom ? "" : undefined}
       onClick={onOpen}
-      className="relative isolate flex h-[76px] w-full shrink-0 items-center gap-3 pl-4 text-left transition-colors hover:bg-muted/50"
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      className={`relative isolate flex h-[76px] min-w-0 ${actions ? "flex-1" : "w-full"} items-center gap-3 text-left transition-colors hover:bg-muted/50 disabled:cursor-default disabled:hover:bg-transparent ${paddingClassName}`}
     >
       <span
         aria-hidden
@@ -239,6 +254,15 @@ export function ChatListRow({
         </span>
       </span>
     </button>
+  );
+  if (!actions) {
+    return rowButton;
+  }
+  return (
+    <div className="relative isolate flex h-[76px] w-full shrink-0 items-center">
+      {rowButton}
+      {actions}
+    </div>
   );
 }
 
