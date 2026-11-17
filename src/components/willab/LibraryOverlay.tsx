@@ -21,6 +21,7 @@ import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
 import type { ReadoutFeatures } from "./readout";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  LibraryOverlay — "Trainings" 4-level nav                                  */
@@ -300,9 +301,9 @@ export default function LibraryOverlay({
 
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={presentations.length || general.length ? { presentations, general } : null}>
-    <div className="willab-canvas fixed inset-0 z-30 flex flex-col bg-background">
+    <div className="fixed inset-0 z-30 flex flex-col bg-background">
       {/* header */}
-      <div className="flex h-12 shrink-0 items-center justify-between px-4">
+      <div className={`${WILLAB_CONTENT_RAIL} flex h-12 shrink-0 items-center justify-between px-4`}>
         <nav className="flex min-w-0 items-center gap-1.5 text-[15px]">
           {crumbs.map((c, i) => (
             <span key={i} className="flex items-center gap-1.5">
@@ -415,7 +416,7 @@ export default function LibraryOverlay({
           />
         ) : isEmpty ? (
           <>
-            <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
+            <p className={`${WILLAB_CONTENT_RAIL} px-4 text-[15px] text-muted-foreground`}>
               Nothing here yet.
             </p>
           </>
@@ -452,7 +453,7 @@ function TrainingsList({
   onOpen: (arc: TrainingArc) => void;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-6">
+    <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-3 px-4 pb-6`}>
       {trainings.map((arc) => (
         <button
           key={arc.arcId}
@@ -486,7 +487,7 @@ function TrainingDetail({
   onRecordAnother: () => void;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-6">
+    <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 pb-6`}>
       {/* The take list — founder 2026-10-16: no cover and no "Open ideal
           presentation" button above it; each row opens that take's page. */}
       <div className="flex flex-col gap-2 px-4">
@@ -576,7 +577,7 @@ function PresentationDetail({
         </div>
       ) : null}
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10 pt-4">
+      <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-3 px-4 pb-10 pt-4`}>
       {/* Record another take INTO this deck — the take accumulates in the same
           arc (continue-one-arc). Only when the deck has an arc to continue. */}
       {presentation.arcId ? (
@@ -653,7 +654,7 @@ function SlideList({
   onOpenSlide: (i: number) => void;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 px-4 pb-10">
+    <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-2.5 px-4 pb-10`}>
       {deck.slides.map((s, i) => (
         <Card
           key={`${s.index}-${i}`}

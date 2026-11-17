@@ -1830,11 +1830,19 @@ function OneExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: Wa
             bold={phrase}
             arrive
             onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+            onError={() => ctx.practise.aiVoiceRefresh(moment.index)}
           />
         ) : null}
         {noClip ? <FixWords seed={`${seed}-words:${noClip.video ?? ""}:${noClip.lines.join("|")}`} words={noClip} phrase={phrase} /> : null}
         {latePlayer ? (
-          <WalkAiVoice seed={`${seed}-late`} state={state} line="" arrive onPlay={() => ctx.practise.aiVoicePlayed(moment.index)} />
+          <WalkAiVoice
+            seed={`${seed}-late`}
+            state={state}
+            line=""
+            arrive
+            onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+            onError={() => ctx.practise.aiVoiceRefresh(moment.index)}
+          />
         ) : null}
       </div>
       <CoachAnswerBubble key="coach" moment={moment} />
@@ -2003,6 +2011,7 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
       {...lines}
       arrive
       onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+      onError={() => ctx.practise.aiVoiceRefresh(moment.index)}
     />
   );
 }

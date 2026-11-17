@@ -46,9 +46,9 @@ function listInView(): boolean {
 /** The person's chats, read while `on`; `null` until the first list is known.
  *  An empty list stays empty: no demo chats for a newcomer (backend N401;
  *  was: two demo chats the first time). The first read takes the one the
- *  chat boot already started (bootPrefetch.ts); until it lands, the list this
- *  browser last read for this person draws at once (chatsKept.ts). A failed
- *  read keeps the list there is, or is an empty list when there is none. */
+ *  chat boot already started (bootPrefetch.ts). The browser's last list is
+ *  only a fallback when that current read fails, so stale rows never flash
+ *  before the current list. */
 export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => void } {
   const [chats, setChats] = useState<Chat[] | null>(null);
   const first = useRef(true);
@@ -65,10 +65,7 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
     const read = (isFirst ? takeChats : getChats)();
     const asking = getInquiries();
     const who = await whoseChats();
-    if (isFirst) {
-      const kept = keptChats(who);
-      if (kept && alive.current) setChats((now) => now ?? kept);
-    }
+    const kept = isFirst ? keptChats(who) : null;
     const [list, inquiries] = await Promise.all([read, asking]);
     const askingRows = inquiries.map(inquiryChat);
     if (list) {
@@ -76,7 +73,7 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
       keepChats(who, shown);
       if (alive.current) setChats(shown);
     } else if (alive.current) {
-      setChats((now) => now ?? askingRows);
+      setChats((now) => now ?? kept ?? askingRows);
     }
   }, []);
   useEffect(() => {

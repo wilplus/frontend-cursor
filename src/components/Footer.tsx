@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import LocaleSwitcher from "@/components/ui/LocaleSwitcher";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
 
 /**
  * Global footer — pinned to the bottom of the viewport via the parent
@@ -21,30 +26,32 @@ import Link from "next/link";
  * home-bar strip below already gives it more than 8px from the edge.
  */
 export default function Footer() {
+  const locale = useUiLocale();
   return (
     <footer className="flex flex-row justify-between items-center shrink-0 px-4 py-2 border-t border-border text-[11px] sm:text-xs text-muted-foreground gap-3 app:px-[26px] app:pb-0 app:pt-1 sm:px-6 sm:py-3">
-      <span>WillpowerLab 2026</span>
+      <span>{uiText(locale, "footerBrand")}</span>
       <div className="flex gap-3 items-center sm:gap-4">
+        <LocaleSwitcher />
         <Link
           href="/about"
           prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
-          About us
+          {uiText(locale, "footerAbout")}
         </Link>
         <Link
           href="/blog"
           prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
-          Blog
+          {uiText(locale, "footerBlog")}
         </Link>
         <Link
           href="/terms"
           prefetch={false}
           className="no-underline hover:text-foreground transition-colors"
         >
-          Privacy
+          {uiText(locale, "footerPrivacy")}
         </Link>
       </div>
     </footer>

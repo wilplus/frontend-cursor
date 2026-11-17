@@ -91,6 +91,7 @@ import type { CoachMessage } from "@/services/api/idealText";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { wordsPickedIn } from "@/lib/willab/walkThread";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -1246,37 +1247,39 @@ export default function TranscriptReviewDeck({
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[15px] font-semibold text-foreground">
-            {title}
-          </span>
-          {statusChip ? (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              {statusChip}
+        <div className="shrink-0 border-b border-border">
+          <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-3`}>
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="truncate text-[15px] font-semibold text-foreground">
+                {title}
+              </span>
+              {statusChip ? (
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {statusChip}
+                </span>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {deckReady ? (
-            <button
-              type="button"
-              onClick={() => void copyDeck()}
-              aria-label="Copy the whole text"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {copied ? (
-                <Check className="h-4 w-4 text-success" aria-hidden />
-              ) : (
-                <Copy className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          ) : null}
-          {onClose ? (
-            <OverlayCloseButton onClick={onClose} ariaLabel="Close the deck" />
-          ) : null}
-        </span>
-      </div>
+            <span className="flex shrink-0 items-center gap-1.5">
+              {deckReady ? (
+                <button
+                  type="button"
+                  onClick={() => void copyDeck()}
+                  aria-label="Copy the whole text"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-success" aria-hidden />
+                  ) : (
+                    <Copy className="h-4 w-4" aria-hidden />
+                  )}
+                </button>
+              ) : null}
+              {onClose ? (
+                <OverlayCloseButton onClick={onClose} ariaLabel="Close the deck" />
+              ) : null}
+            </span>
+          </div>
+        </div>
       ) : null}
 
       {/* Stage — one slide per viewport; chunks scroll INSIDE the slide
@@ -1317,7 +1320,7 @@ export default function TranscriptReviewDeck({
           // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
           // would bypass the chunk gate through the kicker area, so the
           // track only moves via goTo/dots/keys.
-          className={deckReady ? "h-full overflow-y-auto overscroll-y-contain" : "hidden"}
+          className={deckReady ? "scrollbar-none h-full overflow-y-auto overscroll-y-contain" : "hidden"}
         >
           {screens.map((g, gi) => (
             <section
@@ -1330,7 +1333,7 @@ export default function TranscriptReviewDeck({
               // ONE CENTRED READING COLUMN on desktop (founder 2026-09-28),
               // about 65 characters of the deck's type; a phone keeps its
               // full width.
-              className="mx-auto flex w-full max-w-[56rem] flex-col gap-4 px-6 py-6 sm:px-10"
+              className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-6 py-6 sm:px-10`}
             >
               {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
                   B): the slide as a small tile, its kicker, and the pencil.
@@ -1692,15 +1695,17 @@ export function SlideEditor({
       aria-modal="true"
       aria-label="Edit the text"
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <div className="flex min-w-0 flex-col">
-          <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
-          <p className="text-[11px] leading-snug text-muted-foreground">{where}</p>
+      <div className="shrink-0 border-b border-border">
+        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
+          <div className="flex min-w-0 flex-col">
+            <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
+            <p className="text-[11px] leading-snug text-muted-foreground">{where}</p>
+          </div>
+          <OverlayCloseButton onClick={onCancel} />
         </div>
-        <OverlayCloseButton onClick={onCancel} />
       </div>
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-5">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-5 py-5`}>
           {chunks.map((chunk, index) => (
             <MarkedEditor
               key={chunk.part.id}
@@ -1734,7 +1739,7 @@ export function SlideEditor({
       {/* 8px above, on each side and below (N505); "Cancel" adds nothing
           under it. */}
       <div className="bar-space shrink-0 border-t border-border">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-0.5">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-0.5`}>
           <button
             type="button"
             disabled={saving || drafts.some((draft) => !draft.trim())}

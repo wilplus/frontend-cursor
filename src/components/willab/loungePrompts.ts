@@ -10,6 +10,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { SKIP } from "@/lib/willab/leaveWords";
+import { uiText, type UiLocale } from "@/lib/uiLocale";
 
 export type ChipAction =
   | "trainings"
@@ -32,6 +33,13 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   // (founder 2026-10-29); the empty Lounge's own button, same words.
   start_first_recording: "Start your first recording",
 };
+
+/** Fixed quick-action copy. Conversation text remains exactly as received. */
+export function chipLabel(action: ChipAction, locale: UiLocale): string {
+  if (action === "create_new_project") return uiText(locale, "createNewProject");
+  if (action === "start_first_recording") return uiText(locale, "startFirstRecording");
+  return CHIP_LABEL[action];
+}
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
 // "Start official recording" button in words instead of rendering an in-app

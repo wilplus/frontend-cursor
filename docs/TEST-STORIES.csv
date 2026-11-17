@@ -187,19 +187,15 @@ O5  A re-review piece still says so on its write.","O1, O2 -> ""opens on the Jud
 O3     -> ""an answer writes the ternary body only, then moves on in payload order""
 O4     -> ""after the last unlabelled piece the sheet closes, back on the workbench""
 O5     -> ""a re-review piece says so on its write""","Never-2; founder 2026-09-30 B9 / P2-16 (""one instrument in the product; the workbench's own chrome is deleted"")."
-src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, with my own link at the top, so that bringing someone in is one tap (backend N367, N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
-Copy my link, Settings, Tokens with the balance, then Sign out. No
-Lab, no Log out.
-O2  Copy my link opens ""Add someone to chat with"" (N567 item 1; was: it
-copied at once): Copy my link there copies the whole link. The switch
-for the website is hidden until its new design is signed (N569).
-O3  Tokens shows the balance and opens the Tokens page, on the web and in
+src/components/AppMenu.test.tsx,Story,"As someone signed in, I want the ☰ menu to hold only what I need, without the retired personal invitation control, so that app admission and product sharing cannot be confused (N196, N365, N495).","O1  Signed in, the menu reads: my name and email (opening my profile),
+Settings, Tokens with the balance, then Sign out. No personal-link row,
+Lab or Log out.
+O2  Tokens shows the balance and opens the Tokens page, on the web and in
 the iPhone app alike (N495; in the app that page has no way to buy,
 N365 item 1).
-O4  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Copy my link, Settings, Tokens and Sign out""
-O2 -> ""Copy my link opens the sheet, and Copy my link there copies the link""
-O3 -> ""Tokens shows the balance and opens the Tokens page""
-O4 -> ""signed out, the menu is Lab and Log in""",
+O3  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Settings, Tokens and Sign out""
+O2 -> ""Tokens shows the balance and opens the Tokens page""
+O3 -> ""signed out, the menu is Lab and Log in""",
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
 password says ""That password isn’t right."" and keeps the form.
@@ -438,6 +434,8 @@ comes shows the step's plain words (founder 2026-10-20).","O1 -> ""draws the pla
 asked for the clip, short, with its ›""
 O2 -> ""a clip still being made comes in when it lands, and one
 that never comes shows the plain words""",
+src/components/willab/LoungeTypedAnswer.test.tsx,Story,"As a speaker answering Will in the main speaking chat, I see my own words immediately and never lose them to a slow or failed model call.","The open project question keeps its composer, uses contextual chat,
+preserves project/place identity, and reconciles one own bubble.",,"Founder lock N655, 2026-11-16."
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, with sending on, I want the people in my chats listed with everyone ticked, the one I sent to last on top, so that one Continue sends my Take to them, and I want the line under it to let me add people later but never unsend. With sending off, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O3  With sending on: the three bubbles, Select all and one row per
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
@@ -517,9 +515,15 @@ consent screens instead of choosing for me.","O1 -> ""opens the app with the pro
 O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
 O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
 O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
-src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want a project conversation with its two saved results, contextual questions and one recording action, so that the next step is clear without mixing project work into Will.","O1  Feedback walk and Ideal Text are the two durable results.
-O2  An open question replaces recording with taps and typed reply.","O1 -> ""has exactly two durable results and one continuation CTA""
-O2 -> ""replaces recording with taps and text while a project question is open""","Founder-approved project-chat prototype, 2026-11-15."
+src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
+O2  The summary leads into the question; a held goodbye stays hidden
+and, once released, follows the answer instead of jumping ahead.
+O3  The project uses one chat top bar and the standard answer controls.
+O4  Every route to the current Ideal Text preserves the decision to
+continue to the next fragment or repeat this fragment.","O1 -> ""puts the result before the project conversation""
+O2 -> ""keeps the contextual exchange in human order""
+O3 -> ""uses the locked chat bar and answer controls""
+O4 -> ""keeps the fragment decision when Ideal Text opens from the card""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -620,6 +624,10 @@ heard?"", no ""Teach Will"", no rating; the asking chat goes and my list
 is read again (App Model MATCH-04; N518 item 1). The rating inside
 the answer waits for its prototype (N518 item 9) and is not built.","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""
 O2 -> ""no card follows Sent: the answer goes and nothing asks about it""","O2: founder, 5 November 2026, N518 item 1 (""No, never ask"") and item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
+src/components/willab/chats/ProductHome.test.tsx,Story,"As a speaker, I want one speaking-coach home with all my active projects, so I can keep and practise projects concurrently.","The home waits for the project index and Speaking coach state, then
+paints Speaking coach, every active project and Start a new project.
+Polish app UI localises the fixed rows without translating project names.","Opening a project is a local navigation callback; it never archives
+another project; the locale test keeps user-authored names byte-for-byte.",
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the
 photos and files we shared; with none, ""No photos yet."" and ""No files
 yet.""; no pencil and no Edit.
@@ -744,157 +752,8 @@ O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
 O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
 O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
 O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
-src/components/willab/chats/chats.test.tsx,Story,"As a user, I want to land on my list of chats, with Will first, on the web and in the iPhone app, so that I can open Will's chat or a colleague's or a customer's, answer with an emoji or by recording my answer, and start something new with a photo or a file (backend N456: the default for everyone, everywhere; was ring 6 only).","O1  As a visitor who is not signed in, nothing is drawn around the Lounge
-and no chat is read (Never 3).
-O19 As a user with no ring at all, signed in, I land on the list of
-chats, Will first, under the WillpowerLab bar; the rings never decide
-it, and a rings read that fails changes nothing (N456).
-O20 As a developer, I cannot switch the chats off with a ring: a `chats`
-row in the rings panel, on or off, lands everyone on the same list.
-O2  Signed in: the list stands in front of the Lounge, Will pinned first, then
-the chats, newest last message first, each with its title, subtitle
-and last message (an emoji with its meaning); an empty list is Will
-and ""Add someone to chat with"", on the web as in the iPhone app, and
-no demo chats are asked for (N401). Will's row uncovers the Lounge,
-never remounted, with a back to the list (customer-requests.md C1;
-N274, N298, N322).
-O4  The WillpowerLab bar shows on the list only: in a person's chat and
-in Will's, the chat's own top bar takes its place (N321 item 1, N334).
-O5  A chat whose last message is newer than the last time it was opened
-on this device shows as new, and stops being new once opened (N322).
-O26 While the list is what I see, it reads the chats again every 20
-seconds, so a message that arrives while I look shows (N500 item 3);
-while Will's chat or a person's chat covers it, it is not read, and
-back on the list it is read at once.
-O7  A voice note from the other person is their grey bubble with a play
-control that plays it from the chat's audio route (N321 item 2); its
-words, once ready, are closed behind ""Read it"" under the player, and
-""Hide"" closes them again (N331).
-O8  The + on the list opens my own link, with the add sheet's signed
-words and ""Only the two of you are in it."" (N567 item 1; was: three
-steps), and no website switch for now (N569 item 1), and Copy my link puts the whole link on the clipboard and says
-""✓ Copied"" (N308, N310, N367).
-O9  In a chat I joined through someone's link, one line above the
-messages says whose link it was (N496, replacing N335 item 2's), and
-its row in the list keeps that line until the first message (N488); a
-chat without it has no such line.
-O10 Just joined (/chat?with=<chat>), the list opens with Will's row
-first, as always, and right under it the chat with the one who invited
-me, marked new with the joined line; the address is clean again;
-opened, it is a chat like the rest (N357, N360; was N348 item 1, and
-N357's inviter above Will). Will's row has his newest line, bold with
-the dot, until his chat is open (N457 item 2).
-O11 On the web and in the iPhone app, Will's chat never shows for a moment
-before the list covers it: the loader stands in front until the list
-has answered, and it never waits on the rings (N354, N456).
-O12 The ""+"" in a chat asks them (N483 item 4, N498): ""Ask {name}"", with
-no line, the black ""Record your question"" and Cancel, and the three
-steps only before my first question; ""Record your question"" opens the
-recording screens on the default presentation (a project with no
-slides of its own, named ""To {name}""), and the question goes to the
-question route with ""Sending to {name}… {n}"" and Undo, then ""Sent to
-{name}"". Until I first tap it the ""+"" is orange; then it is plain.
-Camera, Files and Someone else are off (N483 item 4); ""Send a
-photo"" is chatBar.test.tsx's (N610).
-O14 The other person's file shows a tile with its extension and its own
-name, and downloads
-from the chat's file route; a photo opens full size with a close and
-no words; the list's line is ""📷"", or ""📄"" and the file's name (N351).
-O15 An answer sent to me is one message (N355): its voice, the slides it
-was said over in a strip that marks the one being heard as it plays,
-and its words closed behind ""Read it""; no Take number.
-O16 A question Will marked as about a product or a treatment takes one
-black ""Record your answer"" in the bar's middle, the ""+"" on its left and
-nothing else (N321 item 4, N361, N483 items 3 and 5, N610), and ""Not now"", a grey
-word under the question, brings ""Ask {name}"" back, telling them nothing,
-until the chat is opened again; the answer hands the recording screens the
-chat, the person and the question. Back from them, the bar's middle
-reads ""Sending to {name}… {n}"" with Undo while the answer, already
-with the backend, waits out its 5 seconds there (N441 item 3); then
-""Sent"" stands under it, a customer's too (N345, N441 item 4, N504 item 3).
-O17 Back (the iPhone's swipe from the left edge in the app, the browser's
-Back on the web) goes back by one, from a chat to the list, and never
-off the list; back on the list, it is where I left it, the row I came
-from lit. Forward (the swipe from the list's right edge in the app,
-the browser's Forward on the web) opens the chat I just left again;
-before I have left one, it does nothing (N378, N436).
-O18 An answer the backend refused stays in the bar's middle, ""Not sent""
-with ""Send again"", which sends the same Take (N441 item 1).
-O23 A matched Take that reached me (N485, N486, N493) is its own row in
-the list under the pseudonym, ""Asks you about {topic}"", new; opened,
-it shows who asks and what about, never a name, with ""Open Take"" in
-the bar; Open Take shows the name and the Take with ""Record your
-answer"", which answers it over its slides as an inquiry; ""Not now""
-removes it and tells nobody.
-O22 A Take someone sent me (N470, N479) is their message: ""{name} sent
-you Take {n}"" with the Take's tile, its first slide and no play mark
-(N493 item 6), already open: its recording, and its words slide by
-slide behind ""Read it"", nothing else of it (N504 item 1); the list's
-line says ""{name} sent you Take {n}""; a Take I sent is my tile with
-""Sent"" (N504 item 3). Newest, it asks for an answer: ""Record your
-answer"" in the bar with ""Not now"" under it, which tells them nothing
-and is kept for the system (N504 item 2), and the answer is recorded
-over the Take's own slides (N493 items 1 and 3).
-O21 At the foot of the other person's profile, ""Block {name}"" asks first
-and then blocks them: the backend is told, ""{name} is blocked."" shows,
-and back in the chat the bar is one pill, ""You blocked {name}."" with
-Unblock, the earlier messages still there; Unblock unblocks at once.
-""Report {name}"" asks first too, and ""Report and block"" reports them
-with the block (N466).
-O23 Joining someone who set questions (N487): the line at the top says a
-few questions come first; their question waits with its answers on my
-side; ""No"" is sent at once and its deadline shows under it; a question
-that takes more than one answer fills each one I tap, and Send in the
-bar's middle sends them. The link's owner reads one card of my
-answers, under ""{name} joined through your link."", and their list
-says ""{name}'s answers"".
-O24 Before my questions are set, the + shows a note at the bottom, not
-my link (N503, N534); ""Set them"" opens Will's chat on his setup; his question waits with its answers on my side,
-""Something else"" first, and a tap goes to the backend; the summary
-shows what someone new will see, my name in its top line, with
-""Change it"" and ""That's right""; ""You're set."" ends with ""Copy my
-link ›"" and ""Your questions for people who join ›"". After the setup,
-the + opens my link as before (O8).
-O25 While the list (or a chat, or the loader) covers Will's chat, the
-slide previews on his cards wait, so pdf.js and the decks are not
-downloaded behind the list; they draw once his chat is open.
-O26 A website visitor's answers carry the visitor's name, ""Visitor 7's
-answers"", on their row and on the card, never ""Widget's answers""
-(N569 item 6).
-O28 What opens from Will's chat opens over it; Back comes back to Will
-(N639 item 2).
-O29 A chat that takes Takes opens as its speaking chat (N648 item 8).
-O27 A website visitor is a chat like any other, ""Widget / Visitor 7"",
-""From {site}""; the bar is the chat's two places (N610): ""+"", and
-""Record your answer"" for their typed question, which the backend
-marks as any question (WID-19, WID-22).","O1 -> ""as a visitor who is not signed in, /chat is the Lounge as it is and no chat is read""
-O19 -> ""as a user with no ring at all, I land on the list of chats, Will first, under the WillpowerLab bar""
-O20 -> ""as a developer, a chats row in the rings, on or off, changes nothing""
-O2 -> ""with chats on and nobody yet, the list is Will and Add someone to chat with, no demo, and his row opens the Lounge with a way back""
-O4 -> ""the WillpowerLab bar shows on the list only: it hides in a person's chat and in Will's""
-O5 -> ""a chat with a message newer than its last opening shows as new until it is opened""
-O26 -> ""the list reads the chats again while I look at it, rests behind Will's chat, and reads them once I am back""
-O7 -> ""a voice note from the other person plays from the chat's audio route, its words behind Read it""
-O8 -> ""the + opens my own link and copies it""
-O9 -> ""a chat joined through a link says whose link it was""
-O10 -> ""after joining, the list opens with Will first and the one who invited me under him, marked new""
-O11 -> ""as a user, the loader, not Will's chat, waits for my list, on the web and in the app, and never for the rings""
-O12 -> ""the + asks them: the default presentation, and the question goes with Sending, Undo and Sent""
-O14 -> ""the other person's photo or file opens from the chat's file route""
-O15 -> ""an answer sent to me plays with its slides following the voice, its words behind Read it""
-O16 -> ""a marked question takes Record your answer, Not now leaves it, and my answer goes with Sending, Undo and Sent""
-O17 -> ""the device's Back goes back by one, to the list, never off it, and Forward opens the chat I just left""
-O17 -> ""in the app, a swipe from the left edge goes back to the list where I left it, and one from the right edge forward to the chat I just left""
-O18 -> ""a refused answer stays as Not sent, and Send again sends the same Take""
-O22 -> ""a Take sent to me opens with its recording and words, and the list says who sent it""
-O21 -> ""from their profile I block them, the bar says so with Unblock, and Report and block reports with the block""
-O23 -> ""the questions of the one who invited me are answered by tapping, and they read one card""
-O24 -> ""the first time I add someone, Will's chat opens on his setup, answered by tapping""
-O25 -> ""the slides on Will's cards wait while the list covers his chat, and draw once it is open""
-O26 -> ""a website visitor's answers carry the visitor's name, not the word Widget""
-O27 -> ""WID-19, WID-22: a website visitor is a chat like any other""
-O28 -> ""N639 what opens from Will's chat opens over it, so Back comes back to Will, not to the list""
-O29 -> ""N648-8 a chat that takes Takes opens as its speaking chat""",
+src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want the home to lead with my Speaking coach and projects, so the older people-chat list does not define my practice IA.","The door waits for auth, preserves the people-chat read, and then
+paints Speaking coach, active projects and Start a new project.",No general Will destination or floating add button is part of home.,
 src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
 O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
 O2 -> keeps a paste that calls eval as not live","The Chat Builder has to edit the coach in words, and a paste must not become running code (phase 1 of the Chat Builder)."
@@ -1004,9 +863,12 @@ O2 -> ""Yes and No walk the send kinds, and See the list closes the talk""",
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
-src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the record button; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has ""Start your first recording"", then ""Record
-Take 2"", its Take rows and the plan's dock; Will's chat has the text
-field and none of them; Principles its own rows and the text field.
+src/components/willab/chats/lockedBars.test.ts,Story,"Build, a row's chat and the talk wear the same top bar and the same bottom bar as every other chat.","O1  The locked bar is the content rail, 60px, with the chat's own
+composer. The builder does not draw a second one.","O1 -> ""the builder uses the locked top bar and the locked composer""",
+src/components/willab/chats/loungePlace.test.tsx,Story,"As someone with the chat builder's ring, the one Lounge is three chats: Will (the model, the chat's setup, what needs me) with the text field always; the speaking chat with my Takes and the text field by default; Principles with its rows and the text field. Without the ring it is one chat, as it was (backend N635, N636 items 1 to 5).","O1  The speaking chat has the normal text composer at rest, switching to a
+recording control only when a current task explicitly needs speech; its
+Take rows and plan dock remain. Will and Principles stay chats in words.
+Without the ring, the original record dock remains.
 O2  What I type or tap in a chat says which chat it is, so it lands there.
 O3  ""Copy my link ›"" and ""Your questions for people who join ›"" leave the
 way in's ""You're set."" row in the speaking chat and show in Will's.
@@ -1038,6 +900,8 @@ matter"", each with the way into that person's chat, which opens it.
 O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
 under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
 O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
+src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
+becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -1107,7 +971,7 @@ O7 -> ""the founder's ⋯ deletes a waiting speaker's moments, the greyed one's 
 O8 -> ""the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none""
 O9 -> ""A speaker: who the talk is for and what they should do under the goal, from the newest Take that says so (founder 2026-10-20)""","Never 2 (coach judgements stay blind); locked coach panel; O6: founder 2026-10-19 (D9, D10), approved two-phone prototype https://claude.ai/artifact/APk56PLZt6o6Cx9qUMKkuk. O7: founder 2026-10-20, like the training corpus's ⋯."
 src/components/willab/coachpanel/coachPanelColumn.test.tsx,Story,"As a coach on a computer, I want my queue and every screen after it as wide as Will's chat, the way the rest of the app is, not a narrow strip in the middle (backend N627).","O1  Opened from the list of chats (""Your queue""), the panel is drawn in
-the column Will's chat fills, and ‹ closes it from there.","O1 -> ""opened from the list of chats, the panel is drawn in Will's column and closes from there""","Backend N627; frontend #1363 did the same for the AI models overlay. No snapshot or CSS test: one check that the panel's frame is the shared column, every screen and sheet drawing through it."
+the column Will's chat fills, and ‹ closes it from there.","O1 -> ""opened from the list of chats, the panel is drawn in Will's column and closes from there""","Backend N627; frontend #1363 did the same for the AI models overlay. No snapshot or CSS test: one check that the panel's frame is the shared locked app canvas, every screen and sheet drawing through it."
 src/components/willab/coachpanel/coachPanelCorpus.test.tsx,Story,"As a coach, I want the training corpus in the panel to go straight to judging after set-up, let me rename finished imports and import several files at once, so that corpus work is quick and blind.","O1  A saved set-up goes straight to judging that import, saying
 ""Set up · {n} moments"".
 O2  An import with nothing to judge is never judged: back on the imports.
@@ -1534,22 +1398,8 @@ O2  Under a message where Will spots something, the short line ""🔒 Security d
 O3  Other messages get no line; the backend's own line row (every fifth named note) is drawn as the line alone.","O1 -> introduces the notebook with the rules
 O2 -> reminds under every spotted message
 O3 -> stays quiet elsewhere",
-src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want to work on one project at a time and be asked before I leave the current one, so that starting or going back to a project never mixes two presentations, and nothing is lost.","O1  ""Start a new project"" asks ""One project at a time"", naming the project
-with my newest Take; Continue archives that one, then starts the new
-project; Cancel leaves me on the list with nothing archived.
-O2  Picking another project asks the same; Continue archives the current
-one and opens the one I picked. Picking the current one asks nothing,
-and with no Take yet nothing is asked.
-O3  ""Record Take N"" on an archived project asks first; Continue brings it
-back, archives the current one, then records. On the current project
-it records at once, asking nothing (Never 3).
-O4  Will's ""Create new project"" in the chat asks the same, in place of the
-message box; Continue archives the current one, then starts the new
-project; Cancel brings the message box back; with no Take yet it
-starts at once (N260).","O1 -> ""Start a new project asks, and Continue archives the current one first""
-O2 -> ""another project asks; the current one and a first project do not""
-O3 -> ""Record Take N on an archived project asks; on the current one it never does""
-O4 -> ""Will's Create new project asks in place of the message box""","Founder 2026-10-29, backend N254 (items 1, 2, 4, 5) and N260."
+src/components/willab/oneProject.test.tsx,Story,"As a speaker, I want projects to stay concurrent, so opening or creating one never archives work in another.","New-project actions start directly; an archived project is restored
+without archiving the current project.",,
 src/components/willab/ownBubble.test.tsx,Story,"As a speaker, when I tap an answer or send what I typed, I want my own bubble on screen at once and kept there while the answer is on its way, so that I know it went (backend N632 item 7, the founder on a phone, 10 November 2026: ""it disappears, and then the posted bubble by me appears when the answer appears"").","B1  A tap under Will's question (""When is it?"" → ""No date yet""): the
 bubble shows before the backend answers, stays, and once the
 backend's row is read it is there exactly once.
@@ -1751,15 +1601,19 @@ O3  Control: with the choice on, that same clearer version does offer
 ""Accept and practise"" (so O2 cannot pass on a sheet that never offers it).","O1 -> ""a Not sure offers Next, never Practise or Skip""
 O2, O3 -> ""a clearer version offers no Accept and practise (and does with the choice on)""",F1 Repair Plan Phase 4: every practice route answers 403 CONSENT_CHOICE_OFF.
 src/components/willab/presentation.test.ts,Story,"As a speaker, I want a clear message when I pick a file that is not a PDF or is over 20 MB, so that I know what to upload.","O1  PowerPoint and Keynote files are refused with a message naming PDF;
-a PDF over the size limit is refused with a message naming 20 MB.","O1 -> ""rejects non-pdf (incl. pptx, now PDF-only) and oversize""",
+a PDF over the size limit is refused with a message naming 20 MB.
+O2  Polish fixed UI receives the approved Polish validation message.","O1 -> ""rejects non-pdf (incl. pptx, now PDF-only) and oversize""
+O2 -> ""uses approved Polish validation copy when the fixed UI is Polish""",
 src/components/willab/presentationInPlay.test.ts,Story,"As a speaker starting a later Take, I want to be told whether I am speaking to my own slides or the stand-in deck, so that I know what this Take goes with.","O1  It names my own file, the stand-in deck, or nothing while the setup
 is not known yet.
 O2  It is shown only before Take 2 and later, from that Take's own setup
 first, then the project's.
 O3  On the first Take after I changed the slides it says ""New slides"";
-after that it names the Take the slides were first used on.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
+after that it names the Take the slides were first used on.
+O4  Fixed status words follow the app locale while slide content is unchanged.","O1 -> ""names the speaker's own file, the stand-in deck, or nothing until the setup is known""
 O2 -> ""is shown before a later Take only, from the Take's own setup first""
-O3 -> ""says New slides on the first Take with them, then the Take they started on""",Founder 2026-10-16; backend N257 (2026-10-29).
+O3 -> ""says New slides on the first Take with them, then the Take they started on""
+O4 -> ""uses Polish for fixed setup status without changing slide content""",Founder 2026-10-16; backend N257 (2026-10-29).
 src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
 src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
@@ -1772,7 +1626,10 @@ O2 -> ""is unchanged when the Take has no praised most confident moment""","Foun
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
-a score word.","O1, O2 -> ""is exactly the signed words, with no digit or score word""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
+a score word.
+O3  Fixed recording chrome follows the app locale while speaker-authored
+slide words remain untouched.","O1, O2 -> ""is exactly the signed words, with no digit or score word""
+O3 -> ""serves approved English and Polish recording copy without translating a speaker's slide""","Recording lock 2026-10-07 (N59, N70); the microphone line, N273; the earbuds line, N372. recordingWhere's ""Take N · Slide n of m"" is pinned in recordingStillFrame.test, not here."
 src/components/willab/recordingNoPullRefresh.test.tsx,Story,"As a speaker, I want pulling down on the recording screens never to reload the page, so that I never lose a Take.","O1  A pull down on the slide while recording is cancelled.
 O2  From ""getting your mic ready"" through the recording, the page is set
 not to pull-refresh.
@@ -1793,8 +1650,11 @@ O3 -> ""an answer's question is the poster with whose question it is""
 O4 -> ""an uploaded deck is never the poster""","Founder 2026-11-04: ""the slides are perfect lock them"", ""update the default presentation and keep this formating for any presentation that comes from the questions to the specialist"" (backend N462)."
 src/components/willab/recordingSetup.test.tsx,Story,"As a speaker, I want setup to ask my topic, then the presentation time limit, then slides, then start, so that starting a Take is quick.","O1  The questions come in that order, and starting carries my topic.
 O2  With no slides added, the slides step's button is ""Skip for now"", the
-last step included, and it starts the Take.","O1 -> ""asks topic, length, slides, then starts""
-O2 -> ""asks topic, length, slides, then starts""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
+last step included, and it starts the Take.
+O3  Polish app UI localises the fixed questions, upload control and actions
+without translating the speaker's typed topic.","O1 -> ""asks topic, length, slides, then starts""
+O2 -> ""asks topic, length, slides, then starts""
+O3 -> ""uses approved Polish fixed UI while keeping the speaker's topic unchanged""","Founder 2026-10-12; ""Skip for now"", backend N449 item 3."
 src/components/willab/recordingStillFrame.test.tsx,Story,"As a speaker recording, I want the top bar to read ""Take N · Slide n of m"", Back and Next slide to move slides, Finish take on the last slide to be the only way to end, and only the slide to move, so that recording feels steady and I never end a Take by accident.","O1  The top bar reads ""Take 2 · Slide 1 of 3"", once; a question to
 someone (N483 item 4) reads ""To Sarah · Slide 1 of 3"".
 O2  On the last slide Next slide becomes the red Finish take, which ends
@@ -1889,7 +1749,9 @@ O3  ""Load earlier messages"" with no answer keeps the button, so a tap
 asks again; answered, the older messages come in above.
 O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
 that chat's rows alone, read with ?chat=; back in the Lounge, its own
-thread again, with nothing of the other kept.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+thread again, with nothing of the other kept.
+O5  A failed optimistic write keeps one exact bubble; retry reuses its
+client id, and the authoritative reload replaces rather than duplicates it.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
 O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
 O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."
@@ -2235,6 +2097,11 @@ changed in between (signed out, a new token) is what it gets.
 O3  A session read that never answers releases the app as signed out.","O1 -> ""asks made while a read is out share it""
 O2 -> ""an ask after the answer reads again, so a change is seen""
 O3 -> ""an unanswered auth read releases the app instead of loading forever""",
+src/lib/uiLocale.test.ts,Story,"As a visitor, I want the interface to start in Polish in Poland and English elsewhere, while my explicit EN/PL choice remains in control.","O1  PL edge country defaults to Polish; every other or missing country defaults to English.
+O2  A persisted EN or PL UI choice wins over the country default.
+O3  Incomplete Polish copy falls back to the approved English source.
+O4  Founder-approved project/setup UI is served in Polish.","O1/O2 -> request locale resolution; O3 -> safe translation fallback;
+O4 -> approved copy and interpolation",
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.

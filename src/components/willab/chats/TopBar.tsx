@@ -7,6 +7,7 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { W } from "./hostsetup/hostSetupCopy";
 
 /** Live or Build, the same switch on a chat and on the setup. */
@@ -73,24 +74,33 @@ export function TopBar({
   return (
     <div
       data-chat-header
-      className="box-content flex h-[60px] shrink-0 items-center gap-1 border-b border-border pl-1 pr-4 pt-[env(safe-area-inset-top)]"
+      className="relative shrink-0 bg-background pt-[env(safe-area-inset-top)]"
     >
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label={CHUNK_SHEET_COPY.pagerBack}
-        className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
-      >
-        <ChevronLeft className="h-6 w-6" aria-hidden />
-      </button>
-      {onOpen ? (
-        <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
-          {who}
+      <div className={`${WILLAB_CONTENT_RAIL} flex h-[60px] items-center gap-1 px-[15px]`}>
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={CHUNK_SHEET_COPY.pagerBack}
+          className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
+        >
+          <ChevronLeft className="h-6 w-6" aria-hidden />
         </button>
-      ) : (
-        <span className="flex min-w-0 items-center gap-2.5">{who}</span>
-      )}
-      {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
+        {onOpen ? (
+          <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
+            {who}
+          </button>
+        ) : (
+          <span className="flex min-w-0 items-center gap-2.5">{who}</span>
+        )}
+        {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
+      </div>
+      {/* This bar replaces the global bar and sits at the viewport's top. A
+          fixed rule spans the viewport without a 100vw-wide box that can
+          enlarge the horizontal scroll area. */}
+      <span
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)_+_60px)] h-px bg-border"
+      />
     </div>
   );
 }
@@ -110,9 +120,7 @@ export function WillTopBar({ onBack, place = "will", build = null }: {
   useBackDismiss(onBack);
   if (build) return <>{build}</>;
   return (
-    <div className="-mx-4">
-      <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
-    </div>
+    <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
   );
 }
 
@@ -124,7 +132,7 @@ export function WillTopBar({ onBack, place = "will", build = null }: {
 export function TakesChatBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
   useBackDismiss(onBack);
   return (
-    <div className="-mx-4" data-takes-chat={chat.id}>
+    <div data-takes-chat={chat.id}>
       <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} onOpen={onOpen} />
     </div>
   );

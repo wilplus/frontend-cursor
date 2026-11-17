@@ -30,8 +30,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./pdfSlides", () => ({
   PdfPage: () => null,
   MockPresentationSlide: () => null,
-  SlideRender: ({ pageIndex, asks }: { pageIndex: number; asks?: string | null }) =>
-    createElement("div", { "data-testid": "slide", "data-asks": asks ?? "" }, `page ${pageIndex + 1}`),
+  SlideRender: ({ pageIndex, asks, title }: { pageIndex: number; asks?: string | null; title: string }) =>
+    createElement("div", { "data-testid": "slide", "data-asks": asks ?? "", "data-title": title }, `page ${pageIndex + 1}`),
 }));
 
 import { RecordingPhase, RecordingWhere, usePracticeChunkEnds } from "./LabOverlay";
@@ -43,6 +43,9 @@ let stops = 0;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.clear();
+  document.documentElement.lang = "en";
+  delete document.documentElement.dataset.uiLocale;
   seen = [];
   stops = 0;
   host = document.createElement("div");
@@ -57,6 +60,8 @@ afterEach(() => {
   host.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  document.documentElement.lang = "";
+  delete document.documentElement.dataset.uiLocale;
 });
 
 const SLIDES = [0, 1, 2].map((i) => ({ title: `Slide ${i + 1}`, body: "" })) as never[];
@@ -151,6 +156,20 @@ describe("the top bar", () => {
     // A question to someone names them in its place.
     act(() => root.render(createElement(RecordingWhere, { show: true, micStatus: "recording", to: "Sarah", takeNumber: 1, slide: 0, slideCount: 3 })));
     expect(where().textContent).toBe("To Sarah · Slide 1 of 3");
+  });
+
+  it("uses the Polish app locale for chrome and leaves the speaker's slide words alone", () => {
+    document.documentElement.lang = "pl";
+    render();
+
+    expect(where().textContent).toBe("Nagranie 2 · Slajd 1 z 3");
+    expect(button("Wstecz")).toBeDefined();
+    expect(button("Następny slajd")).toBeDefined();
+    expect(host.querySelector('[data-testid="slide"]')?.getAttribute("data-title")).toBe("Slide 1");
+
+    click("Następny slajd");
+    click("Następny slajd");
+    expect(button("Zakończ nagranie")).toBeDefined();
   });
 });
 

@@ -2,11 +2,11 @@ import { getAuthToken } from "@/lib/api/auth-client";
 import type { Chat } from "@/services/api/chats";
 
 /* -------------------------------------------------------------------------- */
-/*  The list of chats as this browser last read it, so the list draws at once */
-/*  on the next open while the fresh read is on its way (useChatList). One    */
-/*  copy, for one person: it is kept with whose it is and read back for that  */
-/*  person only, and it goes when nobody is signed in. Storage that cannot be */
-/*  read or written is simply no copy: the list waits for the read as before. */
+/*  The list of chats as this browser last read it, kept only as a fallback   */
+/*  when the fresh read fails (useChatList). One copy, for one person: it is  */
+/*  kept with whose it is and read back for that person only, and it goes     */
+/*  when nobody is signed in. Storage that cannot be read or written is       */
+/*  simply no fallback: the list waits for the read as before.                */
 /* -------------------------------------------------------------------------- */
 
 const KEY = "willab.chats.list";

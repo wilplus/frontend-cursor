@@ -9,7 +9,7 @@ OUTCOME
 PROVES   O1 -> "opened from the list of chats, the panel is drawn in Will's column and closes from there"
 WHY      Backend N627; frontend #1363 did the same for the AI models overlay.
          No snapshot or CSS test: one check that the panel's frame is the
-         shared column, every screen and sheet drawing through it.
+         shared locked app canvas, every screen and sheet drawing through it.
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -31,6 +31,7 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 import CoachPanelDoor from "./CoachPanelDoor";
 import { WILL_COLUMN } from "./CoachPanel";
 import { openCoachQueue } from "@/lib/willab/coachDoor";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -58,7 +59,7 @@ describe("the coach panel fills Will's column (backend N627)", () => {
     const queue = document.querySelector<HTMLElement>("[data-testid='coach-panel-queue']");
     expect(queue).not.toBeNull();
     const frame = queue!.closest<HTMLElement>(".walk-stage-column");
-    expect(WILL_COLUMN).toBe("md:mx-auto md:max-w-3xl");
+    expect(WILL_COLUMN).toBe(WILLAB_CONTENT_RAIL);
     expect(frame?.className.split(" ")).toEqual(expect.arrayContaining(WILL_COLUMN.split(" ")));
     expect(frame?.className).not.toContain("430px");
     // ‹ in the panel's own top bar closes it, back to the list.

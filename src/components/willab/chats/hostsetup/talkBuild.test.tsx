@@ -30,7 +30,7 @@ afterEach(() => {
 });
 const flush = async () => { for (let i = 0; i < 4; i += 1) await act(async () => { await Promise.resolve(); }); };
 const tap = async (label: string) => {
-  const b = [...container.querySelectorAll("button")].find((x) => x.textContent?.includes(label));
+  const b = [...container.querySelectorAll("button")].find((x) => x.textContent?.includes(label) || x.getAttribute("aria-label") === label);
   if (!b) throw new Error(label);
   await act(async () => (b as HTMLButtonElement).click());
   await flush();

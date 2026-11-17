@@ -71,6 +71,7 @@ export default function SnippetWavePlayer({
   tone = "accent",
   label,
   onError,
+  onPlayError,
   barCount,
 }: {
   /** Stable identity for the waveform — the moment key, or an attempt id. */
@@ -92,6 +93,9 @@ export default function SnippetWavePlayer({
    *  MediaPlayer's is. A fresh link from the host is asked for on its own
    *  (useRecoverableSrc); this is for a host that manages its own. */
   onError?: () => void;
+  /** The AI voice's signed link can reject from play() before media emits
+   *  an error; route that rejection through the same recoverable path. */
+  onPlayError?: () => void;
   /** Fewer bars for a narrow player (the walk's chip, backend N440): the
    *  same silhouette, its 44 bars sampled evenly, and the row clipped to
    *  its own width so a bar never runs under the time. */
@@ -156,8 +160,11 @@ export default function SnippetWavePlayer({
     if (el.currentTime < seekSec || (clipDuration > 0 && el.currentTime >= clipEndSec)) {
       el.currentTime = seekSec;
     }
-    void el.play().catch(() => setPlaying(false));
-  }, [clipDuration, clipEndSec, disabled, playing, seekSec]);
+    void el.play().catch(() => {
+      setPlaying(false);
+      if (onPlayError) handleError();
+    });
+  }, [clipDuration, clipEndSec, disabled, handleError, onPlayError, playing, seekSec]);
 
   const fraction = clipDuration > 0 ? Math.min(1, elapsed / clipDuration) : 0;
   const litBars = Math.round(fraction * bars.length);

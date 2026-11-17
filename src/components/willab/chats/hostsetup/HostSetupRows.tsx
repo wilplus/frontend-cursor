@@ -15,6 +15,7 @@ import { W } from "./hostSetupCopy";
 import { OPEN_EVENT, knowSetup, type OpenDetail } from "./hostSetupDoor";
 import { CoverSiteBar } from "../siteBarCover";
 import { BarBackContext, EdgeBack, OneBarBack, OneBarContext } from "../../OneTopBar";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { LetterCircle } from "../ChatList";
 import { BUILD_MODE_EVENT, LiveBuildSwitch, TopBar } from "../TopBar";
 import { FrameBar, FrameTitle } from "./SetupBits";
@@ -35,7 +36,7 @@ type Open = { at: "setup"; detail: OpenDetail; overWill?: boolean };
 /** Over Will's chat: the column his chat fills, over all of it (as the coach
  *  panel, backend N627); the chats' front is put away while he is open. */
 const OVER_WILL = "fixed inset-0 z-50 bg-background";
-const WILL_COLUMN = "relative flex h-full w-full flex-col md:mx-auto md:max-w-3xl";
+const WILL_COLUMN = `relative flex h-full ${WILLAB_CONTENT_RAIL} flex-col`;
 
 function useWillColumn() {
   const mark = useRef<HTMLSpanElement | null>(null);

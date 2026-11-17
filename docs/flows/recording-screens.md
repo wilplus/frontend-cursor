@@ -167,6 +167,13 @@ was not practical").
 - **Never a reload:** pulling or scrolling at the top never reloads or
   refreshes the page, on a phone or on the web.
 
+### The shared app rail (2026-11-16, founder-approved)
+
+On a computer, setup, feelings, microphone wait, recording, processing and
+readout content use the locked 1080px app canvas shared by the global logo and
+hamburger; the full-screen recording layer remains viewport-wide. Below
+1080px, the rail stays fluid and retains each screen's existing side padding.
+
 ### The words
 
 New with this lock (locked with the screens): **Take N · Slide n of m** in
@@ -426,12 +433,117 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
 - <https://claude.ai/artifact/6L2C5Uj7AiJbRaES4cxzb1>
 
+### Recording UI copy inventory (Polish)
+
+The app/system locale selects these fixed interface words. Transcript,
+speaker-authored slides and generated feedback keep the content language.
+The founder approved this exact Polish inventory on 2026-11-16.
+
+| EN source | Proposed PL | Screen/context | Status |
+| --- | --- | --- | --- |
+| Back | Wstecz | Recording slide navigation | Founder-approved 2026-11-16 |
+| Next slide | Następny slajd | Recording slide navigation | Founder-approved 2026-11-16 |
+| Finish take | Zakończ nagranie | Last recording slide | Founder-approved 2026-11-16 |
+| Take | Nagranie | Recording top-bar position | Founder-approved 2026-11-16 |
+| Slide | Slajd | Recording top-bar position | Founder-approved 2026-11-16 |
+| of | z | Recording top-bar position | Founder-approved 2026-11-16 |
+| To: | Do: | Recording an answer for someone | Founder-approved 2026-11-16 |
+| asks | pyta | Question slide | Founder-approved 2026-11-16 |
+| Speaking anchors for slide | Punkty wypowiedzi dla slajdu | Accessibility label | Founder-approved 2026-11-16 |
+| Getting your mic ready | Przygotowujemy mikrofon | Microphone wait | Founder-approved 2026-11-16 |
+| WillpowerLab uses the microphone to record your Takes. | WillpowerLab używa mikrofonu do nagrywania Twoich wystąpień. | First microphone wait | Founder-approved 2026-11-16 |
+| Earbuds make you sound like a phone call. The built-in mic sounds like you. | Słuchawki sprawiają, że brzmisz jak przez telefon. Wbudowany mikrofon brzmi naturalniej. | Microphone advice | Founder-approved 2026-11-16 |
+| Slide preview unavailable | Podgląd slajdu jest niedostępny | PDF fallback | Founder-approved 2026-11-16 |
+| Retry loading slides | Spróbuj ponownie wczytać slajdy | PDF fallback action | Founder-approved 2026-11-16 |
+| Opening | Początek | Built-in default presentation | Founder-approved 2026-11-16 |
+| What you'll talk about, in one line. | O czym opowiesz — w jednym zdaniu. | Built-in default presentation | Founder-approved 2026-11-16 |
+| Main points | Główne punkty | Built-in default presentation | Founder-approved 2026-11-16 |
+| Summary | Podsumowanie | Built-in default presentation | Founder-approved 2026-11-16 |
+| What you said, and what's next. | Co zostało powiedziane i co dalej. | Built-in default presentation | Founder-approved 2026-11-16 |
+
+### Project entry and newcomer setup copy inventory (Polish)
+
+These are fixed interface words selected by the same app/system UI locale.
+Project names, typed topics, uploaded slide words, transcripts, feedback and
+generated coaching are content and are never passed through this inventory.
+The founder approved this defined fixed-UI scope on 2026-11-16.
+
+| EN source | Proposed PL | Screen/context | Status |
+| --- | --- | --- | --- |
+| Loading | Wczytywanie | Project-home loading accessible label | Founder-approved 2026-11-16 |
+| Speaking coach | Trener wystąpień | Product home | Founder-approved 2026-11-16 |
+| Start a new project | Rozpocznij nowy projekt | Product home and project picker | Founder-approved 2026-11-16 |
+| Create new project | Utwórz nowy projekt | Will quick action | Founder-approved 2026-11-16 |
+| Start your first project | Rozpocznij pierwszy projekt | Empty project picker | Founder-approved 2026-11-16 |
+| Start your first recording | Rozpocznij pierwsze nagranie | Newcomer quick action | Founder-approved 2026-11-16 |
+| What are you recording? | Co nagrywasz? | Project picker | Founder-approved 2026-11-16 |
+| Looking for your projects… | Szukamy Twoich projektów… | Project picker | Founder-approved 2026-11-16 |
+| Couldn't load your projects. | Nie udało się wczytać Twoich projektów. | Product home and project picker | Founder-approved 2026-11-16 |
+| Try again | Spróbuj ponownie | Project load recovery | Founder-approved 2026-11-16 |
+| Or another take of: | Lub kolejne nagranie projektu: | Project picker | Founder-approved 2026-11-16 |
+| Untitled draft | Wersja robocza bez tytułu | Project picker | Founder-approved 2026-11-16 |
+| Draft | Wersja robocza | Project picker | Founder-approved 2026-11-16 |
+| Deletion pending | Oczekuje na usunięcie | Locked project row | Founder-approved 2026-11-16 |
+| Archive | Archiwizuj | Project row menu | Founder-approved 2026-11-16 |
+| Couldn't archive. Try again. | Nie udało się zarchiwizować. Spróbuj ponownie. | Project row menu failure | Founder-approved 2026-11-16 |
+| More options for {name} | Więcej opcji dla: {name} | Project row accessible label | Founder-approved 2026-11-16 |
+| Delete this draft? | Usunąć tę wersję roboczą? | Draft confirmation | Founder-approved 2026-11-16 |
+| Your unfinished setup answers will be removed. | Twoje niedokończone odpowiedzi konfiguracyjne zostaną usunięte. | Draft confirmation | Founder-approved 2026-11-16 |
+| Delete | Usuń | Draft confirmation | Founder-approved 2026-11-16 |
+| Couldn't delete. Try again. | Nie udało się usunąć. Spróbuj ponownie. | Draft confirmation failure | Founder-approved 2026-11-16 |
+| Cancel | Anuluj | Draft confirmation | Founder-approved 2026-11-16 |
+| Close | Zamknij | Project picker / feelings close accessible label | Founder-approved 2026-11-16 |
+| Cancel setup | Anuluj konfigurację | Setup close accessible label | Founder-approved 2026-11-16 |
+| What is the topic? | Jaki jest temat? | New-project setup | Founder-approved 2026-11-16 |
+| e.g. my Q3 results pitch | np. prezentacja wyników za trzeci kwartał | Topic placeholder | Founder-approved 2026-11-16 |
+| Do you have a time limit? | Czy masz limit czasu? | New-project setup | Founder-approved 2026-11-16 |
+| Other | Inny | Time-limit choice | Founder-approved 2026-11-16 |
+| Minutes | Minuty | Custom time-limit field | Founder-approved 2026-11-16 |
+| No time limit | Bez limitu czasu | Time-limit choice | Founder-approved 2026-11-16 |
+| Have slides to go with it? | Czy masz do tego slajdy? | New-project setup | Founder-approved 2026-11-16 |
+| Next | Dalej | Setup primary action | Founder-approved 2026-11-16 |
+| Start recording | Rozpocznij nagrywanie | Setup primary action | Founder-approved 2026-11-16 |
+| Skip for now | Pomiń na razie | Setup without uploaded slides | Founder-approved 2026-11-16 |
+| Deck attached | Prezentacja załączona | Slide upload | Founder-approved 2026-11-16 |
+| Reading your deck… | Wczytujemy prezentację… | Slide upload | Founder-approved 2026-11-16 |
+| Upload your deck (PDF) | Prześlij prezentację (PDF) | Slide upload | Founder-approved 2026-11-16 |
+| Replace the deck | Zastąp prezentację | Slide upload | Founder-approved 2026-11-16 |
+| Upload a PDF. Export your slides to PDF first if they aren't already. | Prześlij plik PDF. Jeśli slajdy nie są jeszcze w formacie PDF, najpierw je wyeksportuj. | Slide upload validation | Founder-approved 2026-11-16 |
+| That file is over {limit} MB. Try a smaller export. | Ten plik ma ponad {limit} MB. Wyeksportuj mniejszy plik. | Slide upload validation | Founder-approved 2026-11-16 |
+| Reading the deck took too long. Add your slides below. | Wczytywanie prezentacji trwało zbyt długo. Dodaj slajdy poniżej. | Slide upload timeout | Founder-approved 2026-11-16 |
+| Couldn't reach the lab to read your deck. Add your slides below. | Nie udało się połączyć z usługą odczytu prezentacji. Dodaj slajdy poniżej. | Slide upload connectivity failure | Founder-approved 2026-11-16 |
+| That deck is too large to send right now. Export a lighter PDF (a few MB) or add your slides below. | Ta prezentacja jest teraz zbyt duża do przesłania. Wyeksportuj lżejszy plik PDF (kilka MB) albo dodaj slajdy poniżej. | Slide upload proxy-size failure | Founder-approved 2026-11-16 |
+| That file type isn't supported. Export your slides to PDF and upload that. | Ten typ pliku nie jest obsługiwany. Wyeksportuj slajdy do PDF i prześlij ten plik. | Slide upload unsupported file | Founder-approved 2026-11-16 |
+| We couldn't read that deck. Add your slides below. | Nie udało się odczytać tej prezentacji. Dodaj slajdy poniżej. | Slide upload unreadable file | Founder-approved 2026-11-16 |
+| We couldn't read that deck just now. Add your slides below. | Nie udało się teraz odczytać tej prezentacji. Dodaj slajdy poniżej. | Slide upload failure | Founder-approved 2026-11-16 |
+| How do you feel? | Jak się czujesz? | Pre-recording check | Founder-approved 2026-11-16 |
+| Before you step on stage | Zanim zaczniesz mówić | Pre-recording check | Founder-approved 2026-11-16 |
+| Nervous | Czuję stres | Pre-recording choice | Founder-approved 2026-11-16 |
+| Excited | Czuję ekscytację | Pre-recording choice | Founder-approved 2026-11-16 |
+| Calm | Czuję spokój | Pre-recording choice | Founder-approved 2026-11-16 |
+| Not sure | Nie wiem | Pre-recording choice | Founder-approved 2026-11-16 |
+| Skip | Pomiń | Pre-recording choice | Founder-approved 2026-11-16 |
+| Same presentation as Take {take} | Ta sama prezentacja co w nagraniu {take} | Later-Take microphone wait | Founder-approved 2026-11-16 |
+| Same stand-in presentation as Take 1 | Ta sama prezentacja zastępcza co w nagraniu 1 | Later-Take microphone wait | Founder-approved 2026-11-16 |
+| New slides | Nowe slajdy | First Take after a deck change | Founder-approved 2026-11-16 |
+| You're out of tokens. | Nie masz już tokenów. | Setup's optional price note | Founder-approved 2026-11-16 |
+
+Frontend-owned PDF validation, timeout, connectivity, size and unsupported-file
+errors use the same approved locale table. The parser's free-form `warnings`
+array is backend-owned and remains verbatim until the backend gives those
+warnings a locale-aware contract; the frontend does not guess translations for
+unknown server text.
+
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · The wait can take its five labels from the coach document. With none, the same five stay, in the same order. · FE (this PR)
 
+- 2026-11-16 · reactive UI-locale source · RootLayout's server-resolved locale seeds the one provider used by mounted recording, project, Lounge quick-action and footer surfaces; a manual EN/PL choice propagates immediately without a reload or remount, so an active recording is not interrupted. Footer links whose Polish wording is still pending continue to fall back visibly to English. Transcript, feedback and generated-coaching language remain separate · FE (this PR)
+- 2026-11-16 · founder-approved localization task · project entry, newcomer setup, the pre-recording feelings check, slide upload and later-Take presentation status use the app/system locale; user-authored and model-generated content keep their own language. Exact Polish copy is inventoried above. Was: these fixed controls remained English while the recording still frame was Polish · FE (this PR)
+- 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
+- 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 
 - 2026-11-11 · N648 item 8 · no screen changes: a Take recorded in a host's chat that takes Takes goes up exactly as every Take does; the chat is noted at Finish (`keepTakeAtFinish`); once the server names it, `sendTake` (`lib/willab/takeOutbox.ts`) tags it with that chat once, best effort (POST /v2/chats/<id>/take {take}, backend #1961). A failed tag stops nothing. A Take made in the speaking chat posts no tag. The chat is kept with the Take's copy on the device (`KeptTake.chat`), so a Take sent again after a reload is tagged too · FE (this PR)

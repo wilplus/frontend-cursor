@@ -3,21 +3,24 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import {
+  uiText,
+  uiTextWith,
+  type UiLocale,
+} from "@/lib/uiLocale";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import { archiveProject } from "@/services/api/projectArchive";
-import { currentProjectOf } from "@/lib/willab/oneProject";
-import { useOneProjectQuestion } from "./OneProjectQuestion";
-import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
-import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 import {
   deleteSetupDraft,
   listSetupDrafts,
   type SetupDraft,
 } from "@/lib/willab/setupDraft";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectPicker — context-aware recording setup, Scenario A (founder         */
@@ -52,12 +55,9 @@ import {
 /*  With NO projects there is nothing to choose between, so the screen is a    */
 /*  single centred "Start your first project" — one thing, nothing competing.  */
 /*                                                                            */
-/*  2026-10-29 (founder, backend N254) — one project at a time. The current  */
-/*  project is the one with the newest Take. "Start a new project", or a     */
-/*  row that is not the current project, first asks "One project at a time"; */
-/*  Continue archives the current project, then goes on as before. The       */
-/*  current project's own row, a draft, and an account with no Take ask      */
-/*  nothing.                                                                 */
+/*  Founder-approved structure (2026-11-16): projects are concurrent.         */
+/*  Starting or opening one never archives another; Archive remains an        */
+/*  explicit action on the project row only.                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function ProjectPicker({
@@ -82,6 +82,7 @@ export default function ProjectPicker({
   onSkip: () => void;
   onClose: () => void;
 }) {
+  const locale = useUiLocale();
   useBackDismiss(onClose);
   const [arcs, setArcs] = useState<TrainingArc[]>([]);
   // Three-way, so "still loading" and "couldn't load" are never mistaken for
@@ -103,22 +104,8 @@ export default function ProjectPicker({
     return ok;
   }
 
-  // One project at a time (N254): leaving the current project asks first.
-  const question = useOneProjectQuestion();
-  const current = status === "ready" ? currentProjectOf(arcs) : null;
-  function leaveCurrent(then: () => void): void {
-    if (!current) {
-      then();
-      return;
-    }
-    const leaving = current;
-    question.ask({ current: leaving.topic, commit: () => archiveProject(leaving.arcId), then });
-  }
-  const startNew = () => leaveCurrent(onNewTopic);
-  const openProject = (arc: TrainingArc) => () => {
-    if (current?.arcId === arc.arcId) onContinue(arc);
-    else leaveCurrent(() => onContinue(arc));
-  };
+  const startNew = onNewTopic;
+  const openProject = (arc: TrainingArc) => () => onContinue(arc);
 
   async function deleteDraft(draft: SetupDraft): Promise<boolean> {
     deleteSetupDraft(ownerId, draft.id);
@@ -175,11 +162,11 @@ export default function ProjectPicker({
       {/* Game-style header row (the design reference): title left, close
           right, one row — the old "New recording" eyebrow is gone (founder,
           item 6c). */}
-      <div className="flex shrink-0 items-center justify-between px-5 pt-4">
+      <div className={`${WILLAB_CONTENT_RAIL} flex shrink-0 items-center justify-between px-5 pt-4`}>
         <h2 className="text-[17px] font-semibold text-foreground">
-          What are you recording?
+          {uiText(locale, "projectPickerTitle")}
         </h2>
-        <OverlayCloseButton onClick={onClose} />
+        <OverlayCloseButton onClick={onClose} ariaLabel={uiText(locale, "close")} />
       </div>
 
       {firstProject ? (
@@ -190,25 +177,25 @@ export default function ProjectPicker({
             onClick={onNewTopic}
             className="h-12 w-full max-w-xs rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
           >
-            Start your first project
+            {uiText(locale, "startFirstProject")}
           </Button>
         </div>
       ) : (
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-6">
+        <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-5 px-5 py-6`}>
           <Button
             type="button"
             onClick={startNew}
             className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden />
-            Start a new project
+            {uiText(locale, "startNewProject")}
           </Button>
 
           {status === "loading" ? (
             <div className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
               <VoiceMark size={20} />
-              Looking for your projects…
+              {uiText(locale, "projectLoading")}
             </div>
           ) : status === "error" ? (
             // Unreachable is NOT "you have no projects" — offer the retry
@@ -216,14 +203,14 @@ export default function ProjectPicker({
             // (review R-pp3/R-pp6).
             <div className="flex flex-col items-start gap-2 px-1">
               <p className="text-[13px] text-muted-foreground">
-                Couldn&apos;t load your projects.
+                {uiText(locale, "projectLoadFailed")}
               </p>
               <button
                 type="button"
                 onClick={() => setAttempt((n) => n + 1)}
                 className="text-[13px] text-foreground underline underline-offset-2"
               >
-                Try again
+                {uiText(locale, "tryAgain")}
               </button>
             </div>
           ) : null}
@@ -233,13 +220,14 @@ export default function ProjectPicker({
           (status === "ready" && titled.length > 0) ? (
             <div className="flex flex-col gap-1">
               <p className="px-1 pb-1 text-[13px] text-muted-foreground">
-                Or another take of:
+                {uiText(locale, "projectAnotherTake")}
               </p>
               {drafts.map((d) => (
                 <PickerRow
                   key={`draft:${d.id}`}
-                  label={d.topic.trim() || "Untitled draft"}
+                  label={d.topic.trim() || uiText(locale, "projectUntitledDraft")}
                   draft
+                  locale={locale}
                   onOpen={() => onResumeDraft(d)}
                   onDelete={() => deleteDraft(d)}
                 />
@@ -249,6 +237,7 @@ export default function ProjectPicker({
                     <ProjectRow
                       key={a.arcId}
                       arc={a}
+                      locale={locale}
                       onOpen={openProject(a)}
                       onArchive={() => archive(a)}
                     />
@@ -259,7 +248,6 @@ export default function ProjectPicker({
         </div>
       </div>
       )}
-      {question.sheet}
     </div>
   );
 }
@@ -269,11 +257,13 @@ export default function ProjectPicker({
 function PickerRow({
   label,
   draft = false,
+  locale,
   onOpen,
   onDelete,
 }: {
   label: string;
   draft?: boolean;
+  locale: UiLocale;
   onOpen: () => void;
   onDelete?: () => Promise<boolean>;
 }) {
@@ -287,11 +277,25 @@ function PickerRow({
         <span className="min-w-0 break-words">{label}</span>
         {draft ? (
           <span className="shrink-0 text-[13px] text-muted-foreground">
-            Draft
+            {uiText(locale, "projectDraft")}
           </span>
         ) : null}
       </button>
-      {onDelete ? <ProjectRowMenu label={label} onDelete={onDelete} /> : null}
+      {onDelete ? (
+        <ProjectRowMenu
+          label={label}
+          actionLabel={uiText(locale, "delete")}
+          menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: label })}
+          confirm={{
+            title: uiText(locale, "projectDeleteDraftTitle"),
+            body: uiText(locale, "projectDeleteDraftBody"),
+            confirmLabel: uiText(locale, "delete"),
+            cancelLabel: uiText(locale, "cancel"),
+            failedLabel: uiText(locale, "deleteFailed"),
+          }}
+          onDelete={onDelete}
+        />
+      ) : null}
     </div>
   );
 }
@@ -301,10 +305,12 @@ function PickerRow({
  *  request is managed in Data & consent. */
 function ProjectRow({
   arc,
+  locale,
   onOpen,
   onArchive,
 }: {
   arc: TrainingArc;
+  locale: UiLocale;
   onOpen: () => void;
   onArchive: () => Promise<boolean>;
 }) {
@@ -317,7 +323,7 @@ function ProjectRow({
         >
           <span className="min-w-0 break-words">{arc.topic}</span>
           <span className="shrink-0 text-[13px]">
-            {PROJECT_DELETION_COPY.pending}
+            {uiText(locale, "projectDeletionPending")}
           </span>
         </div>
       </div>
@@ -334,9 +340,10 @@ function ProjectRow({
       </button>
       <ProjectRowMenu
         label={arc.topic}
-        actionLabel={PROJECT_ARCHIVE_COPY.archive}
+        actionLabel={uiText(locale, "projectArchive")}
         confirm={null}
-        failedLabel={PROJECT_ARCHIVE_COPY.archiveFailed}
+        failedLabel={uiText(locale, "projectArchiveFailed")}
+        menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: arc.topic })}
         onDelete={onArchive}
       />
     </div>

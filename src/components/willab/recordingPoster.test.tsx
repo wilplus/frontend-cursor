@@ -32,6 +32,9 @@ let host: HTMLDivElement;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.clear();
+  document.documentElement.lang = "en";
+  delete document.documentElement.dataset.uiLocale;
   host = document.createElement("div");
   document.body.appendChild(host);
   act(() => {
@@ -42,6 +45,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  document.documentElement.lang = "";
+  delete document.documentElement.dataset.uiLocale;
 });
 
 const FIRST_TAKE = [
@@ -91,9 +96,27 @@ describe("the slide on the recording screen", () => {
     expect(host.textContent).toContain("Start with who pays");
   });
 
+  it("localises the fixed default poster in Polish without translating a speaker's slide", () => {
+    document.documentElement.lang = "pl";
+    show([...DEFAULT_DECK]);
+    expect(poster()?.querySelector("h3")?.textContent).toBe("Początek");
+    expect(poster()?.textContent).toContain("O czym opowiesz — w jednym zdaniu.");
+
+    show([{ title: "Opening", body: "My English customer story" }]);
+    expect(host.querySelector("h3")?.textContent).toBe("Opening");
+    expect(host.textContent).toContain("My English customer story");
+  });
+
   it("an answer's question is the poster with whose question it is", () => {
     show([{ title: "Is the scalp scrub good for dry hair?", body: "" }], [], "Sarah");
     expect(poster()?.querySelector("[data-slide-kicker]")?.textContent).toBe("Sarah asks");
+    expect(poster()?.querySelector("h3")?.textContent).toBe("Is the scalp scrub good for dry hair?");
+  });
+
+  it("localises an answer's fixed poster label without translating the question", () => {
+    document.documentElement.lang = "pl";
+    show([{ title: "Is the scalp scrub good for dry hair?", body: "" }], [], "Sarah");
+    expect(poster()?.querySelector("[data-slide-kicker]")?.textContent).toBe("Sarah pyta");
     expect(poster()?.querySelector("h3")?.textContent).toBe("Is the scalp scrub good for dry hair?");
   });
 

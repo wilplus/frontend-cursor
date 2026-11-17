@@ -6,6 +6,8 @@ import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/wil
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import type { UiLocale } from "@/lib/uiLocale";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
@@ -59,7 +61,7 @@ import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
-import { RECORDING_COPY, answerWhere, recordingWhere } from "./recordingCopy";
+import { answerWhere, recordingText, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
   readExploreArc,
@@ -78,6 +80,7 @@ import {
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { restoredSetupFor } from "./restoredSetup";
 import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentationInPlay";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
@@ -177,6 +180,7 @@ export default function LabOverlay({
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
   ) => void;
 }) {
+  const uiLocale = useUiLocale();
   // AN ANSWER IN A CHAT (backend N363, founder-approved for this lock): the
   // screens opened from "Record an answer" record it as any Take, with the
   // person's name above "Take 1 · Slide 1 of 1" (N334 item 2); Finish take
@@ -1665,25 +1669,27 @@ export default function LabOverlay({
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
       {drawsOwnTopBar(state) ? null : (
-        <header className={`flex ${look.header} shrink-0 items-center justify-between px-4`}>
-          {/* The recording screen says where you are: "Take N · Slide n of
-              m" on the left, in place of the old "Recording" label (founder
-              lock 2026-10-07, the recording screens: "Recording" crossed out,
-              "Take · Slide" moved up into the top bar). Every other step —
-              "Getting your mic ready" included —
-              keeps the bare ✕. This bar is the still frame: a slide change
-              rewrites the line's text and nothing else. */}
-          <RecordingWhere
-            show={state === "lab_recording"}
-            micStatus={mic.state.status}
-            who={look.who}
-            of={look.of}
-            to={look.to}
-            takeNumber={arcTakeIndex}
-            slide={currentSlide}
-            slideCount={recordingSlides.length}
-          />
-          <OverlayCloseButton onClick={handleClose} />
+        <header className={`${look.header} shrink-0`}>
+          <div className={`${WILLAB_CONTENT_RAIL} flex h-full items-center justify-between px-4`}>
+            {/* The recording screen says where you are: "Take N · Slide n of
+                m" on the left, in place of the old "Recording" label (founder
+                lock 2026-10-07, the recording screens: "Recording" crossed out,
+                "Take · Slide" moved up into the top bar). Every other step —
+                "Getting your mic ready" included —
+                keeps the bare ✕. This bar is the still frame: a slide change
+                rewrites the line's text and nothing else. */}
+            <RecordingWhere
+              show={state === "lab_recording"}
+              micStatus={mic.state.status}
+              who={look.who}
+              of={look.of}
+              to={look.to}
+              takeNumber={arcTakeIndex}
+              slide={currentSlide}
+              slideCount={recordingSlides.length}
+            />
+            <OverlayCloseButton onClick={handleClose} />
+          </div>
         </header>
       )}
 
@@ -1705,7 +1711,7 @@ export default function LabOverlay({
         {showsMicWait(state, mic.state.status, rejectedMsg) ? (
           <LoadingState
             placement="surface"
-            label={RECORDING_COPY.micReady}
+            label={recordingText("micReady", uiLocale)}
             labelVisible
             // Which presentation a later Take is said against (founder
             // 2026-10-16): the one the Take will record with, else the
@@ -1713,7 +1719,8 @@ export default function LabOverlay({
             // On Take 1, why the browser is asking for the mic (N273 item 4).
             note={micWaitNote(
               arcTakeIndex,
-              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews),
+              laterTakePresentation(arcTakeIndex, context, preloadDeck, deckNews, uiLocale),
+              uiLocale,
             )}
           />
         ) : null}
@@ -2015,6 +2022,7 @@ export function RecordingPhase({
    *  (backend N441 item 7). */
   asks?: string | null;
 }) {
+  const uiLocale = useUiLocale();
   const retryFileRef = useRef<HTMLInputElement | null>(null);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
   // setup context and let the user re-record without re-entering Setup. This
@@ -2070,7 +2078,7 @@ export function RecordingPhase({
   // itself once the mic is open (N70: the learning screen is deleted).
   if (micState.status === "idle") {
     if (micWaitShownByHost) return null;
-    return <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />;
+    return <LoadingState placement="surface" label={recordingText("micReady", uiLocale)} labelVisible />;
   }
 
   if (micState.status === "error") {
@@ -2256,9 +2264,13 @@ function enteringRecording(state: WillabState): boolean {
 /** The small grey lines under "Getting your mic ready": a later Take's
  *  presentation, and on Take 1 why the browser asks for the mic (N273 item 4);
  *  then the earbuds line when the last Take was recorded through them (N372). */
-function micWaitNote(take: number, presentation: string | null): string[] {
-  const first = presentation ?? (take <= 1 ? RECORDING_COPY.micWhy : null);
-  const earbuds = lastMicWasEarbuds() ? RECORDING_COPY.earbuds : null;
+function micWaitNote(
+  take: number,
+  presentation: string | null,
+  locale: UiLocale,
+): string[] {
+  const first = presentation ?? (take <= 1 ? recordingText("micWhy", locale) : null);
+  const earbuds = lastMicWasEarbuds() ? recordingText("earbuds", locale) : null;
   return [first, earbuds].filter((line): line is string => line !== null);
 }
 
@@ -2288,7 +2300,7 @@ export function labColumnClass(
     state === "readout" || state === "lab_recording"
       ? "min-h-0 overflow-hidden"
       : "overflow-y-auto";
-  return `scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${gaps} ${scroll}`;
+  return `scrollbar-none ${WILLAB_CONTENT_RAIL} flex flex-1 flex-col px-4 ${gaps} ${scroll}`;
 }
 
 /** Where you are while recording: "Take 2 · Slide 3 of 6" on the left of
@@ -2320,6 +2332,7 @@ export function RecordingWhere({
   slide: number;
   slideCount: number;
 }) {
+  const locale = useUiLocale();
   if (!show || micStatus !== "recording" || slideCount === 0) {
     return <span />;
   }
@@ -2327,7 +2340,7 @@ export function RecordingWhere({
   if (of) {
     return (
       <p data-testid="recording-where" data-recording-of="" className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground">
-        {answerWhere(of, slide, slideCount)}
+        {answerWhere(of, slide, slideCount, locale)}
       </p>
     );
   }
@@ -2344,7 +2357,7 @@ export function RecordingWhere({
       data-testid="recording-where"
       className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {recordingWhere(takeNumber, slide, slideCount, to)}
+      {recordingWhere(takeNumber, slide, slideCount, to, locale)}
     </p>
   );
 }

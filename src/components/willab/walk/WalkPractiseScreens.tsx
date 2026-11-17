@@ -73,6 +73,8 @@ export type PractiseScreenCtx = {
   /** The AI version of the speaker's voice for a voice Exercise moment (N71). */
   aiVoiceOf?: (moment: number) => AiVoiceState | undefined;
   aiVoicePlayed?: (moment: number) => void;
+  /** Re-reads an expired signed AI-voice URL. */
+  aiVoiceRefresh?: (moment: number) => void;
   /** The Take's one quote from the speaker's notebook (backend N268). */
   quotes?: WalkQuotes;
   /** Will's written reply after a One thing walk try (backend N565). */
@@ -301,6 +303,7 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
       state={state}
       {...ai}
       onPlay={() => ctx.aiVoicePlayed?.(moment.index)}
+      onError={() => ctx.aiVoiceRefresh?.(moment.index)}
     />
   );
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Mic } from "lucide-react";
+import { BarBox } from "@/components/willab/chats/ChatBar";
 import { PRICES, SEND, W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
@@ -74,7 +75,6 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   const stopRec = useRef<(() => void) | null>(null);
   const [i, setI] = useState(0);
   const [draft, setDraft] = useState("");
-  const box = useRef<HTMLTextAreaElement>(null);
   const downAt = useRef(0);
   const live = useRef(false);
   const linesRef = useRef<Line[]>(OPENING);
@@ -365,7 +365,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
     } catch {
       live.current = false;
       setRecording(false);
-      box.current?.focus();
+      document.querySelector<HTMLTextAreaElement>("[data-talk-composer] textarea")?.focus();
     }
   };
 
@@ -520,13 +520,19 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
           {draft ? <button type="button" data-rewrite="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={() => setDraft("")}>Rewrite</button> : null}
         </div>
       ) : null}
-      <form data-talk-composer="" className={`mx-4 mb-3 flex items-end gap-1.5 rounded-[28px] border bg-background p-1.5 shadow-[0_8px_30px_rgba(20,20,30,.07)] ${recording ? "border-[rgba(229,56,59,.45)]" : "border-border"}`} onSubmit={(e) => { e.preventDefault(); const text = draft.trim(); if (!text) return; setDraft(""); take(text); }}>
-        <button type="button" aria-label="Speak" data-talk-mic="" data-recording={recording ? "" : undefined} className={`flex h-11 w-11 shrink-0 touch-none items-center justify-center rounded-full ${recording ? "bg-[#e5383b] text-white" : "bg-muted text-foreground"}`} onPointerDown={(e) => { e.preventDefault(); downAt.current = Date.now(); void onMic(); }} onPointerUp={() => { if (live.current && Date.now() - downAt.current >= 280) void onMic(); }}>
+      <div data-chat-bar="" data-talk-composer="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+        <button type="button" aria-label="Speak" data-talk-mic="" data-recording={recording ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onPointerDown={(e) => { e.preventDefault(); downAt.current = Date.now(); void onMic(); }} onPointerUp={() => { if (live.current && Date.now() - downAt.current >= 280) void onMic(); }}>
           <Mic className="h-5 w-5" aria-hidden />
         </button>
-        <textarea ref={box} value={draft} rows={1} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} aria-label={placeholder} className="max-h-28 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[16px] leading-[22px] outline-none placeholder:text-[#a3a3a3]" />
-        <button type="submit" aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-[13px] font-semibold text-white disabled:bg-[#e5e5e5]" disabled={!draft.trim()}>Send</button>
-      </form>
+        <BarBox
+          key={draft}
+          hint={placeholder}
+          open
+          grow
+          initial={draft}
+          onSend={async (words) => { setDraft(""); take(words); return true; }}
+        />
+      </div>
       <button type="button" data-talk-list="" className="min-h-11 border-t border-border text-[15px] font-semibold" onClick={onList}>See the list</button>
     </div>
   );

@@ -82,6 +82,7 @@ import {
   eraseTrainingImport, fetchBlindConfidenceQueue, fetchTrainingImportsPage, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
 import { isFounderEmail } from "@/lib/founder";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { useUserEmail } from "../useUserEmail";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
@@ -376,11 +377,11 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
   return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
-/** The panel's frame on a computer: the column Will's chat fills (mx-auto,
- *  max-w-3xl, as WillabSurface draws it; backend N627, as N618 item 10 for
- *  the AI models). Every screen and sheet of the panel sits in it; on a
- *  phone it is the window's width. */
-export const WILL_COLUMN = "md:mx-auto md:max-w-3xl";
+/** The panel's frame on a computer: the shared column Will's chat and the
+ *  global app bar fill (backend N627, as N618 item 10 for the AI models).
+ *  Every screen and sheet of the panel sits in it; on a phone it is the
+ *  window's width. */
+export const WILL_COLUMN = WILLAB_CONTENT_RAIL;
 
 export default function CoachPanel({ state, dispatch, speakers, loading, settled = true, refresh, oneBar = false }: CoachPanelProps) {
   const { screen } = state;

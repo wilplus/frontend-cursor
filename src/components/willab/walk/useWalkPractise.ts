@@ -15,7 +15,7 @@ import {
 } from "@/lib/willab/walkPractise";
 import { oneThingTryWords } from "@/lib/willab/walkThread";
 import type { WalkPractiseIO, WalkPractisePassage } from "@/services/api/walkPractise";
-import { ensureAiVoice, noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
+import { ensureAiVoice, forgetAiVoice, noteAiVoicePlay, readAiVoice, readAiVoiceOnce, type AiVoiceState } from "@/services/api/aiVoice";
 
 /** How often, and how long, a clip being made is asked after (N71; every
  *  second for a minute, founder 2026-10-15), then every five seconds for ten
@@ -171,6 +171,8 @@ export type WalkPractise = {
   aiVoiceOf: (moment: number) => AiVoiceState | undefined;
   /** The speaker pressed play on the AI clip. */
   aiVoicePlayed: (moment: number) => void;
+  /** The speaker's ready AI clip rejected playback: fetch a fresh signed URL. */
+  aiVoiceRefresh: (moment: number) => void;
   /** The practice the moment's AI clip belongs to; the chat fetches it by it. */
   aiVoicePracticeOf: (moment: number) => string | undefined;
   /** The moment's clip is being asked and not yet answered. */
@@ -230,6 +232,7 @@ export function useWalkPractise<R>(args: {
   aiVoiceNow.current = aiVoice;
   const aiAsked = useRef(new Set<number>());
   const aiPractice = useRef(new Map<number, string>());
+  const aiRefreshes = useRef(new Map<number, Promise<void>>());
   // Moments whose clip is being asked and not yet answered.
   const aiWaiting = useRef(new Set<number>());
   const aiTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -527,6 +530,7 @@ export function useWalkPractise<R>(args: {
     aiTimers.current.clear();
     aiAsked.current = new Set();
     aiPractice.current = new Map();
+    aiRefreshes.current.clear();
     aiWaiting.current = new Set();
     setAiVoice({});
   }, [cancel]);
@@ -536,6 +540,25 @@ export function useWalkPractise<R>(args: {
   const aiVoicePlayed = useCallback((moment: number) => {
     const practiceId = aiPractice.current.get(moment);
     if (practiceId) void noteAiVoicePlay(practiceId);
+  }, []);
+
+  const aiVoiceRefresh = useCallback((moment: number) => {
+    const practiceId = aiPractice.current.get(moment);
+    if (!practiceId || aiRefreshes.current.has(moment)) return;
+    // Match the Lounge's recovery path: discard any cached signed URL, then
+    // read the existing AI-voice endpoint once for a fresh one.
+    forgetAiVoice(practiceId);
+    const refresh = readAiVoiceOnce(practiceId)
+      .then((read) => {
+        const clip = read?.clip;
+        if (!read || clip?.state !== "ready" || !clip.url) return;
+        setAiVoice((current) => ({ ...current, [moment]: read }));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        aiRefreshes.current.delete(moment);
+      });
+    aiRefreshes.current.set(moment, refresh);
   }, []);
 
   const aiVoicePracticeOf = useCallback((moment: number) => aiPractice.current.get(moment), []);
@@ -549,5 +572,5 @@ export function useWalkPractise<R>(args: {
     const entry = opened.current.get(moment);
     return entry !== undefined && entry.id === undefined;
   }, []);
-  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoicePracticeOf, aiVoiceAsking, practiceOf, practiceOpening };
+  return { elapsed, capturing, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed, aiVoiceRefresh, aiVoicePracticeOf, aiVoiceAsking, practiceOf, practiceOpening };
 }

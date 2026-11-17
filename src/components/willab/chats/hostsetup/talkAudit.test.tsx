@@ -53,7 +53,7 @@ afterEach(() => {
 const flush = async () => { for (let i = 0; i < 6; i += 1) await act(async () => { await Promise.resolve(); }); };
 const tap = async (label: string) => {
   taps += 1;
-  const b = [...container.querySelectorAll("button")].find((x) => (x.textContent ?? "").includes(label) && !(x as HTMLButtonElement).disabled);
+  const b = [...container.querySelectorAll("button")].find((x) => ((x.textContent ?? "").includes(label) || x.getAttribute("aria-label") === label) && !(x as HTMLButtonElement).disabled);
   if (!b) throw new Error(label);
   await act(async () => (b as HTMLButtonElement).click());
   await flush();
@@ -217,7 +217,7 @@ describe("the talk, scored by the script", () => {
     await tap("Rewrite");
     expect(container.querySelector("textarea")!.value).toBe("");
     await type("Hello there.");
-    await tap("Keep");
+    await tap("Send");
     expect(snap().hello).toBe("Hello there.");
     expect(snap().send.join(",")).toBe(before);
     await tap("Photo");

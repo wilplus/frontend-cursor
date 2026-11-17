@@ -468,7 +468,7 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     );
   }
   // An edit of one part stands alone; the first run reads as a chat.
-  const ctxLive: Ctx = { S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) };
+  const ctxLive: Ctx = { S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()), finish: editDone };
   const history = S.edit && !S.onePart ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
   const sendTakes = R && Array.isArray(R.send) ? takesFromSend(R.send) : null;
   return (
@@ -546,6 +546,8 @@ type Ctx = {
   onClose: () => void;
   /** Where a "Not now" that ends the models, or the last step, goes. */
   done: () => void;
+  /** A row's last answer: save is done, open the next row. */
+  finish: () => void;
 };
 
 function picks(labels: string[], onChoice: (label: string) => void, extra: Partial<SetupDockSpec> = {}): SetupDockSpec {
@@ -654,13 +656,13 @@ function WordSteps(c: Ctx): ReactNode {
   const { R } = c;
   switch (c.S.at) {
     case "line":
-      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => c.keep("line", v), W.lineAsk, (v) => v);
+      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => commitRow(c, W.lineSay, v, "line", v), W.lineAsk, (v) => v);
     case "name": {
       const names = R.suggest.name ?? [];
-      return kc(c, "name", W.nameSay, names, R.name ?? names[0], (v) => <Card b={v} />, (v) => c.keep("name", v), W.nameAsk, (v) => v);
+      return kc(c, "name", W.nameSay, names, R.name ?? names[0], (v) => <Card b={v} />, (v) => commitRow(c, W.nameSay, v, "name", v), W.nameAsk, (v) => v);
     }
     case "hello":
-      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => c.keep("hello", v), W.helloAsk, (v) => v);
+      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => commitRow(c, W.helloSay, v, "hello", v), W.helloAsk, (v) => v);
     default:
       return null;
   }
@@ -673,14 +675,14 @@ function YesNoStep(c: Ctx): ReactNode {
   switch (S.at) {
     case "care":
       return (
-        <Frame onBack={c.back} dock={yesNo(W.no, W.yes, () => c.keep("care", false), () => c.keep("care", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.no, W.yes, () => commitRow(c, W.careSay, W.no, "care", false), () => commitRow(c, W.careSay, W.yes, "care", true))}>
           <Say>{W.careSay}</Say>
           <Cap>{W.careCap}</Cap>
         </Frame>
       );
     case "smart":
       return (
-        <Frame onBack={c.back} dock={yesNo(W.notNow, W.yes, () => c.keep("smart", false, S.edit ? c.done : () => c.go("who")), () => c.keep("smart", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.notNow, W.yes, () => commitRow(c, W.notSpecialist, W.notNow, "smart", false, S.edit ? c.done : () => c.go("who")), () => commitRow(c, W.notSpecialist, W.yes, "smart", true))}>
           <Say>{W.notSpecialist}</Say>
           <Say>{W.makeSmart(R.spec)}</Say>
           <Cap>{W.smartCap}</Cap>
@@ -688,7 +690,7 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "share":
       return (
-        <Frame onBack={c.back} dock={yesNo(W.notNow, W.shareThem, () => c.keep("share", false), () => c.keep("share", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.notNow, W.shareThem, () => commitRow(c, W.shareSay, W.notNow, "share", false), () => commitRow(c, W.shareSay, W.shareThem, "share", true))}>
           <Say>{W.shareSay}</Say>
           {models.filter((m) => m.own).map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
           <Say>{W.shareTwo}</Say>
@@ -706,7 +708,7 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "live":
       return (
-        <Frame onBack={c.back} dock={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.done), () => c.keep("live", true, c.done))}>
+        <Frame onBack={c.back} dock={yesNo(W.notYet, W.yes, () => commitRow(c, W.openToPeople, W.notYet, "live", false, c.done), () => commitRow(c, W.openToPeople, W.yes, "live", true, c.done))}>
           <Say>{W.openToPeople}</Say>
           <Cap>{W.anyoneLink}</Cap>
           <Card b={W.chatOf(S.ownChat?.title || c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${S.ownChat?.title || c.name}`)} />
@@ -779,25 +781,44 @@ function skipWalk(id: Step, S: State, R: HostRecipe): boolean {
   return id === "walkorder" && walkSteps(S, R).length < 2;
 }
 
+/** The tap's own words, above the next question. A row does not wait for the
+ *  save before it moves, so Yes on a value that is already kept still advances. */
+function said(c: Ctx, will: string, me: string) {
+  c.S.log.push({ will: [will], me });
+  c.S.pending = null;
+}
+
+/** Save a part. In a row's chat the answer is on screen and the row moves on
+ *  at once, including when the saved value did not change. */
+function commitRow(c: Ctx, will: string, me: string, part: string, value: unknown, done: () => void = c.next) {
+  if (!c.S.onePart) return c.keep(part, value, done);
+  said(c, will, me);
+  c.keep(part, value, () => c.paint());
+  done();
+}
+
 /** One yes or no per item. The saved list is never empty. An edit saves each
- *  answer; the first run saves once, on the last. */
+ *  answer and always moves on; the first run saves once, on the last. */
 function yesNoEach<T extends string>(c: Ctx, key: string, list: T[], chosen: T[], ask: (item: T) => string, setChosen: (next: T[]) => void, save: (next: T[], leave: boolean) => void) {
   const { S } = c;
   const i = S.i[key] ?? 0;
   const item = list[i];
   if (!item) return null;
   const pick = (on: boolean) => {
-    let next = on ? (chosen.includes(item) ? chosen : [...chosen, item]) : chosen.filter((x) => x !== item);
+    let next = on ? (chosen.includes(item) ? [...chosen] : [...chosen, item]) : chosen.filter((x) => x !== item);
     const leave = i + 1 >= list.length;
     if (leave && !next.length) next = [item];
     setChosen(next);
-    const move = () => {
-      if (!leave) { S.i[key] = i + 1; c.paint(); return; }
-      S.i[key] = 0;
-    };
-    if (S.edit) return save(next, leave);
-    move();
-    if (leave) save(next, true);
+    if (S.onePart) said(c, ask(item), on ? W.yes : W.no);
+    if (!leave) {
+      S.i[key] = i + 1;
+      c.paint();
+      if (S.edit) save(next, false);
+      return;
+    }
+    S.i[key] = 0;
+    save(next, true);
+    if (S.edit) c.finish();
   };
   return (
     <Frame onBack={() => { if (i > 0) { S.i[key] = i - 1; c.paint(); return; } c.back(); }} dock={yesNo(W.no, W.yes, () => pick(false), () => pick(true))}>
@@ -818,16 +839,13 @@ function WalkStep(c: Ctx): ReactNode {
       return yesNoEach(c, "walk", WALK_IDS, S.walkTicks ?? initial, (k) => W.walkOne(W.walkSteps[k]), (next) => { S.walkTicks = next; }, (next, leave) => {
         const steps = ordered(next);
         if (!S.edit) {
+          if (!leave) return;
           S.walk = steps;
           S.walkTicks = null;
           c.next();
           return;
         }
-        c.keep("walk", { steps, out: walkOut(R) }, () => {
-          if (!leave) { S.i.walk = (S.i.walk ?? 0) + 1; c.paint(); return; }
-          S.i.walk = 0;
-          c.next();
-        });
+        c.keep("walk", { steps, out: walkOut(R) }, () => c.paint());
       });
     }
     case "walkorder": {
@@ -1104,16 +1122,15 @@ function StepScreen(c: Ctx) {
       const ordered = (next: SendKind[]) => list.filter((k) => next.includes(k));
       return yesNoEach(c, "send", list, S.sendSet ?? initial, (k) => W.sendOne(SEND[k][0]), (next) => { S.sendSet = next; }, (next, leave) => {
         const value = ordered(next);
-        if (!S.edit) return c.keep("send", value);
-        c.keep("send", value, () => {
-          if (!leave) { S.i.send = (S.i.send ?? 0) + 1; c.paint(); return; }
-          S.i.send = 0;
-          c.next();
-        });
+        if (!S.edit) {
+          if (leave) c.keep("send", value);
+          return;
+        }
+        c.keep("send", value, () => c.paint());
       });
     }
     case "out":
-      return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => c.keep("out", v));
+      return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => commitRow(c, W.outSay, OUT[v][0], "out", v));
     case "q": {
       if (S.edit && R.questions.length) {
         const qs = R.questions.map((item) => item.q);
@@ -1157,7 +1174,7 @@ function StepScreen(c: Ctx) {
         </Frame>
       );
     case "taps":
-      return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => c.keep("taps", v), W.tapsAsk, (v) => [v]);
+      return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => commitRow(c, W.tapsSay, v.join(" · "), "taps", v), W.tapsAsk, (v) => [v]);
     case "way": {
       const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
       return (

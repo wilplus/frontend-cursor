@@ -14,6 +14,7 @@ import {
   type FeedbackKeyMoment,
   type FeedbackTake,
 } from "@/services/api/arcFeedback";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  FeedbackOverlay — one take's published feedback (delivery layer)           */
@@ -115,17 +116,19 @@ export default function FeedbackOverlay({
   return (
     <MediaRefreshProvider refresh={media.refresh} payload={data}>
     <div
-      className={`willab-canvas fixed inset-0 flex flex-col bg-background ${
+      className={`fixed inset-0 flex flex-col bg-background ${
         topLayer ? "z-50" : "z-40"
       }`}
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-        <span className="text-[13px] font-medium text-foreground">{title}</span>
-        <OverlayCloseButton onClick={onClose} />
+      <div className="shrink-0 border-b border-border bg-muted/70 backdrop-blur">
+        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between px-4 py-2.5`}>
+          <span className="text-[13px] font-medium text-foreground">{title}</span>
+          <OverlayCloseButton onClick={onClose} />
+        </div>
       </div>
 
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6">
+        <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col px-4 py-6`}>
           {loading ? (
             <LoadingState placement="surface" />
           ) : !take ? (

@@ -210,15 +210,17 @@ function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, 
     <div data-part-chat={part.part} className={shown ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
       <FrameLead.Provider value={<PartBubble part={part} />}>
         <FrameBar.Provider value={(stepBack) => (
-          <div data-part-chat-bar="" className="flex h-[60px] shrink-0 items-center gap-2 border-b border-border px-4">
-            <button type="button" aria-label="Back" onClick={() => (stepBack ? stepBack() : onBack())} className="min-h-11 px-2 text-[15px] font-semibold text-foreground">
-              {W.backPlain}
-            </button>
-            <span data-part-progress="" className="text-[13px] text-muted-foreground">{W.placeInList(index + 1, total)}</span>
-            <button type="button" data-part-next="" onClick={onNext} className="ml-auto min-h-11 px-3 text-[15px] font-semibold text-foreground">
-              {last ? W.done : W.next}
-            </button>
-          </div>
+          <TopBar
+            circle={<LetterCircle id={`part-${part.part}`} name={part.title} size={36} />}
+            title={part.title}
+            subtitle={W.placeInList(index + 1, total)}
+            onBack={() => (stepBack ? stepBack() : onBack())}
+            right={(
+              <button type="button" data-part-next="" onClick={onNext} className="min-h-11 px-3 text-[15px] font-semibold text-foreground">
+                {last ? W.done : W.next}
+              </button>
+            )}
+          />
         )}>
           <HostSetup
             name={name}

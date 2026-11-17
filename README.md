@@ -84,6 +84,7 @@ The backend's table is in its [master doc](https://github.com/wilplus/backend-cu
 | Part of the code | Files | Home doc |
 |---|---|---|
 | The early speaking-coach admission and a project's practice checkpoint | `src/lib/admission.ts`, `src/lib/willab/practiceResume.ts` | [The recording screens](docs/flows/recording-screens.md) |
+| The shared 1080px app content rail used by product pages and full-screen overlays | `src/lib/willab/layout.ts` | [The recording screens](docs/flows/recording-screens.md) |
 | The recording screens: setting up a Take, the slides, the mic and recording | `src/components/willab/Lab*`, `src/components/willab/lab*`, `src/components/willab/Recording*`, `src/components/willab/useRecording*`, `src/components/willab/Presentation*`, `src/components/willab/presentation*`, `src/components/willab/ContextDocumentInput.tsx`, `src/components/willab/SlideStage.tsx`, `src/components/willab/pdfSlides.tsx`, `src/components/willab/DiscardTakeDialog.tsx`, `src/components/willab/FeelingsCheckIn.tsx`, `src/components/willab/willabFeelings.ts`, `src/components/willab/restoredSetup.ts`, `src/components/willab/willabLastSetup.ts`, `src/components/willab/audioUploadValidation.ts`, `src/lib/willab/labEntryHandover.ts`, `src/components/willab/OneProjectQuestion.tsx`, `src/lib/willab/oneProject.ts`, `src/lib/willab/setupDraft.ts`, `src/lib/willab/defaultDeck.ts`, `src/lib/willab/exploreArc.ts`, `src/lib/willab/takeOutbox.ts`, `src/lib/willab/takeResend.ts`, `src/components/willab/useTakeResend.ts`, `src/lib/willab/useNoPullToRefresh.ts`, `src/hooks/useDualCaptureMic.ts`, `src/lib/willab/oneVoice.ts`, `src/services/api/arcSetup.ts`, `src/services/api/recordingConfig.ts`, `src/services/api/contextDocument.ts`, `src/services/api/presentationExtract.ts`, `src/app/api/v2/config/`, `src/app/api/v2/lab/presentation/`, `src/app/api/v2/explore/arc/[arcId]/setup/`, `src/app/api/v2/explore/arc/[arcId]/recording-roots/`, `src/app/api/v2/explore/arc/[arcId]/context-document/`, `src/app/dev/recording/`, `public/presentation/` | [`docs/flows/recording-screens.md`](docs/flows/recording-screens.md) |
 | The wait while a Take is processed (voice mark, stage line, "Usually about a minute.") | `src/components/willab/Processing*`, `src/lib/willab/waitProgress.ts`, `src/app/dev/processing-wait/` | [`docs/flows/recording-screens.md`](docs/flows/recording-screens.md) |
 | Sending a Take and following it through processing (upload, live status, retries) | `src/services/api/labRecording.ts`, `src/services/api/recordingProgress.ts`, `src/services/api/sessionReadout.ts`, `src/services/api/readouts.ts`, `src/components/willab/useLabReadoutLive.ts`, `src/components/willab/useFailedTakeRecheck.ts`, `src/components/willab/useStatusHydration.ts`, `src/components/willab/readout.ts`, `src/lib/willab/processingTake.ts`, `src/lib/willab/takeUploading.ts`, `src/lib/sse.ts`, `src/app/api/v2/lab/recordings/`, `src/app/api/v2/user/readouts/`, `src/app/api/v2/user/sessions/` | [backend `docs/ASYNC-PIPELINE-QUEUE.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/ASYNC-PIPELINE-QUEUE.md) |
@@ -112,7 +113,7 @@ The backend's table is in its [master doc](https://github.com/wilplus/backend-cu
 | Accounts and sign-in | `src/app/(auth)/`, `src/app/auth/`, `src/components/auth/`, `src/lib/auth/`, `src/app/api/auth/`, `src/app/api/v2/signup/`, `src/app/api/v2/first-visit/`, `src/lib/funnel/firstVisit.ts`, `src/components/phone/`, `src/lib/phone/`, `src/services/api/whatsappNumber.ts`, `src/app/(protected)/`, `src/lib/supabase/`, `src/middleware.ts`, `src/app/api/results/`, `src/components/willab/useSignedIn.ts`, `src/components/willab/useUserEmail.ts`, `src/components/willab/useUserId.ts`, `src/components/willab/useUserProfile.ts`, `src/services/api/userProfile.ts`, `src/app/api/v2/user/profile/` | No page |
 | Tokens, prices and payments | `src/components/tokens/`, `src/hooks/useTokenWallet.ts`, `src/services/api/tokens.ts`, `src/services/api/subscribe.ts`, `src/app/api/v2/tokens/`, `src/app/api/v2/admin/tokens/`, `src/app/api/v2/user/offers/`, `src/app/(protected)/dashboard/pricing/` | No page |
 | Booking a lesson | `src/app/book/`, `src/components/booking/`, `src/lib/booking/`, `src/app/api/v2/booking/`, `src/app/api/v2/admin/booking/`, `src/app/admin/booking/` | No page |
-| The chats between users (ring 6, feature `chats`): the list of chats in front of the Lounge, a chat's screen, and the join link with its page (N308, N328, N335); your chat on any website, `w.js` and its page (N567); Block and Report, and the reports in the CEO panel | `src/components/willab/chats/`, `src/app/w/`, `public/w.js`, `src/services/api/chatWidget.ts`, `src/lib/willab/chatAnswer.ts`, `src/services/api/chats.ts`, `src/services/api/assistants.ts`, `src/services/api/hostSetup.ts`, `src/services/api/chatBuilder.ts`, `src/lib/willab/chatBuilder/`, `src/app/api/v2/coaches/`, `src/app/api/v2/build/notice/`, `src/app/api/v2/user/takes/[takeSessionId]/answers/`, `src/services/api/takeMatches.ts`, `src/app/api/v2/chats/`, `src/app/api/v2/take-matches/`, `src/app/api/v2/takes/[sessionId]/match/`, `src/components/willab/TakeMatchSuggestion.tsx`, `src/app/api/v2/profile/`, `src/app/(protected)/profile/`, `src/app/c/`, `src/lib/chats/`, `src/components/ceo/CeoReports.tsx`, `src/app/api/v2/admin/ceo/chat-reports/`, `src/app/dev/chat-bar/`, `src/app/dev/talk/` | [`docs/flows/customer-requests.md`](docs/flows/customer-requests.md) |
+| The chats between users (ring 6, feature `chats`): the list of chats in front of the Lounge, a chat's screen, and the join link with its page (N308, N328, N335); your chat on any website, `w.js` and its page (N567); Block and Report, and the reports in the CEO panel | `src/components/willab/chats/`, `src/app/w/`, `public/w.js`, `src/services/api/chatWidget.ts`, `src/lib/willab/chatAnswer.ts`, `src/services/api/chats.ts`, `src/services/api/assistants.ts`, `src/services/api/hostSetup.ts`, `src/services/api/chatBuilder.ts`, `src/lib/willab/chatBuilder/`, `src/app/api/v2/coaches/`, `src/app/api/v2/build/notice/`, `src/app/api/v2/user/takes/[takeSessionId]/answers/`, `src/services/api/takeMatches.ts`, `src/app/api/v2/chats/`, `src/app/api/v2/take-matches/`, `src/app/api/v2/takes/[sessionId]/match/`, `src/components/willab/TakeMatchSuggestion.tsx`, `src/app/api/v2/profile/`, `src/app/(protected)/profile/`, `src/app/c/`, `src/lib/chats/`, `src/components/ceo/CeoReports.tsx`, `src/app/api/v2/admin/ceo/chat-reports/`, `src/app/dev/chat-bar/`, `src/app/dev/talk/`, `src/app/dev/row-yes/` | [`docs/flows/customer-requests.md`](docs/flows/customer-requests.md) |
 | The AI models (the model launchpad, ring 6, feature `ai_models`; backend N528, N563, N566): the rows under the people, the list, a model's page, the door, teaching, the one queue, the profile's section and the invite card; starting a model (backend N566 item 2, N570) | `src/components/willab/models/`, `src/services/api/models.ts`, `src/services/api/modelSetup.ts`, `src/app/api/v2/models/` | [backend `docs/LEARNING-AND-QUORUM.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/LEARNING-AND-QUORUM.md) |
 | Feature rings: who gets a feature, launches and kill switches | `src/components/rings/`, `src/hooks/useRingState.ts`, `src/services/api/rings.ts`, `src/services/api/adminRings.ts`, `src/app/api/v2/admin/rings/`, `src/app/api/v2/user/rings/`, `src/app/admin/rings/` | [backend `docs/OPS-FLAGS-AND-RELEASES.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/OPS-FLAGS-AND-RELEASES.md) |
 | The CEO panel on dev.willpowerlab.com (bugs and tasks) and the founder's roadmap | `src/components/ceo/`, `src/lib/ceo/`, `src/app/admin/ceo/`, `src/app/api/v2/admin/ceo/`, `src/components/founder/RoadmapPanel.tsx`, `src/services/api/roadmap.ts`, `src/app/admin/roadmap/`, `src/app/api/v2/admin/roadmap/` | No page |
@@ -120,11 +121,55 @@ The backend's table is in its [master doc](https://github.com/wilplus/backend-cu
 | The admin console: people, users, deletion requests | `src/app/admin/`, `src/components/admin/`, `src/app/api/v2/admin/`, `src/lib/founder.ts`, `src/components/founder/FounderFrame.tsx` | No page |
 | Audits: the PDF reports a coach uploads for a speaker | `src/app/audits/`, `src/services/api/userAudits.ts`, `src/app/api/v2/user/audits/` | No page |
 | The app's server routes: how they reach the backend | `src/app/api/_lib/`, `src/app/api/getAuth.ts`, `src/app/api/proxyResponse.ts`, `src/app/api/*.golden.json`, `src/lib/api/`, `src/services/api/glueContracts.golden.json`, `src/app/api/recordings/` | No page |
-| The app shell: layout, header, error and loading screens, shared buttons and helpers | `src/app/layout.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/globals.css`, `src/app/icon.tsx`, `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/fonts/`, `src/app/willab-logo/`, `src/app/game/`, `src/app/recordings/`, `src/components/Footer.tsx`, `src/components/Logo.tsx`, `src/components/SiteHeader.tsx`, `src/components/ui/`, `src/components/dashboard/`, `src/lib/utils.ts`, `src/lib/uuid.ts`, `src/lib/screenChrome.ts`, `src/lib/willabWindowEvents.ts`, `src/lib/lastCopy.ts`, `src/components/willab/ErrorState.tsx`, `src/components/willab/LoadingState.tsx`, `src/components/willab/OverlayCloseButton.tsx`, `src/components/willab/useBackDismiss.ts` | No page |
+| The app shell: layout, header, locale foundation, error and loading screens, shared buttons and helpers | `src/app/layout.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/globals.css`, `src/app/icon.tsx`, `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/fonts/`, `src/app/willab-logo/`, `src/app/game/`, `src/app/recordings/`, `src/components/Footer.tsx`, `src/components/Logo.tsx`, `src/components/SiteHeader.tsx`, `src/components/ui/`, `src/components/dashboard/`, `src/lib/utils.ts`, `src/lib/uuid.ts`, `src/lib/screenChrome.ts`, `src/lib/uiLocale.ts`, `src/lib/willabWindowEvents.ts`, `src/lib/lastCopy.ts`, `src/components/willab/ErrorState.tsx`, `src/components/willab/LoadingState.tsx`, `src/components/willab/OverlayCloseButton.tsx`, `src/components/willab/useBackDismiss.ts` | No page |
 | Installing the app on a phone (home-screen app) | `src/components/pwa/`, `src/lib/pwa.ts`, `src/hooks/usePwaInstall.ts`, `public/sw.js`, `src/app/api/v2/user/home-screen/` | No page |
 | The public pages: landing, about, unsubscribe, and the files in public/ | `src/app/page.tsx`, `src/app/page.client.tsx`, `src/app/about/`, `src/app/unsubscribe/`, `src/app/api/public/`, `public/` | No page |
 | Build settings, packages and the repo's own check scripts | `package.json`, `package-lock.json`, `next.config.mjs`, `postcss.config.mjs`, `tailwind.config.ts`, `tsconfig.json`, `vercel.json`, `vitest.config.ts`, `scripts/` | No page |
 <!-- code-homes:end -->
+
+## UI locale copy inventory
+
+The locale foundation controls UI chrome only. It never selects the language of
+coaching content, transcripts, feedback, or user-authored text. Polish remains a
+safe English fallback until the founder approves each translation.
+
+| EN source | Proposed PL | Screen/context | Status |
+|---|---|---|---|
+| `WillpowerLab 2026` | Not drafted | Global footer brand | Pending founder approval |
+| `About us` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Blog` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Privacy` | Not drafted | Global footer link | Draft — pending founder approval |
+| `Language` | Not drafted | Footer locale control accessible label | Draft — pending founder approval |
+| `Use English` | Not drafted | EN locale choice accessible label | Draft — pending founder approval |
+| `Use Polish` | Not drafted | PL locale choice accessible label | Draft — pending founder approval |
+| `EN` / `PL` | Language codes only; no Polish product copy | Footer locale control visible choices | Structural, not translation copy |
+| `Speaking coach` | `Trener wystąpień` | Product home | Founder-approved 2026-11-16 |
+| `Start a new project` | `Rozpocznij nowy projekt` | Product home / project picker | Founder-approved 2026-11-16 |
+| `Create new project` | `Utwórz nowy projekt` | Will quick action | Founder-approved 2026-11-16 |
+| `Start your first project` | `Rozpocznij pierwszy projekt` | Empty project picker | Founder-approved 2026-11-16 |
+| `What are you recording?` | `Co nagrywasz?` | Project picker | Founder-approved 2026-11-16 |
+| `What is the topic?` | `Jaki jest temat?` | New-project setup | Founder-approved 2026-11-16 |
+| `Do you have a time limit?` | `Czy masz limit czasu?` | New-project setup | Founder-approved 2026-11-16 |
+| `Have slides to go with it?` | `Czy masz do tego slajdy?` | New-project setup | Founder-approved 2026-11-16 |
+| `Upload your deck (PDF)` | `Prześlij prezentację (PDF)` | New-project slide upload | Founder-approved 2026-11-16 |
+| `Start recording` | `Rozpocznij nagrywanie` | New-project setup | Founder-approved 2026-11-16 |
+| `How do you feel?` | `Jak się czujesz?` | Pre-recording check | Founder-approved 2026-11-16 |
+
+Integration point: `src/app/layout.tsx` resolves the request locale first and
+seeds the single `UiLocaleProvider`; `src/components/Footer.tsx` mounts its
+locale control. A manual EN/PL choice updates that provider and every mounted
+subscriber immediately, without remounting a recording or waiting for a reload.
+The footer brand and visible `About us`, `Blog`, and `Privacy` links intentionally
+remain English in PL mode while their Polish copy is pending founder approval;
+the table above is the source of truth and they must not be described as
+translated. The complete founder-approved recording/project-setup inventory,
+including every picker state, setup action, slide-upload error and later-Take
+status line, is kept in
+[`docs/flows/recording-screens.md`](docs/flows/recording-screens.md#project-entry-and-newcomer-setup-copy-inventory-polish).
+Any future user profile preference must be a dedicated UI-locale field, not the
+recording or coaching-language fields. Raw transcripts, feedback, typed project
+and slide text, and generated coaching continue to use their immediate content
+language rather than this UI table.
 
 ## Setup
 

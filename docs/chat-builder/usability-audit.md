@@ -52,3 +52,5 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 19 | Auto-save, and Publish to go live | 10 | A draft is stored after the first answer. Publish sets the flag and the test saw no fetch. |
 
 **190 / 190 = 100%.** That is above 95%. The e2e line was `USABILITY 30/30 = 100%`. The pattern test logged 10/10.
+
+The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

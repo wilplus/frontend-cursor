@@ -9,6 +9,8 @@
 /*  the user's own input — echoed back, never a verdict. Optional throughout.   */
 /* -------------------------------------------------------------------------- */
 
+import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
+
 export interface PresentationSlide {
   title: string;
   /** Body as one string; newlines are bullet breaks (wire contract: body:string). */
@@ -75,13 +77,13 @@ export function bulletLines(body: string): string[] {
 }
 
 /** Pre-upload guard. Returns a user-facing message, or null when the file is OK. */
-export function deckFileError(file: File): string | null {
+export function deckFileError(file: File, locale: UiLocale = "en"): string | null {
   const name = file.name.toLowerCase();
   if (!ACCEPTED_DECK_EXTENSIONS.some((e) => name.endsWith(e))) {
-    return "Upload a PDF. Export your slides to PDF first if they aren't already.";
+    return uiText(locale, "setupDeckPdfOnly");
   }
   if (file.size > SLIDE_CAPS.maxFileBytes) {
-    return oversizeDeckMessage();
+    return oversizeDeckMessage(LOCAL_LIMIT_MB, locale);
   }
   return null;
 }
@@ -91,8 +93,11 @@ export function deckFileError(file: File): string | null {
 const LOCAL_LIMIT_MB = Math.round(SLIDE_CAPS.maxFileBytes / (1024 * 1024));
 
 /** User-facing oversize copy for the pre-upload guard (uses the local cap). */
-function oversizeDeckMessage(limitMb: number = LOCAL_LIMIT_MB): string {
-  return `That file is over ${limitMb} MB. Try a smaller export.`;
+function oversizeDeckMessage(
+  limitMb: number = LOCAL_LIMIT_MB,
+  locale: UiLocale = "en",
+): string {
+  return uiTextWith(locale, "setupDeckTooLarge", { limit: limitMb });
 }
 
 /** Build the oversize message from a backend 413 body. BE (#128) returns a
@@ -100,15 +105,20 @@ function oversizeDeckMessage(limitMb: number = LOCAL_LIMIT_MB): string {
  *  prefer its message, else its cap. Falls back to the local cap when the 413
  *  carried no usable JSON (e.g. a platform body-size 413 from the edge — see the
  *  BFF proxy caveat), so behavior never regresses below today's copy. */
-export function fileTooLargeMessage(body: unknown): string {
+export function fileTooLargeMessage(
+  body: unknown,
+  locale: UiLocale = "en",
+): string {
   const b = (body && typeof body === "object" ? body : {}) as {
     error?: unknown;
     limit_mb?: unknown;
   };
-  if (typeof b.error === "string" && b.error.trim()) return b.error.trim();
+  if (locale === "en" && typeof b.error === "string" && b.error.trim()) {
+    return b.error.trim();
+  }
   const limitMb =
     typeof b.limit_mb === "number" && b.limit_mb > 0 ? b.limit_mb : LOCAL_LIMIT_MB;
-  return oversizeDeckMessage(limitMb);
+  return oversizeDeckMessage(limitMb, locale);
 }
 
 /* ------------------------- parse-response mapping ------------------------- */

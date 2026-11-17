@@ -331,10 +331,7 @@ Approved on the clickable prototype <https://claude.ai/artifact/MVyWmdoWUqisttfk
 ### Amended 2026-11-03: the ☰ menu, redesigned (backend N367)
 
 Signed in, the menu is a card under the ☰ with, top to bottom: your circle,
-name and email; **Copy my link** ("Whoever opens it joins you here"; it
-opens "Add someone to chat with", as the list's "+" does, backend N567; was:
-it copied at once and said "✓ Copied"; only where the chats are on);
-**Settings**; **Tokens** with the balance and its date, opening the Tokens
+name and email; **Settings**; **Tokens** with the balance and its date, opening the Tokens
 page on the web and in the iPhone app alike (backend N495; in the app that
 page is titled "Tokens", shows what things cost and the recent activity at
 once, and has no plans and no way to buy, backend N365 item 1; no button
@@ -343,7 +340,10 @@ who have them (the coach's Training corpus row left for the CEO panel,
 backend N416); a thin line; **Sign out** in red.
 Each row has a 36px icon in the iPhone Settings style. Lab is gone from the
 lab's menu (the logo goes home); signed out, on the blog, the menu is Lab and
-Log in as before. The top row opens your profile (backend N366, /profile). The design: the locked prototype "One bar", version 12
+Log in as before. The old personal-chat **Copy my link** control is retired;
+product-sharing links in chat/model builders remain in their own flows and are
+not app admission. The top row opens your profile (backend N366, /profile).
+The design: the locked prototype "One bar", version 12
 (<https://claude.ai/artifact/2v8jSi91F157WFR8tjX5E1>).
 
 ### Amended 2026-11-04: by invitation (backend N471)
@@ -472,6 +472,7 @@ Every prototype link in §1, in the order it first appears:
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · founder approval · the acceptance gate fails open when its retired authorization endpoint rejects, so a missing legacy consent route cannot strand the signed-in app on a loading or error screen; the current admission boundary remains unchanged (`Phase1AcceptanceGate.tsx`) · FE (this PR)
+- 2026-11-16 · the shared menu no longer exposes the legacy personal-chat invitation control; the fixed early-coach admission URL and product-sharing links remain · FE (this task)
 - 2026-11-09 · N465, N559 item 6 · §1: the signed card "Matching by how you speak" after Personal answers in your plan: On with Turn off, the ask in the card, Off with Turn on; Turn off deletes what Will learned from how you speak (`SpeakingMatchCard.tsx`, `getSpeakingMatch`/`setSpeakingMatch` in `takeMatches.ts`, BFF `/api/v2/me/speaking-match`). Shown only while `available` and on; nobody sees it today (`TAKE_MATCH_SKILLS` unset) · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N401 items 6, 7 · the sign-up and sign-in pages: "Microsoft" beside Google under "or" (Supabase's Azure provider, asking for the email; the one restart on a refused replay, as the others), the four small buttons two by two; hidden until the founder turns the Azure provider on in Supabase and sets `NEXT_PUBLIC_MICROSOFT_SIGNIN=on` on Vercel (`MicrosoftAuthButton.tsx`, `OtherWays.tsx`). The backend calls it "Microsoft" · BE (Microsoft name), FE (this PR)
 - 2026-11-05 · N567 · §1 the ☰ menu: Copy my link opens "Add someone to chat with", the sheet the list's "+" opens, with its switch for the website (customer-requests.md B8). Was: it copied the link at once and said "✓ Copied" (N367) · BE, FE (this PR)

@@ -70,11 +70,14 @@ beforeEach(() => {
   api.fetchTrainings.mockReset();
   api.archiveProject.mockReset();
   api.requestProjectDeletion.mockReset();
+  localStorage.clear();
+  document.documentElement.lang = "en";
 });
 
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  document.documentElement.lang = "";
 });
 
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });

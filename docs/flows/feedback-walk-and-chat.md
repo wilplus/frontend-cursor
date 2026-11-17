@@ -361,6 +361,29 @@ step; the loop never waits for a coach.
   N319 item 1); "Type here" faded while the plan asked, with its note (N319
   item 3, N323, N325); "Something else" in the bar's middle (N371 item 3);
   voice notes to Will and the "#" note (N253).
+
+  **N655 · project content conversation override (founder-approved and
+  locked):** tap options are supplemental; they never replace or remove the
+  persistent bottom composer. In a project's content conversation the chips
+  stay naturally stacked above a usable text field. A typed answer and a
+  tapped answer both draw the speaker's orange bubble immediately, before the
+  request answers. Once the conversation reaches the next-Take state, that
+  same persistent bottom action becomes the recording bar/button. There is no
+  new visible copy. For a signed-in typed project turn, both project surfaces
+  call contextual `/chat/query` with `persist:true` and the exact optimistic
+  user's `client_id` and `client_created_at`. The idempotent user outbox may
+  upsert that same row so it cannot disappear; it never writes a signed-in bot
+  row. Only `persisted:true` settles the turn. A failed request or a 200 with
+  `persisted:false` keeps the exact words and ID visible and retryable. The
+  local reply merges the backend's authoritative `row_metadata`; then the
+  thread reloads (required when `after_take:true`) so the backend-owned rows
+  and released next-Take closing replace local state without duplicates.
+  Signed-out storage remains frontend-owned. `ProjectChat.tsx` owns the project
+  surface and the switch to its next-Take action; `Lounge.tsx` owns the same
+  open-question routing in the main speaking chat; `useLoungeThread.ts` owns
+  the idempotent optimistic outbox; `projectChat.ts` owns project history and
+  arc/take/place metadata. `ProjectChat.test.tsx` and
+  `LoungeTypedAnswer.test.tsx` lock the outcome.
 - **B15** **The chat follows the newest bubble after an answer** (founder
   2026-11-01, N319 item 9): after a tap, a typed message, a voice answer,
   the continue tap or an answer to the plan's question, the Lounge lands on
@@ -992,7 +1015,9 @@ praised moment:
   panel's asks are not among them since N391: they come in the bar at the
   top. One question or ask is on screen at a time
   (N294 item 4). While Will's question waits, his answers sit under it,
-  "Something else" first, and the bar's middle stays the record button: his
+  "Something else" first. In the project content conversation, N655 keeps the
+  text composer under those answers; the bottom action becomes the next-Take
+  recording action only after the question/conversation has closed. His
   question never stands in front of the next Take (B14, N483 item 2).
 
   **Notifications come in a bar at the top of the chat, never in the
@@ -1092,9 +1117,9 @@ praised moment:
   (N297 item 2): this Take's own words, then what the speaker said for an
   earlier talk, then the signed answers for their field, for who the talk
   is for and what they should do alike; orange on the right. Who the talk
-  is for has no "Someone else": their own words go into "Something else",
-  the first of his answers, which opens the box (N483 item 2; was in the
-  bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
+  is for has no "Someone else": their own words can be typed in the persistent
+  box; "Something else", the first of his answers, focuses that same box
+  (N655; N483 item 2; was in the bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
   last, opening "Who is it for, then? 👀", N319 item 8). The check
   ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
   questions (N296 item 2): not answering is allowed, and the stack still
@@ -2390,7 +2415,9 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · Build's "Your chat" parts are one settings table per group: a small icon, the name, the value on one line (or chips when there are several; "Not set" when empty), and a chevron. A tap still opens that part. "Open" shows when the chat is open. · FE (this PR)
 - 2026-11-16 · Build's bar does not draw Developer mode; the Speaking coach chip stays. From the parts overview, a row opens its editor at once. A single value is two big taps (Keep / Draw new one, Yes / No, On / Off). They send, the walk's steps and what it notices are On or Off on each row, saved as tapped. First questions are Keep or Remove on each question. The composer stays for typed words. · FE (this PR)
 - 2026-11-16 · The host's setup uses the chat's own header (back, circle, the chat's name, "You run this chat.", Live / Build) and one bottom bar on every step: the chat's answer chips, then the composer. A proposed line is "Draw new one" or "Keep"; typed words are that line. The walk's home takes plain words to the part they name. A model's blocks are cards, with a preview of the question and the taps a person meets, and "Taught by your answers": a visitor's message is not kept as an example (`chat_recipes.teach`). · FE (this PR)
+- 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
+- 2026-11-16 · founder-approved product structure · the home has one Speaking coach destination, every active project and Start a new project; projects stay concurrent, opening or creating one never archives another, and the project owns its conversation, Takes, questions, Feedback Walk, Ideal Text and resume point. The home waits for the project list and Speaking coach state before painting; the legacy people-chat reads remain for required backend side effects, not as the speaking-coach IA · FE (this PR)
 
 - 2026-11-11 · N651 · for the chat builder's ring, Build's "Your chat" draws the parts in four groups under headings ("About your chat": what, name, line, hello; "What comes in": send, questions, taps; "What goes back": out, walk, practice, who; "What makes it smart": models), a group with no part not drawn, a part the map does not know last with no heading; orange (`primary`) on exactly the on side of the Live · Build switch (Live view too), the line under the open tab, each heading and the "›" at the right of each part's row; "Off" and "None yet" values in muted grey; no icons (`WillNeedsYou.tsx`, `WillBuild.tsx`). The setup's own parts list (`HostSetup.tsx`) does not share the row and is unchanged. Nothing stops. · PR
 - 2026-11-11 · N649 item 2 · "What you do" is a part of a chat that can be changed on its own: the first row of "Your chat" opens the existing "What do you do?" step as an edit of one part; the answer goes to `PUT /v2/chats/setup/what` (backend PR #1977), not to the start route, so every other answer and model stays, and Will's suggestions are made again from it; then the parts again (or Build closes). "Start again" is unchanged. No new words (`hostsetup/HostSetup.tsx` `begin`, `PART_STEP`) · FE (this PR)
@@ -2668,3 +2695,5 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-09-30 · the helper-words lock: the walk through the text, B1–B10 (superseded 2026-10-06 for the walk; still the Ideal Text's own lock)
 - 2026-11-11 · N647 item 1 (the fifth row) · for the chat builder's ring, the walk's home ends with "See it run", as the pinned prototype draws it: a sample take ("▶ 0:42"), then the lines of the walk that are on (as many as the walk has steps), then "Did this help?" with Yes and No; either answer reads "Thanks." Nothing is sent or kept. It uses the walk already read (GET /v2/chats/setup/walk), so no new route; "Test my chat" is the host's own chat and is not this screen (`hostsetup/HostSetup.tsx`). Without the ring, as it was · FE (this PR)
 - 2026-11-16 · Project practice history: the project chat now combines Feedback and Ideal text in one compact Feedback Walk card. It groups completed recordings by their actual first/last slide timeline, keeps attempts and delivery quality per exact range, shows only the latest range until “Show earlier chunks” is opened, and uses one project-level Progress bar. Delivery labels are derived from the latest surfaced feedback for that range—confident/great-formulation evidence versus a clarity rewrite—and never from attempt count. Whole-project Progress is the slide-weighted latest read, with unpractised slides at zero. The recording decision reuses the latest chunk’s label from this same response; it does not calculate another status (`FeedbackWalkCard.tsx`, `ProjectChat.tsx`, `trainings.ts`, backend `services/user_trainings.py`). Founder-approved prototype and handoff, 2026-11-16.
+- 2026-11-16 · AI voice playback reliability: a ready Feedback Walk clip re-reads its existing AI-voice endpoint once when its 15-minute signed URL expires, including when `audio.play()` rejects before the media error event; a successful read swaps in the fresh URL, and an unsuccessful read leaves the existing approved “unavailable” state instead of silently doing nothing. Generation, validation, and the walk’s words are unchanged · FE (this change)
+- 2026-11-16 · N654 items 1–4 · Project-chat order and chrome lock: an accepted Take makes the neutral project/result card present immediately, without guessing a score, slide range, delivery label or claim; real evidence replaces the pending state. Opening a project replaces the WillpowerLab site bar with the existing single chat top bar. The readable Feedback/Ideal-text card is the first item, followed by the Take summary, bridge and contextual question in human order. A held closing is invisible while the question is open and, when released, follows that Take's answer/reply. Suggested answers use the shared stacked `TapRow`; “Something else” opens the shared text-composer shape. There is no custom chip row or divider above the bottom controls (`ProjectChat.tsx`, `FeedbackWalkCard.tsx`, `projectChat.ts`). Founder-approved, 2026-11-16.

@@ -11,6 +11,7 @@ import {
   type ConfidencePractice,
 } from "@/services/api/confidentVoicePractice";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /** Read-only destination for a coach-shared Chat bubble. It opens the exact
  * exercise and audio context without reopening any presentation journey. */
@@ -46,27 +47,29 @@ export default function ConfidencePracticeOverlay({
 
   return (
     <MediaRefreshProvider refresh={media.refresh} payload={practice}>
-    <div className="willab-canvas fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            Coach exercise
-          </p>
-          <h2 className="text-[17px] font-semibold text-foreground">
-            {practice?.exercise.title ?? "Exercise"}
-          </h2>
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
+      <header className="h-16 shrink-0 border-b border-border">
+        <div className={`${WILLAB_CONTENT_RAIL} flex h-full items-center justify-between px-5`}>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Coach exercise
+            </p>
+            <h2 className="text-[17px] font-semibold text-foreground">
+              {practice?.exercise.title ?? "Exercise"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted"
+            aria-label="Close exercise"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted"
-          aria-label="Close exercise"
-        >
-          <X className="h-5 w-5" aria-hidden />
-        </button>
       </header>
       <main className="scrollbar-none flex-1 overflow-y-auto overscroll-contain px-5 py-6">
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4">
+        <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col gap-4`}>
           {loading ? (
             <LoadingState placement="surface" label="Loading exercise" />
           ) : error ? (
