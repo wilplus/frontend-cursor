@@ -14,6 +14,7 @@ import { useCoachDraft } from "@/lib/willab/chatBuilder/useCoachDraft";
 import { W } from "./hostsetup/hostSetupCopy";
 import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
+import TalkBuild from "./hostsetup/TalkBuild";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 
 /* -------------------------------------------------------------------------- */
@@ -84,6 +85,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
   const [active, setActive] = useState<string | null>(null);
+  const [talk, setTalk] = useState(false);
   const [seen, setSeen] = useState<string[]>([]);
   const { profile } = useUserProfile();
   const draft = useCoachDraft();
@@ -117,7 +119,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // The header arrow leaves Build only from the list. A row's chat goes back
   // to that list, and so does the browser's Back (PartHistory).
   const rowOpen = active !== null && tab === "chat";
-  const headerBack = () => (rowOpen ? closePart() : onBack());
+  const headerBack = () => (talk ? setTalk(false) : rowOpen ? closePart() : onBack());
   if (mode === "live" && canTry) {
     const bar = (
       <TopBar
@@ -159,8 +161,8 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     <Cover>
       {top}
       {rowOpen ? <PartHistory onClose={closePart} /> : null}
-      <div className={active ? "hidden" : "no-scrollbar min-h-0 flex-1 overflow-y-auto"}>
-        <WillNeedsYou page onPart={(part) => openPart(part.part)} />
+      <div className={active ? "hidden" : "no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"}>
+        {talk ? <TalkBuild onList={() => setTalk(false)} /> : <WillNeedsYou page onPart={(part) => openPart(part.part)} onTalk={() => setTalk(true)} />}
       </div>
       {seen.map((id) => {
         const index = order.findIndex((part) => part.part === id);

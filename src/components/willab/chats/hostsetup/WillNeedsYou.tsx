@@ -189,7 +189,7 @@ export function PartBubble({ part }: { part: SetupPart }) {
  *  whole screen, with a search, and a row opens that row's own chat.
  *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
  *  Only for the ring `chat_builder`. */
-export default function WillNeedsYou({ page = false, onPart }: { page?: boolean; onPart?: (part: SetupPart) => void }) {
+export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: boolean; onPart?: (part: SetupPart) => void; onTalk?: () => void }) {
   const { isCoach } = useUserProfile();
   const work = useHostWork(isCoach);
   const setup = useKnownSetup();
@@ -220,6 +220,9 @@ export default function WillNeedsYou({ page = false, onPart }: { page?: boolean;
             </button>
           ) : null}
         </form>
+      ) : null}
+      {page && onTalk ? (
+        <button type="button" data-talk-open="" onClick={onTalk} className="min-h-11 self-start text-[15px] font-semibold text-primary">Talk it through</button>
       ) : null}
       {recipe ? (
         <>

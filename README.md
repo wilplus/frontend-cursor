@@ -40,6 +40,11 @@ The backend's `main` is the one source of truth (backend N95).
 - [Usability audit](docs/chat-builder/usability-audit.md) · Founder-Approved: Artur, overnight mission, 16 November 2026, "usability audit for a 12-year-old"
 - [UI audit](docs/chat-builder/ui-audit.md) · Founder-Approved: Artur, overnight mission, 16 November 2026, "simplicity and UI consistency audit"
 - [Overnight report](docs/chat-builder/OVERNIGHT-REPORT.md) · Founder-Approved: Artur, overnight mission, 16 November 2026, "document everything"
+- [Conversational builders, compared](docs/chat-builder/research.md) · Founder-Approved: Artur, 17 November 2026, research the conversational builders
+- [The talk that builds the chat](docs/chat-builder/flow.md) · Founder-Approved: Artur, 17 November 2026, design the simplest flow
+- [Usability rounds](docs/chat-builder/usability-rounds.md) · Founder-Approved: Artur, 17 November 2026, score the builder
+- [Technical audit](docs/chat-builder/technical-audit.md) · Founder-Approved: Artur, 17 November 2026, can the builder define the chat
+- [Day report](docs/chat-builder/DAY-REPORT.md) · Founder-Approved: Artur, 17 November 2026, document the day
 
 **Pointers to the backend's rules (In force)**
 
