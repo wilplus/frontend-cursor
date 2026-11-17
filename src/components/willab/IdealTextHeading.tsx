@@ -37,7 +37,8 @@ export default function IdealTextHeading({
    *  no served document has nothing to report the coach's position on. */
   status: "verified" | "unverified" | null;
 }) {
-  const headerTitle = title?.trim() || idealEmptyName(usePublishedCoach());
+  const coach = usePublishedCoach();
+  const headerTitle = title?.trim() || idealEmptyName(coach);
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className={TITLE_CLS} title={headerTitle}>
