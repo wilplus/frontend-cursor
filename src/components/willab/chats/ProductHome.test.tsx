@@ -133,18 +133,22 @@ async function renderHome(projects: TrainingArc[]) {
 }
 
 describe("Speaking coach home", () => {
-  it("waits for both sources and paints only active projects", async () => {
+  it("keeps the shell and primary action usable while projects load", async () => {
     let resolve: (value: TrainingArc[]) => void = () => undefined;
     const projects = new Promise<TrainingArc[]>((done) => { resolve = done; });
     api.fetchTrainings.mockReturnValue(projects);
+    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
       onStartNewProject: vi.fn(),
     })));
-    expect(host.querySelector("[data-product-home-loading]")).not.toBeNull();
+    expect(host.querySelector("[data-product-home-loading]")).toBeNull();
+    expect(host.textContent).toContain("Speaking coach");
+    expect(host.querySelector("[data-product-projects-loading]")).not.toBeNull();
+    expect(host.querySelector("[data-start-new-project]")).not.toBeNull();
+    expect(host.textContent).not.toContain("Board pitch");
 
-    thread.loading = false;
     await act(async () => resolve([arc("a", "Board pitch"), arc("b", "Team update"), arc("old", "Old", true)]));
     await flush();
     expect(host.textContent).toContain("Speaking coach");
@@ -368,7 +372,7 @@ describe("Speaking coach home", () => {
     ));
 
     expect(host.querySelector('[aria-label="Use Polish"]')?.getAttribute("aria-pressed")).toBe("true");
-    expect(host.querySelector('[role="status"]')?.textContent).toBe("Wczytywanie");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Szukamy Twoich projektów…");
     await flush();
     expect(host.textContent).toContain("Trener wystąpień");
     expect(host.textContent).toContain("English board pitch");

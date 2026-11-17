@@ -121,7 +121,6 @@ export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void>
   remember(AUTHORIZATION, fetchAuthorization);
   // A parked Readout opens without the session state (useWillabFlow).
   if (!opts.parked) remember(SESSION_STATE, fetchSessionState);
-  remember(TRAININGS, fetchTrainings);
 }
 
 /** The chats door's read (useChatsDoor): the list, early, for every
@@ -136,7 +135,6 @@ export function prefetchChatsDoor(): void {
     if (!(await getAuthToken())) return undefined;
     return (await getChats()) ?? undefined;
   });
-  remember(TRAININGS, fetchTrainings);
 }
 
 /** useChatList's first read: the prefetched list or a fresh one. */

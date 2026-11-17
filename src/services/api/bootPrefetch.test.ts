@@ -113,7 +113,7 @@ describe("/chat's open: the boot reads start with the members check", () => {
     await settle();
     // The members check has not answered, and everything the thread waits
     // for is already on its way.
-    expect(requests().sort()).toEqual([ACCESS, AGREEMENT, SESSION_STATE, THREAD, TRAININGS].sort());
+    expect(requests().sort()).toEqual([ACCESS, AGREEMENT, SESSION_STATE, THREAD].sort());
 
     // MembersOnly asks and shares the request; then the screens take theirs.
     const asked = getAccess();

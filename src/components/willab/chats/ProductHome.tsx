@@ -21,9 +21,9 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 /*  data for delivery and message side effects, but it is not this product's   */
 /*  primary way into speaking practice.                                      */
 /*                                                                            */
-/*  The first paint waits for both durable sources: the project index and the  */
-/*  Speaking coach thread. This prevents a previous project's shell or a       */
-/*  half-loaded coach view from being presented as the current home.           */
+/*  The chat thread is the readiness gate. The project index is an optional    */
+/*  region: it loads inside its own stable slot so the Speaking coach row,     */
+/*  existing chat, composer and primary recording action do not wait for it.   */
 /* -------------------------------------------------------------------------- */
 
 type Status = "loading" | "ready" | "error";
@@ -63,7 +63,7 @@ export default function ProductHome({
   // The provider is mounted before this component is painted. Treat a missing
   // provider defensively as not ready; it must never produce a stale home.
   const coachReady = thread !== null && !thread.loading;
-  if (status === "loading" || !coachReady) {
+  if (!coachReady) {
     return (
       <div data-product-home data-product-home-loading className="flex min-h-0 flex-1">
         <LoadingState placement="surface" label={uiText(locale, "loading")} />
@@ -81,32 +81,36 @@ export default function ProductHome({
             circle={<WillMark size={48} />}
             onOpen={onOpenSpeaking}
           />
-          {status === "error" ? (
-            <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
-          ) : (
-            projects.map((project) => (
-              <HomeRow
-                key={project.arcId}
-                id={project.arcId}
-                title={project.topic}
-                circle={<ProjectCircle project={project} />}
-                subtitle={project.deletion ? uiText(locale, "projectDeletionPending") : null}
-                disabled={Boolean(project.deletion)}
-                actions={
-                  project.deletion
-                    ? null
-                    : (
-                      <ProjectRowMenu
-                        label={project.topic}
-                        menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: project.topic })}
-                        actions={projectActions(project, locale, setProjects)}
-                      />
-                    )
-                }
-                onOpen={() => onOpenProject(project)}
-              />
-            ))
-          )}
+          <div data-product-projects className="min-h-[56px]">
+            {status === "loading" ? (
+              <ProjectsLoading locale={locale} />
+            ) : status === "error" ? (
+              <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
+            ) : (
+              projects.map((project) => (
+                <HomeRow
+                  key={project.arcId}
+                  id={project.arcId}
+                  title={project.topic}
+                  circle={<ProjectCircle project={project} />}
+                  subtitle={project.deletion ? uiText(locale, "projectDeletionPending") : null}
+                  disabled={Boolean(project.deletion)}
+                  actions={
+                    project.deletion
+                      ? null
+                      : (
+                        <ProjectRowMenu
+                          label={project.topic}
+                          menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: project.topic })}
+                          actions={projectActions(project, locale, setProjects)}
+                        />
+                      )
+                  }
+                  onOpen={() => onOpenProject(project)}
+                />
+              ))
+            )}
+          </div>
           <button
             type="button"
             data-start-new-project
@@ -287,6 +291,15 @@ function HomeError({ locale, onRetry }: { locale: UiLocale; onRetry: () => void 
       <button type="button" onClick={onRetry} className="text-[13px] text-foreground underline underline-offset-2">
         {uiText(locale, "tryAgain")}
       </button>
+    </div>
+  );
+}
+
+function ProjectsLoading({ locale }: { locale: UiLocale }) {
+  return (
+    <div data-product-projects-loading role="status" className="flex min-h-[56px] items-center gap-2 px-3 text-[13px] text-muted-foreground">
+      <VoiceMark size={20} />
+      <span>{uiText(locale, "projectLoading")}</span>
     </div>
   );
 }

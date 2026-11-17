@@ -2697,6 +2697,9 @@ O2  After I change my choice, the next read shows the new choice.","O1 -> ""serv
 O2 -> ""reads afresh after a write""",
 src/services/api/trainingCorpus.test.ts,Story,"As a coach labelling clips, I want never to see the machine's rating or score, so that my judgement stays blind.","O1  The clips I label carry no machine rating or score, even if the
 server sent one.","O1 -> ""never surfaces a band or machine read even if one were served (N1)""",Never-rule 2: no coach sees the machine's guess before answering.
+src/services/api/trainings.test.ts,Story,"As the chat and project surfaces open together, I want one current trainings read shared by them, without ever seeing another account's projects.","O1  Concurrent and recent reads use one authenticated request.
+O2  A different authenticated user gets a separate result.","O1 -> ""one fetch is shared and the successful result is reused""
+O2 -> ""the cache is scoped to the authenticated identity""",
 src/services/api/userProfile.test.ts,Guard,"Concurrent profile reads share one request, and a failed read is not shared, so page load does not hammer the backend and one blip does not stick.","Each caller fetching its own profile; or a failed (null) read being
 served to every later caller for the rest of the window.","one request -> ""serves every caller from one request""
 no failure  -> ""does not share a failed read: the next caller asks again""","If removed: A change to the shared read could multiply profile requests per page, or pin a signed-in coach to ""no profile"" after one error."

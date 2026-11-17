@@ -306,7 +306,9 @@ function useProjectRecordingLifecycle({
     }
     let active = true;
     const refresh = async () => {
-      const list = await fetchTrainings();
+      // This is a live processing read, not initial boot data: it must see a
+      // newly completed Take while still sharing any concurrent refresh.
+      const list = await fetchTrainings({ force: true });
       if (!active || !list) return;
       const next = list.find((candidate) => candidate.arcId === activeProject.arcId);
       if (!next) return;
