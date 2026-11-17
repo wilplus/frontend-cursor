@@ -49,6 +49,7 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { useVoiceNote } from "./useVoiceNote";
 import RecordingBar from "./RecordingBar";
+import LoadingState from "./LoadingState";
 import WalkStage from "./walk/WalkStage";
 import WalkMessage from "./walk/WalkMessage";
 import { WalkSpeakerBubble } from "./walk/WalkThread";
@@ -807,6 +808,8 @@ export function LensFrame({
   dock,
   onClose,
   label = COPY.bar,
+  loading = false,
+  singleScroll = false,
 }: {
   items: readonly Item[];
   typing: boolean;
@@ -814,6 +817,10 @@ export function LensFrame({
   onClose: () => void;
   /** The bar's name: "Life goals", or "Sunday note" (L3). */
   label?: string;
+  /** The first paint of a lens may need the same centered frame as Ideal Text. */
+  loading?: boolean;
+  /** Keep the pattern lens to one scroll region, including its dock. */
+  singleScroll?: boolean;
 }) {
   const body = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -826,9 +833,12 @@ export function LensFrame({
       aria-modal="true"
       aria-label={label}
       data-life-goals-lens
-      className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
+      className={cn(
+        "walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground",
+        singleScroll ? "overflow-y-auto" : "overflow-hidden",
+      )}
     >
-      <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
+      <div className={cn("walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2", singleScroll && "sticky top-0 z-10 shrink-0 bg-background")}>
         <nav aria-label={label} className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
           <span className="flex h-9 w-9 items-center justify-center text-muted-foreground opacity-25" aria-hidden>
             <ChevronLeft className="h-5 w-5" />
@@ -843,30 +853,42 @@ export function LensFrame({
       <div
         ref={body}
         data-walk-thread-body
-        className="scrollbar-none relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3.5"
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col px-5 py-3.5",
+          singleScroll ? "overflow-visible" : "scrollbar-none overflow-y-auto overscroll-contain",
+        )}
       >
-        <div className="mt-auto flex flex-col gap-4">
-          {items.map((item) =>
-            item.who === "me" ? (
-              <div key={item.id} className="walk-bubble-in">
-                <WalkSpeakerBubble>{item.node}</WalkSpeakerBubble>
+        {loading ? (
+          <LoadingState placement="surface" />
+        ) : (
+          <div className="mt-auto flex flex-col gap-4">
+            {items.map((item) =>
+              item.who === "me" ? (
+                <div key={item.id} className="walk-bubble-in">
+                  <WalkSpeakerBubble>{item.node}</WalkSpeakerBubble>
+                </div>
+              ) : (
+                <WalkMessage key={item.id} className="walk-bubble-in">
+                  {item.node}
+                </WalkMessage>
+              ),
+            )}
+            {typing ? (
+              <div className="flex max-w-[94%]">
+                <div className="rounded-[22px] bg-muted px-[17px] py-[19px]">
+                  <TypingGlyph />
+                </div>
               </div>
-            ) : (
-              <WalkMessage key={item.id} className="walk-bubble-in">
-                {item.node}
-              </WalkMessage>
-            ),
-          )}
-          {typing ? (
-            <div className="flex max-w-[94%]">
-              <div className="rounded-[22px] bg-muted px-[17px] py-[19px]">
-                <TypingGlyph />
-              </div>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        )}
       </div>
-      <div data-walk-dock>{dock}</div>
+      <div
+        data-walk-dock
+        className={cn("bar-space shrink-0 bg-background", singleScroll && "sticky bottom-0 z-10")}
+      >
+        {dock}
+      </div>
     </div>
   );
 }

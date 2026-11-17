@@ -149,8 +149,9 @@ async function show(s: Script, rows: SundayNote["rows"]): Promise<void> {
   }
 }
 
-async function walk(s: Script, noteId: string, head: ReactNode[]): Promise<void> {
+async function walk(s: Script, noteId: string, head: ReactNode[], onReady: () => void): Promise<void> {
   let note = await getSundayNote(noteId);
+  onReady();
   if (!note) return;
   s.fast.current = true;
   await s.say(...head, note.case);
@@ -185,6 +186,7 @@ export default function SundayLens({ noteId, nonce, onClose }: { noteId: string 
   const [items, setItems] = useState<Item[]>([]);
   const [typing, setTyping] = useState(false);
   const [dock, setDock] = useState<ReactNode>(null);
+  const [loading, setLoading] = useState(false);
   const run = useRef(0);
   const seq = useRef(0);
   const fast = useRef(false);
@@ -194,16 +196,17 @@ export default function SundayLens({ noteId, nonce, onClose }: { noteId: string 
     const id = ++run.current;
     setItems([]);
     setTyping(false);
-    setDock(null);
+    setLoading(true);
+    const close = <DockColumn><WalkPill action={{ label: COPY.close, onClick: onClose }} /></DockColumn>;
+    setDock(close);
     const s = script({
       add: (who, node) => run.current === id && setItems((now) => [...now, { id: ++seq.current, who, node }]),
       typing: (on) => run.current === id && setTyping(on),
-      dock: (node) => run.current === id && setDock(node),
+      dock: (node) => run.current === id && setDock(node ?? close),
       alive: () => run.current === id,
       fast,
     });
-    const close = <DockColumn><WalkPill action={{ label: COPY.close, onClick: onClose }} /></DockColumn>;
-    void walk(s, noteId, [COPY.head])
+    void walk(s, noteId, [COPY.head], () => run.current === id && setLoading(false))
       .then(() => run.current === id && setDock(close))
       .catch((error: unknown) => {
         if (!(error instanceof Closed) && run.current === id) setDock(close);
@@ -220,7 +223,15 @@ export default function SundayLens({ noteId, nonce, onClose }: { noteId: string 
       <WalkStage
         screen={{ key: "sunday-note", overlay: Boolean(noteId) }}
         render={(_screen, ghost) => (
-          <LensFrame label={COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />
+          <LensFrame
+            label={COPY.bar}
+            items={items}
+            typing={!ghost && typing}
+            dock={ghost ? null : dock}
+            loading={!ghost && loading}
+            singleScroll
+            onClose={onClose}
+          />
         )}
       />
     </div>
@@ -231,21 +242,21 @@ export default function SundayLens({ noteId, nonce, onClose }: { noteId: string 
  *  lens again where it stands, and the orange outline while it waits (L8). */
 export function SundayHeadBubble({ body, waiting, onOpen }: { body: string; waiting: boolean; onOpen: () => void }) {
   return (
-    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-      <button
-        type="button"
-        onClick={onOpen}
-        data-sunday-head
-        className={cn(
-          "relative rounded-[16px] bg-muted px-3 py-2 pr-8 text-left text-[15px] leading-[1.45] text-foreground",
-          waiting && "ring-2 ring-primary",
-        )}
-      >
-        {body}
-        <span aria-hidden className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[19px] text-muted-foreground">
-          ›
-        </span>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={onOpen}
+      data-row="app"
+      data-bubble=""
+      data-sunday-head
+      className={cn(
+        "relative mr-auto block max-w-[85%] rounded-2xl bg-muted px-3 py-2 pr-8 text-left text-[15px] leading-relaxed text-foreground",
+        waiting && "ring-2 ring-primary",
+      )}
+    >
+      {body}
+      <span aria-hidden className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[19px] text-muted-foreground">
+        ›
+      </span>
+    </button>
   );
 }
