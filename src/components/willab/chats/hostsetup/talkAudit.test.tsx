@@ -50,7 +50,11 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
 });
-const flush = async () => { for (let i = 0; i < 6; i += 1) await act(async () => { await Promise.resolve(); }); };
+const flush = async () => {
+  for (let i = 0; i < 8; i += 1) await act(async () => { await Promise.resolve(); });
+  // A paste check hashes on a later turn. Wait for it before the next tap.
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+};
 const tap = async (label: string) => {
   taps += 1;
   const b = [...container.querySelectorAll("button")].find((x) => ((x.textContent ?? "").includes(label) || x.getAttribute("aria-label") === label) && !(x as HTMLButtonElement).disabled);
