@@ -42,6 +42,7 @@ export function LoadingSurface({
     <div
       data-loading-surface={kind}
       data-loading-placement={placement}
+      data-viewport-wait={placement === "viewport" ? "" : undefined}
       className={`${rootClass}${className ? ` ${className}` : ""}`}
     >
       <div

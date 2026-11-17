@@ -11,6 +11,7 @@ import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
 import NativeAppMarker from "@/components/pwa/NativeAppMarker";
 import NativePush from "@/components/pwa/NativePush";
 import NativeLinks from "@/components/pwa/NativeLinks";
+import NativeLaunchScreen from "@/components/pwa/NativeLaunchScreen";
 import NativeKeyboard from "@/components/pwa/NativeKeyboard";
 import BookingReturn from "@/components/booking/BookingReturn";
 import {
@@ -124,6 +125,7 @@ export default function RootLayout({
           <NativeAppMarker />
           <NativePush />
           <NativeLinks />
+          <NativeLaunchScreen />
           <NativeKeyboard />
           {/* Side-effect-only: claim the guest graph, then send the exact parked
               Project Take after OAuth. Renders nothing. */}
