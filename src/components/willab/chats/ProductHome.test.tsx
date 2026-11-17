@@ -17,11 +17,18 @@ import { UI_LOCALE_STORAGE_KEY } from "@/lib/uiLocale";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { TrainingArc } from "@/services/api/trainings";
 
-const api = vi.hoisted(() => ({ fetchTrainings: vi.fn(), takeTrainings: vi.fn() }));
+const api = vi.hoisted(() => ({
+  fetchTrainings: vi.fn(),
+  takeTrainings: vi.fn(),
+  archiveProject: vi.fn(),
+  requestProjectDeletion: vi.fn(),
+}));
 const pdf = vi.hoisted(() => ({ page: vi.fn() }));
 const thread = vi.hoisted(() => ({ loading: true, messages: [] as LoungeMessage[] }));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: api.fetchTrainings }));
 vi.mock("@/services/api/bootPrefetch", () => ({ takeTrainings: api.takeTrainings }));
+vi.mock("@/services/api/projectArchive", () => ({ archiveProject: api.archiveProject }));
+vi.mock("@/services/api/projectDeletion", () => ({ requestProjectDeletion: api.requestProjectDeletion }));
 vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => thread }));
 vi.mock("../pdfSlides", () => ({
   PdfPage: (props: { url: string; pageIndex: number }) => {
@@ -86,6 +93,8 @@ beforeEach(() => {
   thread.loading = true;
   api.fetchTrainings.mockReset();
   api.takeTrainings.mockReset().mockImplementation(() => api.fetchTrainings());
+  api.archiveProject.mockReset();
+  api.requestProjectDeletion.mockReset();
   pdf.page.mockReset();
   intersectionCallback = null;
   observe.mockReset();
@@ -106,6 +115,22 @@ const flush = () => act(async () => {
   await Promise.resolve();
   await Promise.resolve();
 });
+
+function button(label: string): HTMLButtonElement | undefined {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+    .find((item) => item.textContent?.trim() === label || item.getAttribute("aria-label") === label);
+}
+
+async function renderHome(projects: TrainingArc[]) {
+  api.fetchTrainings.mockResolvedValue(projects);
+  thread.loading = false;
+  act(() => root.render(createElement(ProductHome, {
+    onOpenSpeaking: vi.fn(),
+    onOpenProject: vi.fn(),
+    onStartNewProject: vi.fn(),
+  })));
+  await flush();
+}
 
 describe("Speaking coach home", () => {
   it("waits for both sources and paints only active projects", async () => {
@@ -142,6 +167,87 @@ describe("Speaking coach home", () => {
     await flush();
     await act(async () => (host.querySelector('[data-home-row="b"] button') as HTMLButtonElement).click());
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ arcId: "b" }));
+  });
+
+  it("aligns project icons with the logo gutter and keeps the system row fixed", async () => {
+    await renderHome([arc("a", "Board pitch")]);
+
+    const projectButton = host.querySelector('[data-chat-row="a"]');
+    expect(projectButton?.className).toContain("pl-0");
+    expect(button("More options for Speaking coach")).toBeUndefined();
+    expect(button("More options for Board pitch")).toBeDefined();
+  });
+
+  it("archives only the selected project and removes it without a reload", async () => {
+    api.archiveProject.mockResolvedValue(true);
+    await renderHome([arc("a", "Board pitch"), arc("b", "Team update")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Archive")?.click());
+    await flush();
+
+    expect(api.archiveProject).toHaveBeenCalledWith("a");
+    expect(host.querySelector('[data-chat-row="a"]')).toBeNull();
+    expect(host.querySelector('[data-chat-row="b"]')).not.toBeNull();
+  });
+
+  it("keeps the project row and announces an archive failure", async () => {
+    api.archiveProject.mockResolvedValue(false);
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Archive")?.click());
+    await flush();
+
+    expect(host.querySelector('[data-chat-row="a"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Couldn't archive. Try again.");
+  });
+
+  it("requires confirmation and locks a project after a successful delete request", async () => {
+    api.requestProjectDeletion.mockResolvedValue({
+      ok: true,
+      deletion: { state: "pending", dueAt: null, cancellable: true },
+    });
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Delete")?.click());
+    expect(api.requestProjectDeletion).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Delete "Board pitch"?');
+
+    await act(async () => button("Request deletion")?.click());
+    await flush();
+
+    expect(api.requestProjectDeletion).toHaveBeenCalledWith("a");
+    expect(host.textContent).toContain("Deletion pending");
+    expect(button("More options for Board pitch")).toBeUndefined();
+    expect((host.querySelector('[data-chat-row="a"]') as HTMLButtonElement | null)?.disabled).toBe(true);
+  });
+
+  it("keeps the project row and confirmation open when deletion fails", async () => {
+    api.requestProjectDeletion.mockResolvedValue({ ok: false, deletion: null });
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Delete")?.click());
+    await act(async () => button("Request deletion")?.click());
+    await flush();
+
+    expect(host.querySelector('[data-chat-row="a"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Couldn't delete. Try again.");
+    expect(button("Request deletion")).toBeDefined();
+  });
+
+  it("does not expose management actions for a project already pending deletion", async () => {
+    await renderHome([
+      Object.assign(arc("a", "Board pitch"), {
+        deletion: { state: "pending", dueAt: null, cancellable: true },
+      }),
+    ]);
+
+    expect(host.textContent).toContain("Deletion pending");
+    expect(button("More options for Board pitch")).toBeUndefined();
+    expect((host.querySelector('[data-chat-row="a"]') as HTMLButtonElement | null)?.disabled).toBe(true);
   });
 
   it("keeps a deckless project's palette background stable across renders", async () => {
