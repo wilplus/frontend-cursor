@@ -166,10 +166,21 @@ const BLUETOOTH_MIC = /airpods|bluetooth|hands-?free|buds\b|beats|jabra|bose/i;
  *  the next Take. Never fails the recording. */
 function rememberMic(stream: MediaStream): void {
   try {
-    const label = stream.getAudioTracks()[0]?.label ?? "";
-    window.localStorage.setItem(EARBUDS_KEY, BLUETOOTH_MIC.test(label) ? "1" : "0");
+    rememberEarbuds(BLUETOOTH_MIC.test(stream.getAudioTracks()[0]?.label ?? ""));
   } catch {
-    /* no storage, or a stream without tracks: say nothing */
+    /* a stream without tracks: say nothing */
+  }
+}
+
+/** Remember whether this Take's mic was earbuds or a headset, for the line
+ *  before the next Take. The iPhone app's recorder (useNativeTakeMic) knows
+ *  it from the kind of mic the phone reports, never its name. Never fails
+ *  the recording. */
+export function rememberEarbuds(bluetooth: boolean): void {
+  try {
+    window.localStorage.setItem(EARBUDS_KEY, bluetooth ? "1" : "0");
+  } catch {
+    /* no storage: say nothing */
   }
 }
 
