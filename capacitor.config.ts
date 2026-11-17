@@ -53,6 +53,14 @@ const config: CapacitorConfig = {
       resize: "native",
       autoBackdropColor: "auto",
     },
+    // The launch screen stays until the page has drawn (backend N661 item 2):
+    // no blank white page between the mark and the chat. The site hides it
+    // (src/lib/phone/launchScreen.ts); if the site never says so, the app
+    // hides it itself after `launchShowDuration`, so it can never stay up.
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 6000,
+    },
   },
 };
 
