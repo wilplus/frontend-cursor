@@ -109,7 +109,9 @@ export default function LoadingState({
 
   if (placement === "viewport") {
     return (
-      <div className="fixed inset-0 z-40 flex justify-center bg-background px-6">
+      // `data-viewport-wait`: the iPhone app keeps its launch screen up while
+      // this is on screen (src/lib/phone/launchScreen.ts, backend N661 item 2).
+      <div data-viewport-wait="" className="fixed inset-0 z-40 flex justify-center bg-background px-6">
         {presentation}
       </div>
     );
