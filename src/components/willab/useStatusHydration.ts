@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { fetchReadouts } from "@/services/api/readouts";
+import { fetchReadoutsForStatus } from "@/services/api/readouts";
+import { afterChatBoot } from "@/lib/chatBoot";
 import {
   clearReviewPending,
   getReviewPending,
@@ -32,9 +33,17 @@ import type { HomeStatus, WillabState } from "./useWillabFlow";
  *   - otherwise → lounge_idle
  */
 export async function reconcileWillabStatus(
-  settle: (status: HomeStatus) => void
-): Promise<void> {
-  const rows = await fetchReadouts();
+  ownerId: string,
+  settle: (status: HomeStatus) => void,
+  opts: { refresh?: boolean } = {},
+): Promise<boolean> {
+  const result = await fetchReadoutsForStatus(ownerId, opts);
+  // An unavailable readout list is not an empty list. Keep the session-state
+  // answer and the local pending chip intact; the chat is already usable and
+  // a later state-change refresh can recover without a visual jump.
+  if (!result.ok) return false;
+
+  const rows = result.rows;
   const latest = rows[0];
   if (latest?.state === "review_pending") {
     setReviewPending(latest.sessionId);
@@ -47,20 +56,37 @@ export async function reconcileWillabStatus(
     clearReviewPending();
     settle("lounge_idle");
   }
+  return true;
 }
 
 export function useStatusHydration(
   signedIn: boolean | null,
+  ownerId: string | null,
   state: WillabState | null,
   settle: (status: HomeStatus) => void
 ): void {
   const ranRef = useRef(false);
+  const ownerRef = useRef<string | null>(null);
+  const generationRef = useRef(0);
+
+  if (ownerRef.current !== ownerId) {
+    ownerRef.current = ownerId;
+    ranRef.current = false;
+    generationRef.current += 1;
+  }
 
   useEffect(() => {
-    if (signedIn !== true || state === null || ranRef.current) return;
+    if (signedIn !== true || !ownerId || state === null || ranRef.current) return;
     ranRef.current = true; // once, on the first resolved signed-in load
     if (state !== "lounge_idle" && state !== "review_pending") return;
 
-    void reconcileWillabStatus(settle);
-  }, [signedIn, state, settle]);
+    const generation = generationRef.current;
+    return afterChatBoot(() => {
+      void reconcileWillabStatus(ownerId, (status) => {
+        if (generation === generationRef.current && ownerRef.current === ownerId) {
+          settle(status);
+        }
+      });
+    });
+  }, [signedIn, ownerId, state, settle]);
 }

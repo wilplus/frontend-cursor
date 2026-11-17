@@ -1766,6 +1766,11 @@ O2  Never 5 (helper words stay until the speaker picks new ones): words
 picked from an earlier Take are saved on that paragraph, and its old
 in-text span is cleared only after the save succeeds.","O1 -> ""Delete lifts the lock on the paragraph""
 O2 -> ""words from an earlier Take save on the paragraph""",F1 Repair Plan Phase 5: the landing copy was missing these handlers.
+src/components/willab/useStatusHydration.test.tsx,Story,"As a speaker opening the app, I want my existing chat, composer and safe primary action available before the optional status reconciliation answers.","O1  The chat surface renders while the readout request is still pending; the
+request starts only after the chat boot settles.
+O2  A readout error leaves the existing status alone instead of turning an
+unavailable history into an empty one.","O1 -> ""readout reconciliation is non-blocking and starts once""
+O2 -> ""a scoped status failure does not jump the chat""",
 src/components/willab/useWillabFlow.chatBoot.test.tsx,Story,"As a speaker opening the chat, I want my conversation drawn before the menu's side lookups (the wallet, the Life gate, the product discoveries) go out, so that the chat appears fast (founder 2026-10-16, chatBoot.ts).","O1  The menu drawn with the chat while it opens waits for the thread to
 paint, though React runs the menu's effects before the chat's own.","O1 -> ""the menu drawn with the opening chat waits for the thread""",
 src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
@@ -2625,6 +2630,11 @@ requests.
 O2  Signing up moves my projects using both my login and the guest key,
 and the guest key is forgotten after the move succeeds.","O1 -> ""stores the issued guest credential and reuses it as an owner header""
 O2 -> ""clears the guest credential only after an authenticated atomic claim""",
+src/services/api/readouts.test.ts,Story,"As a signed-in speaker, I want the background status check to be shared while it is relevant, but never reused by another account.","O1  Concurrent status checks for one owner make one request and reuse the
+successful result until an explicit state refresh.
+O2  A different owner gets a fresh read, even if the previous owner's result
+is still in memory.","O1 -> ""one status read per owner/state, including concurrent callers""
+O2 -> ""readout rows never cross an auth switch""",
 src/services/api/recordingConfig.test.ts,Story,"As the founder, I want the ""this Take is getting long"" warning threshold to come only from the server, so that I can change it without a deploy and the app never invents one.","O1  A missing or unusable threshold gives no threshold, never a made-up
 default.","O1 -> ""never substitutes a default when the field is missing or unusable""",
 src/services/api/recordingProgress.test.ts,Story,"As a speaker, I want recording progress shown only when the server gives a real threshold and total, so that I never see a made-up progress figure.","O1  A missing, zero or null threshold or total gives null (nothing shown).

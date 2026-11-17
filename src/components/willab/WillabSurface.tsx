@@ -197,7 +197,7 @@ export default function WillabSurface({
       : signedIn === true && userEmail === MLC2_FOUNDER_CANARY_EMAIL;
   // Reconcile the at-home status (review_pending / insights) with server truth
   // once on load…
-  useStatusHydration(signedIn, flow.state, flow.settleHomeStatus);
+  useStatusHydration(signedIn, userId, flow.state, flow.settleHomeStatus);
   // …and live: while awaiting a coach, flip review_pending → insights_ready the
   // instant the coach publishes (realtime sub + 20s poll fallback), reusing the
   // same reconcile so the publish event is the single source of truth (no 2nd write).
@@ -212,12 +212,31 @@ export default function WillabSurface({
   // sub keeps firing, so it still lands the moment they return to the Lounge.
   const stateRef = useRef(flow.state);
   stateRef.current = flow.state;
+  const publishRefreshRef = useRef<string | null>(null);
   const onPublish = useCallback(() => {
-    if (getReviewPending() == null) return; // only relevant while awaiting a coach
+    const pendingSessionId = getReviewPending();
+    if (pendingSessionId == null || !userId) return; // only relevant while awaiting a coach
     const st = stateRef.current;
     if (st !== null && isLabOverlay(st)) return; // never interrupt the readout
-    void reconcileWillabStatus(settleHomeStatus);
-  }, [settleHomeStatus]);
+    const refreshKey = `${userId}:${pendingSessionId}`;
+    if (publishRefreshRef.current === refreshKey) return;
+    publishRefreshRef.current = refreshKey;
+    afterChatBoot(() => {
+      const current = stateRef.current;
+      if (current !== null && isLabOverlay(current)) {
+        publishRefreshRef.current = null;
+        return;
+      }
+      void reconcileWillabStatus(userId, settleHomeStatus, { refresh: true }).then((ok) => {
+        if (!ok && publishRefreshRef.current === refreshKey) {
+          // A transient failure may retry on the next publish signal. A
+          // successful check is intentionally not repeated for duplicate
+          // realtime events in the same pending state.
+          publishRefreshRef.current = null;
+        }
+      });
+    });
+  }, [settleHomeStatus, userId]);
   usePublishLiveSubscription(userId, onPublish);
   useFirstVisitSteps(flow.state, signedIn);
   // The list of chats in front of the Lounge, ring 6 only (feature `chats`;
