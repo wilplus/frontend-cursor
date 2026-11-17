@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import type { UiLocale } from "@/lib/uiLocale";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useTakeMic } from "@/hooks/useTakeMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
@@ -203,7 +204,8 @@ export default function LabOverlay({
   // transcript, so skip Web Speech: its per-result events would re-render the
   // whole recording overlay many times a second (worse the longer the take),
   // which is what made the screen go stale / the slide Next feel unresponsive.
-  const mic = useDualCaptureMic({ transcript: false });
+  // In the iPhone app with the switch on, the phone records (N655, N662).
+  const mic = useTakeMic();
   const { getPausedMs } = mic;
   const { cancel: cancelMic } = mic;
   // From what this tab already knows, so "How do you feel?" draws on the
