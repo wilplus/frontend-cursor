@@ -7,17 +7,22 @@ import { speakingCoachSeed } from "./seed";
 
 const DIGIT = /\d/;
 
-export function refuse(def: CoachDefinition): string | null {
+function hasDigit(lines: string[]): boolean {
+  return lines.some((line) => line && DIGIT.test(line));
+}
+
+function refuseShell(def: CoachDefinition): string | null {
   if (def.schema !== 1 || def.id !== "speaking-coach") return "COACH_UNKNOWN";
   if (def.shell.recordingClockSeconds !== 300) return "COACH_CLOCK";
   if (def.shell.publicLink !== "hardcoded_will") return "COACH_PUBLIC_LINK";
-  if (def.shell.surfaces.length !== 2 || def.shell.surfaces[0] !== "feedback_walk" || def.shell.surfaces[1] !== "ideal_text") {
-    return "COACH_SURFACES";
-  }
+  if (def.shell.surfaces.length !== 2 || def.shell.surfaces[0] !== "feedback_walk" || def.shell.surfaces[1] !== "ideal_text") return "COACH_SURFACES";
   if (def.will.recording || def.will.composer !== "text") return "COACH_WILL";
   if (def.theme.canvasMaxPx !== 1080) return "COACH_CANVAS";
-  const seed = speakingCoachSeed();
-  for (const pin of seed.noticing.pinned) {
+  return null;
+}
+
+function refuseSteps(def: CoachDefinition): string | null {
+  for (const pin of speakingCoachSeed().noticing.pinned) {
     const got = def.noticing.pinned.find((row) => row.name === pin.name);
     if (!got || got.value !== pin.value) return "COACH_PINNED";
   }
@@ -25,18 +30,25 @@ export function refuse(def: CoachDefinition): string | null {
     if (!SCREENS.includes(row.screen)) return "COACH_UNKNOWN_SCREEN";
     if (row.key === "tempo" && row.voice) return "COACH_SNIPER_VOICE";
     const sentences = [row.fixed, ...(row.lines ?? []), ...(row.variants ?? []).map((v) => v.fixed), ...(row.choices ?? [])];
-    if (sentences.some((line) => line && DIGIT.test(line))) return "COACH_NUMBER";
+    if (hasDigit(sentences)) return "COACH_NUMBER";
   }
+  return null;
+}
+
+function refuseScreens(def: CoachDefinition): string | null {
   for (const screen of def.screens ?? []) {
     for (const state of screen.states) {
-      const sentences = [...state.lines, ...(state.choices ?? [])];
-      if (sentences.some((line) => line && DIGIT.test(line))) return "COACH_NUMBER";
+      if (hasDigit([...state.lines, ...(state.choices ?? [])])) return "COACH_NUMBER";
     }
   }
   for (const plugin of def.plugins) {
     if (!["REWRITE", "EMPHASISE", "ADD", "NOTICE"].includes(plugin.interventionType)) return "COACH_PLUGIN_TYPE";
   }
   return null;
+}
+
+export function refuse(def: CoachDefinition): string | null {
+  return refuseShell(def) ?? refuseSteps(def) ?? refuseScreens(def);
 }
 
 function shape(def: CoachDefinition): string {

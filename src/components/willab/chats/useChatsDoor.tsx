@@ -8,6 +8,7 @@ import { useBackStop } from "../useBackDismiss";
 import { useSiteBarCovered } from "./siteBarCover";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import ProductHome from "./ProductHome";
+import WillBuild from "./WillBuild";
 import { setOpenChat, setOpenPlace } from "./loungePlace";
 import { WillTopBar } from "./TopBar";
 
@@ -58,6 +59,7 @@ export function useChatsDoor(
   useForgetChatsSignedOut(decided);
 
   const [speakingOpen, setSpeakingOpen] = useState(willFirst);
+  const [ownOpen, setOwnOpen] = useState(false);
   useEffect(() => {
     setOpenPlace(speakingOpen ? "speaking" : null);
   }, [speakingOpen]);
@@ -75,14 +77,16 @@ export function useChatsDoor(
 
   return {
     back: speakingOpen ? <WillTopBar onBack={() => setSpeakingOpen(false)} place="speaking" /> : null,
-    navbar: !speakingOpen && !barCovered,
+    navbar: !speakingOpen && !ownOpen && !barCovered,
     front: speakingOpen ? null : (
       <div data-chats-front className="absolute inset-0 z-20 overflow-hidden bg-background">
         <ProductHome
           onOpenSpeaking={() => setSpeakingOpen(true)}
           onOpenProject={(project) => options?.onOpenProject?.(project)}
           onStartNewProject={() => options?.onStartNewProject?.()}
+          onOpenOwnChat={() => setOwnOpen(true)}
         />
+        {ownOpen ? <WillBuild onBack={() => setOwnOpen(false)} /> : null}
       </div>
     ),
   };

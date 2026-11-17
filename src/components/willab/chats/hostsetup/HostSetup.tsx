@@ -1110,6 +1110,62 @@ function WalkSayStep({ c }: { c: Ctx }) {
   );
 }
 
+function QuestionStep(c: Ctx) {
+  const { S, R } = c;
+  if (S.edit && R.questions.length) {
+    const qs = R.questions.map((item) => item.q);
+    const save = (next: string[]) => c.keep("questions", next.map((q) => ({ q })), c.paint);
+    return (
+      <Frame onBack={c.back} dock={{
+        placeholder: W.qAsk,
+        onSend: (typed) => {
+          const q = typed.trim();
+          if (!q || qs.length >= 3 || qs.some((item) => item.toLowerCase() === q.toLowerCase())) return false;
+          save([...qs, q]);
+        },
+      }}>
+        <Say>{W.qSay}</Say>
+        {qs.map((q) => (
+          <BinaryRow key={q} title={q} on onLabel={W.keep} offLabel={W.remove} onPick={(keep) => { if (!keep && qs.length > 1) save(qs.filter((item) => item !== q)); }} />
+        ))}
+      </Frame>
+    );
+  }
+  const n = S.qs.length;
+  const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
+  return kc(c, `q${n}`, W.qSay, list, list[0], (v) => <Card b={v} />, (v) => {
+    S.qs.push(v);
+    if (S.qs.length >= 3) c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps"));
+    else c.go("qmore");
+  }, W.qAsk, (v) => v);
+}
+
+function WayStep(c: Ctx) {
+  const { S, R } = c;
+  const models = R.models ?? [];
+  const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
+  return (
+    <Frame
+      onBack={c.back}
+      dock={picks([...(others.length ? [W.wayUse] : []), W.wayOwn], (label) => {
+        if (label === W.wayOwn) c.keep("way", "own");
+        else { S.picked = null; c.keep("way", "use"); }
+      }, {
+        onSend: (text) => {
+          const said = text.trim().toLowerCase();
+          if (said.includes(W.wayOwn.toLowerCase())) return c.keep("way", "own");
+          if (others.length && said.includes("model that exists")) { S.picked = null; c.keep("way", "use"); return; }
+          return false;
+        },
+      })}
+    >
+      <Say>{W.waySay}</Say>
+      <Opt title={W.wayUse} sub={others.length ? W.wayUseYes : W.wayUseNone} disabled={!others.length} onClick={() => { S.picked = null; c.keep("way", "use"); }} />
+      <Opt title={W.wayOwn} sub={W.wayOwnSub} onClick={() => c.keep("way", "own")} />
+    </Frame>
+  );
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
@@ -1131,41 +1187,8 @@ function StepScreen(c: Ctx) {
     }
     case "out":
       return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => commitRow(c, W.outSay, OUT[v][0], "out", v));
-    case "q": {
-      if (S.edit && R.questions.length) {
-        const qs = R.questions.map((item) => item.q);
-        const save = (next: string[]) => c.keep("questions", next.map((q) => ({ q })), c.paint);
-        return (
-          <Frame onBack={c.back} dock={{
-            placeholder: W.qAsk,
-            onSend: (typed) => {
-              const q = typed.trim();
-              if (!q || qs.length >= 3 || qs.some((item) => item.toLowerCase() === q.toLowerCase())) return false;
-              save([...qs, q]);
-            },
-          }}>
-            <Say>{W.qSay}</Say>
-            {qs.map((q) => (
-              <BinaryRow
-                key={q}
-                title={q}
-                on
-                onLabel={W.keep}
-                offLabel={W.remove}
-                onPick={(keep) => { if (!keep && qs.length > 1) save(qs.filter((item) => item !== q)); }}
-              />
-            ))}
-          </Frame>
-        );
-      }
-      const n = S.qs.length;
-      const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
-      return kc(c, `q${n}`, W.qSay, list, list[0], (v) => <Card b={v} />, (v) => {
-        S.qs.push(v);
-        if (S.qs.length >= 3) c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps"));
-        else c.go("qmore");
-      }, W.qAsk, (v) => v);
-    }
+    case "q":
+      return QuestionStep(c);
     case "qmore":
       return (
         <Frame onBack={c.back} dock={yesNo(W.no, W.yes, () => c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps")), () => c.go("q"))}>
@@ -1175,29 +1198,8 @@ function StepScreen(c: Ctx) {
       );
     case "taps":
       return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => commitRow(c, W.tapsSay, v.join(" · "), "taps", v), W.tapsAsk, (v) => [v]);
-    case "way": {
-      const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
-      return (
-        <Frame
-          onBack={c.back}
-          dock={picks([...(others.length ? [W.wayUse] : []), W.wayOwn], (label) => {
-            if (label === W.wayOwn) c.keep("way", "own");
-            else { S.picked = null; c.keep("way", "use"); }
-          }, {
-            onSend: (text) => {
-              const said = text.trim().toLowerCase();
-              if (said.includes(W.wayOwn.toLowerCase())) return c.keep("way", "own");
-              if (others.length && said.includes("model that exists")) { S.picked = null; c.keep("way", "use"); return; }
-              return false;
-            },
-          })}
-        >
-          <Say>{W.waySay}</Say>
-          <Opt title={W.wayUse} sub={others.length ? W.wayUseYes : W.wayUseNone} disabled={!others.length} onClick={() => { S.picked = null; c.keep("way", "use"); }} />
-          <Opt title={W.wayOwn} sub={W.wayOwnSub} onClick={() => c.keep("way", "own")} />
-        </Frame>
-      );
-    }
+    case "way":
+      return WayStep(c);
     case "more":
       return (
         <Frame onBack={c.back} dock={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; S.draft = null; S.savedAt = null; c.go("way"); })}>

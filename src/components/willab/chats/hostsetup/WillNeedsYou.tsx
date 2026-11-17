@@ -23,6 +23,7 @@ import { useUserProfile } from "../../useUserProfile";
 import { W } from "./hostSetupCopy";
 import { openOverList, useKnownSetup, type OpenDetail } from "./hostSetupDoor";
 import { answerPriceChange, useHostWork } from "./hostWork";
+import ChatIconPicker, { useOwnFace } from "./ChatIconPicker";
 
 /* -------------------------------------------------------------------------- */
 /*  Build's "Your chat", in Will's chat (backend N642 item 3, N643 item 4;     */
@@ -184,6 +185,33 @@ export function PartBubble({ part }: { part: SetupPart }) {
   );
 }
 
+function iconMatches(query: string): boolean {
+  const q = query.trim().toLowerCase();
+  return !q || "icon".includes(q) || "your initial".includes(q);
+}
+
+function iconLine(face: ReturnType<typeof useOwnFace>): string {
+  if (face.kind === "emoji") return face.emoji;
+  if (face.kind === "photo") return "A photo";
+  if (face.kind === "color") return "A colour";
+  return "Your initial";
+}
+
+/** One row of Your chat: the circle people see, then the presets. */
+function IconPart() {
+  const [open, setOpen] = useState(false);
+  const face = useOwnFace();
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-background">
+      <button type="button" data-own-icon="" onClick={() => setOpen((was) => !was)} className="flex min-h-12 w-full items-center gap-3 px-3.5 py-3 text-left">
+        <span className="shrink-0 text-[15px] font-medium text-foreground sm:w-40">Icon</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{iconLine(face)}</span>
+      </button>
+      {open ? <div className="border-t border-border px-3.5 py-3"><ChatIconPicker name="Icon" /></div> : null}
+    </section>
+  );
+}
+
 /** Build's "Your chat" (backend N642 item 3, N643 item 4): the parts, then
  *  what needs you about the chat. On the stable page (`page`) it is the
  *  whole screen, with a search, and a row opens that row's own chat.
@@ -194,7 +222,7 @@ export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: 
   const work = useHostWork(isCoach);
   const setup = useKnownSetup();
   const [query, setQuery] = useState("");
-  if (!work.ring) return null;
+  if (!work.ring && !page) return null;
   const over = (detail: OpenDetail) => () => openOverList(detail);
   const openPart = (part: SetupPart) => (onPart ? onPart(part) : openOverList({ part: part.part }));
   const recipe = setup?.recipe ?? null;
@@ -221,6 +249,7 @@ export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: 
           ) : null}
         </form>
       ) : null}
+      {page && iconMatches(query) ? <IconPart /> : null}
       {page && onTalk ? (
         <button type="button" data-talk-open="" onClick={onTalk} className="min-h-11 self-start text-[15px] font-semibold text-primary">Talk it through</button>
       ) : null}

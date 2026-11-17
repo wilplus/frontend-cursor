@@ -27,6 +27,19 @@ One point for the fixture match. One point for each Speaking Coach parity item f
 
 The test printed `29/29 = 100%`.
 
+## The host's own chat on the list
+
+These stay on this device. `docs/chat-builder/backend-own-chat-list.patch` says what a later backend read would return. Nothing is written to production.
+
+| # | Point | Result |
+| --- | --- | --- |
+| 30 | The starter row is last, above Start a new project, and Close changes nothing | PASS |
+| 31 | Yes pins the chat at the top and Back returns to the list | PASS |
+| 32 | Share copies `/c/<id>`, or `own_chat.link.path` when the host already has one | PASS |
+| 33 | The icon defaults to the initial, and the badge is 40% of the circle | PASS |
+
+`ownChatHome.test.tsx` printed `OWN CHAT 4/4 = 100%`. With the 29 above, that is 33/33.
+
 ## How the screens read it
 
 `usePublishedCoach` reads the draft on this device and does not call the network while that draft is there. "fifteen taps build the Speaking Coach" renders `IdealTextHeading` from that hook and checks the record label, the empty Ideal Text name, and the walk plan against the fixture. The shop script checks sends, models, pricing, API, other models, the training machine, the paste, and who answers.

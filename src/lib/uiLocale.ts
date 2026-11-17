@@ -24,6 +24,7 @@ export type UiCopyKey =
   | "deleteFailed"
   | "tryAgain"
   | "speakingCoach"
+  | "startOwnChat"
   | "startNewProject"
   | "createNewProject"
   | "startFirstProject"
@@ -97,6 +98,7 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Couldn't delete. Try again.",
     tryAgain: "Try again",
     speakingCoach: "Speaking coach",
+    startOwnChat: "Start your own chat",
     startNewProject: "Start a new project",
     createNewProject: "Create new project",
     startFirstProject: "Start your first project",

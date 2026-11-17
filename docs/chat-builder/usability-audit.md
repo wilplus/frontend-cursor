@@ -50,7 +50,12 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 17 | Capability chips | 10 | Record, Type, Photo, File and Train. Tapping Photo adds a photo and leaves the name. |
 | 18 | A first-line greeting | 10 | The preview's first line is the greeting. |
 | 19 | Auto-save, and Publish to go live | 10 | A draft is stored after the first answer. Publish sets the flag and the test saw no fetch. |
+| 20 | Start your own chat is a row at the bottom | 10 | `ownChatHome.test.tsx`: the row is last, and it sits above Start a new project. |
+| 21 | The sheet is one or two sentences, then Yes and Close | 10 | Close leaves the row where it was. Yes is the only way on. |
+| 22 | Yes opens Build and pins the chat at the top | 10 | The row's name is the chat's name. Back returns to the list. |
+| 23 | Share copies the link | 10 | The button copies `/c/…` and says Link copied. The phone run does the same at 390×844. |
+| 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. An emoji replaces it. The badge is about 40% of the circle. |
 
-**190 / 190 = 100%.** That is above 95%. The e2e line was `USABILITY 30/30 = 100%`. The pattern test logged 10/10.
+**240 / 240 = 100%.** That is above 95%. The earlier e2e line was `USABILITY 30/30 = 100%`. The own-chat tests log `OWN CHAT 4/4 = 100%`, and `node scripts/own-chat-e2e.mjs` covers the same path on a phone.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

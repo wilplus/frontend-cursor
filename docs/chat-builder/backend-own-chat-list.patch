@@ -1,0 +1,15 @@
+# Backend note: the host's own chat on the list
+
+The list pins the host's chat, its name and its icon on this device
+(`localStorage` key `wlp-own-chat`). Nothing here is written to production.
+
+When the backend can store it, a host read should return:
+
+- the chat id
+- the title the host gave it
+- the icon (an emoji, a colour, a photo url, or the initial)
+- the public path `/c/<token>`, which the share button already prefers
+  when `own_chat.link.path` is present
+
+Until that read exists, the share button builds `origin + /c/` plus the
+local id, and the row stays on this device.

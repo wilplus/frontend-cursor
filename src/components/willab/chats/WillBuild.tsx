@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link as LinkIcon } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
+import { OwnAvatar } from "./hostsetup/ChatIconPicker";
+import { publicChatHref, readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import BuildModels from "./BuildModels";
 import type { HostRecipe, OwnChat, SetupPart } from "@/services/api/hostSetup";
@@ -67,6 +70,27 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
   );
 }
 
+function ShareOwnChat({ serverPath }: { serverPath?: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const go = async () => {
+    const href = publicChatHref(window.location.origin, readOwnChat().id, serverPath);
+    try { await navigator.clipboard.writeText(href); } catch { /* the sheet can still offer the link */ }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+    if (typeof navigator.share === "function") {
+      try { await navigator.share({ url: href }); } catch { /* the person closed the sheet */ }
+    }
+  };
+  return (
+    <span className="relative">
+      <button type="button" aria-label="Share" data-share-chat="" onClick={() => void go()} className="flex h-11 w-11 items-center justify-center rounded-full text-foreground">
+        <LinkIcon className="h-5 w-5" aria-hidden />
+      </button>
+      {copied ? <span role="status" data-link-copied="" className="absolute right-0 top-12 z-20 whitespace-nowrap rounded-full bg-foreground px-3 py-1.5 text-[13px] font-medium text-background">Link copied</span> : null}
+    </span>
+  );
+}
+
 /** Over the whole of Will's chat, his field included. */
 function Cover({ children }: { children: ReactNode }) {
   return <div data-build-cover="" className="absolute inset-0 z-10 flex flex-col bg-background">{children}</div>;
@@ -110,6 +134,12 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     return () => window.removeEventListener(BUILD_MODE_EVENT, on);
   }, []);
   const swap = canTry ? <LiveBuildSwitch mode={mode} onMode={setMode} /> : null;
+  const tools = <span className="flex items-center"><ShareOwnChat serverPath={own?.link?.path} />{swap}</span>;
+  useBackDismiss(onBack, () => {
+    if (talk) { setTalk(false); return true; }
+    if (active !== null && tab === "chat") { setActive(null); return true; }
+    return false;
+  });
   const order = orderedParts(setup?.parts ?? []);
   const openPart = (id: string) => {
     setSeen((was) => (was.includes(id) ? was : [...was, id]));
@@ -123,11 +153,11 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   if (mode === "live" && canTry) {
     const bar = (
       <TopBar
-        circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
+        circle={<OwnAvatar id={`own-${name}`} name={name} size={36} />}
         title={name}
         subtitle={W.youRunIt}
         onBack={onBack}
-        right={swap}
+        right={tools}
       />
     );
     return (
@@ -139,11 +169,11 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const top = (
     <div data-build-bar="" className="shrink-0 bg-background">
       <TopBar
-        circle={<LetterCircle id={`build-${name}`} name={name} size={36} />}
+        circle={<OwnAvatar id={`build-${name}`} name={name} size={36} />}
         title={name}
         subtitle={W.youRunIt}
         onBack={headerBack}
-        right={swap}
+        right={tools}
       />
       <Tabs tab={tab} onTab={setTab} />
     </div>

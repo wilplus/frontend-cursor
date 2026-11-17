@@ -6,19 +6,17 @@ import { BarBox } from "@/components/willab/chats/ChatBar";
 import { PRICES, SEND, W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
-import { clearTalkDraft, publishTalkDraft, saveTalkDraft, talkBuilt, type TalkPlugin, type TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTalkDraft, publishTalkDraft, saveTalkDraft, talkBuilt, type TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
 import { transcribeAnswer } from "@/services/api/lifeGoals";
+import { COACH_HELLO, SENDS, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
+import ChatIconPicker from "./ChatIconPicker";
 
 /* The chat, built by talking. Four steps, like a deck: Brief, Steps, Coach, Look.
    Each answer is a version. Undo puts that version back. Finishing writes a
    draft on this device, which the recording screens, Ideal Text and the walk read. */
 
 const STEPS = ["Brief", "Steps", "Coach", "Look"] as const;
-const SENDS: SendKind[] = ["rec", "text", "photo", "file"];
-const WALKS = ["best", "fix", "words"] as const;
 const OPENING: Line[] = [{ who: "will", text: "What do you do?", quotes: ["Speaking coach", "You decide"] }];
-const COACH_HELLO = "Hi. Record a short talk, and I'll tell you what worked.";
-const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 const CHIPS: { id: string; label: string }[] = [
   { id: "rec", label: "Record" },
   { id: "text", label: "Type" },
@@ -28,9 +26,6 @@ const CHIPS: { id: string; label: string }[] = [
 ];
 
 type Who = TalkSnap["who"];
-type Phase = "brief" | "send" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
-type Snap = TalkSnap & { label: string };
-type Line = { who: "will" | "me"; text: string; quotes?: string[] };
 type Frame = { snap: Snap; phase: Phase; i: number; priceAt: number; lines: Line[]; label: string };
 
 const blank = (): Snap => ({
@@ -54,6 +49,159 @@ function copySnap(snap: Snap): Snap {
 function planLine(snap: Snap): string {
   const hello = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
   return `${snap.spec || "Your chat"}. First line: ${hello}`;
+}
+
+function stepLabel(phase: Phase): string {
+  if (phase === "brief") return "Brief";
+  if (phase === "look" || phase === "done") return "Look";
+  if (phase === "plan" || phase === "edit" || phase === "send" || phase === "walk") return "Steps";
+  return "Coach";
+}
+
+function hintFor(phase: Phase): string {
+  if (phase === "brief") return "Say what you do";
+  if (phase === "paste") return "Paste the step";
+  if (phase === "greet") return "The first line";
+  if (phase === "model") return "Which one";
+  if (phase === "otherName") return "Name the other one";
+  if (phase === "plan") return "Say go";
+  if (phase === "edit") return "What should change";
+  if (phase === "look") return "Yes opens it";
+  return "Yes or no";
+}
+
+function generatedDraft(phase: Phase, spec: string): string {
+  if (phase === "paste") return WRITTEN_PASTE;
+  return spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.";
+}
+
+function TalkProgress({ phase, versions, onUndo, onExpress }: {
+  phase: Phase;
+  versions: { label: string }[];
+  onUndo: () => void;
+  onExpress: () => void;
+}) {
+  const stepName = stepLabel(phase);
+  const shown = versions.at(-1)?.label ?? "";
+  return (
+    <>
+      <div data-talk-steps="" className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-border px-4 text-[12.5px]" aria-label="Progress">
+        {STEPS.map((name, n) => (
+          <span key={name} className="flex items-center gap-1.5">
+            {n > 0 ? <i className="block h-px w-2.5 bg-[#d4d4d4]" aria-hidden /> : null}
+            <span data-talk-step={name} className={name === stepName ? "font-semibold text-foreground" : "font-medium text-[#a3a3a3]"}>{name}</span>
+          </span>
+        ))}
+        <button type="button" data-talk-undo="" className="ml-auto inline-flex min-h-11 min-w-11 items-center rounded-full bg-muted px-3 text-[12.5px] font-medium disabled:opacity-40" onClick={onUndo} disabled={!versions.length}>Undo{shown ? `: ${shown}` : ""}</button>
+      </div>
+      <div className="px-4 pt-2">
+        <button type="button" data-express="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={onExpress}>Just build it</button>
+      </div>
+      {shown ? <p data-talk-version="" className="mx-4 mt-3 flex min-h-8 items-center rounded-2xl border border-border px-3 text-[14px] font-semibold">{shown}</p> : null}
+    </>
+  );
+}
+
+function TalkThread({ phase, lines, snap, kept, liveDraft, onTake, onMove, onReorder, onList, onKeep, onPublish, onTry, setDraft }: {
+  phase: Phase;
+  lines: Line[];
+  snap: Snap;
+  kept: boolean;
+  liveDraft: boolean;
+  onTake: (text: string) => void;
+  onMove: (id: typeof WALKS[number], dir: -1 | 1) => void;
+  onReorder: (from: string, onto: typeof WALKS[number]) => void;
+  onList: () => void;
+  onKeep: () => void;
+  onPublish: () => void;
+  onTry: () => void;
+  setDraft: (value: string) => void;
+}) {
+  const choice = !["brief", "look", "done", "paste", "model", "otherName", "greet", "edit"].includes(phase);
+  const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
+  return (
+    <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+      {lines.map((line, n) => (
+        <div key={n} className={line.who === "me" ? "max-w-[86%] self-end rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>
+          <p className="m-0">{line.text}</p>
+          {line.quotes?.map((q) => (
+            <button key={q} type="button" data-quote="" data-say={q} className="mx-0.5 inline-flex min-h-11 min-w-11 items-center rounded-[7px] bg-[#fff1e8] px-2 text-left font-semibold text-[#c84d06]" onClick={() => setDraft(q === "Write this for me" ? generatedDraft(phase, snap.spec) : q)}>“{q}”</button>
+          ))}
+        </div>
+      ))}
+      {choice ? (
+        <div className="flex gap-2">
+          <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={() => onTake("No")}>No</button>
+          <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={() => onTake("Yes")}>Yes</button>
+        </div>
+      ) : null}
+      {snap.walk.length > 1 ? (
+        <ol data-talk-order="" className="m-0 flex list-none flex-col gap-2 p-0">
+          {snap.walk.map((raw) => {
+            const id = raw as typeof WALKS[number];
+            return (
+              <li key={id} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onReorder(e.dataTransfer.getData("text/plain"), id); }} className="flex min-h-12 items-center gap-2 rounded-2xl border border-border px-3">
+                <span className="text-[15px]">{W.walkSteps[id]}</span>
+                <button type="button" data-move="earlier" aria-label={`Earlier ${W.walkSteps[id]}`} className="ml-auto min-h-11 min-w-11 px-2" onClick={() => onMove(id, -1)}>Earlier</button>
+                <button type="button" data-move="later" aria-label={`Later ${W.walkSteps[id]}`} className="min-h-11 min-w-11 px-2" onClick={() => onMove(id, 1)}>Later</button>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+      {phase === "look" || phase === "done" ? (
+        <div data-talk-preview="" className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+          <p data-talk-greeting="" className="m-0 text-[16px]">{helloLine}</p>
+          <ChatIconPicker name={snap.spec || "Your chat"} />
+          <div className="flex gap-2">
+            <button type="button" data-preview-keep="" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={onKeep}>Keep</button>
+            <button type="button" data-preview-next="" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={onList}>Next</button>
+          </div>
+          <button type="button" data-talk-publish="" className="min-h-11 rounded-full border border-border text-[15px] font-semibold" onClick={onPublish}>Publish</button>
+          {kept ? <p data-talk-kept="" className="m-0 text-[15px]">Kept.</p> : null}
+          {liveDraft ? <p data-talk-live="" className="m-0 text-[15px]">Live on this device.</p> : null}
+        </div>
+      ) : null}
+      {phase === "done" ? (
+        <div data-talk-result="" className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+          <p className="m-0 text-[16px] font-semibold">{snap.spec || "Your chat"}</p>
+          <button type="button" className="min-h-11 rounded-full bg-foreground text-[15px] font-semibold text-background" onClick={onList}>Open the list</button>
+          <button type="button" className="min-h-11 rounded-full border border-border text-[15px] font-semibold" onClick={onTry}>Try it out loud</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TalkTools({ phase, snap, draft, onChip, onTake, setDraft }: {
+  phase: Phase;
+  snap: Snap;
+  draft: string;
+  onChip: (id: string) => void;
+  onTake: (text: string) => void;
+  setDraft: (value: string) => void;
+}) {
+  return (
+    <>
+      {phase !== "brief" ? (
+        <div data-talk-chips="" className="flex flex-wrap gap-2 px-4 pb-2">
+          {CHIPS.map((chip) => {
+            const on = chip.id === "machine" ? snap.machine : snap.send.includes(chip.id as SendKind);
+            return (
+              <button key={chip.id} type="button" data-chip={chip.id} aria-pressed={on} className={`inline-flex min-h-11 min-w-11 items-center rounded-full border px-3 text-[15px] font-medium ${on ? "border-primary bg-[#fff1e8] text-[#c84d06]" : "border-border"}`} onClick={() => onChip(chip.id)}>{chip.label}</button>
+            );
+          })}
+        </div>
+      ) : null}
+      {(phase === "paste" || phase === "greet") ? (
+        <div className="flex gap-2 px-4 pb-2">
+          <button type="button" data-write-for-me="" className="inline-flex min-h-11 min-w-11 items-center rounded-full bg-[#fff1e8] px-3 text-[15px] font-semibold text-[#c84d06]" onClick={() => setDraft(generatedDraft(phase, snap.spec))}>Write this for me</button>
+          {draft ? <button type="button" data-write-keep="" className="inline-flex min-h-11 min-w-11 items-center rounded-full bg-primary px-3 text-[15px] font-medium text-primary-foreground" onClick={() => { const text = draft; setDraft(""); onTake(text); }}>Keep</button> : null}
+          {draft ? <button type="button" data-rewrite="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={() => setDraft("")}>Rewrite</button> : null}
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 export default function TalkBuild({ onList, models = [], transcribe = transcribeAnswer }: {
@@ -85,8 +233,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   const versionsRef = useRef<Frame[]>([]);
   const priceBack = useRef<"machine" | "plan">("machine");
 
-  const stepName = phase === "brief" ? "Brief" : phase === "plan" || phase === "edit" ? "Steps" : phase === "look" || phase === "done" ? "Look" : phase === "send" || phase === "walk" ? "Steps" : "Coach";
-  const placeholder = phase === "brief" ? "Say what you do" : phase === "paste" ? "Paste the step" : phase === "greet" ? "The first line" : phase === "model" ? "Which one" : phase === "otherName" ? "Name the other one" : phase === "plan" ? "Say go" : phase === "edit" ? "What should change" : phase === "look" ? "Yes opens it" : "Yes or no";
+  const placeholder = hintFor(phase);
 
   const write = (next: { snap?: Snap; phase?: Phase; i?: number; priceAt?: number; add?: Line[]; label?: string }) => {
     if (next.add?.length) linesRef.current = [...linesRef.current, ...next.add];
@@ -156,183 +303,12 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   };
 
   const onSend = async (text: string) => {
-    const here = phaseRef.current;
-    const yes = /^(yes|the first one|1)$/i.test(text.trim()) || (here === "plan" && /^(go|you decide)$/i.test(text.trim()));
-    const no = /^no$/i.test(text.trim());
-    const free = here === "model" || here === "paste" || here === "look" || here === "done" || here === "otherName" || here === "greet" || here === "edit";
-    const said: Line[] = [];
-    if (!free) {
-      if (!yes && !no) {
-        write({ add: [{ who: "will", text: "Yes or no." }] });
-        return;
-      }
-      said.push({ who: "me", text: yes ? "Yes" : "No" });
-    }
-    const step = `v${versionsRef.current.length + 1}`;
-    if (here === "send") {
-      const kind = SENDS[iRef.current];
-      let send = snapRef.current.send.filter((k) => k !== kind);
-      if (yes) send = [...send, kind];
-      if (iRef.current + 1 >= SENDS.length && !send.length) send = [kind];
-      const next = { ...snapRef.current, send };
-      const n = iRef.current + 1;
-      if (n < SENDS.length) {
-        write({ snap: next, phase: "send", i: n, add: [...said, { who: "will", text: W.sendOne(SEND[SENDS[n]][0]) }], label: `Send ${step}` });
-        return;
-      }
-      if (next.send.includes("rec")) {
-        write({ snap: next, phase: "walk", i: 0, add: [...said, { who: "will", text: W.walkOne(W.walkSteps.best) }], label: `Steps ${step}` });
-      } else {
-        write({ snap: next, phase: "who", i: 0, add: [...said, { who: "will", text: "Do you check each answer before it goes?" }], label: `Steps ${step}` });
-      }
-      return;
-    }
-    if (here === "walk") {
-      const id = WALKS[iRef.current];
-      let walk = snapRef.current.walk.filter((k) => k !== id);
-      if (yes) walk = [...walk, id];
-      if (iRef.current + 1 >= WALKS.length && !walk.length) walk = [id];
-      const next = { ...snapRef.current, walk };
-      if (iRef.current + 1 < WALKS.length) {
-        const n = iRef.current + 1;
-        write({ snap: next, phase: "walk", i: n, add: [...said, { who: "will", text: W.walkOne(W.walkSteps[WALKS[n]]) }], label: `Walk ${step}` });
-        return;
-      }
-      write({ snap: next, phase: "who", i: 0, add: [...said, { who: "will", text: "Do you check each answer before it goes?" }], label: `Steps ${step}` });
-      return;
-    }
-    if (here === "who") {
-      if (iRef.current === 0 && !yes) {
-        write({ phase: "who", i: 1, add: [...said, { who: "will", text: "Do you write every answer yourself?" }], label: `Who ${step}` });
-        return;
-      }
-      const who: Who = iRef.current === 0 ? "shadow" : yes ? "you" : "assistant";
-      write({ snap: { ...snapRef.current, who }, phase: "pay", add: [...said, { who: "will", text: "Do people pay to use it?" }], label: `Coach ${step}` });
-      return;
-    }
-    if (here === "pay") {
-      if (!yes) {
-        write({ snap: { ...snapRef.current, pay: false, price: 0 }, phase: "machine", add: [...said, { who: "will", text: "Train it on your own answers?" }], label: `Pay ${step}` });
-        return;
-      }
-      write({ snap: { ...snapRef.current, pay: true }, phase: "price", priceAt: 0, add: [...said, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Pay ${step}` });
-      return;
-    }
-    if (here === "price" && priceBack.current === "plan") {
-      const next = { ...snapRef.current, pay: yes, price: yes ? PRICES[0] : 0 };
-      priceBack.current = "machine";
-      write({ snap: next, phase: "plan", add: [...said, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }], label: `Edit ${step}` });
-      return;
-    }
-    if (here === "price") {
-      if (yes) {
-        write({ snap: { ...snapRef.current, price: PRICES[priceRef.current] }, phase: "machine", add: [...said, { who: "will", text: "Train it on your own answers?" }], label: `Price ${step}` });
-        return;
-      }
-      const n = priceRef.current + 1;
-      if (n >= PRICES.length) {
-        write({ snap: { ...snapRef.current, price: 0 }, phase: "machine", add: [...said, { who: "will", text: "Train it on your own answers?" }], label: `Price ${step}` });
-        return;
-      }
-      write({ phase: "price", priceAt: n, add: [...said, { who: "will", text: `Charge ${PRICES[n]}?` }], label: `Price ${step}` });
-      return;
-    }
-    if (here === "machine") {
-      write({ snap: { ...snapRef.current, machine: yes }, phase: "connect", add: [...said, { who: "will", text: "Use a model that already exists?" }], label: `Train ${step}` });
-      return;
-    }
-    if (here === "connect") {
-      if (!yes) {
-        write({ snap: { ...snapRef.current, connect: false, model: "", otherModels: [] }, phase: "code", add: [...said, { who: "will", text: "Will you add your own code later?" }], label: `Model ${step}` });
-        return;
-      }
-      write({
-        snap: { ...snapRef.current, connect: true }, phase: "model",
-        add: [...said, { who: "will", text: models.length ? "Which one?" : "What should it notice?", quotes: models.map((m) => m.q) }],
-        label: `Model ${step}`,
-      });
-      return;
-    }
-    if (here === "model") {
-      const picked = models.length ? (/^the first one$/i.test(text.trim()) ? models[0] : models.find((m) => m.q === text.trim()) ?? models[0]) : null;
-      const model = picked?.id ?? text.trim();
-      write({
-        snap: { ...snapRef.current, model }, phase: "other",
-        add: [{ who: "me", text: picked?.q ?? model }, { who: "will", text: "Add another model?" }],
-        label: `Model ${step}`,
-      });
-      return;
-    }
-    if (here === "other") {
-      if (!yes) {
-        write({ snap: { ...snapRef.current, otherModels: [] }, phase: "code", add: [...said, { who: "will", text: "Will you add your own code later?" }], label: `Model ${step}` });
-        return;
-      }
-      write({ phase: "otherName", add: [...said, { who: "will", text: "What should the other one notice?" }], label: `Model ${step}` });
-      return;
-    }
-    if (here === "otherName") {
-      const name = text.trim();
-      if (!name) {
-        write({ add: [{ who: "will", text: "Name it." }] });
-        return;
-      }
-      write({ snap: { ...snapRef.current, otherModels: [name] }, phase: "code", add: [{ who: "me", text: name }, { who: "will", text: "Will you add your own code later?" }], label: `Model ${step}` });
-      return;
-    }
-    if (here === "code") {
-      if (!yes) {
-        const next = { ...snapRef.current, code: false, paste: "", plugin: null };
-        write({ snap: next, phase: "plan", add: [...said, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }], label: `Plan ${step}` });
-        return;
-      }
-      write({ snap: { ...snapRef.current, code: true }, phase: "paste", add: [...said, { who: "will", text: "Paste the step, then send it.", quotes: ["Write this for me"] }], label: `Code ${step}` });
-      return;
-    }
-    if (here === "paste") {
-      const source = /^write this for me$/i.test(text.trim()) ? WRITTEN_PASTE : text;
-      const checked = await checkPlugin(source);
-      if (checked.status !== "checked" || !checked.manifest) {
-        write({ add: [{ who: "will", text: "That step is missing its name. Paste another.", quotes: ["Write this for me"] }] });
-        return;
-      }
-      const plugin: TalkPlugin = { id: checked.manifest.id, hash: checked.hash, interventionType: checked.manifest.interventionType as TalkPlugin["interventionType"] };
-      const next = { ...snapRef.current, code: true, paste: source, plugin };
-      write({ snap: next, phase: "plan", add: [{ who: "me", text: "Pasted." }, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }], label: `Plan ${step}` });
-      return;
-    }
-    if (here === "plan") {
-      if (yes) {
-        finish(snapRef.current, [...said, { who: "will", text: "This is the chat.", quotes: ["Open the list", "Try it out loud"] }], `Look ${step}`);
-        return;
-      }
-      write({ phase: "edit", add: [...said, { who: "will", text: "What should change?", quotes: ["The greeting", "The price"] }], label: `Plan ${step}` });
-      return;
-    }
-    if (here === "edit") {
-      const lower = text.trim().toLowerCase();
-      if (/greeting|first line/.test(lower)) {
-        write({ phase: "greet", add: [{ who: "me", text: text.trim() }, { who: "will", text: "What is the first line?", quotes: ["Write this for me"] }], label: `Edit ${step}` });
-        return;
-      }
-      if (/price|pay/.test(lower)) {
-        priceBack.current = "plan";
-        write({ phase: "price", priceAt: 0, add: [{ who: "me", text: text.trim() }, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Edit ${step}` });
-        return;
-      }
-      write({ add: [{ who: "will", text: "Say the greeting or the price.", quotes: ["The greeting", "The price"] }] });
-      return;
-    }
-    if (here === "greet") {
-      const hello = /^write this for me$/i.test(text.trim()) ? (snapRef.current.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.") : text.trim();
-      const next = { ...snapRef.current, hello };
-      write({ snap: next, phase: "plan", add: [{ who: "me", text: hello }, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }], label: `Edit ${step}` });
-      return;
-    }
-    if (here === "look") {
-      if (/list|open/i.test(text)) return onList();
-      write({ phase: "done", add: [{ who: "me", text: text.trim() }, { who: "will", text: "This is the chat.", quotes: ["Open the list", "Try it out loud"] }], label: `Done ${step}` });
-    }
+    await speakTurn({
+      text, phase: phaseRef.current, yes: false, no: false, said: [],
+      step: `v${versionsRef.current.length + 1}`,
+      snap: snapRef.current, i: iRef.current, priceAt: priceRef.current,
+      models, priceBack, write, finish, onList,
+    });
   };
 
   const onMic = async () => {
@@ -425,101 +401,38 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
     setSnap(next);
   };
 
-  const shown = versions.at(-1)?.label ?? "";
-  const choice = !["brief", "look", "done", "paste", "model", "otherName", "greet", "edit"].includes(phase);
-  const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
+  const reorder = (from: string, onto: typeof WALKS[number]) => {
+    const walk = snap.walk.filter((k) => k !== from);
+    const at = walk.indexOf(onto);
+    walk.splice(at, 0, from as typeof WALKS[number]);
+    const next = { ...snap, walk };
+    snapRef.current = next;
+    setSnap(next);
+  };
+
+  const onChip = (id: string) => {
+    const cur = snapRef.current;
+    if (id === "machine") {
+      write({ snap: { ...cur, machine: !cur.machine }, label: "Chip" });
+      return;
+    }
+    const kind = id as SendKind;
+    const has = cur.send.includes(kind);
+    const send = has ? cur.send.filter((k) => k !== kind) : [...cur.send, kind];
+    write({ snap: { ...cur, send: send.length ? send : cur.send }, label: "Chip" });
+  };
 
   return (
     <div data-talk-build="" data-talk-phase={phase} data-talk-saved={savedName || undefined} data-talk-snap={JSON.stringify({ spec: snap.spec, send: snap.send, walk: snap.walk, who: snap.who, pay: snap.pay, price: snap.price, machine: snap.machine, connect: snap.connect, code: snap.code, model: snap.model, otherModels: snap.otherModels, paste: snap.paste, hello: snap.hello })} className="flex min-h-0 flex-1 flex-col bg-background">
-      <div data-talk-steps="" className="flex min-h-11 shrink-0 items-center gap-1.5 border-b border-border px-4 text-[12.5px]" aria-label="Progress">
-        {STEPS.map((name, n) => (
-          <span key={name} className="flex items-center gap-1.5">
-            {n > 0 ? <i className="block h-px w-2.5 bg-[#d4d4d4]" aria-hidden /> : null}
-            <span data-talk-step={name} className={name === stepName ? "font-semibold text-foreground" : "font-medium text-[#a3a3a3]"}>{name}</span>
-          </span>
-        ))}
-        <button type="button" data-talk-undo="" className="ml-auto inline-flex min-h-11 min-w-11 items-center rounded-full bg-muted px-3 text-[12.5px] font-medium disabled:opacity-40" onClick={undo} disabled={!versions.length}>Undo{shown ? `: ${shown}` : ""}</button>
-      </div>
-      <div className="px-4 pt-2">
-        <button type="button" data-express="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={express}>Just build it</button>
-      </div>
-      {shown ? <p data-talk-version="" className="mx-4 mt-3 flex min-h-8 items-center rounded-2xl border border-border px-3 text-[14px] font-semibold">{shown}</p> : null}
-      <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
-        {lines.map((line, n) => (
-          <div key={n} className={line.who === "me" ? "max-w-[86%] self-end rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>
-            <p className="m-0">{line.text}</p>
-            {line.quotes?.map((q) => (
-              <button key={q} type="button" data-quote="" data-say={q} className="mx-0.5 inline-flex min-h-11 min-w-11 items-center rounded-[7px] bg-[#fff1e8] px-2 text-left font-semibold text-[#c84d06]" onClick={() => setDraft(q === "Write this for me" ? (phase === "paste" ? WRITTEN_PASTE : (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.")) : q)}>“{q}”</button>
-            ))}
-          </div>
-        ))}
-        {choice ? (
-          <div className="flex gap-2">
-            <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={() => take("No")}>No</button>
-            <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={() => take("Yes")}>Yes</button>
-          </div>
-        ) : null}
-        {snap.walk.length > 1 ? (
-          <ol data-talk-order="" className="m-0 flex list-none flex-col gap-2 p-0">
-            {snap.walk.map((raw) => {
-              const id = raw as typeof WALKS[number];
-              return (
-              <li key={id} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const from = e.dataTransfer.getData("text/plain") as typeof id; const walk = snap.walk.filter((k) => k !== from); const at = walk.indexOf(id); walk.splice(at, 0, from); const next = { ...snap, walk }; snapRef.current = next; setSnap(next); }} className="flex min-h-12 items-center gap-2 rounded-2xl border border-border px-3">
-                <span className="text-[15px]">{W.walkSteps[id]}</span>
-                <button type="button" data-move="earlier" aria-label={`Earlier ${W.walkSteps[id]}`} className="ml-auto min-h-11 min-w-11 px-2" onClick={() => move(id, -1)}>Earlier</button>
-                <button type="button" data-move="later" aria-label={`Later ${W.walkSteps[id]}`} className="min-h-11 min-w-11 px-2" onClick={() => move(id, 1)}>Later</button>
-              </li>
-              );
-            })}
-          </ol>
-        ) : null}
-        {phase === "look" || phase === "done" ? (
-          <div data-talk-preview="" className="flex flex-col gap-2 rounded-2xl border border-border p-3">
-            <p data-talk-greeting="" className="m-0 text-[16px]">{helloLine}</p>
-            <div className="flex gap-2">
-              <button type="button" data-preview-keep="" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={() => setKept(true)}>Keep</button>
-              <button type="button" data-preview-next="" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={onList}>Next</button>
-            </div>
-            <button type="button" data-talk-publish="" className="min-h-11 rounded-full border border-border text-[15px] font-semibold" onClick={() => { publishTalkDraft(); setLiveDraft(true); }}>Publish</button>
-            {kept ? <p data-talk-kept="" className="m-0 text-[15px]">Kept.</p> : null}
-            {liveDraft ? <p data-talk-live="" className="m-0 text-[15px]">Live on this device.</p> : null}
-          </div>
-        ) : null}
-        {phase === "done" ? (
-          <div data-talk-result="" className="flex flex-col gap-2 rounded-2xl border border-border p-3">
-            <p className="m-0 text-[16px] font-semibold">{snap.spec || "Your chat"}</p>
-            <button type="button" className="min-h-11 rounded-full bg-foreground text-[15px] font-semibold text-background" onClick={onList}>Open the list</button>
-            <button type="button" className="min-h-11 rounded-full border border-border text-[15px] font-semibold" onClick={() => write({ add: [{ who: "will", text: snap.spec === "Speaking coach" ? "Hi. Record a short talk, and I'll tell you what worked." : "Say the first thing people should hear." }] })}>Try it out loud</button>
-          </div>
-        ) : null}
-      </div>
-      {phase !== "brief" ? (
-        <div data-talk-chips="" className="flex flex-wrap gap-2 px-4 pb-2">
-          {CHIPS.map((chip) => {
-            const on = chip.id === "machine" ? snap.machine : snap.send.includes(chip.id as SendKind);
-            return (
-              <button key={chip.id} type="button" data-chip={chip.id} aria-pressed={on} className={`inline-flex min-h-11 min-w-11 items-center rounded-full border px-3 text-[15px] font-medium ${on ? "border-primary bg-[#fff1e8] text-[#c84d06]" : "border-border"}`} onClick={() => {
-                const cur = snapRef.current;
-                if (chip.id === "machine") {
-                  write({ snap: { ...cur, machine: !cur.machine }, label: "Chip" });
-                  return;
-                }
-                const kind = chip.id as SendKind;
-                const has = cur.send.includes(kind);
-                const send = has ? cur.send.filter((k) => k !== kind) : [...cur.send, kind];
-                write({ snap: { ...cur, send: send.length ? send : cur.send }, label: "Chip" });
-              }}>{chip.label}</button>
-            );
-          })}
-        </div>
-      ) : null}
-      {(phase === "paste" || phase === "greet") ? (
-        <div className="flex gap-2 px-4 pb-2">
-          <button type="button" data-write-for-me="" className="inline-flex min-h-11 min-w-11 items-center rounded-full bg-[#fff1e8] px-3 text-[15px] font-semibold text-[#c84d06]" onClick={() => setDraft(phase === "paste" ? WRITTEN_PASTE : (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready."))}>Write this for me</button>
-          {draft ? <button type="button" data-write-keep="" className="inline-flex min-h-11 min-w-11 items-center rounded-full bg-primary px-3 text-[15px] font-medium text-primary-foreground" onClick={() => { const text = draft; setDraft(""); take(text); }}>Keep</button> : null}
-          {draft ? <button type="button" data-rewrite="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={() => setDraft("")}>Rewrite</button> : null}
-        </div>
-      ) : null}
+      <TalkProgress phase={phase} versions={versions} onUndo={undo} onExpress={express} />
+      <TalkThread
+        phase={phase} lines={lines} snap={snap} kept={kept} liveDraft={liveDraft}
+        onTake={take} onMove={move} onReorder={reorder} onList={onList}
+        onKeep={() => setKept(true)} onPublish={() => { publishTalkDraft(); setLiveDraft(true); }}
+        onTry={() => write({ add: [{ who: "will", text: snap.spec === "Speaking coach" ? "Hi. Record a short talk, and I'll tell you what worked." : "Say the first thing people should hear." }] })}
+        setDraft={setDraft}
+      />
+      <TalkTools phase={phase} snap={snap} draft={draft} onChip={onChip} onTake={take} setDraft={setDraft} />
       <div data-chat-bar="" data-talk-composer="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
         <button type="button" aria-label="Speak" data-talk-mic="" data-recording={recording ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onPointerDown={(e) => { e.preventDefault(); downAt.current = Date.now(); void onMic(); }} onPointerUp={() => { if (live.current && Date.now() - downAt.current >= 280) void onMic(); }}>
           <Mic className="h-5 w-5" aria-hidden />
