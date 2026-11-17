@@ -35,6 +35,21 @@ Three rules that always hold: the coach's Judge screen stays blind; the
 recording screens keep recording, saving and processing working at every
 step; the loop never waits for a coach.
 
+### The shared authenticated page header
+
+**Locked by founder visual feedback, 2026-11-17.** `PageHeader` is the one
+cross-app primitive for authenticated page and overlay headers. Its content
+uses the same safe rail as the title, profile/back controls and the small
+outlined circular close control; its separator spans the viewport even when a
+surface is mounted inside the desktop canvas. Ideal Text, project chat and
+feedback overlays use it without changing their existing Back, title, profile,
+browser-back or overlay-close behavior. Onboarding progress starts at the
+safe rail's left edge rather than being globally centered. Mobile side margins
+and safe-area spacing remain the caller's existing values. The implementation is
+in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.tsx`,
+`src/components/willab/FeedbackOverlay.tsx` and
+`src/components/willab/chats/TopBar.tsx`.
+
 ---
 
 ## 1. The rules
@@ -2723,3 +2738,4 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · locked production re-record invariant · a repeated fragment is a real Take of the same project: its arc is carried into the recorder, its processing wait is visible in the project chat as soon as the Lab closes, and that one bubble stays through polling, navigation, reconciliation and remounting until fresh feedback plus transcript/Ideal Text data are confirmed. Completion refreshes the fragment card, attempt count and CTAs; failure stays visible with an actionable retry. No silent disappearance · FE (this change)
 - 2026-11-16 · AI voice playback reliability: a ready Feedback Walk clip re-reads its existing AI-voice endpoint once when its 15-minute signed URL expires, including when `audio.play()` rejects before the media error event; a successful read swaps in the fresh URL, and an unsuccessful read leaves the existing approved “unavailable” state instead of silently doing nothing. Generation, validation, and the walk’s words are unchanged · FE (this change)
 - 2026-11-16 · N654 items 1–4 · Project-chat order and chrome lock: an accepted Take makes the neutral project/result card present immediately, without guessing a score, slide range, delivery label or claim; real evidence replaces the pending state. Opening a project replaces the WillpowerLab site bar with the existing single chat top bar. The readable Feedback/Ideal-text card is the first item, followed by the Take summary, bridge and contextual question in human order. A held closing is invisible while the question is open and, when released, follows that Take's answer/reply. Suggested answers use the shared stacked `TapRow`; “Something else” opens the shared text-composer shape. There is no custom chip row or divider above the bottom controls (`ProjectChat.tsx`, `FeedbackWalkCard.tsx`, `projectChat.ts`). Founder-approved, 2026-11-16.
+- 2026-11-17 · founder-approved shared page header · Project chat, Ideal Text and feedback overlays use the same safe-rail header/divider primitive; the project-chat divider is viewport-wide, the outlined circular X stays inside the safe content column, and onboarding progress is left-aligned within that column. Existing Back, title/profile, browser-back, close and persistence behavior is unchanged (`PageHeader.tsx`, `ProjectChat.tsx`, `chats/TopBar.tsx`, `FeedbackOverlay.tsx`). Founder visual feedback, 2026-11-17.

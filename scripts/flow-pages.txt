@@ -11,6 +11,10 @@
 # counted: a test pins a flow, it is not one.
 
 docs/flows/feedback-walk-and-chat.md
+  src/components/willab/PageHeader.tsx
+  src/components/willab/ProjectChat.tsx
+  src/components/willab/FeedbackOverlay.tsx
+  src/components/willab/chats/TopBar.tsx
   src/components/willab/walk/
   src/components/willab/WalkEnd.tsx
   src/components/willab/useDeckFeedbackWalk.tsx
@@ -87,6 +91,7 @@ docs/flows/consent-screens.md
   src/app/page.client.tsx
 
 docs/flows/ideal-text.md
+  src/components/willab/PageHeader.tsx
   src/components/willab/IdealTextOverlay.tsx
   src/components/willab/IdealTextPastVersion.tsx
   src/lib/willab/pastIdealText.ts

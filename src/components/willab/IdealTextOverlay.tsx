@@ -97,6 +97,7 @@ import {
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "./PageHeader";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -957,8 +958,7 @@ export default function IdealTextOverlay({
       className={lensHides(lens.on)}
     >
       <LensFrame on={lens.on} onClose={onClose} />
-      <div className="shrink-0 border-b border-border bg-background">
-        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
+      <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
           {/* The project's name and its verification state, from the shared
               head, with the Article 50(2) notice as a caption under it
               (founder 2026-09-26: it keeps its mark on every branch, but it no
@@ -991,8 +991,7 @@ export default function IdealTextOverlay({
                 screen. */}
             <OverlayCloseButton onClick={onClose} />
           </div>
-        </div>
-      </div>
+      </PageHeader>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
       <PageNotice notice={notice} />
       {updateSlides.layer}

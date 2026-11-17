@@ -23,6 +23,16 @@ while the phase changes. Ordinary page reads, route openings and overlays use
 the same frame. Typing bubbles remain only as inline feedback for an actual
 in-chat response and are not page loaders.
 
+### The shared authenticated page header
+
+**Locked by founder visual feedback, 2026-11-17.** Ideal Text uses the
+cross-app `PageHeader` primitive: its title, menu and small outlined circular
+X share one safe content rail, while the full-width divider remains at the
+viewport edge. The same primitive is used by project chat and feedback
+overlays; mobile margins and safe-area spacing stay intact, and the existing
+overlay close plus browser-back behavior is unchanged. Onboarding progress is
+left-aligned within that safe rail rather than globally centered.
+
 ---
 
 ## 1. The rules
@@ -467,6 +477,7 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
+- `src/components/willab/PageHeader.tsx` — the locked cross-app header/divider primitive used by this page and its authenticated overlays.
 - `src/components/willab/IdealTextOverlay.tsx`
 - `src/components/willab/IdealTextPastVersion.tsx` — an older Take's card: its own words read only, which Take it is, the way to the latest and the helper words of its time (N375, N380).
 - `src/lib/willab/pastIdealText.ts` — which version an older card opens, read before the page is drawn, and its slides (N376).

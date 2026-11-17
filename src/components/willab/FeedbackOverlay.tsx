@@ -15,6 +15,7 @@ import {
   type FeedbackTake,
 } from "@/services/api/arcFeedback";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "./PageHeader";
 
 /* -------------------------------------------------------------------------- */
 /*  FeedbackOverlay — one take's published feedback (delivery layer)           */
@@ -120,12 +121,10 @@ export default function FeedbackOverlay({
         topLayer ? "z-50" : "z-40"
       }`}
     >
-      <div className="shrink-0 border-b border-border bg-muted/70 backdrop-blur">
-        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between px-4 py-2.5`}>
-          <span className="text-[13px] font-medium text-foreground">{title}</span>
-          <OverlayCloseButton onClick={onClose} />
-        </div>
-      </div>
+      <PageHeader className="bg-muted/70 backdrop-blur" contentClassName="justify-between px-4 py-2.5">
+        <span className="text-[13px] font-medium text-foreground">{title}</span>
+        <OverlayCloseButton onClick={onClose} />
+      </PageHeader>
 
       <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col px-4 py-6`}>
