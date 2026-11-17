@@ -40,10 +40,12 @@ describe("talk the chat into shape", () => {
   it("a quoted suggestion saves Brief v1 and Undo restores it", async () => {
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     expect(container.textContent).toContain("What do you do?");
-    expect(container.textContent).toContain("1. Speaking coach");
-    await tap("1. Speaking coach");
-    expect(container.querySelector("[data-talk-version]")?.textContent).toBe("Brief v1");
-    expect(container.querySelector("[data-talk-step='Steps']")?.className).toContain("text-primary");
+    expect(container.textContent).toContain("Speaking coach");
+    await tap("Speaking coach");
+    expect(container.querySelector("textarea")!.value).toBe("Speaking coach");
+    await tap("Send");
+    expect(container.querySelector("[data-talk-version]")?.textContent).toContain("Brief v1");
+    expect(container.querySelector("[data-talk-step='Steps']")?.className).toContain("font-semibold");
     await tap("Undo");
     expect(container.querySelector("[data-talk-version]")).toBeNull();
   });
@@ -51,7 +53,8 @@ describe("talk the chat into shape", () => {
   it("Yes and No walk the send kinds, and See the list closes the talk", async () => {
     const close = vi.fn();
     act(() => root.render(createElement(TalkBuild, { onList: close })));
-    await tap("1. Speaking coach");
+    await tap("Speaking coach");
+    await tap("Send");
     expect(container.textContent).toContain("Can they send a recording?");
     await tap("Yes");
     expect(container.textContent).toContain("Can they send a message?");
@@ -65,10 +68,11 @@ describe("talk the chat into shape", () => {
 
   it("done jumps to the result, and Earlier moves a walk step", async () => {
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
-    await tap("1. Speaking coach");
-    const input = container.querySelector<HTMLInputElement>("[data-talk-composer] input")!;
+    await tap("Speaking coach");
+    await tap("Send");
+    const input = container.querySelector<HTMLTextAreaElement>("[data-talk-composer] textarea")!;
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "done");
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "done");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await act(async () => input.form!.requestSubmit());

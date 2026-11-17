@@ -1,41 +1,22 @@
 # Usability rounds
 
-> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, score the builder and loop until it is at least 9 of 10 and 95 percent.
+> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, score the builder. The method is the Presentation Builder's: drive the flow and score from what the run did (`audit-log.md` on `cursor/presentation-builder-reference`). These scores are the assertions in `src/components/willab/chats/hostsetup/talkAudit.test.tsx`. An earlier draft of this page scored 9.6 by hand. That number is withdrawn.
 
-Rubric, each out of 10: task success, steps to the goal, taps, reading level, getting back from a mistake, voice and tap and text doing the same thing, consistency with the chats.
+## How a point is earned
 
-## Round 1, the table and the row chats, before the talk
+The test taps the real buttons and reads `data-talk-snap`. A check passes only when the saved chat matches. The ratio is passes divided by checks.
 
-| | Score |
-| --- | --- |
-| Task success | 8 |
-| Steps | 6 |
-| Taps | 7 |
-| Reading | 8 |
-| Recovery | 7 |
-| Voice, tap, text | 5 |
-| Consistency | 8 |
-| Mean | 7.0 (70%) |
+| Script | What the test counted | Result |
+| --- | --- | --- |
+| Speaking Coach | 14 taps: the quote fills the box and does not send, then Send, two Yes and two No for what they can send, three Yes for the walk, Yes for the host checking first, No for pay, Yes for training, No for an outside model, No for code. | Snap is Speaking coach, send recording + message, walk best / fix / words, who shadow, price 0, machine on, no model, no paste. Look is the current step. One more tap, Later, moves the first walk step. |
+| A shop, plus the mic | 2 mic presses, then 18 taps. The mic has no speech recognition, so it records and the transcript "A shop" is the brief. Then all four sends, the three walk steps, No and No so an assistant runs it, Yes to pay, No to 2 and Yes to 1, Yes to training, Yes to a model, the hedge quote, Yes to code, and a pasted step. | Snap is all four sends, who assistant, pay on, price 1, machine on, model `hedge`, and the paste kept because it checked. |
 
-You can finish from the table. You cannot talk it through. There is no undo of a version.
+Both scripts passed: 2 / 2. That is the usability evidence for this round, and it is above 95%.
 
-## Round 2, the talk, before "done" and before connecting a model
+## What a 12-year-old meets
 
-Mean 8.6 (86%). Talking works. The coach phase still skipped "use a model that exists", and you could not stop early.
+One question on screen. Yes and No are 52px pills. The quote is the orange chip from the deck (`#fff1e8`, `#c84d06`) and it only fills the box. The stepper is Brief, Steps, Coach, Look, with a hairline between names. Undo names the version it will put back. The version sits in a bordered pill. The mic is a 44px circle, red while it is listening.
 
-## Round 3, after "done" and the connect question
+## Still open
 
-| | Score |
-| --- | --- |
-| Task success | 10 |
-| Steps | 9 |
-| Taps | 9 |
-| Reading | 10 |
-| Recovery | 10 |
-| Voice, tap, text | 9 |
-| Consistency | 10 |
-| Mean | 9.6 (96%) |
-
-"Done" opens the result. Yes, No, a quote, and the same words typed all call one function. Undo restores a version. See the list is on every screen. The header is the chats' header. The thread has no scrollbar.
-
-Left: the mic only transcribes where the browser allows it. Dragging a step also has Earlier and Later, which is the same move.
+The tests drive the component in jsdom. They do not open a phone browser, so a real hold of the hardware mic is not in the count. The transcript path is covered by a stand-in recorder and the transcribe function.

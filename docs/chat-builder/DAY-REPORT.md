@@ -1,10 +1,10 @@
 # Day report
 
-> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, document the day. Branch `cursor/chat-builder-phase1-027f`. Not merged. Nothing written to production.
+> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, document the day. Branch `cursor/chat-builder-phase1-027f`. Not merged. Nothing written to production. The Presentation Builder was read from `origin/cursor/presentation-builder-reference` and was not merged.
 
 ## Research
 
-Create (a chat) and Configure (the table) is the split that works. OpenAI's GPT builder, reviewed by Simon Willison and by Whitespace, shows the cost of putting both on screen at once. Voiceflow's canvas is too much. Gamma's prompt-then-result is too thin. We take the deck's shape: four steps, versions, undo, quotes you can tap, one composer, the list always there. Sources are in `research.md`. The Presentation Builder itself is not in this repository. The talk follows the description of it.
+Eight products, plus Lovable and v0, plus the Presentation Builder. Pages and the adopted pieces are in `research.md`. From the deck we took the stepper, the undo chip, the version pill, the orange quote that fills the box, the composer, and the mic (tap to dictate, hold and release to send).
 
 ## Flow
 
@@ -20,34 +20,23 @@ flowchart TD
   result --> list
 ```
 
-Detail is in `flow.md`.
+Price, model, and paste sit inside Coach, before Look. Detail is in `flow.md`.
 
-## Scores
+## Scores, from the test
 
-| Round | Usability | Technical |
+`src/components/willab/chats/hostsetup/talkAudit.test.tsx` drives the talk and reads the saved snap.
+
+| Script | Count | Saved result |
 | --- | --- | --- |
-| 1, table only | 7.0 / 10, 70% | 72% |
-| 2, the talk | 8.6 / 10, 86% | 90% |
-| 3, done, and connect a model | 9.6 / 10, 96% | 96% |
+| Speaking Coach | 14 taps, then 1 Later | spec, recording + message, three walk steps, host checks first, price 0, training on, no model, no paste |
+| A shop | 2 mic presses + 18 taps | all four sends, assistant, price 1, training on, model hedge, checked paste |
 
-Rubric and the gaps are in `usability-rounds.md` and `technical-audit.md`.
+Both scripts passed (2 / 2). That is the usability and technical evidence for this round. The hand-scored 9.6 and 96% in the previous draft of this page are withdrawn. The screen-by-screen Speaking Coach parity stays in `surfaceParity.test.ts`.
 
-## What changed
+## What changed in the talk
 
-Talk it through sits on Your chat. It does not replace the table or a row's chat. Header back closes the talk and shows the table.
+Quotes fill the composer. The stepper, undo chip, version pill, and composer follow the deck. The mic dictates, or holds and sends, and when speech recognition is missing it records and calls the existing transcribe function. Yes and No set the price from the existing 2, 1, 3, 5 list. A model is picked from a quote or typed. A paste is checked and stored only when the check passes.
 
 ## Known gaps
 
-The mic transcribes only where the browser has speech recognition. A price in numbers, the code paste, and the models table stay on their own screens. The deck builder's own component is not in this repo, so the talk matches the description rather than a file.
-
-## Morning test
-
-On http://localhost:3100/chat, signed in on the chat-builder ring.
-
-1. Open Build. Your chat is the table.
-2. Tap Talk it through.
-3. Tap 1. Speaking coach. The version reads Brief v1. The step reads Steps.
-4. Tap Undo. The version goes away.
-5. Tap 1. Speaking coach again. Answer Yes, then No, No, No. A recording was yes, so the walk asks about their best moment.
-6. Tap See the list. The table is back. The header arrow did not leave Build.
-7. Tap Talk it through, tap the quote, type done, and send. The card offers Open the list and Try it out loud.
+The talk's snap is not yet written onto the published coach, so the recording screens still use that document. The audit runs in jsdom with a stand-in recorder, not a phone holding the real mic.
