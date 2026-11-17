@@ -986,13 +986,16 @@ back to Will's chat, and so does the phone's Back.
 O2  The drafted answers say ""Answers to send"" in that bar, and Back
 returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
 O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
-src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,"The talk is scored by driving it. A Speaking Coach, a shop chat, a price, a model and a checked paste are set by taps and by the mic.","O1  Speaking coach is saved in 14 taps: a recording and a message, the
-three walk steps, the host checks first, no price, a training machine,
-no outside model, no paste.
+src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Fifteen taps build the Speaking Coach, then Say go. The saved
+document matches the fixture, and the screens read it.
 O2  A shop chat sets all four sends, an assistant, price 1, a training
-machine, the hedge model and a checked paste. The mic's transcript
-is sent on as the brief.","O1 -> ""fourteen taps build the Speaking Coach""
-O2 -> ""the shop chat sets price, model and paste, and the mic transcribes""",
+machine, the hedge model, another model and a checked paste.
+O3  You decide, Just build it, a targeted edit, chips and Publish stay
+on this device.
+O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fifteen taps build the Speaking Coach""
+O2 -> ""the shop chat sets price, model and paste, and the mic transcribes""
+O3 -> ""express, you decide, a targeted edit, chips, and publish stay on this device""
+O4 -> ""prints the technical score from the fixture and the shop fields""",
 src/components/willab/chats/hostsetup/talkBuild.test.tsx,Story,"As a host, I build my chat by talking or tapping, one step at a time, and I can undo a version and open the list of parts.","O1  Brief starts from a quoted ""Speaking coach"", saves Brief v1, and
 Undo takes that version away.
 O2  Yes and no walk They send one kind at a time. See the list closes

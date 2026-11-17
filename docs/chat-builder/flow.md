@@ -23,7 +23,7 @@ Four names sit under the chats' header: Brief, Steps, Coach, Look. The one that 
 
 Each answer that sticks is a version (`Brief v1`, `Steps v2`). Undo restores the previous one.
 
-The composer is one row: mic, a text box that can hold a pasted step, send. A quoted suggestion fills the box and does not send. "Yes", "No", "the first one", and "done" do what the taps do. A tap on the mic dictates. Holding it talks, and letting go sends. When the browser has no speech recognition, the mic records and the recording goes to the existing transcribe route. From the talk you can set the price, name a model or pick one, and paste a step. The paste is checked and refused when it has no manifest.
+The composer is one row: mic, a text box that can hold a pasted step, send. A quoted suggestion fills the box and does not send. "You decide" is on the brief and on the plan. "Just build it" skips to the plan. "Say go?" is the approval. Only then does the preview open: the first line, Keep, Next, and Publish. Publish marks the draft live on this device and does not call the network. Every answer saves the draft here. Record, Type, Photo, File and Train are chips. "The greeting" and "The price" change only that part. "Write this for me" fills a hard field, then Keep or Rewrite. "Yes", "No", "the first one", and "done" do what the taps do. A tap on the mic dictates. Holding it talks, and letting go sends. When the browser has no speech recognition, the mic records and the recording goes to the existing transcribe route.
 
 The walk steps, once there are two, are a list. Drag one onto another, or tap Earlier / Later.
 

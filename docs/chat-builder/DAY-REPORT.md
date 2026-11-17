@@ -1,42 +1,29 @@
 # Day report
 
-> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, document the day. Branch `cursor/chat-builder-phase1-027f`. Not merged. Nothing written to production. The Presentation Builder was read from `origin/cursor/presentation-builder-reference` and was not merged.
+> **Label: Reference.** Founder-Approved: Artur, 17 November 2026, document the day. Branch `cursor/chat-builder-phase1-027f`. Not merged. Nothing written to production.
 
-## Research
+## This round
 
-Eight products, plus Lovable and v0, plus the Presentation Builder. Pages and the adopted pieces are in `research.md`. From the deck we took the stepper, the undo chip, the version pill, the orange quote that fills the box, the composer, and the mic (tap to dictate, hold and release to send).
+Finishing the talk writes a coach draft on this device. The Speaking Coach answers produce the fixture, field for field. Recording, Ideal Text and the walk read that draft through `usePublishedCoach`. A shop chat sets every builder field. Publish stays on the device.
 
-## Flow
+The talk also follows the four builders in the competitor research (`638b0c14`, not merged): You decide, a plan you approve, Just build it, a preview with Keep and Next, a change that touches one part, Write this for me, capability chips, a first line, and auto-save plus Publish.
 
-```mermaid
-flowchart TD
-  list[Your chat table]
-  brief[Brief]
-  steps[Steps]
-  coach[Coach]
-  look[Look]
-  result[Open the list / Try it out loud]
-  list --> brief --> steps --> coach --> look --> result
-  result --> list
-```
+## Scores, from the tests
 
-Price, model, and paste sit inside Coach, before Look. Detail is in `flow.md`.
-
-## Scores, from the test
-
-`src/components/willab/chats/hostsetup/talkAudit.test.tsx` drives the talk and reads the saved snap.
-
-| Script | Count | Saved result |
+| Score | Result | Where it was printed |
 | --- | --- | --- |
-| Speaking Coach | 14 taps, then 1 Later | spec, recording + message, three walk steps, host checks first, price 0, training on, no model, no paste |
-| A shop | 2 mic presses + 18 taps | all four sends, assistant, price 1, training on, model hedge, checked paste |
+| Usability | 190/190 = 100% | Rubric in `usability-audit.md`. Browser run: `scripts/talk-e2e.mjs` printed `USABILITY 30/30 = 100%` at 390×844. Pattern test in `talkAudit.test.tsx` logged 10/10. |
+| Technical | 29/29 = 100% | `talkAudit.test.tsx`, "prints the technical score from the fixture and the shop fields" |
 
-Both scripts passed (2 / 2). That is the usability and technical evidence for this round. The hand-scored 9.6 and 96% in the previous draft of this page are withdrawn. The screen-by-screen Speaking Coach parity stays in `surfaceParity.test.ts`.
+Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.
 
-## What changed in the talk
+## Scripts
 
-Quotes fill the composer. The stepper, undo chip, version pill, and composer follow the deck. The mic dictates, or holds and sends, and when speech recognition is missing it records and calls the existing transcribe function. Yes and No set the price from the existing 2, 1, 3, 5 list. A model is picked from a quote or typed. A paste is checked and stored only when the check passes.
+- Fifteen taps, then the screens read the fixture: "fifteen taps build the Speaking Coach".
+- Shop, including the mic: "the shop chat sets price, model and paste, and the mic transcribes".
+- You decide, express, targeted edit, chips, publish: "express, you decide, a targeted edit, chips, and publish stay on this device".
+- Phone: `node scripts/talk-e2e.mjs` runs tap, type and voice for both scripts.
 
 ## Known gaps
 
-The talk's snap is not yet written onto the published coach, so the recording screens still use that document. The audit runs in jsdom with a stand-in recorder, not a phone holding the real mic.
+The draft is not the published coach on the server. Publish does not call production, which is the point of this round. The e2e uses a stand-in for speech recognition, and the shop's free-text name is spoken through that stand-in in the tap run.
