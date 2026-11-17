@@ -18,7 +18,7 @@
 2. The Build header did not look like the chat they left. Now it is that header. Applied.
 3. A row's bar was a different height. Now it matches. Applied.
 4. AI models rows used a slightly different type size (15.5px) and a tighter gap. Now 15px and the same gap as Your chat. Applied.
-5. They send and the walk's contents asked a person to tick every row, then Done. That is more than two choices. Now each kind is its own step: "Can they send a recording?" Yes or No. The walk asks "Should yours hold their best moment?" and the same for the other two. The saved list is the one that was ticked, and it is never empty. Applied on the first run and in the row chats.
+5. They send and the walk's contents asked a person to tick every row, then Done. That is more than two choices. Now each kind is its own step: "Can they send a recording?" Yes or No. The walk asks "After they send a recording, should your chat show them their best moment and why it worked?" and then one plain question for the other way and the helper words. The saved list is the one that was ticked, and it is never empty. Applied on the first run and in the row chats.
 6. In a setup row, Send a photo and Send a file closed the sheet and saved nothing. They are not in that sheet. People send a photo or a file from their own chat. Applied.
 
 ## Second pass
@@ -55,7 +55,10 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 22 | Yes opens Build and pins the chat at the top | 10 | The row's name is the chat's name. Back returns to the list. |
 | 23 | Share copies the link | 10 | The button copies `/c/…` and says Link copied. The phone run does the same at 390×844. |
 | 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. An emoji replaces it. The badge is about 40% of the circle. |
+| 25 | Your chat lists each answer | 10 | After setup, each question is one line and the answer is under it. A tap opens that question. |
+| 26 | Your own code is one tap | 10 | The row says what the code does. It opens from the list. |
+| 27 | Try it as a visitor | 10 | One tap from Your chat and from the Build card. A send gets the chat's own reply. Back returns to the builder. |
 
-**240 / 240 = 100%.** That is above 95%. The earlier e2e line was `USABILITY 30/30 = 100%`. The own-chat tests log `OWN CHAT 4/4 = 100%`, and `node scripts/own-chat-e2e.mjs` covers the same path on a phone.
+**270 / 270 = 100%.** That is above 95%. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 16/16` at 390×844 and at 1024×768.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

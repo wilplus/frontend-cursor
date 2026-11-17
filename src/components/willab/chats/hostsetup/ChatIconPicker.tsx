@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LetterCircle, PersonCircle } from "../ChatList";
+import { W } from "./hostSetupCopy";
 import { FACE_COLORS, FACE_EMOJI, OWN_CHAT_EVENT, readOwnChat, saveOwnFace, type ChatFace } from "@/lib/willab/chatBuilder/ownChat";
 
 /* The host picks the circle: a few emoji, a few colours, a photo, or the
@@ -68,7 +69,7 @@ export default function ChatIconPicker({ name }: { name: string }) {
   const pick = (next: ChatFace) => saveOwnFace(next);
   return (
     <div data-chat-icon="" className="flex flex-col gap-2">
-      <p className="m-0 text-[15px]">Pick an icon. Your initial is fine.</p>
+      <p className="m-0 text-[15px]">{W.pickPicture}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" data-icon-initial="" aria-pressed={face.kind === "initial"} className="inline-flex h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={() => pick({ kind: "initial" })}>Your initial</button>
         {FACE_EMOJI.map((emoji) => (

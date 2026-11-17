@@ -172,7 +172,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
       ) : (
         makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
-      <div ref={body} className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
+      <div ref={body} className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4 [&>:first-child]:mt-auto">
         {lead}
         {history}
         {children}
@@ -186,7 +186,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
 export function Say({ children, by }: { children: ReactNode; by?: string }) {
   return (
     <>
-      <div data-will-line="" className="max-w-[86%] self-start whitespace-pre-wrap rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">
+      <div data-will-line="" className="max-w-[86%] min-w-0 self-start whitespace-pre-wrap break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">
         {children}
       </div>
       {by ? (

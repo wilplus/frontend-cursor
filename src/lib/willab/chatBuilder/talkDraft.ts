@@ -138,6 +138,14 @@ export function readTalkDefinition(): CoachDefinition | null {
   return readTalkDraft()?.definition ?? null;
 }
 
+/** Keeps a piece of code on this device. Does not call the network. */
+export function saveTalkCode(paste: string): void {
+  const current = readTalkDraft();
+  if (!current) return;
+  memory = { ...current, code: paste };
+  persist();
+}
+
 export function clearTalkDraft(): void {
   memory = null;
   try {

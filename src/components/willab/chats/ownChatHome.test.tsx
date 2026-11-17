@@ -21,6 +21,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrainingArc } from "@/services/api/trainings";
 import { OWN_CHAT_KEY, publicChatHref, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { speakingCoachSeed } from "@/lib/willab/chatBuilder/seed";
+import { clearTalkDraft, saveTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
 
 vi.mock("@/lib/api/bffFetch", () => ({
   bffFetch: vi.fn(async () => ({ kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } })),
@@ -41,6 +43,7 @@ let host: HTMLDivElement;
 beforeEach(() => {
   forgetSetup();
   forgetHostWork();
+  clearTalkDraft();
   localStorage.clear();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -88,7 +91,7 @@ describe("Start your own chat", () => {
     const action = host.querySelector("[data-start-new-project]")!;
     expect(row.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await click("[data-home-row='start-own-chat'] button");
-    expect(host.querySelector("[data-own-chat-sheet]")?.textContent).toContain("Make your own chat. You pick what it does, and people you share it with can use it.");
+    expect(host.querySelector("[data-own-chat-sheet]")?.textContent).toContain("Make your own chat. You choose what it does. People you share it with can use it.");
     await click("[data-own-chat-close]");
     expect(host.querySelector("[data-own-chat-sheet]")).toBeNull();
     expect(readOwnChat().started).toBe(false);
@@ -140,12 +143,49 @@ describe("Start your own chat", () => {
     expect(listed.style.width).toBe(`${Math.round(48 * 0.4)}px`);
     expect(host.querySelector("[data-chat-letter]")).not.toBeNull();
     await click("[data-own-icon]");
-    expect(host.textContent).toContain("Pick an icon");
+    expect(host.textContent).toContain("Pick a picture");
     const emoji = [...host.querySelectorAll("button")].find((button) => button.textContent === "🎤");
     await act(async () => emoji?.click());
     await flush();
     expect(readOwnChat().face).toEqual({ kind: "emoji", emoji: "🎤" });
     expect(host.querySelector("[data-chat-face='emoji']")?.textContent).toBe("🎤");
     console.log("OWN CHAT 4/4 = 100%");
+  });
+
+  it("Your chat lists each answer, opens your own code, and tries the chat as a visitor", async () => {
+    saveTalkDraft({
+      definition: speakingCoachSeed(),
+      sends: ["rec", "text"],
+      models: [],
+      otherModels: [],
+      pricing: { pay: false, price: 0 },
+      api: false,
+      machine: true,
+      code: "",
+      interaction: "shadow",
+      published: false,
+    });
+    startOwnChat();
+    act(() => root.render(createElement(WillBuild, { onBack: () => undefined })));
+    await flush();
+    expect(host.textContent).toContain("Try it as a visitor");
+    await click("[data-needs-you='chat']");
+    expect(host.querySelector("[data-answer-list]")).not.toBeNull();
+    expect(host.textContent).toContain("Your own code");
+    expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something.");
+    await click("[data-build-part='hello']");
+    expect(host.querySelector("[data-part-chat='hello']")).not.toBeNull();
+    await click("[data-part-chat='hello'] button[aria-label='Back']");
+    await click("[data-build-part='code']");
+    expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something?");
+    await click("[data-part-chat='code'] button[aria-label='Back']");
+    await click("[data-try-visitor]");
+    expect(host.querySelector("[data-visitor-try]")).not.toBeNull();
+    expect(host.textContent).toContain("Hi. Record a short talk");
+    await click("[data-visitor-rec]");
+    await flush();
+    expect(host.querySelectorAll("[data-visitor-line='them']").length).toBeGreaterThan(1);
+    await click("[data-visitor-try] button[aria-label='Back']");
+    expect(host.querySelector("[data-answer-list]")).not.toBeNull();
   });
 });

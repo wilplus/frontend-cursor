@@ -193,7 +193,7 @@ async function keepTo(say: string) {
     const now = asking();
     if (now.includes("Ask one more question?")) await tap("No");
     else if (now.startsWith("Can they send")) await tap(now.includes("a photo") ? "Yes" : "No");
-    else if (now.startsWith("Should yours hold")) await tap("Yes");
+    else if (now.startsWith("After they send a recording") || now.startsWith("Should it show one moment") || now.startsWith("Should it give them a few helper words")) await tap("Yes");
     else await tap("Keep");
   }
   expect(text()).toContain(say);
@@ -409,7 +409,7 @@ describe("the blank setup (FIRST-)", () => {
     await begun();
     await withRecording();
     expect(puts("send")).toEqual([["photo", "rec"]]);
-    expect(asking()).toBe("Should yours hold their best moment?");
+    expect(asking()).toBe("After they send a recording, should your chat show them their best moment and why it worked?");
     await tap("Yes");
     await tap("No");
     await tap("Yes");
@@ -478,7 +478,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("The feedback walk");
     // One tap opens the steps. Each step is On or Off, saved as it is tapped.
     await tap("Its steps");
-    expect(asking()).toBe("Should yours hold their best moment?");
+    expect(asking()).toBe("After they send a recording, should your chat show them their best moment and why it worked?");
     expect(container.querySelectorAll("[data-binary]")).toHaveLength(0);
     await tap("No");
     await flush();

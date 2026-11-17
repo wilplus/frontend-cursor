@@ -54,8 +54,8 @@ function afterSend(t: Turn) {
     return;
   }
   const ask = next.send.includes("rec")
-    ? { phase: "walk" as const, text: W.walkOne(W.walkSteps.best) }
-    : { phase: "who" as const, text: "Do you check each answer before it goes?" };
+    ? { phase: "walk" as const, text: W.walkOne("best") }
+    : { phase: "who" as const, text: W.talkCheck };
   t.write({ snap: next, phase: ask.phase, i: 0, add: [...t.said, { who: "will", text: ask.text }], label: `Steps ${t.step}` });
 }
 
@@ -67,24 +67,24 @@ function afterWalk(t: Turn) {
   const next = { ...t.snap, walk };
   if (t.i + 1 < WALKS.length) {
     const n = t.i + 1;
-    t.write({ snap: next, phase: "walk", i: n, add: [...t.said, { who: "will", text: W.walkOne(W.walkSteps[WALKS[n]]) }], label: `Walk ${t.step}` });
+    t.write({ snap: next, phase: "walk", i: n, add: [...t.said, { who: "will", text: W.walkOne(WALKS[n]) }], label: `Walk ${t.step}` });
     return;
   }
-  t.write({ snap: next, phase: "who", i: 0, add: [...t.said, { who: "will", text: "Do you check each answer before it goes?" }], label: `Steps ${t.step}` });
+  t.write({ snap: next, phase: "who", i: 0, add: [...t.said, { who: "will", text: W.talkCheck }], label: `Steps ${t.step}` });
 }
 
 function afterWho(t: Turn) {
   if (t.i === 0 && !t.yes) {
-    t.write({ phase: "who", i: 1, add: [...t.said, { who: "will", text: "Do you write every answer yourself?" }], label: `Who ${t.step}` });
+    t.write({ phase: "who", i: 1, add: [...t.said, { who: "will", text: W.talkWrite }], label: `Who ${t.step}` });
     return;
   }
   const who: Who = t.i === 0 ? "shadow" : t.yes ? "you" : "assistant";
-  t.write({ snap: { ...t.snap, who }, phase: "pay", add: [...t.said, { who: "will", text: "Do people pay to use it?" }], label: `Coach ${t.step}` });
+  t.write({ snap: { ...t.snap, who }, phase: "pay", add: [...t.said, { who: "will", text: W.talkPay }], label: `Coach ${t.step}` });
 }
 
 function afterPay(t: Turn) {
   if (!t.yes) {
-    t.write({ snap: { ...t.snap, pay: false, price: 0 }, phase: "machine", add: [...t.said, { who: "will", text: "Train it on your own answers?" }], label: `Pay ${t.step}` });
+    t.write({ snap: { ...t.snap, pay: false, price: 0 }, phase: "machine", add: [...t.said, { who: "will", text: W.talkLearn }], label: `Pay ${t.step}` });
     return;
   }
   t.write({ snap: { ...t.snap, pay: true }, phase: "price", priceAt: 0, add: [...t.said, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Pay ${t.step}` });
@@ -99,7 +99,7 @@ function afterPrice(t: Turn) {
   }
   if (t.yes || t.priceAt + 1 >= PRICES.length) {
     const price = t.yes ? PRICES[t.priceAt] : 0;
-    t.write({ snap: { ...t.snap, price }, phase: "machine", add: [...t.said, { who: "will", text: "Train it on your own answers?" }], label: `Price ${t.step}` });
+    t.write({ snap: { ...t.snap, price }, phase: "machine", add: [...t.said, { who: "will", text: W.talkLearn }], label: `Price ${t.step}` });
     return;
   }
   const n = t.priceAt + 1;
@@ -107,17 +107,17 @@ function afterPrice(t: Turn) {
 }
 
 function afterMachine(t: Turn) {
-  t.write({ snap: { ...t.snap, machine: t.yes }, phase: "connect", add: [...t.said, { who: "will", text: "Use a model that already exists?" }], label: `Train ${t.step}` });
+  t.write({ snap: { ...t.snap, machine: t.yes }, phase: "connect", add: [...t.said, { who: "will", text: W.talkModel }], label: `Train ${t.step}` });
 }
 
 function afterConnect(t: Turn) {
   if (!t.yes) {
-    t.write({ snap: { ...t.snap, connect: false, model: "", otherModels: [] }, phase: "code", add: [...t.said, { who: "will", text: "Will you add your own code later?" }], label: `Model ${t.step}` });
+    t.write({ snap: { ...t.snap, connect: false, model: "", otherModels: [] }, phase: "code", add: [...t.said, { who: "will", text: W.codeAsk }], label: `Model ${t.step}` });
     return;
   }
   t.write({
     snap: { ...t.snap, connect: true }, phase: "model",
-    add: [...t.said, { who: "will", text: t.models.length ? "Which one?" : "What should it notice?", quotes: t.models.map((m) => m.q) }],
+    add: [...t.said, { who: "will", text: t.models.length ? W.talkWhich : W.talkNotice, quotes: t.models.map((m) => m.q) }],
     label: `Model ${t.step}`,
   });
 }
@@ -127,26 +127,26 @@ function afterModel(t: Turn) {
   const model = picked?.id ?? t.text.trim();
   t.write({
     snap: { ...t.snap, model }, phase: "other",
-    add: [{ who: "me", text: picked?.q ?? model }, { who: "will", text: "Add another model?" }],
+    add: [{ who: "me", text: picked?.q ?? model }, { who: "will", text: W.talkAnother }],
     label: `Model ${t.step}`,
   });
 }
 
 function afterOther(t: Turn) {
   if (!t.yes) {
-    t.write({ snap: { ...t.snap, otherModels: [] }, phase: "code", add: [...t.said, { who: "will", text: "Will you add your own code later?" }], label: `Model ${t.step}` });
+    t.write({ snap: { ...t.snap, otherModels: [] }, phase: "code", add: [...t.said, { who: "will", text: W.codeAsk }], label: `Model ${t.step}` });
     return;
   }
-  t.write({ phase: "otherName", add: [...t.said, { who: "will", text: "What should the other one notice?" }], label: `Model ${t.step}` });
+  t.write({ phase: "otherName", add: [...t.said, { who: "will", text: W.talkNotice }], label: `Model ${t.step}` });
 }
 
 function afterOtherName(t: Turn) {
   const name = t.text.trim();
   if (!name) {
-    t.write({ add: [{ who: "will", text: "Name it." }] });
+    t.write({ add: [{ who: "will", text: W.talkName }] });
     return;
   }
-  t.write({ snap: { ...t.snap, otherModels: [name] }, phase: "code", add: [{ who: "me", text: name }, { who: "will", text: "Will you add your own code later?" }], label: `Model ${t.step}` });
+  t.write({ snap: { ...t.snap, otherModels: [name] }, phase: "code", add: [{ who: "me", text: name }, { who: "will", text: W.codeAsk }], label: `Model ${t.step}` });
 }
 
 function afterCode(t: Turn) {
@@ -154,14 +154,14 @@ function afterCode(t: Turn) {
     plan(t, { ...t.snap, code: false, paste: "", plugin: null }, `Plan ${t.step}`);
     return;
   }
-  t.write({ snap: { ...t.snap, code: true }, phase: "paste", add: [...t.said, { who: "will", text: "Paste the step, then send it.", quotes: ["Write this for me"] }], label: `Code ${t.step}` });
+  t.write({ snap: { ...t.snap, code: true }, phase: "paste", add: [...t.said, { who: "will", text: W.codePaste, quotes: ["Write this for me"] }], label: `Code ${t.step}` });
 }
 
 async function afterPaste(t: Turn) {
   const source = /^write this for me$/i.test(t.text.trim()) ? WRITTEN_PASTE : t.text;
   const checked = await checkPlugin(source);
   if (checked.status !== "checked" || !checked.manifest) {
-    t.write({ add: [{ who: "will", text: "That step is missing its name. Paste another.", quotes: ["Write this for me"] }] });
+    t.write({ add: [{ who: "will", text: W.codeMissing, quotes: ["Write this for me"] }] });
     return;
   }
   const plugin: TalkPlugin = { id: checked.manifest.id, hash: checked.hash, interventionType: checked.manifest.interventionType as TalkPlugin["interventionType"] };
@@ -170,10 +170,10 @@ async function afterPaste(t: Turn) {
 
 function afterPlan(t: Turn) {
   if (t.yes) {
-    t.finish(t.snap, [...t.said, { who: "will", text: "This is the chat.", quotes: ["Open the list", "Try it out loud"] }], `Look ${t.step}`);
+    t.finish(t.snap, [...t.said, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], `Look ${t.step}`);
     return;
   }
-  t.write({ phase: "edit", add: [...t.said, { who: "will", text: "What should change?", quotes: ["The greeting", "The price"] }], label: `Plan ${t.step}` });
+  t.write({ phase: "edit", add: [...t.said, { who: "will", text: W.talkChange, quotes: ["The greeting", "The price"] }], label: `Plan ${t.step}` });
 }
 
 function afterEdit(t: Turn) {
@@ -187,7 +187,7 @@ function afterEdit(t: Turn) {
     t.write({ phase: "price", priceAt: 0, add: [{ who: "me", text: t.text.trim() }, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Edit ${t.step}` });
     return;
   }
-  t.write({ add: [{ who: "will", text: "Say the greeting or the price.", quotes: ["The greeting", "The price"] }] });
+  t.write({ add: [{ who: "will", text: W.talkWhichChange, quotes: ["The greeting", "The price"] }] });
 }
 
 function afterGreet(t: Turn) {
@@ -200,7 +200,7 @@ function afterLook(t: Turn) {
     t.onList();
     return;
   }
-  t.write({ phase: "done", add: [{ who: "me", text: t.text.trim() }, { who: "will", text: "This is the chat.", quotes: ["Open the list", "Try it out loud"] }], label: `Done ${t.step}` });
+  t.write({ phase: "done", add: [{ who: "me", text: t.text.trim() }, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], label: `Done ${t.step}` });
 }
 
 const PHASES: Record<string, (t: Turn) => void | Promise<void>> = {
@@ -228,7 +228,7 @@ export async function speakTurn(t: Turn): Promise<void> {
   const no = /^no$/i.test(trimmed);
   if (!FREE.has(t.phase)) {
     if (!yes && !no) {
-      t.write({ add: [{ who: "will", text: "Yes or no." }] });
+      t.write({ add: [{ who: "will", text: W.talkYesNo }] });
       return;
     }
     t.said.push({ who: "me", text: yes ? "Yes" : "No" });

@@ -836,7 +836,7 @@ function WalkStep(c: Ctx): ReactNode {
     case "walk": {
       const initial = walkSteps(S, R);
       const ordered = (next: WalkStepId[]) => WALK_IDS.filter((id) => next.includes(id));
-      return yesNoEach(c, "walk", WALK_IDS, S.walkTicks ?? initial, (k) => W.walkOne(W.walkSteps[k]), (next) => { S.walkTicks = next; }, (next, leave) => {
+      return yesNoEach(c, "walk", WALK_IDS, S.walkTicks ?? initial, (k) => W.walkOne(k), (next) => { S.walkTicks = next; }, (next, leave) => {
         const steps = ordered(next);
         if (!S.edit) {
           if (!leave) return;

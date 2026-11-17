@@ -11,6 +11,7 @@ import { ChatListRow, PersonCircle, WillMark } from "./ChatList";
 import { OwnAvatar } from "./hostsetup/ChatIconPicker";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { OWN_CHAT_EVENT, ownChatTitle, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { W } from "./hostsetup/hostSetupCopy";
 import { readTalkDraft, TALK_DRAFT_EVENT } from "@/lib/willab/chatBuilder/talkDraft";
 
 /* -------------------------------------------------------------------------- */
@@ -25,7 +26,7 @@ import { readTalkDraft, TALK_DRAFT_EVENT } from "@/lib/willab/chatBuilder/talkDr
 
 type Status = "loading" | "ready" | "error";
 
-const OWN_INTRO = "Make your own chat. You pick what it does, and people you share it with can use it.";
+const OWN_INTRO = W.ownChatSheet;
 
 export default function ProductHome({
   onOpenSpeaking,

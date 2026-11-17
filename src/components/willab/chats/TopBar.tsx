@@ -92,7 +92,7 @@ export function TopBar({
         ) : (
           <span className="flex min-w-0 items-center gap-2.5">{who}</span>
         )}
-        {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
+        {right ? <span className="relative z-30 ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
       </div>
       {/* This bar replaces the global bar and sits at the viewport's top. A
           fixed rule spans the viewport without a 100vw-wide box that can

@@ -93,3 +93,28 @@ export function publicChatHref(origin: string, id: string, serverPath?: string |
   if (serverPath && serverPath.startsWith("/c/")) return `${origin}${serverPath}`;
   return `${origin}/c/${encodeURIComponent(id || "your-chat")}`;
 }
+
+/** Copy even when the clipboard API refuses. A click has to leave the link
+ *  on the clipboard without a server token. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* the page may not be allowed to use the clipboard API */ }
+  try {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}

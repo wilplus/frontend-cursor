@@ -18,7 +18,7 @@ The talk also follows the four builders in the competitor research (`638b0c14`, 
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 240/240 = 100% | Rubric in `usability-audit.md`. Phone run: `scripts/own-chat-e2e.mjs` printed `OWN CHAT 9/9` at 390×844. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 16/16` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.

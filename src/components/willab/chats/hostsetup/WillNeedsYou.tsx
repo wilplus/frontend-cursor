@@ -17,7 +17,7 @@ import {
   Users,
   type LucideProps,
 } from "lucide-react";
-import type { PriceChange, SetupPart } from "@/services/api/hostSetup";
+import type { HostRecipe, PriceChange, SetupPart, SetupRead } from "@/services/api/hostSetup";
 import { TapRow } from "../../WillQuestion";
 import { useUserProfile } from "../../useUserProfile";
 import { W } from "./hostSetupCopy";
@@ -151,6 +151,22 @@ function PartValue({ part }: { part: SetupPart }) {
   return <span className="block truncate text-[15px] text-foreground">{value}</span>;
 }
 
+/** Question on one line, the answer under it. A tap opens that question again. */
+function AnswerRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      data-build-part={part.part}
+      data-answer-row=""
+      onClick={onOpen}
+      className="flex min-h-[72px] w-full flex-col items-start justify-center gap-1 border-b border-[#F0F0F0] px-1 py-4 text-left"
+    >
+      <span className="text-[18px] font-semibold leading-snug text-foreground">{part.title}</span>
+      <span className="max-w-full break-words text-[16px] leading-snug text-foreground">{part.value}</span>
+    </button>
+  );
+}
+
 /** One of the chat's parts in the settings table. A tap opens its step. */
 function PartRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
   const Icon = PART_ICON[part.part] ?? CircleHelp;
@@ -217,19 +233,73 @@ function IconPart() {
  *  whole screen, with a search, and a row opens that row's own chat.
  *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
  *  Only for the ring `chat_builder`. */
-export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: boolean; onPart?: (part: SetupPart) => void; onTalk?: () => void }) {
+export default function WillNeedsYou({ page = false, onPart, onTalk, onOpenChat, onTry, source = null }: {
+  page?: boolean;
+  onPart?: (part: SetupPart) => void;
+  onTalk?: () => void;
+  /** The Build page: the card opens the table, not the server setup. */
+  onOpenChat?: () => void;
+  /** Open the chat as a visitor would see the shared link. */
+  onTry?: () => void;
+  /** Rows from the talk on this device, when the server has none. */
+  source?: SetupRead | null;
+}) {
   const { isCoach } = useUserProfile();
   const work = useHostWork(isCoach);
-  const setup = useKnownSetup();
+  const known = useKnownSetup();
+  const setup = known?.recipe ? known : source;
   const [query, setQuery] = useState("");
   if (!work.ring && !page) return null;
   const over = (detail: OpenDetail) => () => openOverList(detail);
   const openPart = (part: SetupPart) => (onPart ? onPart(part) : openOverList({ part: part.part }));
   const recipe = setup?.recipe ?? null;
+  const localTable = Boolean(page && source && !known?.recipe);
   const answers = work.lines.find((l) => l.kind === "answers");
   const needs = Boolean(answers) || work.skipped.length > 0 || work.priceChanges.length > 0;
   const shown = (setup?.parts ?? []).filter((part) => matches(part, page ? query : ""));
   const groups = groupParts(shown);
+  return (
+    <NeedsPage
+      page={page}
+      query={query}
+      setQuery={setQuery}
+      localTable={localTable}
+      shown={shown}
+      openPart={openPart}
+      onTalk={onTalk}
+      onTry={onTry}
+      onOpenChat={onOpenChat}
+      recipe={recipe}
+      groups={groups}
+      over={over}
+      needs={needs}
+      answers={answers}
+      work={work}
+      isCoach={isCoach}
+    />
+  );
+}
+
+function NeedsPage({
+  page, query, setQuery, localTable, shown, openPart, onTalk, onTry, onOpenChat, recipe, groups, over, needs, answers, work, isCoach,
+}: {
+  page: boolean;
+  query: string;
+  setQuery: (q: string) => void;
+  localTable: boolean;
+  shown: SetupPart[];
+  openPart: (part: SetupPart) => void;
+  onTalk?: () => void;
+  onTry?: () => void;
+  onOpenChat?: () => void;
+  recipe: HostRecipe | null;
+  groups: { heading: string | null; parts: SetupPart[] }[];
+  over: (detail: OpenDetail) => () => void;
+  needs: boolean;
+  answers: { kind: string; n: number } | undefined;
+  work: { skipped: string[]; priceChanges: PriceChange[] };
+  isCoach: boolean;
+}) {
   return (
     <div data-will-needs-you="" className={page ? "flex w-full flex-col gap-3 px-4 py-4" : "mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5"}>
       {page ? (
@@ -249,11 +319,21 @@ export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: 
           ) : null}
         </form>
       ) : null}
-      {page && iconMatches(query) ? <IconPart /> : null}
-      {page && onTalk ? (
-        <button type="button" data-talk-open="" onClick={onTalk} className="min-h-11 self-start text-[15px] font-semibold text-primary">Talk it through</button>
+      {page && !localTable && iconMatches(query) ? <IconPart /> : null}
+      {page && onTalk && !localTable ? (
+        <button type="button" data-talk-open="" onClick={onTalk} className="min-h-11 self-start text-[15px] font-semibold text-primary">{W.talkBuild}</button>
       ) : null}
-      {recipe ? (
+      {page && onTry ? (
+        <button type="button" data-try-visitor="" onClick={onTry} className="flex min-h-[52px] w-full items-center rounded-2xl bg-foreground px-4 text-left text-[17px] font-semibold text-background">{W.tryAsVisitor}</button>
+      ) : null}
+      {localTable ? (
+        <div data-answer-list="" className="flex min-h-0 w-full min-w-0 flex-col overflow-x-hidden">
+          {shown.length === 0 && query.trim() ? <p className="m-0 text-[16px] text-muted-foreground">{W.nothingMatches}</p> : null}
+          {shown.map((part) => (
+            <AnswerRow key={part.part} part={part} onOpen={() => openPart(part)} />
+          ))}
+        </div>
+      ) : recipe ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
@@ -280,7 +360,7 @@ export default function WillNeedsYou({ page = false, onPart, onTalk }: { page?: 
           })}
         </>
       ) : (
-        <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={over({ open: "parts" })} />
+        <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={onOpenChat ?? (() => over({ open: "parts" })())} />
       )}
       {needs ? <Said>{W.needsYou}</Said> : null}
       {work.skipped.map((by, k) => (

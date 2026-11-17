@@ -722,8 +722,11 @@ describe("what needs you is in Will (backend N629)", () => {
     const saved = bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/send").map((c) => (c.json as { value: string[] }).value);
     expect(saved.at(-1)).toEqual(["rec", "photo", "file"]);
     await open("walk");
-    for (let i = 0; i < 2; i += 1) await press("walk", "Yes");
-    expect(chat("walk").textContent).toContain("helper words");
+    expect(chat("walk").textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
+    await press("walk", "Yes");
+    expect(chat("walk").textContent).toContain("Should it show one moment they could say another way?");
+    await press("walk", "Yes");
+    expect(chat("walk").textContent).toContain("Should it give them a few helper words to remember?");
     await press("walk", "No");
     expect(shown("walk")).toBe(false);
     expect(container.querySelector("[data-part-search]")).not.toBeNull();

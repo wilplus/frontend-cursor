@@ -35,52 +35,58 @@ async function waitForServer() {
 }
 
 const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox"] });
-try {
-  await waitForServer();
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.route("**/*", (route) => {
+async function run(width, height) {
+  const tag = `${width}x${height}`;
+  const context = await browser.newContext({ viewport: { width, height }, permissions: ["clipboard-read", "clipboard-write"] });
+  await context.route("**/*", (route) => {
     const url = route.request().url();
     if (url.startsWith(base)) return route.continue();
     return route.abort();
   });
+  const page = await context.newPage();
   await page.goto(`${base}/dev/own-chat`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => {
     const el = document.querySelector("[data-own-chat-screen]");
     return !!el && Object.keys(el).some((key) => key.startsWith("__react"));
   });
-
-  const order = () => page.locator("[data-home-row]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-home-row")));
-  const before = await order();
-  check("starter is the last chat row", before.at(-1) === "start-own-chat" && before[0] === "speaking-coach");
-  const rowBox = await page.locator("[data-home-row='start-own-chat']").boundingBox();
-  const actionBox = await page.locator("[data-start-new-project]").boundingBox();
-  check("starter sits above Start a new project", !!rowBox && !!actionBox && rowBox.y < actionBox.y);
-
-  await page.locator("[data-home-row='start-own-chat'] button").click();
-  await page.waitForSelector("[data-own-chat-sheet]");
-  check("the sheet explains the chat", (await page.locator("[data-own-chat-sheet]").innerText()).includes("Make your own chat"));
-  await page.locator("[data-own-chat-close]").click();
-  check("Close leaves the starter at the bottom", (await order()).at(-1) === "start-own-chat");
-
   await page.locator("[data-home-row='start-own-chat'] button").click();
   await page.locator("[data-own-chat-yes]").click();
-  await page.waitForSelector("[data-build-bar]");
-  check("Yes opens Build", await page.locator("[data-build-bar]").count() === 1);
-  await page.locator("[data-chat-header] button[aria-label='Back']").click();
-  await page.waitForSelector("[data-home-row='own-chat']");
-  const after = await order();
-  check("the chat is pinned at the top", after[0] === "own-chat" && !after.includes("start-own-chat"));
-  check("the pinned circle wears the badge", await page.locator("[data-home-row='own-chat'] [data-will-badge]").count() === 1);
-
-  await page.locator("[data-home-row='own-chat'] button").click();
-  await page.waitForSelector("[data-share-chat]");
-  await page.locator("[data-share-chat]").click();
+  await page.locator("[data-talk-open]").click();
+  await page.locator("[data-express]").click();
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.locator("[data-talk-list]").click();
+  await page.waitForSelector("[data-answer-list]");
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
+  check(`${tag} the answer list fits`, wide && (await page.locator("[data-answer-list]").innerText()).includes("Your own code"));
+  check(`${tag} each row shows a question and an answer`, (await page.locator("[data-answer-row]").count()) > 3);
+  await page.locator("[data-build-part='hello']").click();
+  await page.waitForSelector("[data-part-chat='hello']");
+  check(`${tag} a row opens its question`, true);
+  await page.locator("[data-part-chat='hello'] button[aria-label='Back']").click();
+  await page.locator("[data-build-part='code']").click();
+  check(`${tag} your own code is one tap`, (await page.locator("[data-part-chat='code']").innerText()).includes("Add a small piece of code"));
+  await page.locator("[data-part-chat='code'] button[aria-label='Back']").click();
+  await page.locator("[data-try-visitor]").click();
+  await page.waitForSelector("[data-visitor-try]");
+  await page.locator("[data-visitor-rec]").click();
+  await page.waitForFunction(() => document.querySelectorAll("[data-visitor-line='them']").length > 1);
+  check(`${tag} a visitor send gets the chat's reply`, true);
+  await page.locator("[data-visitor-try] button[aria-label='Back']").click();
+  check(`${tag} back returns to the builder`, await page.locator("[data-answer-list]").count() === 1);
+  const share = page.locator("[data-build-bar] [data-share-chat]");
+  const box = await share.boundingBox();
+  check(`${tag} share is on screen`, !!box && box.x >= 0 && box.x + box.width <= width + 1);
+  await share.click();
   await page.waitForSelector("[data-link-copied]");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  check("Share copies the public link", copied.includes("/c/"));
-  await page.locator("[data-chat-header] button[aria-label='Back']").click();
-  check("Back returns to the list", (await order())[0] === "own-chat");
+  check(`${tag} share copies /c/`, copied.includes("/c/"));
+  await context.close();
+}
+
+try {
+  await waitForServer();
+  await run(390, 844);
+  await run(1024, 768);
 } catch (error) {
   check("the phone run finished", false);
   console.error(error);

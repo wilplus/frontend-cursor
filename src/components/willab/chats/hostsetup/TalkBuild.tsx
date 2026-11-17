@@ -60,7 +60,7 @@ function stepLabel(phase: Phase): string {
 
 function hintFor(phase: Phase): string {
   if (phase === "brief") return "Say what you do";
-  if (phase === "paste") return "Paste the step";
+  if (phase === "paste") return W.codePaste;
   if (phase === "greet") return "The first line";
   if (phase === "model") return "Which one";
   if (phase === "otherName") return "Name the other one";
@@ -120,9 +120,9 @@ function TalkThread({ phase, lines, snap, kept, liveDraft, onTake, onMove, onReo
   const choice = !["brief", "look", "done", "paste", "model", "otherName", "greet", "edit"].includes(phase);
   const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
   return (
-    <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+    <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
       {lines.map((line, n) => (
-        <div key={n} className={line.who === "me" ? "max-w-[86%] self-end rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>
+        <div key={n} className={line.who === "me" ? "max-w-[86%] min-w-0 self-end break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>
           <p className="m-0">{line.text}</p>
           {line.quotes?.map((q) => (
             <button key={q} type="button" data-quote="" data-say={q} className="mx-0.5 inline-flex min-h-11 min-w-11 items-center rounded-[7px] bg-[#fff1e8] px-2 text-left font-semibold text-[#c84d06]" onClick={() => setDraft(q === "Write this for me" ? generatedDraft(phase, snap.spec) : q)}>“{q}”</button>
@@ -348,7 +348,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   const take = (text: string) => {
     if (/^done$/i.test(text.trim()) && phaseRef.current !== "brief") {
       const next = snapRef.current;
-      write({ phase: "done", add: [{ who: "me", text: "done" }, { who: "will", text: "This is the chat.", quotes: ["Open the list", "Try it out loud"] }], label: "Done" });
+      write({ phase: "done", add: [{ who: "me", text: "done" }, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], label: "Done" });
       if (next.spec) {
         saveTalkDraft(talkBuilt(next));
         setSavedName(talkBuilt(next).definition.name);

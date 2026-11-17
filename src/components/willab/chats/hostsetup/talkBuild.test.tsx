@@ -61,7 +61,7 @@ describe("talk the chat into shape", () => {
     await tap("No");
     await tap("No");
     await tap("No");
-    expect(container.textContent).toContain("Should yours hold their best moment?");
+    expect(container.textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
     await tap("See the list");
     expect(close).toHaveBeenCalled();
   });
