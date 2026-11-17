@@ -3,16 +3,17 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import LoadingState from "./LoadingState";
+import LoadingState, { LoadingBubble } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import TypingDots from "./TypingDots";
+import WalkLoading from "./walk/WalkLoading";
 
 /*
 STORY As a speaker, I want one centered loading indicator to stay in place while my Take moves through processing phases, so that the wait does not jump, duplicate or disappear.
-OUTCOME O1  Generic full-surface waits render one frame and one indicator.
-O2  Analysis to document assembly reuses the same processing frame and DOM indicator, with a fixed value slot.
-O3  Inline chat typing dots remain a separate bubble and do not become a page loader.
-PROVES LoadingState, ProcessingWait and TypingDots share the canonical loading contract without changing their intended surfaces.
+OUTCOME O1  Generic full-surface waits render one stable frame and one circular three-dot bubble.
+O2  Analysis to document assembly reuses the same processing frame and bubble.
+O3  Inline chat typing dots remain a separate response bubble and do not become a page loader.
+PROVES LoadingState, ProcessingWait and TypingDots keep the canonical page/response distinction.
 WHY A visible loading jump interrupts the record → process → Ideal Text loop; this protects the locked wait and the intentional chat feedback separately.
 */
 
@@ -46,7 +47,8 @@ describe("full-surface loading indicator contract", () => {
     expect(surface?.getAttribute("data-loading-placement")).toBe("surface");
     expect(surface?.querySelectorAll("[data-loading-frame]")).toHaveLength(1);
     expect(surface?.querySelectorAll("[data-loading-indicator]")).toHaveLength(1);
-    expect(surface?.querySelectorAll("[data-voice-mark]")).toHaveLength(1);
+    expect(surface?.querySelectorAll("[data-loading-bubble]")).toHaveLength(1);
+    expect(surface?.querySelectorAll("[data-loading-dot]")).toHaveLength(3);
     expect(surface?.querySelector('[data-loading-label]')?.textContent).toBe(
       "Getting your mic ready",
     );
@@ -83,21 +85,22 @@ describe("full-surface loading indicator contract", () => {
     expect(nextSurface?.querySelector("[data-loading-frame]")).toBe(firstFrame);
     expect(nextSurface?.querySelector("[data-loading-indicator]")).toBe(firstIndicator);
     expect(nextSurface?.querySelectorAll("[data-loading-indicator]")).toHaveLength(1);
-    expect(nextSurface?.querySelector('[role="progressbar"]')?.getAttribute("aria-label")).toBe(
-      "Building your Ideal Text",
-    );
+    expect(nextSurface?.querySelectorAll("[data-loading-bubble]")).toHaveLength(1);
+    expect(nextSurface?.querySelectorAll("[data-loading-dot]")).toHaveLength(3);
   });
 
-  it("keeps the progress value slot dimensioned while the value changes", () => {
-    mount(
-      createElement(ProcessingWait, {
-        progress: { stage: "processing_recording", percent: null },
-        cycleStartedAt: 100,
-      }),
-    );
+  it("keeps the three-dot bubble as the smallest shared primitive", () => {
+    mount(createElement(LoadingBubble, { size: 64 }));
+    expect(host.querySelectorAll("[data-loading-bubble]")).toHaveLength(1);
+    expect(host.querySelectorAll("[data-loading-dot]")).toHaveLength(3);
+  });
 
-    expect(host.querySelector("[data-loading-percent]")?.className).toContain("w-[3ch]");
-    expect(host.querySelector("[data-loading-content]")?.querySelector(".min-h-6")).not.toBeNull();
+  it("uses the full-surface bubble for a walk wait, not a bottom-corner response bubble", () => {
+    mount(createElement(WalkLoading));
+    expect(host.querySelector("[data-walk-loading] [data-loading-surface]")).not.toBeNull();
+    expect(host.querySelectorAll("[data-walk-loading] [data-loading-bubble]")).toHaveLength(1);
+    expect(host.querySelectorAll("[data-walk-loading] [data-loading-dot]")).toHaveLength(3);
+    expect(host.querySelector("[data-walk-loading] [data-typing-dots]")).toBeNull();
   });
 });
 

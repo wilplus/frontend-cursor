@@ -61,6 +61,7 @@ import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoa
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import { PROCESSING_STAGES } from "./ProcessingWait";
+import LoadingState from "./LoadingState";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
@@ -227,6 +228,13 @@ const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: fals
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
 // An older Take's card (N375); a press on one warms it (pastIdealText).
 const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
+
+const LOUNGE_THREAD_CLASS = "scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain";
+
+function loungeThreadClass(loading: boolean): string {
+  if (loading) return LOUNGE_THREAD_CLASS;
+  return `${LOUNGE_THREAD_CLASS} [&>:first-child]:mt-auto`;
+}
 
 function barContents(
   mode: LoungeBarMode,
@@ -2452,7 +2460,7 @@ export default function Lounge({
            bar, as the chats with people do (N321 item 3, N467 item 1).
            `data-rhythm`: the rows' spacing, close within a side and wider
            where the side changes (globals.css, N469). */
-        className="scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [&>:first-child]:mt-auto"
+        className={loungeThreadClass(thread.loading)}
       >
         {thread.hasMore && (
           <button
@@ -2466,12 +2474,12 @@ export default function Lounge({
           </button>
         )}
 
-        {/* The Lounge's one wait is the typing dots, as the lens's
-            (founder 2026-10-20: "typing dots in the lounge too"). */}
+        {/* Page boot uses the shared centered loader. TypingDots remains for
+            actual in-conversation replies below. */}
         {/* Principles opens with its own line, above everything (N640). */}
         <PlaceOpening place={place} />
         {thread.loading ? (
-          <TypingDots label="Loading" />
+          <LoadingState placement="surface" />
         ) : emptyHelloIn(place, threadItems.length === 0) ? (
           <LoungeEmptyState hidden={plan.holdsEmpty} />
         ) : (

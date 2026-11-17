@@ -69,10 +69,12 @@ step; the loop never waits for a coach.
   speaker came back to the app, or left the wait for the chat): from the
   Take straight into the walk, the chat never shown in between, and under
   the walk when it closes (founder 2026-11-01, N319 item 10).
-  The full-surface wait has one canonical centered frame and one indicator for
-  the lifecycle; analysis, document assembly and the Lounge hand-off keep
-  that footprint. The chat's processing line and the lens's typing dots remain
-  intentional inline bubbles, not additional full-surface loaders.
+  The full-surface wait has one canonical centered frame and one circular
+  three-dot loading bubble for the lifecycle; analysis, document assembly and
+  the Lounge hand-off keep that footprint. Page boot in the chat list, project
+  chat and pattern flow uses the same shell. Only an actual in-conversation
+  response keeps an inline typing bubble; a route or walk step wait is never a
+  bottom-corner loader.
 - **A3** The loop never waits for a coach (2026-09-16, 2026-09-26). The
   coach's word opens the walk only when it is there.
 - **A4** A guest's processed Take lands on "Done" and the account ask,
@@ -173,9 +175,9 @@ step; the loop never waits for a coach.
   the bottom, right above the buttons, as in the Lounge; the thread follows
   them down until the speaker scrolls up by hand. A thread shorter than the
   screen sits at the bottom too, and the lens screen's own wait while the
-  walk loads is the typing dots there, so the first bubble lands where the
-  dots were; they show only once the walk is still loading 0.3 s after the
-  screen opens, so a quick load never flashes them (N122, N499). What opens a part (the
+  walk loads is the centered circular three-dot bubble in its stable full-page
+  shell. Actual in-conversation replies still use typing dots, so a quick
+  response never adds a second page loader (N122, N499). What opens a part (the
   walk's answer to the step before, "And here's one moment to try another way:", a
   lead) lands first, then the step's own bubbles one at a time, the AI
   clip's fix's too; moving on, the thread glides down to them (N440; was:
@@ -218,9 +220,11 @@ step; the loop never waits for a coach.
   they have all landed; the walk's answer to Skip and the helper words
   after it land the same way, before "Lesson done." (N440). Next and
   Continue post nothing.
-- **B8** The typing dots are the only wait, in the lens and the Lounge: a
-  bubble being written, a try checked, other speakers' moments or the summary
-  loading, the thread loading, the processing bubble. No breathing mark.
+- **B8** Typing dots are the only inline wait for an in-conversation response,
+  in the lens and the Lounge: a bubble being written or a reply being checked.
+  Page boot, a walk step, other speakers' moments, the summary, the thread and
+  processing use the one centered circular three-dot bubble in the stable
+  full-surface shell. No breathing mark, progress rail or duplicate loader.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
   Next, which brings that step back, with the step's Skip kept under it
   (founder 2026-11-03, N440: "keep the "skip" below it"); a link that
@@ -2348,7 +2352,8 @@ page):
 - `src/lib/willab/coachLink.ts` — the coach's link (WIL-93) (guarded since N111).
 - `src/components/willab/OtherAccountLink.tsx` — the coach's link on another account (WIL-93) (guarded since N111).
 - `src/lib/willab/enrichmentSettle.ts` — the wait for the Take's reading to settle (A2) (guarded since N111).
-- `src/components/willab/TypingDots.tsx` — Will's typing dots (B8) (guarded since N111).
+- `src/components/willab/TypingDots.tsx` — Will's inline response dots (B8) (guarded since N111).
+- `src/components/willab/LoadingState.tsx` — the shared full-surface shell and circular three-dot loader for page boot and processing waits.
 
 Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.tsx`
 (the chat), `src/components/willab/useLoungeThread.ts`,
@@ -2435,6 +2440,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 - 2026-11-16 · loader contract · the processing wait's centered frame is shared across the Lab, Lounge resume overlay and document wait; inline chat/lens typing dots remain distinct · FE (this PR)
+- 2026-11-17 · founder-approved loader correction · the chat list, project chat, pattern flow, Feedback Walk, Ideal Text hand-off, overlays and route openings use one stable full-surface shell with one centered circular three-dot bubble; page boot and walk-step waits no longer use bottom-corner or moving typing indicators, while true in-chat replies keep their inline dots · FE (this PR)
 - 2026-11-16 · founder-approved product structure · the home has one Speaking coach destination, every active project and Start a new project; projects stay concurrent, opening or creating one never archives another, and the project owns its conversation, Takes, questions, Feedback Walk, Ideal Text and resume point. The home waits for the project list and Speaking coach state before painting; the legacy people-chat reads remain for required backend side effects, not as the speaking-coach IA · FE (this PR)
 - 2026-11-16 · the project index starts during the authenticated /chat boot and the home consumes that same read, removing a post-mount project-list round trip without caching stale project state; the home still waits for the current project list and Speaking coach state before painting · FE (this task)
 

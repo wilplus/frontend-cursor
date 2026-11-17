@@ -102,17 +102,15 @@ for the screens below.
      the row (backend N441 item 6).
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
-5. **Finish take:** the processing wait, one narrow centred column (the
-   breathing mark, the stage label and its percent, a rounded bar, and under
-   it **Usually about a minute.**; nothing to read or scroll, N271, N273;
-   prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>).
-   The bar shows 1% from the first second. The wait stays on screen when the Lounge takes the Take over, and
+5. **Finish take:** the processing wait, one stable full-page shell with one
+   centered circular three-dot loading bubble; no stage label, progress rail or
+   second wait is introduced while the real server phases change. The wait
+   stays on screen when the Lounge takes the Take over, and
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
-   The full-surface wait uses one canonical centered frame: one stationary
-   loading mark, one fixed footprint for the stage/value row, and the same
-   frame through analysis, document assembly and Lounge hand-off. Inline chat
+   The full-surface wait uses one canonical centered frame and one bubble
+   through analysis, document assembly and Lounge hand-off. Inline chat
    processing bubbles are separate and keep their typing dots; they never add
    a second full-surface loader.
 6. **An answer in a chat** (backend N363, N441, approved for this lock):
@@ -416,8 +414,8 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/useRecordingGestures.ts`
 - `src/lib/willab/recordingGesture.ts`
 - `src/components/willab/DiscardTakeDialog.tsx` — "Discard this take?" (step 4) (guarded since N111).
-- `src/components/willab/RecordingAnalysisPresentation.tsx` — the wait while a Take is processed (step 5) (guarded since N111).
-- `src/components/willab/ProcessingWait.tsx` — the wait's stage and percent (step 5) (guarded since N111).
+- `src/components/willab/RecordingAnalysisPresentation.tsx` — the shared full-surface loading bubble while a Take is processed (step 5) (guarded since N111).
+- `src/components/willab/ProcessingWait.tsx` — the processing view of the shared loader (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
 - `src/lib/willab/takeUploading.ts` — a Take still going up after the ✕ closed the processing screen, for the chat's processing bubble (2026-11-10).
@@ -548,6 +546,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
 - 2026-11-16 · loader contract · full-surface waits now use one canonical centered frame and one indicator across processing phases and the Lab/Lounge/Ideal Text hand-off; the value slot and content frame keep their dimensions on desktop and mobile, while inline chat and lens typing bubbles remain intentionally separate · FE (this PR)
+- 2026-11-17 · founder-approved loader correction · processing, overlays and route openings use one stable full-surface shell with one centered circular three-dot bubble; stage/progress and breathing-ring variants are removed, while the approved microphone label and true in-chat response bubbles remain · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 - 2026-11-16 · locked production re-record invariant · repeating a project fragment carries the selected arc into the Lab and opens the recorder on that fragment; after the processing screen closes, the project chat itself keeps one processing bubble until the exact new Take exposes fresh feedback, transcript and Ideal Text data; only then does the bubble resolve and the project card refresh its attempts and CTAs. A failed job keeps an actionable retry in the same chat, and navigation, polling and remounts cannot clear the wait without success or an explicit error · FE (this change)
 

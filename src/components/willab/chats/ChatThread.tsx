@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
-import TypingDots from "@/components/willab/TypingDots";
+import LoadingState from "@/components/willab/LoadingState";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -1073,17 +1073,14 @@ export default function ChatThread({
       >
         {/* The messages start at the bottom, by the bar (N321 item 3), close
             within a side and wider where the side changes (N469). */}
-        <div data-rhythm className="mt-auto flex flex-col">
+        {messages === null ? <LoadingState placement="surface" /> : <div data-rhythm className="mt-auto flex flex-col">
           {through ? (
             <JoinedLine text={joinedAsksFirst ? joinedAsks(through) : joinedThanks(through)} />
           ) : joinedBy ? (
             <JoinedLine text={joinedYourLink(joinedBy)} />
           ) : null}
           <AssistantAbout host={host} />
-          {messages === null ? (
-            <TypingDots label="Loading" />
-          ) : (
-            withDays(messages).flatMap(({ day, message }) => [
+          {withDays(messages).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
               <AssistantSays key={message.id} name={assistantName} message={message}>
                 <AnswerQuote message={message}>
@@ -1097,8 +1094,7 @@ export default function ChatThread({
               ...(chosenDeadline(message.meta?.setup_answer)
                 ? [<DeadlineLine key={`deadline-${message.id}`} iso={chosenDeadline(message.meta?.setup_answer)!} />]
                 : []),
-            ])
-          )}
+          ])}
           {host ? <HostHello hello={host.hello} taps={host.taps} messages={messages} onTap={(label) => void send("text", label)} /> : null}
           <UsefulAsk chatId={chat.id} messages={messages} />
           {setup.answers}
@@ -1106,7 +1102,7 @@ export default function ChatThread({
             <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />
           ) : null}
           {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
-        </div>
+        </div>}
       </div>
       {/* The locked bar inside (centred, 4px between, 44px tall inside; N483)
           and 8px around it: above, on each side, below (N505). */}

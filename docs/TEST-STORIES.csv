@@ -1298,9 +1298,9 @@ O2  When my Take starts processing, the chat lands on its bubble, which
 is not a message, once per Take (founder 2026-11-09: closing the wait
 left it below the screen).","O1 -> ""older messages come in above what is read; a new one lands at the bottom""
 O2 -> ""a Take's processing bubble is landed on once""","Founder 2026-09-28: ""Only a new message moves the thread; reading history otherwise stays where it is."" The chat took a page of older messages for a new bubble and jumped to the bottom."
-src/components/willab/loadingIndicatorContract.test.tsx,Story,"As a speaker, I want one centered loading indicator to stay in place while my Take moves through processing phases, so that the wait does not jump, duplicate or disappear.","O1  Generic full-surface waits render one frame and one indicator.
-O2  Analysis to document assembly reuses the same processing frame and DOM indicator, with a fixed value slot.
-O3  Inline chat typing dots remain a separate bubble and do not become a page loader.","LoadingState, ProcessingWait and TypingDots share the canonical loading contract without changing their intended surfaces.",A visible loading jump interrupts the record → process → Ideal Text loop; this protects the locked wait and the intentional chat feedback separately.
+src/components/willab/loadingIndicatorContract.test.tsx,Story,"As a speaker, I want one centered loading indicator to stay in place while my Take moves through processing phases, so that the wait does not jump, duplicate or disappear.","O1  Generic full-surface waits render one stable frame and one circular three-dot bubble.
+O2  Analysis to document assembly reuses the same processing frame and bubble.
+O3  Inline chat typing dots remain a separate response bubble and do not become a page loader.","LoadingState, ProcessingWait and TypingDots keep the canonical page/response distinction.",A visible loading jump interrupts the record → process → Ideal Text loop; this protects the locked wait and the intentional chat feedback separately.
 src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
 visitor with no project gets Will's hello and ""Start your first
 recording"" under it, never the lab error.
