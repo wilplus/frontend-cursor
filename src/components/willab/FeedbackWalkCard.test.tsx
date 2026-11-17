@@ -43,7 +43,6 @@ afterEach(() => {
 
 function draw(value = chunks) {
   act(() => root.render(createElement(FeedbackWalkCard, {
-    title: "Board meeting",
     progress: 74,
     chunks: value,
     onFeedback: feedback,
@@ -54,7 +53,9 @@ function draw(value = chunks) {
 describe("Feedback Walk practice history", () => {
   it("shows only the latest chunk until earlier chunks are requested", () => {
     draw();
+    expect(host.querySelector("[data-feedback-walk-title]")?.textContent).toBe("Slides 25-30");
     expect(host.textContent).toContain("74%");
+    expect(host.querySelector("[data-practice-status]")?.textContent).toContain("Strong delivery");
     expect(host.textContent).toContain("Slides 25-30");
     expect(host.textContent).not.toContain("Slides 1-5");
     const toggle = [...host.querySelectorAll("button")].find((button) => button.textContent === "Show 2 earlier chunks")!;

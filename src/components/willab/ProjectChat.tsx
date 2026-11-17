@@ -710,7 +710,6 @@ export default function ProjectChat({
           {hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
-                title={activeProject.topic}
                 progress={activeProject.practiceProgress}
                 chunks={practiceChunks}
                 onFeedback={(chunk) => {

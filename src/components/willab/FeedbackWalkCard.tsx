@@ -78,20 +78,17 @@ function SlideThumbnail({ compact, onOpen }: { compact: boolean; onOpen: () => v
 }
 
 export default function FeedbackWalkCard({
-  title,
   progress,
   chunks,
   onFeedback,
   onIdealText,
 }: {
-  title: string;
   progress: number;
   chunks: FeedbackWalkChunk[];
   onFeedback: (chunk: FeedbackWalkChunk) => void;
   onIdealText: (chunk: FeedbackWalkChunk) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [displayTitle, setDisplayTitle] = useState(title);
   const [rangeLabels, setRangeLabels] = useState<Record<string, string>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const latest = chunks.at(-1);
@@ -102,31 +99,26 @@ export default function FeedbackWalkCard({
   const single = chunks.length === 1;
   const attemptsLabel = (attempts: number) => `${attempts} ${attempts === 1 ? "attempt" : "attempts"}`;
   const keys = useMemo(() => new Set(chunks.map((chunk) => chunk.latestSessionId)), [chunks]);
+  const latestRange = latest ? `Slides ${latest.startSlide}-${latest.endSlide}` : "";
 
   if (!latest || !selected) return null;
 
   return (
     <section
       data-feedback-walk-card
-      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-[18px]" : "p-3"}`}
+      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-[18px]" : "p-4"}`}
     >
-      <header className="px-0.5 pb-[5px] pt-px">
-        <div className="group flex min-w-0 items-baseline gap-1.5">
-          <EditableText
-            value={displayTitle}
-            label="Edit presentation name"
-            onCommit={setDisplayTitle}
-            className="w-fit rounded-[5px] text-[18px] font-extrabold tracking-[-0.02em] outline-none focus:bg-white focus:ring-1 focus:ring-[#ff6a14]"
-          />
-          <span aria-hidden className="text-[11px] font-semibold text-[#737373] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">Click to edit</span>
-        </div>
+      <header className="px-0.5 pb-1 pt-px">
+        <h3 data-feedback-walk-title className="min-w-0 text-[20px] font-extrabold leading-tight tracking-[-0.02em]">
+          {latestRange}
+        </h3>
       </header>
 
-      <div className="mb-2 mt-[9px]">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-[#737373]">
-          <span>Progress</span><b className="text-[12px] text-[#121212]">{safeProgress}%</b>
+      <div className="mb-2.5 mt-2.5">
+        <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373]">
+          <span>Progress</span><b className="text-[14px] text-[#121212]">{safeProgress}%</b>
         </div>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
           <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
         </div>
       </div>
@@ -175,7 +167,7 @@ export default function FeedbackWalkCard({
                     <span className="shrink-0 rounded-full bg-[#ffeadf] px-2 py-[3px] text-[11px] font-bold text-[#ff6727]">{attemptsLabel(chunk.attempts)}</span>
                   ) : null}
                 </div>
-                <div className="mt-1 inline-flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold text-[#737373]">
+                <div data-practice-status className="mt-1.5 inline-flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-[#737373]">
                   <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusTone }} />
                   {status}
                 </div>
@@ -197,4 +189,4 @@ export default function FeedbackWalkCard({
   );
 }
 
-// Founder-Approved: readable project-history card, larger type and controls while preserving the locked Feedback/Ideal-text structure, 2026-11-16.
+// Founder-Approved: project-history hierarchy correction keeps the captured slide span as the card title and preserves the locked Feedback/Ideal-text structure, 2026-11-17.
