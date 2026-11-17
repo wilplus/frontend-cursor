@@ -110,6 +110,11 @@ for the screens below.
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
+   The full-surface wait uses one canonical centered frame: one stationary
+   loading mark, one fixed footprint for the stage/value row, and the same
+   frame through analysis, document assembly and Lounge hand-off. Inline chat
+   processing bubbles are separate and keep their typing dots; they never add
+   a second full-surface loader.
 6. **An answer in a chat** (backend N363, N441, approved for this lock):
    the screens opened from a chat's "Record an answer" record it as any
    Take, on one slide holding the question (N361 item 3), with no "How do
@@ -542,7 +547,9 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · founder-approved localization task · project entry, newcomer setup, the pre-recording feelings check, slide upload and later-Take presentation status use the app/system locale; user-authored and model-generated content keep their own language. Exact Polish copy is inventoried above. Was: these fixed controls remained English while the recording still frame was Polish · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
+- 2026-11-16 · loader contract · full-surface waits now use one canonical centered frame and one indicator across processing phases and the Lab/Lounge/Ideal Text hand-off; the value slot and content frame keep their dimensions on desktop and mobile, while inline chat and lens typing bubbles remain intentionally separate · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
+- 2026-11-16 · locked production re-record invariant · repeating a project fragment carries the selected arc into the Lab and opens the recorder on that fragment; after the processing screen closes, the project chat itself keeps one processing bubble until the exact new Take exposes fresh feedback, transcript and Ideal Text data; only then does the bubble resolve and the project card refresh its attempts and CTAs. A failed job keeps an actionable retry in the same chat, and navigation, polling and remounts cannot clear the wait without success or an explicit error · FE (this change)
 
 - 2026-11-11 · N648 item 8 · no screen changes: a Take recorded in a host's chat that takes Takes goes up exactly as every Take does; the chat is noted at Finish (`keepTakeAtFinish`); once the server names it, `sendTake` (`lib/willab/takeOutbox.ts`) tags it with that chat once, best effort (POST /v2/chats/<id>/take {take}, backend #1961). A failed tag stops nothing. A Take made in the speaking chat posts no tag. The chat is kept with the Take's copy on the device (`KeptTake.chat`), so a Take sent again after a reload is tagged too · FE (this PR)
 - 2026-11-09 · N560 items 1 and 2 · the phone's Back while recording asks the ✕'s "Discard this take?" with the same answers, and the screens and the recording stay (Back while it is open keeps the Take, as Escape does); where the ✕ closes without asking, Back closes; after a slow Take's "Record again", "Try processing again" sends the new Take again with its own upload key and never restarts the old one, which still finishes and keeps its "Processing" line (`LabOverlay.tsx`). No new words. Was: Back cancelled the recording and closed the screens without asking, and the retry could restart the old Take, whose text could come back as the new one's · BE N560 (#1822), FE (this PR)

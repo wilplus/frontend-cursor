@@ -17,6 +17,8 @@ OUTCOME
       thread again, with nothing of the other kept.
   O5  A failed optimistic write keeps one exact bubble; retry reuses its
       client id, and the authoritative reload replaces rather than duplicates it.
+  O6  A short user turn stays beside a structured response while the server
+      read is eventually consistent, then reconciles to one row.
 PROVES   O1 -> "a failed read again keeps the chat on screen, an answered one replaces it"
          O4 -> "N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again"
          O2 -> "an open with no answer waits and reads again, never an empty chat"
@@ -34,6 +36,7 @@ import {
   type RecoverableAppend,
   type UseLoungeThreadReturn,
 } from "./useLoungeThread";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -132,6 +135,52 @@ describe("the chat read again (C9, B8)", () => {
     await act(async () => box.thread!.reload());
     expect(ids()).toEqual([clientId]);
     warn.mockRestore();
+    await act(async () => root.unmount());
+  });
+
+  it("N655 keeps a short user turn beside a structured response until reconciliation", async () => {
+    const structured: LoungeMessage = {
+      client_id: "pattern-card",
+      client_created_at: "2026-11-16T10:00:01.000Z",
+      role: "bot",
+      kind: "insight",
+      body: "We spotted a pattern.",
+      metadata: { pattern_card: true },
+    };
+    let serverRows: LoungeMessage[] = [structured];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).includes("/lounge/messages")) return new Response("{}", { status: 404 });
+      if (init?.method === "POST") {
+        const payload = JSON.parse(String(init.body)) as { messages: LoungeMessage[] };
+        return new Response(JSON.stringify({ messages: payload.messages }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ messages: serverRows, has_more: false, oldest_cursor: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }));
+    const { box, root, ids } = await mountThread();
+    let pending!: RecoverableAppend;
+    await act(async () => {
+      pending = box.thread!.appendRecoverable({ role: "user", kind: "text", body: "hi" });
+      await Promise.resolve();
+    });
+    const clientId = pending.message.client_id;
+    expect(ids()).toEqual(["pattern-card", clientId]);
+
+    await act(async () => {
+      expect(await pending.stored).toBe(true);
+      await box.thread!.reload();
+    });
+    expect(ids()).toEqual(["pattern-card", clientId]);
+
+    serverRows = [structured, pending.message];
+    await act(async () => box.thread!.reload());
+    expect(ids()).toEqual(["pattern-card", clientId]);
+    expect(ids().filter((id) => id === clientId)).toHaveLength(1);
     await act(async () => root.unmount());
   });
 });

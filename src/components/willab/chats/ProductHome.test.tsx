@@ -17,10 +17,11 @@ import { UI_LOCALE_STORAGE_KEY } from "@/lib/uiLocale";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { TrainingArc } from "@/services/api/trainings";
 
-const api = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
+const api = vi.hoisted(() => ({ fetchTrainings: vi.fn(), takeTrainings: vi.fn() }));
 const pdf = vi.hoisted(() => ({ page: vi.fn() }));
 const thread = vi.hoisted(() => ({ loading: true, messages: [] as LoungeMessage[] }));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: api.fetchTrainings }));
+vi.mock("@/services/api/bootPrefetch", () => ({ takeTrainings: api.takeTrainings }));
 vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => thread }));
 vi.mock("../pdfSlides", () => ({
   PdfPage: (props: { url: string; pageIndex: number }) => {
@@ -84,6 +85,7 @@ beforeEach(() => {
   root = createRoot(host);
   thread.loading = true;
   api.fetchTrainings.mockReset();
+  api.takeTrainings.mockReset().mockImplementation(() => api.fetchTrainings());
   pdf.page.mockReset();
   intersectionCallback = null;
   observe.mockReset();

@@ -72,6 +72,7 @@ import { LENS_DOTS_AFTER_MS, LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR,
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
+import { IdealTextEditorLayer } from "./IdealTextEditor";
 import { useUpdateSlides } from "./UpdateSlides";
 import { useArchivedReturn } from "./OneProjectQuestion";
 import PresentMode from "./PresentMode";
@@ -137,7 +138,6 @@ export default function IdealTextOverlay({
 }: {
   arcId: string;
   practiceDecision?: {
-    deliveryLabel?: import("@/services/api/trainings").PracticeDeliveryLabel;
     continueLabel?: string;
     onContinue: () => void;
     onRepeat: () => void;
@@ -258,6 +258,7 @@ export default function IdealTextOverlay({
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
+  const [editingIdealText, setEditingIdealText] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportChooserOpen, setExportChooserOpen] = useState(false);
   const [exportFormat, setExportFormat] =
@@ -632,6 +633,7 @@ export default function IdealTextOverlay({
       const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
       partsRef.current = parts;
       const before = ideal?.text ?? "";
+      setNotes(null);
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
       setTooLong(false);
       setSaveFailed(false);
@@ -651,7 +653,7 @@ export default function IdealTextOverlay({
         versionRef.current = r.version ?? versionRef.current;
         setSd((prev) =>
           prev
-            ? { ...prev, version: versionRef.current, userEdited: true }
+            ? { ...prev, version: versionRef.current, userEdited: true, parts }
             : prev,
         );
         return true;
@@ -967,15 +969,15 @@ export default function IdealTextOverlay({
           </div>
           <div className="flex items-center gap-1.5">
             {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version
-                history, Copy and Save the ideal text. None of them is part of
-                the review loop, and on a phone their five icons read as a row
-                of unlabelled circles. No edit control here (founder
-                2026-08-11: "The edits should not be in the top bar"). */}
+                history, Copy, Edit ideal text and Save the ideal text. None of
+                them is part of the review loop, and on a phone their icons read
+                as a row of unlabelled circles. */}
             {shownStatus === "ready" && sd ? (
               <IdealTextMenu
                 arcId={arcId}
                 saved={sd.saved}
                 onSaved={() => setRefetchNonce((n) => n + 1)}
+                onEdit={() => setEditingIdealText(true)}
                 onPresent={() => setPresenting(true)}
                 onExport={() => setExportChooserOpen(true)}
                 onHistory={historyEntry(sd.version, openHistory)}
@@ -1103,7 +1105,7 @@ export default function IdealTextOverlay({
                 // through. When the settle probe clears the marker,
                 // `analysisPending` flips and the fetch effect pulls the fresh
                 // document into this same view.
-                <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
+                <div className="flex min-h-0 flex-1 flex-col">
                   <ProcessingWait
                     phase="document"
                     progress={{ stage: "document_assembly", percent: null }}
@@ -1233,6 +1235,12 @@ export default function IdealTextOverlay({
         open={timelineOpen}
         revisions={revisions ?? []}
         onClose={() => setTimelineOpen(false)}
+      />
+      <IdealTextEditorLayer
+        open={editingIdealText}
+        initial={displayText}
+        onCancel={() => setEditingIdealText(false)}
+        onSave={(next) => saveDocument(next)}
       />
     </div>
     </MediaRefreshProvider>
@@ -1439,4 +1447,4 @@ function walkEndFor(
   return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
 }
 
-// Founder-Approved: 2026-11-15, project practice opens this source Ideal Text before repeat-or-continue.
+// Founder-Approved: task delegation, 2026-11-16; project practice opens this source Ideal Text before repeat-or-continue.

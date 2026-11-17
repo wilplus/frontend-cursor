@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, type UiLocale } from "@/lib/uiLocale";
-import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
+import type { TrainingArc } from "@/services/api/trainings";
+import { takeTrainings } from "@/services/api/bootPrefetch";
 import LoadingState, { VoiceMark } from "../LoadingState";
 import { useLoungeThreadMaybe } from "../LoungeThreadContext";
 import { PdfPage } from "../pdfSlides";
@@ -40,7 +41,7 @@ export default function ProductHome({
   useEffect(() => {
     let active = true;
     setStatus("loading");
-    void fetchTrainings().then((list) => {
+    void takeTrainings().then((list) => {
       if (!active) return;
       if (list === null) {
         setStatus("error");

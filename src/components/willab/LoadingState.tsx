@@ -12,6 +12,48 @@ import { uiText } from "@/lib/uiLocale";
 /*  elements exclusively in RecordingAnalysisPresentation.                     */
 /* -------------------------------------------------------------------------- */
 
+export type LoadingPlacement = "viewport" | "surface";
+export type LoadingSurfaceKind = "generic" | "processing";
+
+/**
+ * Every full-surface wait goes through this frame. The outer surface owns the
+ * lifecycle's footprint; the inner frame owns centering. Keeping those two
+ * boxes present across label, phase and progress changes prevents the mark
+ * from inheriting a screen-specific flex alignment or a changing content
+ * height. Inline chat/lens waits intentionally do not use this component.
+ */
+export function LoadingSurface({
+  placement,
+  kind = "generic",
+  className,
+  children,
+}: {
+  readonly placement: LoadingPlacement;
+  readonly kind?: LoadingSurfaceKind;
+  readonly className?: string;
+  readonly children: React.ReactNode;
+}) {
+  const rootClass =
+    placement === "viewport"
+      ? "fixed inset-0 z-40 flex bg-background px-6"
+      : "flex min-h-0 min-h-full w-full flex-1 self-stretch bg-background px-6";
+
+  return (
+    <div
+      data-loading-surface={kind}
+      data-loading-placement={placement}
+      className={`${rootClass}${className ? ` ${className}` : ""}`}
+    >
+      <div
+        data-loading-frame
+        className="flex min-h-0 min-h-full w-full flex-1 items-center justify-center"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** The breathing voice mark. LoadingState fixes it at 64px; this primitive is
  *  exported only for deliberately compact, in-control status treatments. */
 export function VoiceMark({ size, className }: { size: number; className?: string }) {
@@ -86,8 +128,13 @@ export default function LoadingState({
   const locale = useUiLocale();
   const resolvedLabel = label ?? uiText(locale, "loading");
   const presentation = (
-    <div className="flex min-h-full w-full flex-1 flex-col items-center justify-center">
-      <VoiceMark size={64} />
+    <div
+      data-loading-content
+      className="flex w-full flex-col items-center justify-center"
+    >
+      <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+        <VoiceMark size={64} />
+      </div>
       {labelVisible ? (
         <>
           <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
@@ -107,18 +154,10 @@ export default function LoadingState({
     </div>
   );
 
-  if (placement === "viewport") {
-    return (
-      <div className="fixed inset-0 z-40 flex justify-center bg-background px-6">
-        {presentation}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-full w-full flex-1 self-stretch justify-center bg-background px-6">
+    <LoadingSurface placement={placement}>
       {presentation}
-    </div>
+    </LoadingSurface>
   );
 }
 
@@ -127,11 +166,15 @@ export function SectionLoadingState({ label }: { label?: string }) {
   const locale = useUiLocale();
   const resolvedLabel = label ?? uiText(locale, "loading");
   return (
-    <div className="flex min-h-[140px] flex-1 items-center justify-center">
-      <VoiceMark size={64} />
-      <span className="sr-only" role="status">
-        {resolvedLabel}
-      </span>
-    </div>
+    <LoadingSurface placement="surface" className="min-h-[140px]">
+      <div data-loading-content className="flex flex-col items-center justify-center">
+        <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+          <VoiceMark size={64} />
+        </div>
+        <span className="sr-only" role="status">
+          {resolvedLabel}
+        </span>
+      </div>
+    </LoadingSurface>
   );
 }

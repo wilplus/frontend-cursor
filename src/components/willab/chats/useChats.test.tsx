@@ -44,7 +44,7 @@ const chat = (id: string): Chat => ({
 
 function Probe() {
   const { chats } = useChatList(true);
-  return createElement("div", { "data-chats": chats ? chats.map((item) => item.id).join(",") : "loading" });
+  return createElement("div", { "data-chat-list": "", "data-chats": chats ? chats.map((item) => item.id).join(",") : "loading" });
 }
 
 let root: Root;
@@ -92,5 +92,16 @@ describe("the people-chat read behind Speaking Coach", () => {
 
     expect(host.querySelector("[data-chats]")?.getAttribute("data-chats")).toBe("old");
     expect(api.keptChats).toHaveBeenCalledWith("speaker");
+  });
+
+  it("does not duplicate the list read when visibility refresh overlaps it", async () => {
+    api.takeChats.mockImplementation(() => new Promise<Chat[] | null>(() => undefined));
+
+    act(() => root.render(createElement(Probe)));
+    await flush();
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+
+    expect(api.takeChats).toHaveBeenCalledTimes(1);
+    expect(api.getInquiries).toHaveBeenCalledTimes(1);
   });
 });

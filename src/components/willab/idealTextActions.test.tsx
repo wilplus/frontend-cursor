@@ -99,16 +99,17 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses the chunk delivery status at the practice decision", () => {
+  it("keeps delivery status out of the Ideal Text action area", () => {
     render({
       practiceDecision: {
-        deliveryLabel: "Good",
+        continueLabel: "Continue practice",
         onContinue: vi.fn(),
         onRepeat: vi.fn(),
       },
     });
-    expect(host.querySelector("[data-practice-status]")?.textContent).toContain("Good");
-    expect(labels()).toEqual(["Continue to next fragment", "Repeat this fragment"]);
+    expect(host.querySelector("[data-practice-status]")).toBeNull();
+    expect(host.textContent).not.toContain("Not yet there");
+    expect(labels()).toEqual(["Continue practice", "Repeat this fragment"]);
   });
 });
 

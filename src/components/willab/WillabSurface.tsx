@@ -112,6 +112,7 @@ export default function WillabSurface({
   // after the Lab's source Feedback walk and Ideal Text sequence closes. Will
   // is the cross-project coach, never the destination for a project Take.
   const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
+  const [recordingInProgress, setRecordingInProgress] = useState(false);
   const labWasOpenRef = useRef(false);
   useEffect(() => {
     if (flow.labOverlayOpen) {
@@ -462,12 +463,39 @@ export default function WillabSurface({
         <ProjectChat
           project={pickedProject}
           analysisPending={pickerSettle.pending}
-          onBack={() => setPickedProject(null)}
-          onRecord={() => {
+          recordingInProgress={recordingInProgress}
+          onBack={() => {
+            setRecordingInProgress(false);
+            setPickedProject(null);
+          }}
+          onRecord={(arcId) => {
+            // Repeat/continue is allowed to arrive here from a remounted
+            // project chat. Seed the selected arc again at the recorder
+            // boundary so the Take cannot silently become a new project.
+            const cached = readExploreArc(userId);
+            const latest = [...(pickedProject.takes ?? [])]
+              .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
+              .pop();
+            const nextTakeIndex = (latest?.takeIndex ?? pickedProject.takeCount ?? 0) + 1;
+            if (
+              cached?.arcId !== arcId ||
+              (cached?.nextTakeIndex ?? 0) < nextTakeIndex ||
+              cached?.sessionId !== latest?.sessionId
+            ) {
+              writeExploreArc(
+                userId,
+                arcId,
+                Math.max(cached?.nextTakeIndex ?? 0, nextTakeIndex),
+                cached?.arcId === arcId ? cached.deck : undefined,
+                latest?.sessionId ?? cached?.sessionId,
+              );
+            }
+            setRecordingInProgress(true);
             setReturnProject(pickedProject);
             setPickedProject(null);
             flow.startRecordingSetup();
           }}
+          onRecordingSettled={() => setRecordingInProgress(false)}
         />
       )}
       {flow.labOverlayOpen && (

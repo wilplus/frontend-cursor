@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
-import type { TrainingArc } from "@/services/api/trainings";
+import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import {
   newestStamp,
   stampLoungeMessage,
@@ -17,16 +17,27 @@ import {
   projectConversationHistory,
   typedProjectTurnMetadata,
 } from "@/lib/willab/projectChat";
+import {
+  retryIdealTextGeneration,
+  retryLabProcessing,
+} from "@/services/api/labRecording";
+import {
+  readProcessingTake,
+  writeProcessingTake,
+  type ProcessingTake,
+} from "@/lib/willab/processingTake";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { RecoverableAppend } from "./useLoungeThread";
 import FeedbackWalkCard, { type FeedbackWalkChunk } from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
-import TypingDots from "./TypingDots";
+import TypingDots, { TypingGlyph } from "./TypingDots";
 import WillQuestionBubble, { SOMETHING_ELSE, TYPE_YOUR_ANSWER } from "./WillQuestion";
 import { LetterCircle } from "./chats/ChatList";
 import { TopBar } from "./chats/TopBar";
 import { useBackDismiss } from "./useBackDismiss";
 import { useUserId } from "./useUserId";
+import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
+import { refreshLiveIdealDoc } from "./ReportCard";
 import {
   PRACTICE_CHUNK_SECONDS,
   readPracticeCheckpoint,
@@ -48,6 +59,26 @@ type PendingTapTurn = {
   question: LoungeMessage;
   user: LoungeMessage;
 };
+
+function PendingProjectAnswer({
+  pending,
+  visibleMessages,
+}: {
+  pending: PendingTypedTurn | PendingTapTurn | null;
+  visibleMessages: readonly LoungeMessage[];
+}) {
+  if (!pending || visibleMessages.some((message) => message.client_id === pending.user.client_id)) {
+    return null;
+  }
+  return (
+    <div
+      data-project-pending-answer
+      className="ml-auto max-w-[86%] whitespace-pre-wrap rounded-[18px] bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-primary-foreground"
+    >
+      {pending.user.body}
+    </div>
+  );
+}
 
 type StoredTypedTurn = {
   body: string;
@@ -149,20 +180,191 @@ function replyBody(response: ChatQueryResponse): string | null {
   return answer || null;
 }
 
+function projectVersion(project: TrainingArc): string {
+  const latest = project.takes.at(-1);
+  return JSON.stringify({
+    takeCount: project.takeCount,
+    progress: project.practiceProgress,
+    latest: latest
+      ? [latest.sessionId, latest.takeIndex, latest.feedbackAvailable]
+      : null,
+    chunks: project.practiceChunks,
+  });
+}
+
+function useProjectRecordingLifecycle({
+  project,
+  userId,
+  thread,
+  recordingInProgress,
+  onRecordingSettled,
+}: {
+  project: TrainingArc;
+  userId: string | null;
+  thread: ReturnType<typeof useLoungeThreadCtx>;
+  recordingInProgress: boolean;
+  onRecordingSettled?: () => void;
+}) {
+  const uploadingUnwatched = useTakeUploadingUnwatched();
+  const [liveProject, setLiveProject] = useState(project);
+  const [recordingActive, setRecordingActive] = useState(recordingInProgress);
+  const [processingMarker, setProcessingMarker] = useState<ProcessingTake | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const threadRef = useRef(thread);
+  const candidateSessionRef = useRef<string | null>(null);
+  threadRef.current = thread;
+  const activeProject = liveProject.arcId === project.arcId ? liveProject : project;
+
+  useEffect(() => {
+    setLiveProject(project);
+    setRecordingActive(recordingInProgress);
+  }, [project, recordingInProgress]);
+
+  useEffect(() => {
+    const sync = () => {
+      const marker = readProcessingTake(userId);
+      if (marker?.arcId === activeProject.arcId) {
+        setProcessingMarker(marker);
+        setRecordingActive(true);
+      } else if (!recordingActive && !uploadingUnwatched) {
+        setProcessingMarker(null);
+      }
+    };
+    sync();
+    window.addEventListener("storage", sync);
+    if (!recordingActive && !uploadingUnwatched) {
+      return () => window.removeEventListener("storage", sync);
+    }
+    const id = window.setInterval(sync, 500);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("storage", sync);
+    };
+  }, [activeProject.arcId, recordingActive, uploadingUnwatched, userId]);
+
+  useEffect(() => {
+    if (!recordingActive) {
+      candidateSessionRef.current = null;
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      const list = await fetchTrainings();
+      if (!active || !list) return;
+      const next = list.find((candidate) => candidate.arcId === activeProject.arcId);
+      if (!next) return;
+      const previousLatest = activeProject.takes.at(-1)?.sessionId ?? null;
+      const latest = next.takes.at(-1) ?? null;
+      if (
+        !candidateSessionRef.current &&
+        latest &&
+        latest.sessionId !== previousLatest
+      ) {
+        candidateSessionRef.current = latest.sessionId;
+      }
+      setLiveProject((current) =>
+        projectVersion(current) === projectVersion(next) ? current : next,
+      );
+      if (
+        latest &&
+        latest.sessionId === candidateSessionRef.current &&
+        latest.feedbackAvailable
+      ) {
+        setRecordingActive(false);
+        setProcessingMarker(null);
+        refreshLiveIdealDoc(activeProject.arcId);
+        onRecordingSettled?.();
+        await Promise.resolve(threadRef.current.reload()).catch(() => undefined);
+      }
+    };
+    void refresh();
+    const id = window.setInterval(() => void refresh(), 2_000);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+    };
+  }, [activeProject, onRecordingSettled, recordingActive]);
+
+  const failed =
+    recordingActive &&
+    (processingMarker?.status === "failed" ||
+      processingMarker?.status === "failed_ideal_text_unconfirmed");
+
+  async function retryProcessing(): Promise<void> {
+    const marker = processingMarker;
+    if (!marker || retrying) return;
+    setRetrying(true);
+    const restarted = await (
+      marker.status === "failed_ideal_text_unconfirmed"
+        ? retryIdealTextGeneration(marker.sessionId)
+        : retryLabProcessing(marker.sessionId)
+    ).catch(() => false);
+    if (restarted) {
+      const now = Date.now();
+      const next = {
+        ...marker,
+        status: "processing" as const,
+        phase: "analysis" as const,
+        startedAt: now,
+        phaseStartedAt: now,
+        progress: { stage: "processing_recording", percent: 0 },
+      };
+      writeProcessingTake(userId, next);
+      setProcessingMarker(next);
+      setRecordingActive(true);
+    }
+    setRetrying(false);
+  }
+
+  return {
+    activeProject,
+    failed,
+    processingMarker,
+    recordingActive,
+    retrying,
+    retryProcessing,
+    startRecording: () => {
+      candidateSessionRef.current = null;
+      setRecordingActive(true);
+    },
+  };
+}
+
 export default function ProjectChat({
   project,
   analysisPending = false,
+  recordingInProgress = false,
   onBack,
   onRecord,
+  onRecordingSettled,
 }: {
   project: TrainingArc;
   analysisPending?: boolean;
+  /** Set when this chat returns from its own recorder. It bridges the short
+   *  gap before the accepted Take has a session/processing marker. */
+  recordingInProgress?: boolean;
   onBack: () => void;
-  onRecord: () => void;
+  onRecord: (arcId: string) => void;
+  onRecordingSettled?: () => void;
 }) {
   useBackDismiss(onBack);
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
+  const {
+    activeProject,
+    failed,
+    processingMarker,
+    recordingActive,
+    retrying,
+    retryProcessing,
+    startRecording,
+  } = useProjectRecordingLifecycle({
+    project,
+    userId,
+    thread,
+    recordingInProgress,
+    onRecordingSettled,
+  });
   const [opened, setOpened] = useState<Opened>(null);
   const [openedTake, setOpenedTake] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -174,8 +376,8 @@ export default function ProjectChat({
   const [slideCount, setSlideCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(
-    () => orderedProjectMessages(thread.messages, project.arcId),
-    [thread.messages, project.arcId],
+    () => orderedProjectMessages(thread.messages, activeProject.arcId),
+    [thread.messages, activeProject.arcId],
   );
   const visibleMessages = messages.filter(
     (message) => message.kind !== "walk_step" && message.kind !== "ideal_text" && message.kind !== "recording_summary",
@@ -188,19 +390,18 @@ export default function ProjectChat({
   const chips = Array.isArray(questionMeta.chips)
     ? questionMeta.chips.filter((chip): chip is string => typeof chip === "string" && chip.length > 0)
     : [];
-  const checkpoint = readPracticeCheckpoint(userId, project.arcId);
+  const checkpoint = readPracticeCheckpoint(userId, activeProject.arcId);
   const { hasPractice, chunks: practiceChunks } = projectPracticeView(
-    project,
+    activeProject,
     thread.messages,
     checkpoint,
   );
   const finalFragment =
     slideCount !== null && checkpoint >= slideCount - 1;
-  const latestPractice = practiceChunks.at(-1) ?? null;
 
   useEffect(() => {
     let active = true;
-    void fetchArcSetup(project.arcId).then((setup) => {
+    void fetchArcSetup(activeProject.arcId).then((setup) => {
       if (!active || !setup) return;
       // Deckless practice uses the product's three-part default deck.
       setSlideCount(Math.max(1, setup.slides.length || 3));
@@ -208,7 +409,7 @@ export default function ProjectChat({
     return () => {
       active = false;
     };
-  }, [project.arcId]);
+  }, [activeProject.arcId]);
 
   async function answerChip(choice: string): Promise<void> {
     const take = questionMeta.take_session_id;
@@ -218,7 +419,7 @@ export default function ProjectChat({
       kind: "text",
       body: choice,
       metadata: {
-        arc_id: project.arcId,
+        arc_id: activeProject.arcId,
         take_session_id: take,
         will_question_step: "answer",
       },
@@ -226,7 +427,7 @@ export default function ProjectChat({
     setPendingTap({ question: activeQuestion, user: optimistic });
     setSending(true);
     try {
-      if (await postWillQuestion(project.arcId, take, choice)) {
+      if (await postWillQuestion(activeProject.arcId, take, choice)) {
         await thread.reload();
       }
     } finally {
@@ -315,8 +516,8 @@ export default function ProjectChat({
           clientCreatedAt: optimistic.client_created_at,
           presentationContext: {
             has_current_project: true,
-            completed_takes: Math.max(project.takeCount, project.takes.length),
-            has_pdf: project.takes.some((projectTake) => projectTake.hasSlides),
+            completed_takes: Math.max(activeProject.takeCount, activeProject.takes.length),
+            has_pdf: activeProject.takes.some((projectTake) => projectTake.hasSlides),
           },
         }),
         failedSend ? outbox.retry() : outbox.stored,
@@ -402,24 +603,23 @@ export default function ProjectChat({
   };
 
   function startPractice(intent: "next" | "repeat"): void {
-    if (intent === "next" && finalFragment) {
-      setOpened(null);
-      void thread.reload();
-      return;
-    }
-    writePracticeResume(userId, project.arcId, {
+    writePracticeResume(userId, activeProject.arcId, {
       durationSeconds: PRACTICE_CHUNK_SECONDS,
-      slideIndex: Math.max(0, checkpoint + (intent === "next" ? 1 : 0)),
+      // At the end of the deck, Continue practice repeats the current final
+      // fragment instead of closing the result with no recording. Repeat is
+      // always scoped to the current checkpoint.
+      slideIndex: Math.max(0, checkpoint + (intent === "next" && !finalFragment ? 1 : 0)),
     });
     setOpened(null);
-    onRecord();
+    startRecording();
+    onRecord(activeProject.arcId);
   }
 
   return (
     <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
       <TopBar
-        circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-        title={project.topic}
+        circle={<LetterCircle id={activeProject.arcId} name={activeProject.topic} size={36} />}
+        title={activeProject.topic}
         subtitle="Project"
         onBack={onBack}
       />
@@ -429,8 +629,8 @@ export default function ProjectChat({
           {hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
-                title={project.topic}
-                progress={project.practiceProgress}
+                title={activeProject.topic}
+                progress={activeProject.practiceProgress}
                 chunks={practiceChunks}
                 onFeedback={(chunk) => {
                   setOpenedTake(chunk.latestSessionId);
@@ -465,12 +665,34 @@ export default function ProjectChat({
               </div>
             )
           ))}
-          {pendingAnswer && !visibleMessages.some((message) => message.client_id === pendingAnswer.user.client_id) ? (
+          <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
+          {recordingActive && !failed ? (
+            <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+              <div
+                data-processing-bubble
+                role="status"
+                className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
+              >
+                <TypingGlyph />
+                <span>Processing your recording</span>
+              </div>
+            </div>
+          ) : null}
+          {failed ? (
             <div
-              data-project-pending-answer
-              className="ml-auto max-w-[86%] whitespace-pre-wrap rounded-[18px] bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-primary-foreground"
+              data-processing-error
+              role="alert"
+              className="mr-auto flex max-w-[88%] flex-col gap-2 rounded-[16px] bg-destructive/10 px-3 py-2 text-[14px] leading-[1.45] text-destructive"
             >
-              {pendingAnswer.user.body}
+              <span>We couldn&apos;t finish preparing your feedback.</span>
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={() => void retryProcessing()}
+                className="self-start underline underline-offset-2 disabled:opacity-60"
+              >
+                {retrying ? "Trying again…" : "Try processing again"}
+              </button>
             </div>
           ) : null}
           {sending ? <TypingDots label="Will is replying" /> : null}
@@ -515,7 +737,10 @@ export default function ProjectChat({
         <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
           <button type="button" data-project-record onClick={() => {
             if (hasPractice) setOpened("decision");
-            else onRecord();
+            else {
+              startRecording();
+              onRecord(activeProject.arcId);
+            }
           }} className={`${WILLAB_CONTENT_RAIL} flex h-[58px] items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background`}>
             <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
             {hasPractice ? "Continue recording" : "Start recording"}
@@ -525,17 +750,17 @@ export default function ProjectChat({
 
       {opened ? (
         <IdealTextOverlay
-          arcId={project.arcId}
+          arcId={activeProject.arcId}
           coachTake={opened === "walk" ? openedTake : null}
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
           onClose={closeResult}
-          onReadAloud={onRecord}
+          onReadAloud={() => {
+            startRecording();
+            onRecord(activeProject.arcId);
+          }}
           practiceDecision={hasPractice ? {
-            deliveryLabel: latestPractice?.deliveryLabel ?? undefined,
-            continueLabel: finalFragment
-              ? "Finish presentation"
-              : "Continue to next fragment",
+            continueLabel: "Continue practice",
             onContinue: () => startPractice("next"),
             onRepeat: () => startPractice("repeat"),
           } : undefined}

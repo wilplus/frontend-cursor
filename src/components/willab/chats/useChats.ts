@@ -52,6 +52,7 @@ function listInView(): boolean {
 export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => void } {
   const [chats, setChats] = useState<Chat[] | null>(null);
   const first = useRef(true);
+  const inFlight = useRef<Promise<void> | null>(null);
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -59,22 +60,38 @@ export function useChatList(on: boolean): { chats: Chat[] | null; reload: () => 
       alive.current = false;
     };
   }, []);
-  const load = useCallback(async () => {
-    const isFirst = first.current;
-    first.current = false;
-    const read = (isFirst ? takeChats : getChats)();
-    const asking = getInquiries();
-    const who = await whoseChats();
-    const kept = isFirst ? keptChats(who) : null;
-    const [list, inquiries] = await Promise.all([read, asking]);
-    const askingRows = inquiries.map(inquiryChat);
-    if (list) {
-      const shown = [...askingRows, ...list];
-      keepChats(who, shown);
-      if (alive.current) setChats(shown);
-    } else if (alive.current) {
-      setChats((now) => now ?? kept ?? askingRows);
-    }
+  const load = useCallback(() => {
+    // The list has both a 20-second timer and visibility/back-to-list hooks.
+    // They can fire together while a slow BFF read is still pending; reuse
+    // that read instead of queueing duplicate chats and inquiry requests.
+    if (inFlight.current) return inFlight.current;
+    const request = (async () => {
+      const isFirst = first.current;
+      first.current = false;
+      const read = (isFirst ? takeChats : getChats)();
+      const asking = getInquiries();
+      const who = await whoseChats();
+      const kept = isFirst ? keptChats(who) : null;
+      const [list, inquiries] = await Promise.all([read, asking]);
+      const askingRows = inquiries.map(inquiryChat);
+      if (list) {
+        const shown = [...askingRows, ...list];
+        keepChats(who, shown);
+        if (alive.current) setChats(shown);
+      } else if (alive.current) {
+        setChats((now) => now ?? kept ?? askingRows);
+      }
+    })();
+    inFlight.current = request;
+    request.then(
+      () => {
+        if (inFlight.current === request) inFlight.current = null;
+      },
+      () => {
+        if (inFlight.current === request) inFlight.current = null;
+      },
+    );
+    return request;
   }, []);
   useEffect(() => {
     if (!on) return;

@@ -415,6 +415,10 @@ O2 -> ""Skip goes on and keeps no feeling""
 O3 -> ""naming a feeling keeps it and goes on""
 O4 -> ""a guest is never asked""
 O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211: a feeling is the speaker's own, and a check with no way past it is not asked freely. Founder 2026-10-29, backend N272: the set-up's look, no reply, no coach line, and no check for a guest; on a plan, the plan's own yes comes first (N217)."
+src/components/willab/IdealTextEditor.test.tsx,Story,"As a speaker, I want to edit my whole Ideal Text from its menu, so that a valid revision is kept without an empty edit replacing my words.","O1  Saving changed text sends the complete revision and closes after
+the save succeeds.
+O2  An empty revision cannot be submitted.","O1 -> ""persists a valid whole-document change and closes the editor""
+O2 -> ""does not submit an empty document""","Founder-approved Ideal Text editing contract, 2026-11-16; N461."
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
@@ -1280,6 +1284,9 @@ O2  When my Take starts processing, the chat lands on its bubble, which
 is not a message, once per Take (founder 2026-11-09: closing the wait
 left it below the screen).","O1 -> ""older messages come in above what is read; a new one lands at the bottom""
 O2 -> ""a Take's processing bubble is landed on once""","Founder 2026-09-28: ""Only a new message moves the thread; reading history otherwise stays where it is."" The chat took a page of older messages for a new bubble and jumped to the bottom."
+src/components/willab/loadingIndicatorContract.test.tsx,Story,"As a speaker, I want one centered loading indicator to stay in place while my Take moves through processing phases, so that the wait does not jump, duplicate or disappear.","O1  Generic full-surface waits render one frame and one indicator.
+O2  Analysis to document assembly reuses the same processing frame and DOM indicator, with a fixed value slot.
+O3  Inline chat typing dots remain a separate bubble and do not become a page loader.","LoadingState, ProcessingWait and TypingDots share the canonical loading contract without changing their intended surfaces.",A visible loading jump interrupts the record → process → Ideal Text loop; this protects the locked wait and the intentional chat feedback separately.
 src/components/willab/loungeGuestHello.test.ts,Story,"As a visitor who has not signed in or recorded yet, I want Will to answer my first message with a hello and a way to record, so that the chat does not look broken and I know what to do next.","O1  A refused chat turn (no processing agreement yet) for a signed-out
 visitor with no project gets Will's hello and ""Start your first
 recording"" under it, never the lab error.
@@ -1728,7 +1735,9 @@ O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
 that chat's rows alone, read with ?chat=; back in the Lounge, its own
 thread again, with nothing of the other kept.
 O5  A failed optimistic write keeps one exact bubble; retry reuses its
-client id, and the authoritative reload replaces rather than duplicates it.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
+client id, and the authoritative reload replaces rather than duplicates it.
+O6  A short user turn stays beside a structured response while the server
+read is eventually consistent, then reconciles to one row.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
 O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
 O3 -> ""an older page with no answer keeps the button""","The walk's end reads the chat again whatever the summary's answer (C9, D4, B8), and on a dropped connection that read fails too. A returning speaker opening the iPhone app offline saw the new speaker's hello and thought their history was gone."

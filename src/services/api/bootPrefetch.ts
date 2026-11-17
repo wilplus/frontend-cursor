@@ -7,6 +7,7 @@ import { fetchLoungeHistory, type LoungeHistoryPage } from "./loungeMessages";
 import { loadRingState } from "./rings";
 import { getChats, type Chat } from "./chats";
 import { fetchSessionState, type SessionStateValue } from "./chatSessionState";
+import { fetchTrainings, type TrainingArc } from "./trainings";
 import { getAccess, wasMemberHere } from "./access";
 import { markChatBootStarted } from "@/lib/chatBoot";
 
@@ -65,6 +66,7 @@ const AUTHORIZATION = "processing-authorization";
 const LOUNGE_HISTORY = "lounge-history";
 const CHATS = "chats";
 const SESSION_STATE = "session-state";
+const TRAININGS = "trainings";
 
 function rememberThread(): void {
   remember(LOUNGE_HISTORY, async () => {
@@ -119,6 +121,7 @@ export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void>
   remember(AUTHORIZATION, fetchAuthorization);
   // A parked Readout opens without the session state (useWillabFlow).
   if (!opts.parked) remember(SESSION_STATE, fetchSessionState);
+  remember(TRAININGS, fetchTrainings);
 }
 
 /** The chats door's read (useChatsDoor): the list, early, for every
@@ -133,11 +136,19 @@ export function prefetchChatsDoor(): void {
     if (!(await getAuthToken())) return undefined;
     return (await getChats()) ?? undefined;
   });
+  remember(TRAININGS, fetchTrainings);
 }
 
 /** useChatList's first read: the prefetched list or a fresh one. */
 export async function takeChats(): Promise<Chat[] | null> {
   return (await take<Chat[]>(CHATS)) ?? getChats();
+}
+
+/** The project index for the speaking-coach home: the prefetched list or a
+ * fresh read when the door was opened without a chat boot. */
+export async function takeTrainings(): Promise<TrainingArc[] | null> {
+  const prefetched = await take<TrainingArc[] | null>(TRAININGS);
+  return prefetched !== undefined ? prefetched : fetchTrainings();
 }
 
 /** useWillabFlow's session state: the one read at /chat's open, or a fresh one. */

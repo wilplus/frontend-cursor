@@ -1,6 +1,6 @@
 "use client";
 
-import { VoiceMark } from "./LoadingState";
+import { LoadingSurface, VoiceMark } from "./LoadingState";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingAnalysisPresentation — post-recording analysis, and only that.   */
@@ -38,39 +38,50 @@ export default function RecordingAnalysisPresentation({
       : null;
 
   return (
-    <div className="flex w-full max-w-[19rem] flex-1 flex-col justify-center pb-[9vh] text-left">
-      <div className="mb-11 flex justify-center">
-        <VoiceMark size={88} />
-      </div>
-
-      <div className="w-full">
-        <div className="mb-3.5 flex items-center justify-between gap-4 text-base font-medium tracking-[-0.005em] text-foreground">
-          <span>{label}</span>
-          <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {percent === null ? "…" : `${percent}%`}
-          </span>
-        </div>
+    <LoadingSurface placement="surface" kind="processing">
+      <div
+        data-loading-content
+        className="flex w-full max-w-[19rem] flex-none flex-col text-left"
+      >
         <div
-          className="h-1 overflow-hidden rounded-full bg-border"
-          role="progressbar"
-          aria-label={label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent ?? undefined}
-          aria-valuetext={
-            percent === null ? `${label}, in progress` : `${percent}%`
-          }
-          aria-busy={percent === null ? true : undefined}
+          data-loading-indicator
+          className="mb-11 flex h-[88px] w-[88px] shrink-0 self-center"
         >
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out motion-reduce:transition-none"
-            style={{ width: percent === null ? "0%" : `${percent}%` }}
-          />
+          <VoiceMark size={88} />
         </div>
-        <p className="mt-3.5 text-sm leading-normal text-muted-foreground">
-          {WAIT_EXPECTATION}
-        </p>
+
+        <div className="w-full">
+          <div className="mb-3.5 flex min-h-6 items-center justify-between gap-4 text-base font-medium tracking-[-0.005em] text-foreground">
+            <span>{label}</span>
+            <span
+              data-loading-percent
+              className="w-[3ch] shrink-0 text-right font-mono text-sm tabular-nums text-muted-foreground"
+            >
+              {percent === null ? "…" : `${percent}%`}
+            </span>
+          </div>
+          <div
+            className="h-1 overflow-hidden rounded-full bg-border"
+            role="progressbar"
+            aria-label={label}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent ?? undefined}
+            aria-valuetext={
+              percent === null ? `${label}, in progress` : `${percent}%`
+            }
+            aria-busy={percent === null ? true : undefined}
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out motion-reduce:transition-none"
+              style={{ width: percent === null ? "0%" : `${percent}%` }}
+            />
+          </div>
+          <p className="mt-3.5 min-h-5 text-sm leading-normal text-muted-foreground">
+            {WAIT_EXPECTATION}
+          </p>
+        </div>
       </div>
-    </div>
+    </LoadingSurface>
   );
 }

@@ -33,6 +33,10 @@ const state = vi.hoisted(() => ({
   chatQuery: vi.fn(),
   willQuestion: vi.fn(),
 }));
+const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
+const arcSetup = vi.hoisted(() => ({
+  fetch: vi.fn(async () => ({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] })),
+}));
 vi.mock("./LoungeThreadContext", () => ({
   useLoungeThreadCtx: () => ({
     messages: state.messages,
@@ -51,14 +55,17 @@ vi.mock("@/services/api/willQuestion", () => ({
 vi.mock("./useBackDismiss", () => ({ useBackDismiss: () => undefined }));
 vi.mock("./useUserId", () => ({ useUserId: () => "user-a" }));
 vi.mock("@/services/api/arcSetup", () => ({
-  fetchArcSetup: () => new Promise(() => undefined),
+  fetchArcSetup: arcSetup.fetch,
+}));
+vi.mock("@/services/api/trainings", () => ({
+  fetchTrainings: trainingApi.fetchTrainings,
 }));
 vi.mock("./IdealTextCard", () => ({
   default: ({ onOpen }: { onOpen: () => void }) =>
     createElement("button", { "data-testid": "ideal", onClick: onOpen }, "Ideal Text"),
 }));
 vi.mock("./IdealTextOverlay", () => ({
-  default: ({ practiceDecision }: { practiceDecision?: { onContinue: () => void; onRepeat: () => void } }) =>
+  default: ({ practiceDecision }: { practiceDecision?: { continueLabel?: string; onContinue: () => void; onRepeat: () => void } }) =>
     createElement(
       "div",
       { "data-testid": practiceDecision ? "decision" : "result" },
@@ -66,7 +73,7 @@ vi.mock("./IdealTextOverlay", () => ({
         ? createElement(
             "div",
             null,
-            createElement("button", { onClick: practiceDecision.onContinue }, "Continue to next fragment"),
+            createElement("button", { onClick: practiceDecision.onContinue }, practiceDecision.continueLabel),
             createElement("button", { onClick: practiceDecision.onRepeat }, "Repeat this fragment"),
           )
         : "Result",
@@ -104,7 +111,7 @@ const project: TrainingArc = {
 
 let root: Root;
 let host: HTMLDivElement;
-let onRecord = vi.fn<() => void>();
+let onRecord = vi.fn<(arcId: string) => void>();
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -123,11 +130,13 @@ beforeEach(() => {
     state.messages = [...state.messages, stamped];
     return stamped;
   });
+  arcSetup.fetch.mockClear().mockResolvedValue({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] });
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  onRecord = vi.fn<() => void>();
+  onRecord = vi.fn<(arcId: string) => void>();
   localStorage.clear();
+  trainingApi.fetchTrainings.mockReset();
 });
 
 afterEach(() => {
@@ -135,11 +144,12 @@ afterEach(() => {
   host.remove();
 });
 
-function render(currentProject: TrainingArc = project): void {
+function render(currentProject: TrainingArc = project, recordingInProgress = false): void {
   act(() => root.render(createElement(ProjectChat, {
     project: currentProject,
     onBack: vi.fn(),
     onRecord,
+    recordingInProgress,
   })));
 }
 
@@ -238,7 +248,7 @@ describe("project conversation", () => {
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue to next fragment")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"durationSeconds":300');
@@ -253,15 +263,107 @@ describe("project conversation", () => {
     act(() => idealText.click());
 
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    expect(host.textContent).toContain("Continue to next fragment");
+    expect(host.textContent).toContain("Continue practice");
     expect(host.textContent).toContain("Repeat this fragment");
     expect(host.querySelector('[data-testid="result"]')).toBeNull();
 
     act(() => [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Repeat this fragment",
     )!.click());
+    expect(onRecord).toHaveBeenCalledWith("arc-a");
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("opens the scoped recording for Continue practice and Repeat this fragment", async () => {
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
+    render();
+    await act(async () => { await Promise.resolve(); });
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
+    expect(onRecord).toHaveBeenNthCalledWith(1, "arc-a");
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":1');
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Repeat this fragment")!.click());
+    expect(onRecord).toHaveBeenNthCalledWith(2, "arc-a");
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("still records when Continue practice is on the final fragment", async () => {
+    arcSetup.fetch.mockResolvedValueOnce({ slides: [{ title: "Only", body: "" }] });
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
+    render();
+    await act(async () => { await Promise.resolve(); });
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.textContent).toContain("Continue practice");
+    expect(host.textContent).not.toContain("Finish presentation");
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {
+    const refreshed: TrainingArc = {
+      ...project,
+      takeCount: 2,
+      takes: [
+        ...project.takes,
+        {
+          sessionId: "take-b",
+          takeIndex: 2,
+          createdAt: null,
+          hasSlides: true,
+          feedbackAvailable: true,
+        },
+      ],
+      practiceChunks: [{
+        startSlide: 1,
+        endSlide: 2,
+        attempts: 2,
+        deliveryLabel: "Good",
+        latestSessionId: "take-b",
+      }],
+      practiceProgress: 72,
+    };
+    trainingApi.fetchTrainings.mockResolvedValue([refreshed]);
+
+    render(project, true);
+    expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
+
+    render(project, true);
+    expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(host.querySelector("[data-processing-bubble]")).toBeNull();
+    expect(host.textContent).toContain("2 attempts");
+    expect(host.textContent).toContain("Good");
+  });
+
+  it("restores a durable failure as an actionable project-chat state", () => {
+    localStorage.setItem(
+      "willab_processing_take:user-a",
+      JSON.stringify({
+        sessionId: "take-failed",
+        arcId: "arc-a",
+        takeIndex: 2,
+        startedAt: Date.now(),
+        phase: "analysis",
+        phaseStartedAt: Date.now(),
+        status: "failed",
+        progress: null,
+      }),
+    );
+
+    render();
+
+    expect(host.querySelector("[data-processing-error]")).not.toBeNull();
+    expect(host.textContent).toContain("Try processing again");
   });
 
   it("puts the result first and keeps the contextual exchange in human order", async () => {

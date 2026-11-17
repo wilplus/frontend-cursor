@@ -147,6 +147,8 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
     message: LoungeMessage;
     settledAt: number | null;
     exact?: boolean;
+    keepUntilMatch?: boolean;
+    matches?: (page: readonly LoungeMessage[]) => boolean;
   }>>(new Map());
   const readsRef = useRef(0);
   const startRead = () => (readsRef.current += 1);
@@ -154,12 +156,13 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
     const ids = new Set(page.map((m) => m.client_id));
     const out = [...page];
     for (const [id, kept] of keptRef.current) {
-      if (ids.has(id)) {
+      if (ids.has(id) || kept.matches?.(page)) {
         keptRef.current.delete(id);
-      } else if (kept.exact) {
+      } else if (kept.exact || kept.keepUntilMatch) {
         // Recoverable appends use this exact client_id as their idempotency
-        // key. Keep the optimistic row through an eventually-consistent read;
-        // the authoritative row replaces it once that same id is returned.
+        // key; backend-owned answer endpoints are matched by their user body.
+        // Keep either optimistic row through an eventually-consistent read;
+        // the authoritative row replaces it once it is returned.
         out.push(kept.message);
       } else if (kept.settledAt !== null && read > kept.settledAt) {
         keptRef.current.delete(id);
@@ -385,7 +388,14 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
 
   const own = useCallback<OwnBubble>((body) => {
     const msg = stampLoungeMessage({ role: "user", kind: "text", body }, newestStamp(messagesRef.current));
-    keptRef.current.set(msg.client_id, { message: msg, settledAt: null });
+    keptRef.current.set(msg.client_id, {
+      message: msg,
+      settledAt: null,
+      keepUntilMatch: true,
+      matches: (page) => page.some((candidate) =>
+        candidate.role === "user" && candidate.kind === "text" && candidate.body === msg.body,
+      ),
+    });
     setMessages((prev) => [...prev, msg]);
     return {
       settle: () => {

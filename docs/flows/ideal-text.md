@@ -14,6 +14,15 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 
 Much of this lock was superseded for the walk on 2026-10-06: the walk through the text, praise, practise and the helper words inside the walk are on the walk's page ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md), C and F), and **where the walk's page covers the same thing, the walk's page wins**. What stays here is the Ideal Text page's own lock.
 
+### The loading frame
+
+When a Take's document is still assembling, the Ideal Text page uses the same
+full-surface processing frame as the recording screen: one centered indicator,
+one stable content footprint, and no second loader introduced while the phase
+changes. Ordinary page reads use the generic full-surface frame. The walk and
+chat's typing bubbles are inline processing feedback and are not part of this
+frame.
+
 ---
 
 ## 1. The rules
@@ -463,6 +472,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/lib/willab/pastIdealText.ts` — which version an older card opens, read before the page is drawn, and its slides (N376).
 - `src/components/willab/IdealTextHeading.tsx`
 - `src/components/willab/IdealTextMenu.tsx`
+- `src/components/willab/IdealTextEditor.tsx`
 - `src/components/willab/IdealTextActions.tsx`
 - `src/components/willab/IdealTextReadout.tsx`
 - `src/components/willab/TranscriptReviewDeck.tsx`
@@ -493,9 +503,18 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-16 · N461 · the project-practice Ideal Text footer has only the two
+  recording actions: "Continue practice" advances to the next fragment (or
+  reopens the final fragment) and "Repeat this fragment" keeps the current
+  fragment; both write the scoped recording resume before opening the real
+  recorder. The small delivery-status line is not part of this action area.
+  The ⋯ menu also opens "Edit ideal text", whose valid whole-document changes
+  use the existing versioned `user-edit` contract and remain in the document's
+  history · FE (this PR)
 - 2026-11-16 · project fragment-decision repair · every route to a current project's source Ideal Text (the result card, Feedback walk, or Continue recording) keeps the project decision footer: Continue to next fragment / Finish presentation and Repeat this fragment. The generic Record Take N footer remains for non-project Ideal Text entry, never as a fallback that loses a project fragment choice (`ProjectChat.tsx`). Was: only Continue recording carried the decision, while the same text opened from its card or walk fell back to Record Take N · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · Ideal Text, history, presentation/export, editor states and bottom actions align with the locked 1080px app canvas used by the global logo/hamburger shell; full-page layers and thin separators remain viewport-wide; native scrollbars are hidden without disabling scrolling; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
+- 2026-11-16 · loader contract · the document-assembly wait keeps the canonical centered frame and one indicator while the Ideal Text readout settles; it does not add a page-specific loader during the processing hand-off · FE (this PR)
 
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)
 - 2026-11-09 · N565 · `ONE_THING_COPY` in `idealEditCopy.ts`: their best's line becomes "To our ears, this one sounded really sure." or "To us, this one sounded really sure." (`best`, `bestToUs`); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N565, FE (this PR)
@@ -542,4 +561,4 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-10-21 · N111 · the page also guards Presentation Mode, the export and the two sheets over the text (§4); no rule changes · BE, FE
 - 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-helper-words-2026-09-30.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
-- 2026-11-16 · Project practice decision: when Ideal Text is opened as the decision point before the next practice chunk, its footer shows the latest chunk’s delivery label directly above “Continue to next fragment” / “Finish presentation”. The label is passed from the project’s Feedback Walk summary and is not recalculated on the Ideal Text page (`IdealTextActions.tsx`, `IdealTextOverlay.tsx`, `ProjectChat.tsx`). Founder-approved Feedback Walk handoff, 2026-11-16.
+- 2026-11-16 · Project practice decision: when Ideal Text is opened as the decision point before the next practice chunk, its footer offers “Continue practice” and “Repeat this fragment”; it does not show a delivery-status line. Both actions open the scoped recorder, including from the final fragment (`IdealTextActions.tsx`, `IdealTextOverlay.tsx`, `ProjectChat.tsx`). Founder-approved Feedback Walk handoff, 2026-11-16.

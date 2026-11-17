@@ -47,7 +47,7 @@ import type { ReadoutPayload } from "./readout";
 import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
-import LoadingState, { VoiceMark } from "./LoadingState";
+import LoadingState, { LoadingSurface, VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import DiscardTakeDialog from "./DiscardTakeDialog";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
@@ -2452,27 +2452,34 @@ export function Processing({
   // is defined (founder 2026-08-11).
   if (!error && slow) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={64} />
-        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-          This is taking longer than usual. Your recording is safe and the
-          analysis keeps running on our side, even if you close this.
-        </p>
-        <div className="flex gap-2">
-          {onReRecord ? (
-            <Button onClick={onReRecord} className="rounded-full px-6">
-              Record again
+      <LoadingSurface placement="surface" kind="processing">
+        <div
+          data-loading-content
+          className="flex w-full max-w-sm flex-col items-center justify-center gap-4 text-center"
+        >
+          <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+            <VoiceMark size={64} />
+          </div>
+          <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+            This is taking longer than usual. Your recording is safe and the
+            analysis keeps running on our side, even if you close this.
+          </p>
+          <div className="flex gap-2">
+            {onReRecord ? (
+              <Button onClick={onReRecord} className="rounded-full px-6">
+                Record again
+              </Button>
+            ) : null}
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              Back to Lounge
             </Button>
-          ) : null}
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            Back to Lounge
-          </Button>
+          </div>
         </div>
-      </div>
+      </LoadingSurface>
     );
   }
 
@@ -2481,19 +2488,26 @@ export function Processing({
     // back shortly"). The take keeps processing server-side and lands in the
     // library when done — the only honest action here is to head back.
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={64} />
-        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-          {error}
-        </p>
-        <Button
-          onClick={onClose}
-          variant="outline"
-          className="rounded-full px-6"
+      <LoadingSurface placement="surface" kind="processing">
+        <div
+          data-loading-content
+          className="flex w-full max-w-sm flex-col items-center justify-center gap-4 text-center"
         >
-          Back to Lounge
-        </Button>
-      </div>
+          <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+            <VoiceMark size={64} />
+          </div>
+          <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+            {error}
+          </p>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            Back to Lounge
+          </Button>
+        </div>
+      </LoadingSurface>
     );
   }
   if (error) {
@@ -2525,7 +2539,7 @@ export function Processing({
   // it is the way OUT, which that decision never removed (the same reasoning
   // the document phase's OverlayCloseButton is held to).
   return (
-    <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
+    <div data-processing-lifecycle className="flex min-h-0 flex-1 flex-col text-center">
       <ProcessingWait progress={progress} cycleStartedAt={cycleStartedAt} />
       {canDiscard && onDiscard ? (
         <button

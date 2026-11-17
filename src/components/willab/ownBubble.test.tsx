@@ -152,16 +152,27 @@ describe("one's own bubble in Will's chat (backend N632 item 7)", () => {
     await act(async () => threadRef.current!.reload());
     expect(mine()).toEqual(["No date yet"]);
 
-    // The backend writes the answer and Will's next line; the thread is read.
+    // A structured response and Will's next line can arrive before the
+    // eventually-consistent user row; the optimistic bubble must survive.
     server.rows = [
       WHEN,
-      row("w-a", "user", "No date yet", "2026-11-10T10:00:05.000Z", { plan: "plan-1", way_in: "talk_date", way_in_answer: true }),
+      row("w-pattern", "bot", "We spotted a pattern.", "2026-11-10T10:00:05.000Z", { pattern_card: true }),
       row("w-next", "bot", "Do you accept it?", "2026-11-10T10:00:06.000Z", { plan: "plan-1" }),
     ];
     await act(async () => answered.resolve({ kind: "response", ok: true, body: { plan: PLAN, messages: server.rows.slice(1) } }));
     await flush();
     expect(mine()).toEqual(["No date yet"]);
     expect(host.textContent).toContain("Do you accept it?");
+
+    // Once the authoritative row lands, reconciliation still renders it once.
+    server.rows = [
+      WHEN,
+      row("w-a", "user", "No date yet", "2026-11-10T10:00:07.000Z", { plan: "plan-1", way_in: "talk_date", way_in_answer: true }),
+      row("w-pattern", "bot", "We spotted a pattern.", "2026-11-10T10:00:08.000Z", { pattern_card: true }),
+      row("w-next", "bot", "Do you accept it?", "2026-11-10T10:00:09.000Z", { plan: "plan-1" }),
+    ];
+    await act(async () => threadRef.current!.reload());
+    expect(mine()).toEqual(["No date yet"]);
   });
 
   it("B2: words typed to Will stay on screen through a read while they are sent, and show once", async () => {
