@@ -86,7 +86,7 @@ import {
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
-import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished } from "./useDeckFeedbackWalk";
+import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished, type FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { wordsPickedIn } from "@/lib/willab/walkThread";
@@ -288,6 +288,7 @@ export default function TranscriptReviewDeck({
   coachMessage = null,
   reviewRequest = 0,
   reviewAt = null,
+  reviewSlideRange = null,
   onReviewWaiting,
   replayRequest,
   onReplayReady,
@@ -385,6 +386,8 @@ export default function TranscriptReviewDeck({
   reviewRequest?: number;
   /** The Lounge step tapped: the walk opens on it (lock 2026-10-12). */
   reviewAt?: WalkStepTarget | null;
+  /** A project-card Feedback CTA's exact 1-based slide range. */
+  reviewSlideRange?: FeedbackWalkSlideRange | null;
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   /** Null until the deck is up: the page cannot tell yet whether a walk
@@ -808,6 +811,7 @@ export default function TranscriptReviewDeck({
     firstTake: takeCount === 1,
     takeIndex: takeCount,
     takeSessionId,
+    reviewSlideRange,
     arcId,
     setRootPhrase,
     onAccept,
@@ -1865,3 +1869,5 @@ export function HelpersLabel({ phrases }: { phrases: string[] }) {
     </span>
   );
 }
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; the deck keeps the locked Feedback Walk and Ideal Text surfaces while accepting the selected project Take/range.

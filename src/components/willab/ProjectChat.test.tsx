@@ -8,16 +8,20 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O3  The project uses one chat top bar and the standard answer controls.
          O4  Every route to the current Ideal Text preserves the decision to
              continue to the next fragment or repeat this fragment.
-         O5  An accepted typed answer, its one pending state, and its matched
+         O5  The project-card CTAs keep the selected Take and route distinct:
+             Feedback opens its exact Feedback Walk range; Ideal Text stays
+             on Ideal Text.
+         O6  An accepted typed answer, its one pending state, and its matched
              reply or recoverable error are always brought into view.
-         O6  A refused quick choice remains one durable user turn with one
+         O7  A refused quick choice remains one durable user turn with one
              recoverable error instead of disappearing.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "keeps the fragment decision when Ideal Text opens from the card"
-         O5 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
-         O6 -> "keeps a refused quick choice once with one recoverable error"
+         O5 -> "keeps the selected Take and range on Feedback while Ideal Text remains separate"
+         O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
+         O7 -> "keeps a refused quick choice once with one recoverable error"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -72,18 +76,41 @@ vi.mock("./IdealTextCard", () => ({
     createElement("button", { "data-testid": "ideal", onClick: onOpen }, "Ideal Text"),
 }));
 vi.mock("./IdealTextOverlay", () => ({
-  default: ({ practiceDecision }: { practiceDecision?: { continueLabel?: string; onContinue: () => void; onRepeat: () => void } }) =>
+  default: ({
+    practiceDecision,
+    initialMode,
+    coachTake,
+    reviewTake,
+    reviewSlideRange,
+    onClose,
+  }: {
+    practiceDecision?: { continueLabel?: string; onContinue: () => void; onRepeat: () => void };
+    initialMode?: string;
+    coachTake?: string | null;
+    reviewTake?: string | null;
+    reviewSlideRange?: { startSlide: number; endSlide: number } | null;
+    onClose?: () => void;
+  }) =>
     createElement(
       "div",
-      { "data-testid": practiceDecision ? "decision" : "result" },
+      {
+        "data-testid": practiceDecision ? "decision" : "result",
+        "data-overlay-mode": initialMode ?? "notebook",
+        "data-coach-take": coachTake ?? "",
+        "data-review-take": reviewTake ?? "",
+        "data-review-range": reviewSlideRange
+          ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
+          : "",
+      },
       practiceDecision
         ? createElement(
             "div",
             null,
             createElement("button", { onClick: practiceDecision.onContinue }, practiceDecision.continueLabel),
             createElement("button", { onClick: practiceDecision.onRepeat }, "Repeat this fragment"),
+            createElement("button", { onClick: onClose }, "Close"),
           )
-        : "Result",
+        : createElement("button", { onClick: onClose }, "Close"),
     ),
 }));
 import ProjectChat from "./ProjectChat";
@@ -286,6 +313,53 @@ describe("project conversation", () => {
     )!.click());
     expect(onRecord).toHaveBeenCalledWith("arc-a");
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("keeps the selected Take and range on Feedback while Ideal Text remains separate", () => {
+    const twoTakes: TrainingArc = {
+      ...project,
+      takeCount: 2,
+      takes: [
+        ...project.takes,
+        {
+          sessionId: "take-b",
+          takeIndex: 2,
+          createdAt: null,
+          hasSlides: true,
+          feedbackAvailable: true,
+        },
+      ],
+      practiceChunks: [
+        project.practiceChunks[0],
+        {
+          startSlide: 3,
+          endSlide: 4,
+          attempts: 1,
+          deliveryLabel: "Good",
+          latestSessionId: "take-b",
+        },
+      ],
+    };
+    render(twoTakes);
+
+    act(() => (host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click());
+    act(() => (host.querySelectorAll("[data-practice-chunk]")[0] as HTMLElement).click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback"))!.click());
+
+    const feedbackOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(feedbackOverlay.getAttribute("data-overlay-mode")).toBe("review");
+    expect(feedbackOverlay.getAttribute("data-review-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-review-range")).toBe("1-2");
+    expect(feedbackOverlay.getAttribute("data-coach-take")).toBe("take-a");
+
+    act(() => [...feedbackOverlay.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Ideal text"))!.click());
+
+    const idealOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(idealOverlay.getAttribute("data-overlay-mode")).toBe("notebook");
+    expect(idealOverlay.getAttribute("data-review-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-review-range")).toBe("");
+    expect(idealOverlay.getAttribute("data-coach-take")).toBe("");
   });
 
   it("opens the scoped recording for Continue practice and Repeat this fragment", async () => {

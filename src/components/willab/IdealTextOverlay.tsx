@@ -54,6 +54,7 @@ import {
 } from "@/services/api/blockVariants";
 import { RevisionTimelineSheet } from "./BlockVariantPicker";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
@@ -126,12 +127,19 @@ export type IdealTextLaunchMode =
    *  next recording (prototype v31, the share step). */
   | "share";
 
+function selectedReviewValue<T>(selected: T | null | undefined, current: T | null | undefined): T | null | undefined {
+  return selected ?? current;
+}
+
 export default function IdealTextOverlay({
   arcId,
   practiceDecision,
   analysisPending = false,
   initialMode = "notebook",
   coachTake,
+  reviewTake = null,
+  reviewTakeIndex = null,
+  reviewSlideRange = null,
   notice = null,
   reviewAt = null,
   onClose,
@@ -159,6 +167,12 @@ export default function IdealTextOverlay({
    *  2026-10-21, backend N77): the journey is read for that Take, and the
    *  coach-only walk opens on its word. */
   coachTake?: string | null;
+  /** The project-card Take selected for the embedded Feedback Walk. */
+  reviewTake?: string | null;
+  /** The selected Take's official index for walk copy and side effects. */
+  reviewTakeIndex?: number | null;
+  /** The selected Take's exact 1-based practiced slide range. */
+  reviewSlideRange?: FeedbackWalkSlideRange | null;
   /** One line at the top of the page: an older card's words were not kept,
    *  so this is the latest Take (backend N380). */
   notice?: string | null;
@@ -1021,6 +1035,7 @@ export default function IdealTextOverlay({
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
             reviewAt={reviewAt}
+            reviewSlideRange={reviewSlideRange}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
@@ -1066,8 +1081,8 @@ export default function IdealTextOverlay({
               reviewStatus: m.reviewStatus ?? null,
             }))}
             arcId={arcId}
-            takeSessionId={sd.latestTakeSessionId}
-            takeCount={sd.takeCount}
+            takeSessionId={selectedReviewValue(reviewTake, sd.latestTakeSessionId)}
+            takeCount={selectedReviewValue(reviewTakeIndex, sd.takeCount)}
             confidentMomentSummary={sd.confidentMomentSummary}
             feedbackPending={feedbackPending}
             onConfidentMomentChanged={() => setRefetchNonce((value) => value + 1)}
@@ -1446,4 +1461,4 @@ function walkEndFor(
   return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
 }
 
-// Founder-Approved: task delegation, 2026-11-16; project practice opens this source Ideal Text before repeat-or-continue.
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; project practice preserves the locked Ideal Text route while the selected Feedback Walk receives its exact Take and range.

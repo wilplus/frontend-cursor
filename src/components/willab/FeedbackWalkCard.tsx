@@ -11,6 +11,8 @@ export type FeedbackWalkChunk = Omit<
   /** Null until analysis supplies real delivery evidence. */
   attempts: number | null;
   deliveryLabel: PracticeDeliveryLabel | null;
+  /** The official Take index paired with this exact practice range. */
+  takeIndex?: number | null;
   /** A factual temporary title such as "Take 2" while its slide range lands. */
   pendingLabel?: string;
   /** Neutral workflow state; never a guessed quality judgement. */

@@ -527,15 +527,19 @@ and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
 O4  Every route to the current Ideal Text preserves the decision to
 continue to the next fragment or repeat this fragment.
-O5  An accepted typed answer, its one pending state, and its matched
+O5  The project-card CTAs keep the selected Take and route distinct:
+Feedback opens its exact Feedback Walk range; Ideal Text stays
+on Ideal Text.
+O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
-O6  A refused quick choice remains one durable user turn with one
+O7  A refused quick choice remains one durable user turn with one
 recoverable error instead of disappearing.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""keeps the fragment decision when Ideal Text opens from the card""
-O5 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
-O6 -> ""keeps a refused quick choice once with one recoverable error""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
+O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
+O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
+O7 -> ""keeps a refused quick choice once with one recoverable error""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.

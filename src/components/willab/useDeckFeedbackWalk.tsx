@@ -77,6 +77,11 @@ import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/s
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
 import { TEMPO_COPY, afterTry, oneThingTempoLines, stretchWordsIn, tempoOpening, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
 
+export type FeedbackWalkSlideRange = Readonly<{
+  startSlide: number;
+  endSlide: number;
+}>;
+
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
 /*  permanent by the founder 2026-10-11, "keep the new designs, make them     */
@@ -632,6 +637,15 @@ export function reviewedTake(
   return pageTake;
 }
 
+function selectedTakeForReview(
+  items: readonly FeedbackWalkItem<DocumentSuggestion>[],
+  pageTake: string | null,
+  reviewSlideRange: FeedbackWalkSlideRange | null,
+): string | null {
+  if (reviewSlideRange !== null && pageTake !== null) return pageTake;
+  return reviewedTake(items, pageTake);
+}
+
 
 /** What a walk screen showed of the coach's work, for the Lounge's "new"
  *  (D-FW-19; backend 0439): on a moment's screen, the moment itself, once
@@ -887,6 +901,9 @@ export function useDeckFeedbackWalk(args: {
   /** The Take's project: the Lounge's walk steps name it, so a tap turns
    *  the lens back on there (lock 2026-10-12, section 1). */
   arcId?: string | null;
+  /** Project-card range: keep the walk on the exact 1-based slide range that
+   *  the selected Take practiced. */
+  reviewSlideRange?: FeedbackWalkSlideRange | null;
   setRootPhrase: (chunk: DeckChunk, phrase: RootPhraseSpan | null) => Promise<boolean>;
   /** The deck's decision on a clearer version: the Feedback sheet's own. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
@@ -959,18 +976,34 @@ export function useDeckFeedbackWalk(args: {
   walkReady: boolean;
   element: ReactNode;
 } {
-  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake } = args;
+  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake, reviewSlideRange = null } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
-  const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
-    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
+  const canScopeReview = reviewSlideRange !== null && groups.some((group) => group.slideIndex !== null);
+  const reviewGroups = useMemo(
+    () => canScopeReview
+      ? groups.filter((group) => group.slideIndex !== null && group.slideIndex + 1 >= reviewSlideRange!.startSlide && group.slideIndex + 1 <= reviewSlideRange!.endSlide)
+      : groups,
+    [canScopeReview, groups, reviewSlideRange],
   );
-  const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
+  const reviewPartIds = useMemo(
+    () => new Set(reviewGroups.flatMap((group) => group.chunks.map((chunk) => chunk.part.id))),
+    [reviewGroups],
+  );
+  const reviewChunks = useMemo(
+    () => canScopeReview ? chunks.filter((chunk) => reviewPartIds.has(chunk.part.id)) : chunks,
+    [canScopeReview, chunks, reviewPartIds],
+  );
+
+  const items = useMemo(
+    () => deckWalkItems(reviewChunks, reviewGroups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
+    [reviewChunks, reviewGroups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
+  );
+  const take = useMemo(() => selectedTakeForReview(items, pageTake, reviewSlideRange), [items, pageTake, reviewSlideRange]);
   /* THE TEMPO STEP (backend N162, N166): on the Take's own stretch from the
      backend (step 3), only when one left the green, and only for whoever the
      rings panel's `tempo_step` row reaches (step 6), the founder too: the
@@ -999,7 +1032,7 @@ export function useDeckFeedbackWalk(args: {
   /* The Sniper's helper words (N309 item 3): its stretch's words, on the
      paragraph that says them, within the cap of eight; read once here for
      the walk's helper words and the pace game's tip (N347 item 3). */
-  const tempoAt = useMemo(() => stretchParagraph(tempo, chunks, groups), [tempo, chunks, groups]);
+  const tempoAt = useMemo(() => stretchParagraph(tempo, reviewChunks, reviewGroups), [tempo, reviewChunks, reviewGroups]);
   const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
     const words = tempoAt?.words ? sniperWords(tempoAt.chunk.part.text, tempoAt.words) : null;
     return tempoAt && words ? { partId: tempoAt.chunk.part.id, paragraphText: tempoAt.chunk.part.text, text: words.text, span: words.span } : null;
@@ -1131,9 +1164,9 @@ export function useDeckFeedbackWalk(args: {
   const replayItems = useMemo(
     () =>
       replayReady && answeredOf
-        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
+        ? deckReplayItems(reviewChunks, reviewGroups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
         : [],
-    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, slideTitle],
+    [replayReady, answeredOf, reviewChunks, reviewGroups, pendingOf, slideLabel, slideTitle],
   );
   /* THE TRIES ALREADY HAD (walk first, 2026-10-14): read from the Take's
      thread (each "Practise N" and the answer it got); where the thread has
@@ -2017,3 +2050,5 @@ export function useWalkReplayRequest(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, replay, replaySettled]);
 }
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; project-card review is scoped to the selected Take and exact slide range without changing walk side effects.

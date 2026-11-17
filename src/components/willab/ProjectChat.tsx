@@ -51,6 +51,31 @@ import { usePinThreadBottom } from "./usePinThreadBottom";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
+type ProjectReviewSelection = {
+  coachTake: string | null;
+  reviewTake: string | null;
+  reviewTakeIndex: number | null;
+  reviewSlideRange: { startSlide: number; endSlide: number } | null;
+};
+
+function projectReviewSelection(
+  opened: Opened,
+  practice: FeedbackWalkChunk | null,
+): ProjectReviewSelection {
+  if (opened !== "walk" || !practice) {
+    return { coachTake: null, reviewTake: null, reviewTakeIndex: null, reviewSlideRange: null };
+  }
+  return {
+    coachTake: practice.latestSessionId,
+    reviewTake: practice.latestSessionId,
+    reviewTakeIndex: practice.takeIndex ?? null,
+    reviewSlideRange: {
+      startSlide: practice.startSlide,
+      endSlide: practice.endSlide,
+    },
+  };
+}
+
 type PendingTypedTurn = {
   question: LoungeMessage;
   user: LoungeMessage;
@@ -186,6 +211,7 @@ function neutralTakeChunk({
     attempts: null,
     deliveryLabel: null,
     latestSessionId: sessionId,
+    takeIndex,
     pendingLabel: `Take ${Math.max(1, takeIndex)}`,
     pendingStatus: feedbackAvailable ? "Feedback ready" : "Processing",
   };
@@ -203,7 +229,11 @@ function projectPracticeView(
   const acceptedAlreadyListed = accepted !== null && project.takes.some(
     (take) => take.sessionId === accepted.sessionId,
   );
-  const knownChunks: FeedbackWalkChunk[] = project.practiceChunks;
+  const takeIndexBySession = new Map(project.takes.map((take) => [take.sessionId, take.takeIndex]));
+  const knownChunks: FeedbackWalkChunk[] = project.practiceChunks.map((chunk) => ({
+    ...chunk,
+    takeIndex: takeIndexBySession.get(chunk.latestSessionId) ?? null,
+  }));
   const acceptedPending = accepted && !acceptedAlreadyListed
     ? neutralTakeChunk({
         sessionId: accepted.sessionId,
@@ -425,7 +455,8 @@ export default function ProjectChat({
     onRecordingSettled,
   });
   const [opened, setOpened] = useState<Opened>(null);
-  const [openedTake, setOpenedTake] = useState<string | null>(null);
+  const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
+  const reviewSelection = projectReviewSelection(opened, openedPractice);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [typingQuestion, setTypingQuestion] = useState<string | null>(null);
@@ -681,7 +712,7 @@ export default function ProjectChat({
 
   const closeResult = () => {
     setOpened(null);
-    setOpenedTake(null);
+    setOpenedPractice(null);
     void thread.reload();
   };
 
@@ -715,10 +746,13 @@ export default function ProjectChat({
                 progress={activeProject.practiceProgress}
                 chunks={practiceChunks}
                 onFeedback={(chunk) => {
-                  setOpenedTake(chunk.latestSessionId);
+                  setOpenedPractice(chunk);
                   setOpened("walk");
                 }}
-                onIdealText={() => setOpened("ideal")}
+                onIdealText={() => {
+                  setOpenedPractice(null);
+                  setOpened("ideal");
+                }}
               />
             </div>
           ) : null}
@@ -835,7 +869,7 @@ export default function ProjectChat({
       {opened ? (
         <IdealTextOverlay
           arcId={activeProject.arcId}
-          coachTake={opened === "walk" ? openedTake : null}
+          {...reviewSelection}
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
           onClose={closeResult}
