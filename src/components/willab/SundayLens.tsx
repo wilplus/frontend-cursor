@@ -249,8 +249,8 @@ export function SundayHeadBubble({ body, waiting, onOpen }: { body: string; wait
       data-bubble=""
       data-sunday-head
       className={cn(
-        "relative mr-auto block max-w-[85%] rounded-2xl bg-muted px-3 py-2 pr-8 text-left text-[15px] leading-relaxed text-foreground",
-        waiting && "ring-2 ring-primary",
+        "relative mt-2 mr-auto block max-w-[85%] rounded-2xl bg-muted px-3 py-2 pr-8 text-left text-[15px] leading-relaxed text-foreground",
+        waiting && "ring-2 ring-inset ring-primary",
       )}
     >
       {body}

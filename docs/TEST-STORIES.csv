@@ -640,8 +640,8 @@ heard?"", no ""Teach Will"", no rating; the asking chat goes and my list
 is read again (App Model MATCH-04; N518 item 1). The rating inside
 the answer waits for its prototype (N518 item 9) and is not built.","O1 -> ""Read it opens the Take's words under its player, one paragraph per slide""
 O2 -> ""no card follows Sent: the answer goes and nothing asks about it""","O2: founder, 5 November 2026, N518 item 1 (""No, never ask"") and item 9. O1: founder, the App Model of 9 November 2026, MATCH-13 (its Then: ""the Take's words open under its player, one paragraph per slide""); a voice's words are closed behind ""Read it"" (backend N331)."
-src/components/willab/chats/ProductHome.test.tsx,Story,"As a speaker, I want one speaking-coach home with all my active projects, so I can keep and practise projects concurrently.","The home waits for the project index and Speaking coach state, then
-paints Speaking coach, every active project and Start a new project.
+src/components/willab/chats/ProductHome.test.tsx,Story,"As a speaker, I want one speaking-coach home with all my active projects, so I can keep and practise projects concurrently.","The home paints Speaking coach and Start a new project immediately,
+then fills the stable project-index slot without blocking the shell.
 Polish app UI localises the fixed rows without translating project names.","Opening a project is a local navigation callback; it never archives
 another project; the locale test keeps user-authored names byte-for-byte.",
 src/components/willab/chats/Profile.test.tsx,Story,"As someone in a chat, I want to open the other person's profile and my own, as on WhatsApp, and change mine, so that we know who we are talking to (backend N366).","O1  Their profile shows their name, who they are, their About, and the

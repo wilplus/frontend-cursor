@@ -184,6 +184,12 @@ in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.ts
   bold in any bubble, the Clearer version's new words included (2026-10-21).
   No sender labels, except "Your coach:" which opens the
   coach's bubble, with the colon (2026-10-20).
+  A free-form message submitted in Speaking coach appears as the speaker's
+  orange bubble immediately, before persistence or the conversational reply;
+  it is not filed into a project's hidden thread merely because that project
+  is current. The pattern invitation keeps a visible gap from the preceding
+  bubble and draws its waiting outline inside its own bounds, so the chat rail
+  cannot clip the stroke (founder visual and chat fixes, 2026-11-17).
 - **B5** Nothing swaps. Each step reached lands under the one before;
   earlier steps stay above to scroll back to; nothing leaves the thread while
   the lens is open. Each new bubble, and the typing dots before it, land at

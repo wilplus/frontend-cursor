@@ -11,8 +11,7 @@ import { requestProjectDeletion } from "@/services/api/projectDeletion";
 import { renameProject } from "@/services/api/projectRename";
 import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
 import { takeTrainings } from "@/services/api/bootPrefetch";
-import LoadingState, { VoiceMark } from "../LoadingState";
-import { useLoungeThreadMaybe } from "../LoungeThreadContext";
+import { VoiceMark } from "../LoadingState";
 import { PdfPage } from "../pdfSlides";
 import { ChatListRow, WillMark } from "./ChatList";
 import ProjectRowMenu, { type RowMenuAction } from "../ProjectRowMenu";
@@ -23,9 +22,9 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 /*  data for delivery and message side effects, but it is not this product's   */
 /*  primary way into speaking practice.                                      */
 /*                                                                            */
-/*  The chat thread is the readiness gate. The project index is an optional    */
-/*  region: it loads inside its own stable slot so the Speaking coach row,     */
-/*  existing chat, composer and primary recording action do not wait for it.   */
+/*  The project index is an optional region: it loads inside its own stable    */
+/*  slot so the Speaking coach row, existing chat, composer and primary        */
+/*  recording action do not wait for it.                                      */
 /* -------------------------------------------------------------------------- */
 
 type Status = "loading" | "ready" | "error";
@@ -40,7 +39,6 @@ export default function ProductHome({
   onStartNewProject: () => void;
 }) {
   const locale = useUiLocale();
-  const thread = useLoungeThreadMaybe();
   const [projects, setProjects] = useState<TrainingArc[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [attempt, setAttempt] = useState(0);
@@ -62,17 +60,6 @@ export default function ProductHome({
       active = false;
     };
   }, [attempt]);
-
-  // The provider is mounted before this component is painted. Treat a missing
-  // provider defensively as not ready; it must never produce a stale home.
-  const coachReady = thread !== null && !thread.loading;
-  if (!coachReady) {
-    return (
-      <div data-product-home data-product-home-loading className="flex min-h-0 flex-1">
-        <LoadingState placement="surface" label={uiText(locale, "loading")} />
-      </div>
-    );
-  }
 
   return (
     <div data-product-home className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">

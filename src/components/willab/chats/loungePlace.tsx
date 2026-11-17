@@ -129,8 +129,9 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
 }
 
 /** What a row typed in this chat carries, so the backend files it here
- *  (it reads metadata.place before anything else, backend #1933); in the
- *  speaking chat, the Take it is about. Never an `offer`: a row with one is
+ *  (it reads metadata.place before anything else, backend #1933). Callers
+ *  pass an arc only for a project-scoped turn; ordinary Speaking-coach chat
+ *  stays visible in the shared thread. Never an `offer`: a row with one is
  *  drawn as Will's offer, never as one's own words. */
 export function typedHint(place: LoungePlace | null, arcId: string | null | undefined, chat: string | null = null): Record<string, unknown> | null {
   if (!place) return null;

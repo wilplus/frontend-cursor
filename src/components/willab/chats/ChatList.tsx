@@ -259,7 +259,7 @@ export function ChatListRow({
     return rowButton;
   }
   return (
-    <div className="relative isolate flex h-[76px] w-full shrink-0 items-center">
+    <div className="relative flex h-[76px] w-full shrink-0 items-center">
       {rowButton}
       {actions}
     </div>

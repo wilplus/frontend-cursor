@@ -282,7 +282,7 @@ describe("CoachPanel", () => {
     draw(<QueueScreen speakers={[HERON, SPARROW]} loading={false} blind={null} onSpeaker={() => {}} onDelete={onDelete} onClose={() => {}} />);
     expect(q("[aria-label='More options for Quiet Sparrow']")).not.toBeNull();
     act(() => q("[aria-label='More options for Quiet Heron']")!.click());
-    act(() => q("[role='menuitem']")!.click());
+    act(() => document.querySelector<HTMLElement>("[role='menuitem']")!.click());
     const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
     expect(dialog.textContent).toContain(COPY.deleteSpeakerTitle("Quiet Heron"));
     expect(dialog.textContent).toContain(COPY.deleteSpeakerBody("Quiet Heron"));
@@ -318,7 +318,7 @@ describe("CoachPanel", () => {
     const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
     draw(<QueueScreen speakers={[]} loading={false} blind={{ ...blind, onClear }} onSpeaker={() => {}} onClose={() => {}} />);
     act(() => q("[aria-label='More options for Do you hear it?']")!.click());
-    act(() => q("[role='menuitem']")!.click());
+    act(() => document.querySelector<HTMLElement>("[role='menuitem']")!.click());
     const dialog = document.querySelector("[aria-labelledby='delete-project-title']")!;
     expect(dialog.textContent).toContain(COPY.clearBlindTitle("Do you hear it?"));
     expect(dialog.textContent).toContain(COPY.clearBlindBody);
