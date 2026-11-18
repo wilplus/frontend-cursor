@@ -16,13 +16,7 @@ import {
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
 import type { PracticeDeliveryLabel } from "@/services/api/trainings";
-
-const PRACTICE_READINESS_TONE: Record<PracticeDeliveryLabel, string> = {
-  "Not yet there": "#d84a3a",
-  Almost: "#d6a048",
-  Good: "#6e9c6c",
-  "Strong delivery": "#6e9c6c",
-};
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */

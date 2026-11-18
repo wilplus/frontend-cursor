@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { MessageSquareText, MonitorPlay } from "lucide-react";
 import type { PracticeChunk, PracticeDeliveryLabel } from "@/services/api/trainings";
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 export type FeedbackWalkChunk = Omit<
   PracticeChunk,
@@ -17,13 +18,6 @@ export type FeedbackWalkChunk = Omit<
   pendingLabel?: string;
   /** Neutral workflow state; never a guessed quality judgement. */
   pendingStatus?: string;
-};
-
-const QUALITY_TONE: Record<PracticeDeliveryLabel, string> = {
-  "Not yet there": "#b66d4c",
-  Almost: "#d6a048",
-  Good: "#6e9c6c",
-  "Strong delivery": "#3f7fbd",
 };
 
 function EditableText({ value, label, onCommit, className }: {
@@ -136,7 +130,7 @@ export default function FeedbackWalkCard({
           const range = rangeLabels[chunk.latestSessionId] ?? defaultRange;
           const status = chunk.deliveryLabel ?? chunk.pendingStatus ?? "Processing";
           const statusTone = chunk.deliveryLabel
-            ? QUALITY_TONE[chunk.deliveryLabel]
+            ? PRACTICE_READINESS_TONE[chunk.deliveryLabel]
             : "#a3a3a3";
           return (
             <div
