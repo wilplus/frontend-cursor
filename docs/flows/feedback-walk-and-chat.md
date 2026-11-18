@@ -50,6 +50,10 @@ in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.ts
 `src/components/willab/FeedbackOverlay.tsx` and
 `src/components/willab/chats/TopBar.tsx`.
 
+The 2026-11-18 screenshot correction anchors the viewport divider to the
+header's bottom edge and centers it to `100vw`; the content rail and all
+existing controls remain unchanged.
+
 ### Project result and Speaking Coach (N663)
 
 The compact project result has one title inside the selected slide row, not a

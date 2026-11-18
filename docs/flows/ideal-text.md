@@ -33,6 +33,10 @@ overlays; mobile margins and safe-area spacing stay intact, and the existing
 overlay close plus browser-back behavior is unchanged. Onboarding progress is
 left-aligned within that safe rail rather than globally centered.
 
+The 2026-11-18 screenshot correction keeps that divider anchored to the
+header's bottom edge and centered to `100vw`, so it remains edge-to-edge when
+the surface is mounted inside the desktop canvas.
+
 ---
 
 ## 1. The rules

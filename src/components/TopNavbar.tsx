@@ -12,9 +12,13 @@ export const TOP_NAV_CONTENT_CLASS = "mx-auto w-full max-w-4xl px-[15px]";
 export function TopNavbarBackButton({
   onClick,
   ariaLabel = "Back",
+  disabled = false,
+  className,
 }: {
   onClick: () => void;
   ariaLabel?: string;
+  disabled?: boolean;
+  className?: string;
 }) {
   return (
     <button
@@ -22,7 +26,11 @@ export function TopNavbarBackButton({
       data-top-navbar-back
       aria-label={ariaLabel}
       onClick={onClick}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition hover:bg-muted"
+      disabled={disabled}
+      className={cn(
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition hover:bg-muted disabled:opacity-50",
+        className,
+      )}
     >
       <ChevronLeft className="h-6 w-6" aria-hidden />
     </button>

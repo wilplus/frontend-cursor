@@ -9,10 +9,9 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 /*  the controls inside it (Back, title/profile, menu and the canonical X),   */
 /*  so navigation semantics stay with the surface while geometry cannot drift. */
 /*                                                                            */
-/*  `viewport` is for a header mounted inside the 1080px app canvas (the       */
-/*  project chat); its separator is fixed to the viewport. `container` is for  */
-/*  a full-screen overlay (Ideal Text and feedback), where the header itself   */
-/*  already spans the viewport.                                                */
+/*  `viewport` keeps the separator viewport-wide even when the header is       */
+/*  mounted inside the 1080px app canvas. `container` remains available for    */
+/*  the rare surface whose own header is intentionally the divider boundary.    */
 /* -------------------------------------------------------------------------- */
 
 export type PageHeaderProps = Omit<ComponentPropsWithoutRef<"header">, "children"> & {
@@ -28,7 +27,7 @@ export function PageHeader({
   className,
   contentClassName,
   safeArea = false,
-  divider = "container",
+  divider = "viewport",
   dividerClassName,
   ...props
 }: PageHeaderProps) {
@@ -54,7 +53,7 @@ export function PageHeader({
           aria-hidden
           data-page-header-divider
           className={cn(
-            "pointer-events-none fixed inset-x-0 h-px bg-border",
+            "pointer-events-none absolute bottom-0 left-1/2 h-px w-screen -translate-x-1/2 bg-border",
             dividerClassName,
           )}
         />

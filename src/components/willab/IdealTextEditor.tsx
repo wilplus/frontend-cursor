@@ -6,6 +6,7 @@ import { OVERLAY_ICON_BUTTON_CLASS, OVERLAY_ICON_CLASS } from "./OverlayCloseBut
 import MarkedEditor from "./MarkedEditor";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { useBackDismiss } from "./useBackDismiss";
+import TopNavbar from "@/components/TopNavbar";
 
 /**
  * The whole-document Ideal Text editor opened from the ⋯ menu. It deliberately
@@ -71,7 +72,7 @@ export default function IdealTextEditor({
       aria-modal="true"
       aria-label="Edit ideal text"
     >
-      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5">
+      <TopNavbar contentClassName="max-w-none gap-3 px-4 py-2.5">
         <button
           type="button"
           aria-label="Back to ideal text"
@@ -85,7 +86,7 @@ export default function IdealTextEditor({
           <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
           <p className="text-[11px] leading-snug text-muted-foreground">Ideal text</p>
         </div>
-      </div>
+      </TopNavbar>
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-5">
           <MarkedEditor

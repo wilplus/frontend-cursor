@@ -52,7 +52,6 @@ export function TopBar({
       data-chat-header
       safeArea
       divider="viewport"
-      dividerClassName="top-[calc(env(safe-area-inset-top)_+_60px)]"
       contentClassName="h-[60px] gap-1 px-[15px]"
     >
         <button
