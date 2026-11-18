@@ -872,6 +872,7 @@ export default function ProjectChat({
           {...reviewSelection}
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
+          requireFeedbackWalk={opened === "walk"}
           onClose={closeResult}
           onReadAloud={() => {
             startRecording();
@@ -891,4 +892,4 @@ export default function ProjectChat({
   );
 }
 
-// Founder-Approved: project practice shows the selected fragment's readiness beside the two recording choices, 2026-11-18.
+// Founder-Approved: the black Feedback CTA stays in the selected Feedback Walk, and project practice shows that fragment's readiness beside the two recording choices, 2026-11-18.

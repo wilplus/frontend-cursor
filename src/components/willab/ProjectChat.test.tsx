@@ -82,6 +82,7 @@ vi.mock("./IdealTextOverlay", () => ({
     coachTake,
     reviewTake,
     reviewSlideRange,
+    requireFeedbackWalk,
     onClose,
   }: {
     practiceDecision?: { readiness: string | null; onContinue: () => void; onRepeat: () => void };
@@ -89,6 +90,7 @@ vi.mock("./IdealTextOverlay", () => ({
     coachTake?: string | null;
     reviewTake?: string | null;
     reviewSlideRange?: { startSlide: number; endSlide: number } | null;
+    requireFeedbackWalk?: boolean;
     onClose?: () => void;
   }) =>
     createElement(
@@ -101,6 +103,7 @@ vi.mock("./IdealTextOverlay", () => ({
         "data-review-range": reviewSlideRange
           ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
           : "",
+        "data-require-feedback-walk": requireFeedbackWalk ? "true" : "false",
       },
       practiceDecision
         ? createElement(
@@ -353,6 +356,7 @@ describe("project conversation", () => {
     expect(feedbackOverlay.getAttribute("data-review-take")).toBe("take-a");
     expect(feedbackOverlay.getAttribute("data-review-range")).toBe("1-2");
     expect(feedbackOverlay.getAttribute("data-coach-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-require-feedback-walk")).toBe("true");
 
     act(() => [...feedbackOverlay.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Ideal text"))!.click());
@@ -362,6 +366,7 @@ describe("project conversation", () => {
     expect(idealOverlay.getAttribute("data-review-take")).toBe("");
     expect(idealOverlay.getAttribute("data-review-range")).toBe("");
     expect(idealOverlay.getAttribute("data-coach-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-require-feedback-walk")).toBe("false");
   });
 
   it("opens the scoped recording for Continue practice and Rehearse this again", async () => {

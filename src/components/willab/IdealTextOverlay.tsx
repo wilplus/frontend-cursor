@@ -141,6 +141,7 @@ export default function IdealTextOverlay({
   reviewTake = null,
   reviewTakeIndex = null,
   reviewSlideRange = null,
+  requireFeedbackWalk = false,
   notice = null,
   reviewAt = null,
   onClose,
@@ -174,6 +175,9 @@ export default function IdealTextOverlay({
   reviewTakeIndex?: number | null;
   /** The selected Take's exact 1-based practiced slide range. */
   reviewSlideRange?: FeedbackWalkSlideRange | null;
+  /** Project-card Feedback must remain in the Feedback Walk, including when
+   *  the selected Take has no waiting moment left. */
+  requireFeedbackWalk?: boolean;
   /** One line at the top of the page: an older card's words were not kept,
    *  so this is the latest Take (backend N380). */
   notice?: string | null;
@@ -354,10 +358,11 @@ export default function IdealTextOverlay({
     if (reviewAt) {
       if (!walkDoorReady({ feedbackPending, reviewWaiting })) return;
       setReviewRequest((n) => n + 1);
-    } else if (reviewWaiting) setReviewRequest((n) => n + 1);
-    else return;
+    } else if (reviewWaiting || (requireFeedbackWalk && reviewWaiting !== null)) {
+      setReviewRequest((n) => n + 1);
+    } else return;
     reviewOpenedRef.current = true;
-  }, [initialMode, coachOnly, reviewWaiting, reviewAt, feedbackPending]);
+  }, [initialMode, coachOnly, reviewWaiting, reviewAt, feedbackPending, requireFeedbackWalk]);
 
   useEffect(() => {
     let active = true;
@@ -1037,6 +1042,7 @@ export default function IdealTextOverlay({
             reviewRequest={reviewRequest}
             reviewAt={reviewAt}
             reviewSlideRange={reviewSlideRange}
+            requireFeedbackWalk={requireFeedbackWalk}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
@@ -1462,4 +1468,4 @@ function walkEndFor(
   return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
 }
 
-// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; project practice preserves the locked Ideal Text route while the selected Feedback Walk receives its exact Take and range.
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; project practice preserves the locked Ideal Text route while the selected Feedback Walk receives its exact Take and range and never falls back to Ideal Text.
