@@ -277,6 +277,29 @@ describe("the walk on the deck", () => {
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe("Results");
   });
 
+  it("a project-card Feedback request never reveals the Ideal Text fallback", async () => {
+    const onLensReveal = vi.fn();
+    const p = props({
+      suggestions: [],
+      reviewRequest: 1,
+      reviewSlideRange: { startSlide: 2, endSlide: 2 },
+      requireFeedbackWalk: true,
+      onLensReveal,
+    });
+    vi.useFakeTimers();
+    try {
+      await render(p);
+      await act(async () => {
+        vi.advanceTimersByTime(WALK_OPEN_WAIT_MS + 20);
+        await Promise.resolve();
+      });
+
+      expect(onLensReveal).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("‹ › move through the walk's chat, never answering and never closing it (founder 2026-10-20)", async () => {
     // Slide 1's clearer version is answered already; slide 2's praise and
     // slide 3's clearer version wait. Walk order: praise, helper words,

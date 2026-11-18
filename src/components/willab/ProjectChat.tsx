@@ -872,6 +872,7 @@ export default function ProjectChat({
           {...reviewSelection}
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
+          requireFeedbackWalk={opened === "walk"}
           onClose={closeResult}
           onReadAloud={() => {
             startRecording();
@@ -888,4 +889,4 @@ export default function ProjectChat({
   );
 }
 
-// Founder-Approved: the readable result card comes first, then one natural project conversation using the locked chat bar and answer controls, 2026-11-16.
+// Founder-Approved: the readable result card comes first, then one natural project conversation using the locked chat bar and answer controls; its black Feedback CTA stays in the Feedback Walk even after the selected Take is finished, 2026-11-18.
