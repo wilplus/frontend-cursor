@@ -594,10 +594,10 @@ export default function TranscriptReviewDeck({
      2026-09-30, B4): a tap on the orange words opens the paragraph's sheet
      straight on them; any other opening starts on the sheet itself. */
   const [openWords, setOpenWords] = useState(false);
-  const openParagraph = useCallback((chunk: DeckChunk) => {
+  const openParagraph = useCallback((chunk: DeckChunk, picking = false) => {
     openSeqRef.current += 1;
     setOpenSeq(openSeqRef.current);
-    setOpenWords(false);
+    setOpenWords(picking);
     setOpenPart({
       id: chunk.part.id,
       index: chunk.paragraphIndex,
@@ -813,6 +813,10 @@ export default function TranscriptReviewDeck({
     },
     [groups, slideTitles],
   );
+  const editSavedHelpers = useCallback((partId: string) => {
+    const chunk = chunks.find((c) => c.part.id === partId);
+    if (chunk) openParagraph(chunk, true);
+  }, [chunks, openParagraph]);
   const feedbackWalk = useDeckFeedbackWalk({
     chunks,
     groups,
@@ -835,6 +839,7 @@ export default function TranscriptReviewDeck({
     onJudged,
     answeredOf,
     helperWordsOf,
+    editSavedHelpers,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
     coachUnseen: coachStep.unseen,
     feedbackPending,
@@ -1535,7 +1540,11 @@ export default function TranscriptReviewDeck({
             // neither write depends on the other (see emphasiseChosen).
             const chunk = openChunk;
             saveBehind(
-              () => helperWordsBehind(setRootPhrase, onLockPart, chunk, span),
+              async () => {
+                const result = await helperWordsBehind(setRootPhrase, onLockPart, chunk, span);
+                if (openWords && result === "ok") feedbackWalk.noteHelperWords(chunk.part.id, span.text);
+                return result;
+              },
               CHUNK_SHEET_COPY.failWordsBehind,
             );
             helperSavedRef.current = true;
@@ -1565,10 +1574,20 @@ export default function TranscriptReviewDeck({
             onUseFromTake: async (phrase, takeIndex) => {
               if (!onSetHelperWordsFromTake) return false;
               const chunk = openChunk;
-              expectHeadline(chunk.part.id, phrase);
               saveBehind(
-                () => helperWordsFromTakeBehind(
-                  onSetHelperWordsFromTake, onLockPart, chunk, phrase, takeIndex),
+                async () => {
+                  expectHeadline(chunk.part.id, phrase);
+                  let saved = false;
+                  try {
+                    const result = await helperWordsFromTakeBehind(
+                      onSetHelperWordsFromTake, onLockPart, chunk, phrase, takeIndex);
+                    saved = result === "ok";
+                    if (openWords && saved) feedbackWalk.noteHelperWords(chunk.part.id, phrase);
+                    return result;
+                  } finally {
+                    settleHeadline(chunk.part.id, saved);
+                  }
+                },
                 CHUNK_SHEET_COPY.failWordsBehind,
               );
               helperSavedRef.current = true;

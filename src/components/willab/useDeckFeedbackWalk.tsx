@@ -1031,6 +1031,7 @@ export function useDeckFeedbackWalk(args: {
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
   /** The helper words saved on a paragraph, drawn pressed in the replay. */
   helperWordsOf?: (partId: string) => string | null;
+  editSavedHelpers?: (partId: string) => void;
   /** Nothing of this Take waits on the speaker: the walk is finished, and
    *  "Review feedback" under "Record Take N" plays it again. */
   finished?: boolean;
@@ -1053,6 +1054,7 @@ export function useDeckFeedbackWalk(args: {
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
+  noteHelperWords: (partId: string, text: string) => void;
   /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
   /** The paragraph still has a step to answer: it wears the black line
@@ -1640,19 +1642,21 @@ export function useDeckFeedbackWalk(args: {
     [openAt],
   );
 
+  const noteHelperWords = useCallback((partId: string, text: string, auto = false) => {
+    const words = helperWordsSaid(stripRichMarkers(text));
+    post({
+      key: `words:${partId}:${words}`,
+      moment: null,
+      attempt: null,
+      author: auto ? "app" : "speaker",
+      body: auto ? `${ONE_THING_COPY.helperWords}\n${words}` : words,
+      extra: { words_of: partId },
+    });
+    wordsSavedRef.current.add(partId);
+  }, [post]);
+
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
-    // Each new pick is its own bubble; the chat strikes the ones it replaces.
-    // The speaker's bubble says the words without the sentence's punctuation
-    // at either end, as the walk shows them (founder 2026-10-21, B7). The One
-    // thing walk's come on their own: the walk says them, with its line
-    // (N309 item 3).
-    const words = helperWordsSaid(stripRichMarkers(save.span.text));
-    post(
-      save.auto
-        ? { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "app", body: `${ONE_THING_COPY.helperWords}\n${words}`, extra: { words_of: save.partId } }
-        : { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } },
-    );
-    wordsSavedRef.current.add(save.partId);
+    noteHelperWords(save.partId, save.span.text, save.auto);
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -1676,7 +1680,7 @@ export function useDeckFeedbackWalk(args: {
       async () => (span ? helperWordsBehind(setRootPhrase, lockPart, chunk, span) : "final"),
       CHUNK_SHEET_COPY.failWordsBehind,
     );
-  }, [post]);
+  }, [noteHelperWords]);
   const acceptClearer = useCallback((item: DocumentSuggestion, label?: string | null) => {
     // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
     if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
@@ -2066,6 +2070,7 @@ export function useDeckFeedbackWalk(args: {
           takeId={take}
           walkVoiceOn={walkVoiceOn}
           onSaveHelperWords={saveHelperWords}
+          editSavedHelpers={practisingRef.current ? args.editSavedHelpers : undefined}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
           practise={practise}
@@ -2112,6 +2117,7 @@ export function useDeckFeedbackWalk(args: {
       storedSummary,
       editedWords,
       saveHelperWords,
+      args.editSavedHelpers,
       acceptClearer,
       keepWords,
       practise,
@@ -2142,8 +2148,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element }),
-    [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element],
+    () => ({ review, openPart, openHelpers, noteHelperWords, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element }),
+    [review, openPart, openHelpers, noteHelperWords, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element],
   );
 }
 

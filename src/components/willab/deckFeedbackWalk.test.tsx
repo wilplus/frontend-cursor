@@ -52,6 +52,7 @@ OUTCOME
   O13 A Sniper only opened, then left with ✕ before a try, is still to
       play: a door opened while the Take still waits plays it live, with
       its Try it and Skip (B10, T).
+  O14 A saved one-word paragraph opens the helper-word editor. An earlier Take can supply the next recording cue.
 PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's sheet"
          O2 -> "‹ › move through the walk's chat, never answering and never
                 closing it (founder 2026-10-20)"
@@ -60,6 +61,7 @@ PROVES   O1 -> "Review feedback opens the walk on the first praise, not today's 
                 2026-10-20, N89)"
          O4 -> "helper words picked in the walk go through the deck's own
                 save: the words and the lock"
+         O14 -> "opens Edit on a one-word slide and records the next Take with the replacement from an earlier Take"
          O5 -> "Accept and practise writes through the accept lane and leaves the speaker's words on the page"
          O6 -> "a guest's pick asks to sign up and writes nothing"
          O7 -> "a moment walked through loses its black line and opens as
@@ -87,6 +89,11 @@ import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { fetchParagraphHistory } from "@/services/api/bookmarkHistory";
+import { setPartHelperWordsFromTake } from "@/services/api/partLock";
+import { useRecordingRoots } from "./useRecordingRoots";
+import RecordingRoadmap from "./RecordingRoadmap";
+import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 import { WALK_OPEN_WAIT_MS } from "./useDeckFeedbackWalk";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
@@ -459,6 +466,84 @@ describe("the walk on the deck", () => {
     expect(live()).toBeNull();
     const orange = paragraph("retention went up")!.querySelector<HTMLElement>(".walk-helper-word");
     expect(orange?.textContent).toBe("retention went");
+  });
+
+  it("opens Edit on a one-word slide and records the next Take with the replacement from an earlier Take", async () => {
+    const arcId = "helper-editor-project";
+    const current = "Także.";
+    const previous = "Warto mówić jasno.";
+    const slides = [SLIDES[0], current, SLIDES[2]];
+    const history = {
+      slideIndex: 1,
+      versions: [
+        { takeIndex: 1, paragraphs: [previous], at: "2026-11-01" },
+        { takeIndex: 2, paragraphs: [current], at: "2026-11-02" },
+      ],
+      helperWords: [{ phrases: [current], at: "2026-11-02" }],
+      practice: [],
+    };
+    vi.mocked(fetchParagraphHistory).mockImplementation(async (arc, part) => arc === arcId && part === "p2" ? history : null);
+    let cue = current;
+    const writes: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/p2/helper-words") && init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        writes.push(body);
+        cue = body.phrase;
+        return Response.json({});
+      }
+      if (url.endsWith("/recording-roots")) return Response.json({
+        document_snapshot_id: "snapshot", document_snapshot_sha256: "hash",
+        roots: [{ part_id: "p2", slide_index: 1, text: cue, type: "flagship" }],
+      });
+      return new Response("{}", { status: 404 });
+    }));
+    const p = props({
+      arcId,
+      document: slides.join("\n\n"),
+      parts: slides.map((t, i) => ({ id: `p${i + 1}`, text: t })),
+      suggestions: [],
+      onSetHelperWordsFromTake: (chunk: { part: Part }, phrase: string, take: number) =>
+        setPartHelperWordsFromTake(arcId, chunk.part.id, phrase, take),
+    });
+    await render(p);
+    await click(paragraph(current));
+    await click(live()?.querySelector("[data-walk-word-picker] button"));
+    expect(live()?.querySelector("[data-testid='walk-forward']")?.textContent).toBe(COPY.pillEmphasise);
+    const keep = live()?.querySelector("[data-testid='walk-skip']");
+    expect(keep?.textContent).toBe(WALK_COPY.keepThese);
+    await click(keep);
+    expect(writes).toEqual([]);
+    await click(paragraph(current));
+    const edit = live()?.querySelector("[data-testid='walk-forward']");
+    expect(edit?.textContent).toBe(WALK_COPY.editHelperWords);
+    await click(edit);
+    const sheet = document.querySelector("[data-testid='helper-words-sheet']");
+    expect(sheet).not.toBeNull();
+    expect(writes).toEqual([]);
+    const button = (label: string) => [...sheet!.querySelectorAll("button")].find(b => b.textContent === label);
+    await click(button("Take 1"));
+    await click(button("mówić"));
+    await click(button("jasno."));
+    await click(sheet!.querySelector("[data-testid='helper-words-use']"));
+    expect(writes).toEqual([{ phrase: "mówić jasno.", take_index: 1 }]);
+    expect(p.onLockPart).toHaveBeenCalledTimes(1);
+    expect(p.onEditSlide).not.toHaveBeenCalled();
+    // The saved cue is no longer in the current paragraph. Edit still opens
+    // on its source Take, with the replacement selected.
+    await click(paragraph(current));
+    await click(live()?.querySelector("[data-testid='walk-forward']"));
+    const chosen = document.querySelectorAll("[data-testid='picker-tokens'] button[aria-pressed='true']");
+    expect([...chosen].map(word => word.textContent)).toEqual(["mówić", "jasno."]);
+
+    function NextRecording() {
+      const { roots } = useRecordingRoots({ arcId, initArc: null, takeIndex: 3, signedIn: true, entering: true });
+      return <RecordingRoadmap slides={[...DEFAULT_DECK]} presentationRef={null} currentSlide={1}
+        roots={roots} onSlideChange={() => undefined} strip={null} onFinish={() => undefined} />;
+    }
+    await act(async () => root.render(<NextRecording />));
+    expect(container.textContent).toContain("mówić jasno");
+    expect(container.textContent).not.toContain(current);
   });
 
   it("a guest's pick asks to sign up and writes nothing", async () => {

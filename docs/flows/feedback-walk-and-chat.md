@@ -2502,6 +2502,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-18 · C3, F5 · On the standalone helper-words step, pressing “Edit the helper words” before changing the selection opens the paragraph’s current and earlier Take choices. “Keep these” leaves the saved cue in place. Saving a replacement keeps the edit in the walk history.
 - 2026-11-18 · Founder-approved project Feedback card correction · the project conversation is positioned inside its scrollable app canvas above the global footer, so Feedback and Ideal text remain fully visible and operable on desktop and mobile. The card shows no delivery-status dot or text; internal delivery evidence and the recording decision keep their existing behavior. No new copy (`WillabSurface.tsx`, `FeedbackWalkCard.tsx`). Founder-Approved: contact-point chat, 2026-11-18.
 
 - 2026-11-18 · Gate cleanup · review-plan selection and shown-step messages have one named policy each in `useDeckFeedbackWalk.tsx`; live/replay entry, coach-note delivery and AI clip wording keep the same behavior. Existing speaker-story tests cover those public paths; no complexity baseline is raised.
