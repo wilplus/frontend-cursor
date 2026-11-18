@@ -8,6 +8,7 @@ import UIKit
 class WillpowerLabViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AppleSignInPlugin())
+        bridge?.registerPluginInstance(TakeRecorderPlugin())
     }
 }
 
