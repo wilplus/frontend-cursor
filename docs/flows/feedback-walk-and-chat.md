@@ -1,5 +1,7 @@
 # The Feedback walk and the chat
 
+- 2026-11-18 · N663, N665, N660 · Speaking Coach uses the authorized longitudinal answer path and retains unfinished turns for same-ID retry. Project Chat keeps its composer after audience/goal setup alongside the existing next-recording action. Every turn retains its project identity through submission, storage, reload and retry; project dialogue never becomes Speaking Coach conversation. Feedback, Ideal Text, transcription and recording navigation remain present. Founder-Approved: contact-point chat, integration and production release request, 2026-11-18.
+
 > **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 One page for one loop: a Take is processed → the lens opens on the walk →
@@ -55,6 +57,8 @@ header's bottom edge and centers it to `100vw`; the content rail and all
 existing controls remain unchanged.
 
 ### Project result and Speaking Coach (N663)
+
+Speaking Coach sends project identity with each project bubble in screen history. An interrupted typed turn stays in its conversation through refresh, and **Try again** reuses its original words and identity until the stored reply arrives.
 
 The compact project result has one title inside the selected slide row, not a
 second repeated heading above Progress. Its black **Feedback** control opens
@@ -2498,6 +2502,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-18 · C3, F5 · On the standalone helper-words step, pressing “Edit the helper words” before changing the selection opens the paragraph’s current and earlier Take choices. “Keep these” leaves the saved cue in place. Saving a replacement keeps the edit in the walk history.
 - 2026-11-18 · Founder-approved project Feedback card correction · the project conversation is positioned inside its scrollable app canvas above the global footer, so Feedback and Ideal text remain fully visible and operable on desktop and mobile. The card shows no delivery-status dot or text; internal delivery evidence and the recording decision keep their existing behavior. No new copy (`WillabSurface.tsx`, `FeedbackWalkCard.tsx`). Founder-Approved: contact-point chat, 2026-11-18.
 
 - 2026-11-18 · Gate cleanup · review-plan selection and shown-step messages have one named policy each in `useDeckFeedbackWalk.tsx`; live/replay entry, coach-note delivery and AI clip wording keep the same behavior. Existing speaker-story tests cover those public paths; no complexity baseline is raised.

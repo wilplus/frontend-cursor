@@ -1,5 +1,6 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { markLocalThreadClaimed } from "@/lib/funnel/loungeLocalThread";
+import { clearPendingChatTurns } from "@/lib/willab/chatTurnOutbox";
 
 export const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 const GUEST_OWNER_KEY = "willab_guest_owner:v1";
@@ -60,6 +61,7 @@ function writeGuestOwnerToken(token: string): void {
 }
 
 function clearGuestOwnerToken(): void {
+  clearPendingChatTurns("guest");
   memoryToken = null;
   memoryMintedOnly = false;
   storageRemove(GUEST_OWNER_KEY);

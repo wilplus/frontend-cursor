@@ -17,6 +17,7 @@ import {
   appendAllLoungeMessages,
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
+import { clearPendingChatTurns } from "@/lib/willab/chatTurnOutbox";
 
 export const LOUNGE_LOCAL_KEY = "willab.lounge_thread";
 
@@ -58,12 +59,12 @@ export function isStale(thread: LoungeMessage[], now: number): boolean {
   return newest > 0 && now - newest > LOUNGE_LOCAL_TTL_MS;
 }
 
-function writeLocalLoungeThread(messages: LoungeMessage[]): void {
+function writeLocalLoungeThread(messages: LoungeMessage[], requireStorage: boolean): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(LOUNGE_LOCAL_KEY, JSON.stringify(messages));
-  } catch {
-    /* swallow — private mode / quota */
+  } catch (error) {
+    if (requireStorage) throw error;
   }
 }
 
@@ -72,17 +73,18 @@ function writeLocalLoungeThread(messages: LoungeMessage[]): void {
  * `client_id` (a re-append of the same message is a no-op) so the local
  * store mirrors the server's `(user_id, client_id)` uniqueness.
  */
-export function appendLocalLoungeMessage(msg: LoungeMessage): LoungeMessage[] {
+export function appendLocalLoungeMessage(msg: LoungeMessage, options?: { requireStorage: boolean }): LoungeMessage[] {
   const thread = readLocalLoungeThread();
   if (thread.some((m) => m.client_id === msg.client_id)) return thread;
   const next = [...thread, msg];
-  writeLocalLoungeThread(next);
+  writeLocalLoungeThread(next, options?.requireStorage === true);
   return next;
 }
 
 /** Drop the local thread entirely (after a successful merge, or on clear). */
 export function clearLocalLoungeThread(): void {
   if (typeof window === "undefined") return;
+  clearPendingChatTurns("guest");
   try {
     window.localStorage.removeItem(LOUNGE_LOCAL_KEY);
   } catch {

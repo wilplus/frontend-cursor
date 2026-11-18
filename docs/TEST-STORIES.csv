@@ -1124,7 +1124,8 @@ O12 A walk closed during its Clearer version's try opens again on the
 Clearer version, never the AI clip (N381).
 O13 A Sniper only opened, then left with ✕ before a try, is still to
 play: a door opened while the Take still waits plays it live, with
-its Try it and Skip (B10, T).","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
+its Try it and Skip (B10, T).
+O14 A saved one-word paragraph opens the helper-word editor. An earlier Take can supply the next recording cue.","O1 -> ""Review feedback opens the walk on the first praise, not today's sheet""
 O2 -> ""‹ › move through the walk's chat, never answering and never
 closing it (founder 2026-10-20)""
 O3 -> ""a paragraph with or without the line opens the same walk at
@@ -1132,6 +1133,7 @@ what it asks, its buttons as the step stands (founder
 2026-10-20, N89)""
 O4 -> ""helper words picked in the walk go through the deck's own
 save: the words and the lock""
+O14 -> ""opens Edit on a one-word slide and records the next Take with the replacement from an earlier Take""
 O5 -> ""Accept and practise writes through the accept lane and leaves the speaker's words on the page""
 O6 -> ""a guest's pick asks to sign up and writes nothing""
 O7 -> ""a moment walked through loses its black line and opens as

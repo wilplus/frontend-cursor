@@ -20,6 +20,7 @@ import {
 import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
 import { takeLoungeHistory } from "@/services/api/bootPrefetch";
 import { markChatBootSettled } from "@/lib/chatBoot";
+import { clearPendingChatTurns } from "@/lib/willab/chatTurnOutbox";
 
 /* -------------------------------------------------------------------------- */
 /*  useLoungeThread — the willab Lounge's persistent chat history (§3/§11)    */
@@ -124,7 +125,7 @@ export const BOOT_RETRY_MS = [2_000, 5_000, 15_000, 30_000] as const;
 /** `chat`: a host's chat that takes Takes is open (backend N648 item 8):
  *  the thread is that chat's rows alone, read with ?chat=; null: the
  *  Lounge's own thread, as it was. */
-export function useLoungeThread(signedIn: boolean, chat: string | null = null): UseLoungeThreadReturn {
+export function useLoungeThread(signedIn: boolean, chat: string | null = null, owner: string | null = null): UseLoungeThreadReturn {
   const [messages, setMessages] = useState<LoungeMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [unanswered, setUnanswered] = useState(false);
@@ -151,6 +152,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
     matches?: (page: readonly LoungeMessage[]) => boolean;
   }>>(new Map());
   const readsRef = useRef(0);
+  const lastPage = useRef(0);
   const startRead = () => (readsRef.current += 1);
   const withKept = useCallback((page: LoungeMessage[], read: number): LoungeMessage[] => {
     const ids = new Set(page.map((m) => m.client_id));
@@ -217,6 +219,12 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
       // waited for it may start (the wallet chip, the menu's gates, the
       // guest claim — chatBoot.ts), as they always did.
       if (misses === 0) markChatBootSettled();
+      if (at < lastPage.current) {
+        stop();
+        setUnanswered(false);
+        setLoading(false);
+        return;
+      }
       if (page.failed) {
         // NO ANSWER IS NOT AN EMPTY THREAD: a returning speaker offline
         // would see the brand-new speaker's hello. The dots stay, and the
@@ -227,6 +235,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
         return;
       }
       stop();
+      lastPage.current = at;
       announceDiscoveriesFromPersistedMessages(page.messages);
       setMessages(withKept(page.messages, at));
       setHasMore(page.has_more);
@@ -271,7 +280,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
               const persisted = await appendLoungeMessages([msg]);
               announceDiscoveriesFromPersistedMessages(persisted);
             } else {
-              appendLocalLoungeMessage(msg);
+              appendLocalLoungeMessage(msg, { requireStorage: true });
             }
             stored = true;
             const kept = keptRef.current.get(msg.client_id);
@@ -312,10 +321,13 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
   const appendLocalOnly = useCallback(
     (draft: LoungeMessageDraft): LoungeMessage => {
       const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
-      setMessages((prev) => [...prev, msg]);
+      if (signedIn && draft.clientId) {
+        keptRef.current.set(msg.client_id, { message: msg, settledAt: readsRef.current, exact: true });
+      }
+      setMessages((prev) => prev.some((row) => row.client_id === msg.client_id) ? prev : [...prev, msg]);
       return msg;
     },
-    [],
+    [signedIn],
   );
 
   const loadOlder = useCallback(async (beforePrepend?: () => void) => {
@@ -331,7 +343,8 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
       announceDiscoveriesFromPersistedMessages(page.messages);
       if (page.messages.length > 0) beforePrepend?.();
       // Older page is ASC; prepend ahead of the current window.
-      setMessages((prev) => [...page.messages, ...prev]);
+      const ids = new Set(page.messages.map((m) => m.client_id));
+      setMessages((prev) => [...page.messages, ...prev.filter((m) => !ids.has(m.client_id))]);
       setHasMore(page.has_more);
       oldestCursorRef.current = page.oldest_cursor;
     } finally {
@@ -342,19 +355,23 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null): 
   const clear = useCallback(async () => {
     if (signedIn) await clearLoungeThread();
     else clearLocalLoungeThread();
+    if (owner) clearPendingChatTurns(owner);
+    lastPage.current = startRead();
     keptRef.current.clear();
     setMessages([]);
     setHasMore(false);
     oldestCursorRef.current = null;
-  }, [signedIn]);
+  }, [signedIn, owner]);
 
   const reload = useCallback(async () => {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
     const at = startRead();
-    const page = await fetchLoungeHistory({ chat: chatRef.current });
+    const readingChat = chatRef.current;
+    const page = await fetchLoungeHistory({ chat: readingChat });
     // A failed read never wipes the chat: what is on screen stays.
-    if (page.failed) return;
+    if (page.failed || chatRef.current !== readingChat || at < lastPage.current) return;
+    lastPage.current = at;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(withKept(page.messages, at));
     setHasMore(page.has_more);

@@ -525,6 +525,7 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-18 · On a paragraph opened for its saved helper words, “Edit the helper words” opens the helper-word editor with the saved cue selected on the Take that contains it. A replacement from an earlier Take is saved with its source Take and handed to the next recording.
 - 2026-11-18 · History protection · the retired strengths client stays removed. App Model SET-07's stable `src/services/api/strengths.test.ts` story now exercises the surviving authenticated Take-deletion BFF and proves that its 409 `TAKE_HAS_LINEAGE` explanation reaches the caller unchanged.
 - 2026-11-18 · Save recovery · only a confirmed write updates the displayed document. A rejected stale-version/CAS write refreshes the server head and leaves the editor open with its draft; the speaker explicitly retries. Save, Back, X, Cancel and browser Back all use the same in-flight guard. Success is shown once by the host after the editor closes.
 
