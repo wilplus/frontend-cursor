@@ -19,6 +19,12 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 `LOCKED 2026-10-07 · founder in chat: "Lock the recording screens" · decisions log N59`
 `RE-LOCKED 2026-10-12 · founder in chat: "that's what i want; please lock it" · decisions log N70`
 
+**Pre-Take cancellation (N663).** Closing the feelings, setup or microphone
+preparation stage before Record cancels that attempt. It creates no Take,
+starts no upload and leaves no "Processing your recording" bubble in the
+project chat. Once recording has actually begun, the existing discard and
+leave guards below remain unchanged (founder, 2026-11-18).
+
 Clickable prototype (the reference for every screen, phone and desktop),
 since 2026-10-12: <https://claude.ai/artifact/4zD6Tjw4MWjooqWq6z4FAL>,
 version 4 (its v10 design), copy in

@@ -15,6 +15,8 @@ import {
 } from "@/lib/willab/nextTakeShare";
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
+import type { PracticeDeliveryLabel } from "@/services/api/trainings";
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -81,7 +83,7 @@ export default function IdealTextActions({
   confirmFirst?: ((go: () => void) => void) | null;
   /** Project practice: the text is the decision point before recording. */
   practiceDecision?: {
-    continueLabel?: string;
+    readiness: PracticeDeliveryLabel | null;
     onContinue: () => void;
     onRepeat: () => void;
   } | null;
@@ -121,21 +123,30 @@ export default function IdealTextActions({
   };
 
   if (practiceDecision) {
+    const readinessTone = practiceDecision.readiness
+      ? PRACTICE_READINESS_TONE[practiceDecision.readiness]
+      : "#a3a3a3";
     return (
-      <div data-practice-decision className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={practiceDecision.onContinue}
-          className="h-[56px] w-full rounded-full bg-foreground text-[16px] font-semibold text-background"
-        >
-          {practiceDecision.continueLabel ?? "Continue to next fragment"}
-        </button>
+      <div data-practice-decision className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={practiceDecision.onRepeat}
-          className="h-[48px] w-full rounded-full text-[16px] text-muted-foreground"
+          className="inline-flex h-[54px] min-w-0 items-center justify-center gap-1.5 rounded-full border border-border bg-background px-2 text-[13px] font-semibold leading-[1.15] text-foreground"
         >
-          Repeat this fragment
+          <span
+            role="img"
+            aria-label={practiceDecision.readiness ?? "Readiness pending"}
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: readinessTone }}
+          />
+          <span className="whitespace-normal text-center">Rehearse this again</span>
+        </button>
+        <button
+          type="button"
+          onClick={practiceDecision.onContinue}
+          className="h-[54px] min-w-0 rounded-full bg-foreground px-2 text-[13px] font-semibold text-background"
+        >
+          Continue practice
         </button>
       </div>
     );
@@ -193,4 +204,4 @@ function useRecordAlone(asksShare: boolean, arcId: string | null, record: () => 
   };
 }
 
-// Founder-Approved: task delegation, 2026-11-16.
+// Founder-Approved: side-by-side practice choices with readiness status, 2026-11-18.

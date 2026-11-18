@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 /*  icon and confirmation.                                                     */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
-/*  landed: on failure the dialog stays open and says so. It is drawn on the  */
+/*  landed. A caller may dismiss a failed confirmation to return control to   */
+/*  the retained row; other failures stay in the dialog. It is drawn on the   */
 /*  page itself: a row that moves its ⋯ with a transform would otherwise trap */
 /*  the fixed dialog inside the ⋯'s own box (the corpus list, 2026-10-20).    */
 /* -------------------------------------------------------------------------- */
@@ -34,6 +35,8 @@ export interface RowMenuAction {
   failedLabel?: string;
   icon?: LucideIcon;
   destructive?: boolean;
+  /** Let the row become usable again after this confirmed action fails. */
+  dismissConfirmationOnFailure?: boolean;
 }
 
 export interface ConfirmCopy {
@@ -236,6 +239,12 @@ export default function ProjectRowMenu({
           copy={pendingAction.confirm}
           onCancel={() => setPendingAction(null)}
           onDelete={pendingAction.onRun}
+          onFailure={pendingAction.dismissConfirmationOnFailure
+            ? () => {
+                setFailedDirect(pendingAction.failedLabel ?? failedLabel);
+                setPendingAction(null);
+              }
+            : undefined}
         />
       ) : null}
     </div>
@@ -246,10 +255,12 @@ export function ConfirmDelete({
   copy,
   onCancel,
   onDelete,
+  onFailure,
 }: {
   copy: ConfirmCopy;
   onCancel: () => void;
   onDelete: () => Promise<boolean>;
+  onFailure?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -269,6 +280,10 @@ export function ConfirmDelete({
     // On success the row (and this dialog with it) unmounts.
     if (!ok) {
       setBusy(false);
+      if (onFailure) {
+        onFailure();
+        return;
+      }
       setFailed(true);
     }
   }

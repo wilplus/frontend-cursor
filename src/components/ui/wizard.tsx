@@ -68,9 +68,8 @@ export function StepHead({
 
 /** Back · the step dots · a trailing slot.
  *
- *  The marks start at the safe content column's left edge. Back remains before
- *  them when a flow has one, and the trailing close stays in the same row on
- *  the right without changing the marks' position. */
+ *  The two side slots mirror each other, so the marks stay in their original
+ *  centred position whether or not Back or the trailing close is present. */
 export function WizardProgress({
   count,
   current,
@@ -94,16 +93,18 @@ export function WizardProgress({
 }) {
   return (
     <div className="mb-6 flex items-center gap-3">
-      {showBack && onBack && current > 0 ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex h-8 shrink-0 items-center rounded-full px-2 text-[13px] text-muted-foreground transition hover:text-foreground"
-        >
-          ← {backLabel}
-        </button>
-      ) : null}
-      <div className="flex items-center gap-1.5">
+      <div className="w-16 shrink-0">
+        {showBack && onBack && current > 0 ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-8 items-center rounded-full px-2 text-[13px] text-muted-foreground transition hover:text-foreground"
+          >
+            ← {backLabel}
+          </button>
+        ) : null}
+      </div>
+      <div className="flex flex-1 items-center justify-center gap-1.5">
         {Array.from({ length: count }, (_, i) => (
           <span
             key={i}
@@ -120,7 +121,7 @@ export function WizardProgress({
           />
         ))}
       </div>
-      {trailing ? <div className="ml-auto flex shrink-0 justify-end">{trailing}</div> : null}
+      <div className="flex w-16 shrink-0 justify-end">{trailing}</div>
     </div>
   );
 }

@@ -879,7 +879,10 @@ export default function ProjectChat({
             onRecord(activeProject.arcId);
           }}
           practiceDecision={hasPractice ? {
-            continueLabel: "Continue practice",
+            readiness:
+              openedPractice?.deliveryLabel ??
+              practiceChunks.at(-1)?.deliveryLabel ??
+              null,
             onContinue: () => startPractice("next"),
             onRepeat: () => startPractice("repeat"),
           } : undefined}
@@ -889,4 +892,4 @@ export default function ProjectChat({
   );
 }
 
-// Founder-Approved: the readable result card comes first, then one natural project conversation using the locked chat bar and answer controls; its black Feedback CTA stays in the Feedback Walk even after the selected Take is finished, 2026-11-18.
+// Founder-Approved: the black Feedback CTA stays in the selected Feedback Walk, and project practice shows that fragment's readiness beside the two recording choices, 2026-11-18.

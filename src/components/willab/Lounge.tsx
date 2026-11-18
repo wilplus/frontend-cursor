@@ -105,12 +105,6 @@ import { postAfterTake } from "@/services/api/afterTake";
 import OfferBubble from "./OfferBubble";
 import { NotebookIntro, PrivacyLine, isNotebookAsk, isPrivacyLineRow, isSpotted } from "./NotebookPrivacy";
 import {
-  PolicyUpdateBubble,
-  PolicyUpdateComposer,
-  PolicyUpdateSlot,
-  usePresentPolicyUpdate,
-} from "./PolicyUpdate";
-import {
   offerDraft,
   readOfferType,
   hasOffer,
@@ -559,9 +553,6 @@ export default function Lounge({
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
-  // While the Lounge is on screen it presents the policy update prompt
-  // itself; elsewhere the prompt is one screen (PolicyUpdate.tsx).
-  usePresentPolicyUpdate();
   // The out-of-tokens ask: Will's message in the thread, the plans in the
   // footer (LoungeTopUpCard.tsx).
   const topUp = useTopUpOffer({ state, threadLoading: thread.loading });
@@ -2549,10 +2540,6 @@ export default function Lounge({
             neither knowing the other exists. */}
         <TopUpBubble offer={topUp} />
 
-        {/* The policy update prompt (founder 2026-10-15): Will's message;
-            its controls replace the record button below. */}
-        <PolicyUpdateBubble />
-
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
         <ThreadDots thinking={botThinking} writing={thread.writing} />
@@ -2607,7 +2594,6 @@ export default function Lounge({
           offer's prompt + outcome live in the thread as durable bubbles. */}
       <NewProjectAskSlot ask={newProjectAsk}>
       <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append(slidesReadyDraft(line, readExploreArc(userId)?.arcId))}>
-      <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
       {activeOffer ? (
         <OfferActions
@@ -2687,7 +2673,6 @@ export default function Lounge({
       // the user has asked to upload.
       null}
       </TopUpSlot>
-      </PolicyUpdateSlot>
       </SlidesAskSlot>
       </NewProjectAskSlot>
 
@@ -2707,7 +2692,6 @@ export default function Lounge({
       <div className={barDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
-      <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
       <VoiceNoteFixBar notebook={notebook} />
       <form
@@ -2808,7 +2792,6 @@ export default function Lounge({
           ),
         )}
       </form>
-      </PolicyUpdateComposer>
       </SlidesAskComposer>
       </NewProjectAskComposer>
       </div>

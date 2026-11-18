@@ -168,6 +168,7 @@ function projectActions(
       icon: Trash2,
       destructive: true,
       failedLabel: uiText(locale, "deleteFailed"),
+      dismissConfirmationOnFailure: true,
       confirm: {
         title: PROJECT_DELETION_COPY.title(project.topic),
         body: PROJECT_DELETION_COPY.body,

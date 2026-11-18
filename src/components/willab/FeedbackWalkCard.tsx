@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { MessageSquareText, MonitorPlay } from "lucide-react";
 import type { PracticeChunk, PracticeDeliveryLabel } from "@/services/api/trainings";
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 export type FeedbackWalkChunk = Omit<
   PracticeChunk,
@@ -17,13 +18,6 @@ export type FeedbackWalkChunk = Omit<
   pendingLabel?: string;
   /** Neutral workflow state; never a guessed quality judgement. */
   pendingStatus?: string;
-};
-
-const QUALITY_TONE: Record<PracticeDeliveryLabel, string> = {
-  "Not yet there": "#b66d4c",
-  Almost: "#d6a048",
-  Good: "#6e9c6c",
-  "Strong delivery": "#3f7fbd",
 };
 
 function EditableText({ value, label, onCommit, className }: {
@@ -101,22 +95,14 @@ export default function FeedbackWalkCard({
   const single = chunks.length === 1;
   const attemptsLabel = (attempts: number) => `${attempts} ${attempts === 1 ? "attempt" : "attempts"}`;
   const keys = useMemo(() => new Set(chunks.map((chunk) => chunk.latestSessionId)), [chunks]);
-  const latestRange = latest ? `Slides ${latest.startSlide}-${latest.endSlide}` : "";
-
   if (!latest || !selected) return null;
 
   return (
     <section
       data-feedback-walk-card
-      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-[18px]" : "p-4"}`}
+      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-3.5" : "p-4"}`}
     >
-      <header className="px-0.5 pb-1 pt-px">
-        <h3 data-feedback-walk-title className="min-w-0 text-[20px] font-extrabold leading-tight tracking-[-0.02em]">
-          {latestRange}
-        </h3>
-      </header>
-
-      <div className="mb-2.5 mt-2.5">
+      <div className="mb-2">
         <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373]">
           <span>Progress</span><b className="text-[14px] text-[#121212]">{safeProgress}%</b>
         </div>
@@ -144,14 +130,14 @@ export default function FeedbackWalkCard({
           const range = rangeLabels[chunk.latestSessionId] ?? defaultRange;
           const status = chunk.deliveryLabel ?? chunk.pendingStatus ?? "Processing";
           const statusTone = chunk.deliveryLabel
-            ? QUALITY_TONE[chunk.deliveryLabel]
+            ? PRACTICE_READINESS_TONE[chunk.deliveryLabel]
             : "#a3a3a3";
           return (
             <div
               key={chunk.latestSessionId}
               data-practice-chunk
               onClick={() => setSelectedId(chunk.latestSessionId)}
-              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white ${single ? "min-h-[78px] p-[11px]" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
+              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white ${single ? "min-h-[70px] p-2.5" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
             >
               <SlideThumbnail compact={compact} onOpen={() => onIdealText(chunk)} />
               <div className="min-w-0 flex-1">
@@ -180,10 +166,10 @@ export default function FeedbackWalkCard({
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => onFeedback(selected)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[11px] bg-[#1b1918] px-2 text-[13px] font-semibold text-white">
+        <button type="button" onClick={() => onFeedback(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] bg-[#1b1918] px-2 text-[13px] font-semibold text-white">
           <MessageSquareText className="h-[15px] w-[15px]" aria-hidden /> Feedback
         </button>
-        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] bg-white px-2 text-[13px] font-semibold text-[#121212]">
+        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] bg-white px-2 text-[13px] font-semibold text-[#121212]">
           <MonitorPlay className="h-[15px] w-[15px]" aria-hidden /> Ideal text
         </button>
       </div>
@@ -191,4 +177,4 @@ export default function FeedbackWalkCard({
   );
 }
 
-// Founder-Approved: project-history hierarchy correction keeps the captured slide span as the card title and preserves the locked Feedback/Ideal-text structure, 2026-11-17.
+// Founder-Approved: remove the duplicate card title and tighten the project result card, 2026-11-18.

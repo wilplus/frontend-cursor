@@ -50,6 +50,25 @@ in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.ts
 `src/components/willab/FeedbackOverlay.tsx` and
 `src/components/willab/chats/TopBar.tsx`.
 
+### Project result and Speaking Coach (N663)
+
+The compact project result has one title inside the selected slide row, not a
+second repeated heading above Progress. Its black **Feedback** control opens
+that selected Take's Feedback Walk directly; **Ideal text** remains the white
+door to the document. The practice decision is one row: white **Rehearse this
+again** with a red, yellow or green readiness dot, then black **Continue
+practice**. Red is Not yet there, yellow is the intermediate/Almost state, and
+green is Good to go or stronger. These labels describe the next action, not a
+score (founder, 2026-11-18; backend N663).
+
+The Speaking Coach answers the latest turn in that turn's language. A greeting
+gets a greeting and cannot replay an older project answer. A request for an
+overall speaking view may use the speaker's authorised Takes across projects,
+their transcripts, feedback outcomes, coach words, earlier conversation and
+private memory together with the curated speaking-science source. It separates
+direct observation from tentative interpretation and does not diagnose a
+personality or challenge/threat state from voice alone (N663).
+
 ---
 
 ## 1. The rules
@@ -2744,7 +2763,8 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · locked production re-record invariant · a repeated fragment is a real Take of the same project: its arc is carried into the recorder, its processing wait is visible in the project chat as soon as the Lab closes, and that one bubble stays through polling, navigation, reconciliation and remounting until fresh feedback plus transcript/Ideal Text data are confirmed. Completion refreshes the fragment card, attempt count and CTAs; failure stays visible with an actionable retry. No silent disappearance · FE (this change)
 - 2026-11-16 · AI voice playback reliability: a ready Feedback Walk clip re-reads its existing AI-voice endpoint once when its 15-minute signed URL expires, including when `audio.play()` rejects before the media error event; a successful read swaps in the fresh URL, and an unsuccessful read leaves the existing approved “unavailable” state instead of silently doing nothing. Generation, validation, and the walk’s words are unchanged · FE (this change)
 - 2026-11-16 · N654 items 1–4 · Project-chat order and chrome lock: an accepted Take makes the neutral project/result card present immediately, without guessing a score, slide range, delivery label or claim; real evidence replaces the pending state. Opening a project replaces the WillpowerLab site bar with the existing single chat top bar. The readable Feedback/Ideal-text card is the first item, followed by the Take summary, bridge and contextual question in human order. A held closing is invisible while the question is open and, when released, follows that Take's answer/reply. Suggested answers use the shared stacked `TapRow`; “Something else” opens the shared text-composer shape. There is no custom chip row or divider above the bottom controls (`ProjectChat.tsx`, `FeedbackWalkCard.tsx`, `projectChat.ts`). Founder-approved, 2026-11-16.
-- 2026-11-17 · founder-approved shared page header · Project chat, Ideal Text and feedback overlays use the same safe-rail header/divider primitive; the project-chat divider is viewport-wide, the outlined circular X stays inside the safe content column, and onboarding progress is left-aligned within that column. Existing Back, title/profile, browser-back, close and persistence behavior is unchanged (`PageHeader.tsx`, `ProjectChat.tsx`, `chats/TopBar.tsx`, `FeedbackOverlay.tsx`). Founder visual feedback, 2026-11-17.
+- 2026-11-18 · founder-approved onboarding correction · Project chat, Ideal Text and feedback overlays keep the shared safe-rail header/divider primitive and outlined circular X; the onboarding progress marks return to their original centred position between equal Back/close slots. Existing Back, browser-back, close and persistence behavior is unchanged (`wizard.tsx`). Founder visual feedback, 2026-11-18.
+- 2026-11-17 · founder-approved shared page header · Project chat, Ideal Text and feedback overlays use the same safe-rail header/divider primitive; the project-chat divider is viewport-wide, and the outlined circular X stays inside the safe content column. Existing Back, title/profile, browser-back, close and persistence behavior is unchanged (`PageHeader.tsx`, `ProjectChat.tsx`, `chats/TopBar.tsx`, `FeedbackOverlay.tsx`). Founder visual feedback, 2026-11-17.
 - 2026-11-17 · Founder-approved project Feedback Walk card hierarchy correction: the latest captured slide span is the card title; Progress and the existing qualitative delivery label are proportionally more readable; attempts, progress meaning, CTAs, responsive layout and all data behavior stay unchanged. A closing Walk step with no summary fetch is absent rather than showing an idle typing loader; fetched summaries still use the existing wait state (`FeedbackWalkCard.tsx`, `WalkSummary.tsx`). Founder-approved, 2026-11-17.
 - 2026-11-17 · Founder-approved project-card routing correction · the black Feedback CTA opens the existing Feedback Walk review path with the selected chunk's exact Take session id, Take index and 1-based slide range; its review analytics, walk thread writes, and close/reload side effects remain attached to that Take. The white Ideal text CTA continues to open the current Ideal Text route without inheriting Feedback Walk state. The locked Feedback Walk and Ideal Text designs are unchanged. Founder-Approved: source thread `01a1d59c-9be3-7640-b932-b4cbf92ab66e`, 2026-11-17.
 - 2026-11-18 · N663 · Founder-approved project-card Feedback completion correction · the black Feedback CTA requests the selected Take's Feedback Walk even when no moment is waiting, and that route never reveals Ideal Text if the walk cannot immediately produce a step; the white Ideal text CTA and ordinary review fallbacks remain unchanged. (`ProjectChat.tsx`, `IdealTextOverlay.tsx`, `TranscriptReviewDeck.tsx`). Founder-Approved: N663, source thread `01a1d59c-9be3-7640-b932-b4cbf92ab66e`, 2026-11-18.
