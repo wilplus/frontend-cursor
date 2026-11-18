@@ -402,6 +402,37 @@ function useProjectRecordingLifecycle({
   };
 }
 
+function ProjectChatComposer({ draft, sending, typingAnswer, chipCount, failed, onDraft, onSend }: {
+  draft: string; sending: boolean; typingAnswer: boolean; chipCount: number; failed: boolean;
+  onDraft: (value: string) => void; onSend: () => void;
+}) {
+  return (
+    <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+      <form data-project-question-composer onSubmit={(event) => { event.preventDefault(); onSend(); }}
+        className={`${WILLAB_CONTENT_RAIL} relative flex items-end`}>
+        <textarea
+          autoFocus={typingAnswer || chipCount === 0 || failed}
+          rows={1} disabled={sending} value={draft} onChange={(event) => onDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+          placeholder={TYPE_YOUR_ANSWER} aria-label="Answer about this take"
+          autoComplete="off" autoCorrect="on" autoCapitalize="sentences" spellCheck
+          className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${draft.trim() ? "pr-11" : "pr-4"}`}
+        />
+        {draft.trim() ? (
+          <button type="submit" disabled={sending} aria-label="Send answer" className="absolute bottom-[5px] right-[5px] flex h-8 w-8 items-center justify-center rounded-full text-foreground disabled:text-muted-foreground">
+            <Send className="h-5 w-5" aria-hidden />
+          </button>
+        ) : null}
+      </form>
+    </div>
+  );
+}
+
 export default function ProjectChat({
   project,
   analysisPending = false,
@@ -730,39 +761,9 @@ export default function ProjectChat({
       </div>
 
       {activeQuestion || hasPractice ? (
-          <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
-            <form
-              data-project-question-composer
-              onSubmit={(event) => { event.preventDefault(); void answerText(); }}
-              className={`${WILLAB_CONTENT_RAIL} relative flex items-end`}
-            >
-              <textarea
-                autoFocus={typingAnswer || chips.length === 0 || pendingTyped?.phase === "send_failed"}
-                rows={1}
-                disabled={sending}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-                placeholder={TYPE_YOUR_ANSWER}
-                aria-label="Answer about this take"
-                autoComplete="off"
-                autoCorrect="on"
-                autoCapitalize="sentences"
-                spellCheck
-                className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${draft.trim() ? "pr-11" : "pr-4"}`}
-              />
-              {draft.trim() ? (
-                <button type="submit" disabled={sending} aria-label="Send answer" className="absolute bottom-[5px] right-[5px] flex h-8 w-8 items-center justify-center rounded-full text-foreground disabled:text-muted-foreground">
-                  <Send className="h-5 w-5" aria-hidden />
-                </button>
-              ) : null}
-            </form>
-          </div>
+        <ProjectChatComposer draft={draft} sending={sending} typingAnswer={typingAnswer}
+          chipCount={chips.length} failed={pendingTyped?.phase === "send_failed"}
+          onDraft={setDraft} onSend={() => void answerText()} />
       ) : null}
       {!activeQuestion ? (
         <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
