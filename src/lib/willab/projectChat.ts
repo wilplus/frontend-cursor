@@ -38,12 +38,14 @@ export function isPersistedTerminalReplay(
 
 export function projectIdOf(message: Pick<LoungeMessage, "metadata">): string | null {
   const metadata = message.metadata ?? {};
-  const id = metadata.arc_id ?? metadata.project_id ?? metadata.projectId;
-  return typeof id === "string" && id.length > 0 ? id : null;
+  for (const id of [metadata.arc_id, metadata.project_id, metadata.projectId]) {
+    if (typeof id === "string" && id.trim()) return id.trim();
+  }
+  return null;
 }
 
 export function isProjectMessage(message: Pick<LoungeMessage, "metadata">): boolean {
-  return projectIdOf(message) !== null;
+  return message.metadata?.project_chat === true || projectIdOf(message) !== null;
 }
 
 /** Shared Coach history is longitudinal across projects, but project chat
@@ -126,6 +128,7 @@ export function projectConversationHistory(
     .map((message) => ({
       role: message.role === "user" ? "user" : "assistant",
       content: message.body,
+      metadata: { arc_id: arcId },
     }));
 }
 

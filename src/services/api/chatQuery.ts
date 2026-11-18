@@ -27,6 +27,8 @@ import { guestOwnerHeaders } from "./projects";
 export interface ChatHistoryEntry {
   role: "user" | "assistant";
   content: string;
+  /** Only the project identity travels with the rendered words. */
+  metadata?: { arc_id?: string; project_chat?: true };
 }
 
 export interface ChatQueryArgs {
@@ -47,6 +49,8 @@ export interface ChatQueryArgs {
    * optional because anonymous-funnel callers don't have one.
    */
   sessionId?: string | null;
+  /** Explicit project for an answer under that project's open Take question. */
+  projectId?: string | null;
   /**
    * #2 — server-owned persistence. When true the BACKEND writes this turn
    * (user + bot) into the signed-in lounge thread; the FE then shows the bot
@@ -107,6 +111,7 @@ export interface ChatQueryResponse {
   take_card?: { arc_id: string; version?: number | null; topic?: string | null } | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
+  persisted_client_id?: string;
   /** What the backend stored on its reply row; `whatsapp: "check"` with the
    *  `phone` when a full number was typed under the WhatsApp ask (backend
    *  N235: its code comes next), "invalid" without its country code. */
@@ -183,6 +188,7 @@ export async function postChatQuery(
       const form = new FormData();
       form.append("question", args.question);
       if (args.history) form.append("history", JSON.stringify(args.history));
+      if (args.historySource) form.append("history_source", args.historySource);
       if (args.presentationContext) {
         form.append(
           "presentation_context",
@@ -190,6 +196,7 @@ export async function postChatQuery(
         );
       }
       if (args.sessionId) form.append("session_id", args.sessionId);
+      if (args.projectId) form.append("arc_id", args.projectId);
       if (args.place) form.append("place", args.place);
       form.append("audio_file", args.audioBlob, "casual.webm");
       form.append("transcript_source", "web_speech");
@@ -222,6 +229,7 @@ export async function postChatQuery(
           history: args.history,
           history_source: args.historySource,
           session_id: args.sessionId,
+          arc_id: args.projectId,
           presentation_context: args.presentationContext,
           place: args.place || undefined,
           // #2 — server-owned persistence (signed-in only). The BE dedups the

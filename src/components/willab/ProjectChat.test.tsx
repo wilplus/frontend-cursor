@@ -184,6 +184,7 @@ beforeEach(() => {
   root = createRoot(host);
   onRecord = vi.fn<(arcId: string) => void>();
   localStorage.clear();
+  sessionStorage.clear();
   trainingApi.fetchTrainings.mockReset();
 });
 
@@ -659,7 +660,7 @@ describe("project conversation", () => {
       persist: true,
       clientId: optimistic.client_id,
       clientCreatedAt: optimistic.client_created_at,
-      history: [{ role: "assistant", content: "Who were you talking to?" }],
+      history: [{ role: "assistant", metadata: { arc_id: "arc-a" }, content: "Who were you talking to?" }],
     }));
 
     await act(async () => request.resolve({
@@ -911,6 +912,35 @@ describe("project conversation", () => {
     expect([...host.querySelectorAll("[data-project-message]")].filter(
       (node) => node.textContent === "Keep the decision simple.",
     )).toHaveLength(1);
+  });
+
+  it("restores an interrupted project request only in its project and retries its original Take", async () => {
+    const question = message("ask", "Who needs to act?", "bot", {
+      offer: "will_question", will_question_step: "ask", chips: [],
+    });
+    state.messages = [question];
+    state.chatQuery.mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ answer: "Name the decision.", persisted: true, persisted_client_id: "saved" });
+    render();
+    enterAnswer("  The board  ");
+    submitAnswer();
+    await flush();
+    const first = state.chatQuery.mock.calls[0]![0];
+    act(() => root.unmount());
+    root = createRoot(host);
+    state.messages = [question];
+    render({ ...project, arcId: "arc-b" });
+    expect(host.textContent).not.toContain("The board");
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    render();
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    act(() => { retry.click(); retry.click(); });
+    await flush();
+    expect(state.chatQuery.mock.calls.map(([args]) => args)).toEqual([first, first]);
+    expect(first).toMatchObject({ projectId: "arc-a", sessionId: "take-a" });
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
   });
 
   it("keeps the exact optimistic turn retryable when a 200 is not persisted", async () => {

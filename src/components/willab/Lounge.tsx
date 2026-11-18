@@ -10,7 +10,6 @@ import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   ChatQueryRequestError,
-  postChatQuery,
   type ChatHistoryEntry,
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
@@ -161,7 +160,8 @@ import {
   typedProjectErrorMetadata,
   typedProjectTurnMetadata,
 } from "@/lib/willab/projectChat";
-import type { RecoverableAppend } from "./useLoungeThread";
+import { useChatTurnOutbox, type PendingChatTurn } from "./useChatTurnOutbox";
+import { ChatTurnRetry } from "./ChatTurnRetry";
 import WillQuestionBubble, {
   AnswerPair,
   ChatLink,
@@ -449,15 +449,6 @@ type ProjectQuestionTurn = {
   takeSessionId: string;
 };
 
-type FailedTypedTurn = {
-  body: string;
-  draft: string;
-  questionId: string | null;
-  question: LoungeMessage | null;
-  user: RecoverableAppend;
-  reply?: RecoverableAppend;
-};
-
 function projectQuestionTurn(question: LoungeMessage | null): ProjectQuestionTurn | null {
   const arcId = question?.metadata?.arc_id;
   const takeSessionId = question?.metadata?.take_session_id;
@@ -587,7 +578,11 @@ export default function Lounge({
   const uiLocale = useUiLocale();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
-  const { messages, reload } = thread;
+  const place = useOpenPlace();
+  const openChat = useOpenChat();
+  const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
+  const { messages } = outbox;
+  const { reload } = thread;
   const [draftText, setDraftText] = useState("");
   // R4-12 — the composer is an auto-grow textarea (multi-line). Re-fit its
   // height to the content on every change, capped so it never eats the thread.
@@ -616,7 +611,8 @@ export default function Lounge({
   // Sending is untouched either way: routing happens on the backend, and the
   // composer still posts the same /v2/chat/query.
   useEffect(() => afterChatBoot(warmOverlays), []);
-  const [botThinking, setBotThinking] = useState(false);
+  const [thinkingHere, setBotThinking] = useState(false);
+  const botThinking = outbox.busy(thinkingHere);
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -654,9 +650,7 @@ export default function Lounge({
 
   // Which of the three chats the Lounge is drawn as, for the chat builder's
   // ring (N635, N636 items 1 to 5); null for everyone else: as it was.
-  const place = useOpenPlace();
   // A host's chat that takes Takes: the speaking chat's rows for it (N648 item 8).
-  const openChat = useOpenChat();
   const openChatName = useOpenChatName();
   // Its own messages, drawn among its Takes by time (N648 item 8).
   const hostMessages = useHostMessages(openChat);
@@ -1663,7 +1657,7 @@ export default function Lounge({
   // FE-4 fix — a synchronous in-flight guard for runSend. React state alone
   // leaves a window where a fast double-tap re-enters and double-sends.
   const sendingRef = useRef(false);
-  const failedTypedTurnRef = useRef<FailedTypedTurn | null>(null);
+
   useEffect(() => {
     if (thread.loading) return;
     if (settleTimeRef.current === null) {
@@ -1808,7 +1802,7 @@ export default function Lounge({
   const barHear = firstHear(plan.hear, keyLine.hear);
   const barMode = barModeIn(
     place,
-    words.show || openProjectQuestion(messages) !== null,
+    words.show || openProjectQuestion(shownMessages) !== null,
     plan.barMiddle,
     barHear,
     plan.typingOff,
@@ -1861,16 +1855,19 @@ export default function Lounge({
     const q = submittedDraft.trim();
     // Guard BEFORE clearing the input so a send while the bot is busy keeps the
     // user's text rather than silently dropping it.
-    if (!q || botThinking) return;
+    if (!q || botThinking || sendingRef.current || !outbox.ready) return;
     setDraftText("");
     words.close();
     // Free words under a Take's open Will question are a real chat turn. The
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
-    const failedQuestion = failedTypedTurnRef.current;
-    const typedQuestion = openProjectQuestion(messages) ?? (
-      failedQuestion?.body === q ? failedQuestion.question : null
-    );
+    const typedQuestion = openProjectQuestion(shownMessages);
+    const retry = outbox.turns.findLast((turn) =>
+      turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
+    if (retry) {
+      await sendTypedTurn(retry);
+      return;
+    }
     // The way in waits for these words: "Something else", or Will's last
     // question after the walk (backend N573, N592 item 2).
     if (!typedQuestion && plan.say(q)) {
@@ -1886,7 +1883,11 @@ export default function Lounge({
     // A host who set up their chat asks to change it: its parts open again
     // (backend N618 item 8). No call for anyone without a set-up chat.
     if (!typedQuestion && await sayToWill(q)) return;
-    await runSend(q, typedQuestion, submittedDraft);
+    if (sendingRef.current) {
+      setDraftText(submittedDraft);
+      return;
+    }
+    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft));
   }
 
   // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
@@ -2000,11 +2001,6 @@ export default function Lounge({
     }
   }
 
-  function failedTypedTurn(body: string, questionId: string | null): FailedTypedTurn | null {
-    const failed = failedTypedTurnRef.current;
-    return failed?.body === body && failed.questionId === questionId ? failed : null;
-  }
-
   function currentPresentationContext() {
     const activeProject = readExploreArc(userId);
     return {
@@ -2014,60 +2010,8 @@ export default function Lounge({
     };
   }
 
-  async function queryTypedTurn({
-    q,
-    history,
-    user,
-    stored,
-    project,
-  }: {
-    q: string;
-    history: ChatHistoryEntry[];
-    user: LoungeMessage;
-    stored: Promise<boolean>;
-    project: ProjectQuestionTurn | null;
-  }): Promise<[ChatQueryResponse, boolean]> {
-    return Promise.all([
-      postChatQuery({
-        question: q,
-        history,
-        historySource: thread.signedIn ? "screen" : undefined,
-        sessionId: project?.takeSessionId,
-        place,
-        // Signed-in turns are backend-owned. For a project question this is
-        // what runs finish_chat_turn, retains will_question.row_metadata and
-        // releases the held after-Take row.
-        persist: thread.signedIn,
-        clientId: user.client_id,
-        clientCreatedAt: user.client_created_at,
-        presentationContext: currentPresentationContext(),
-      }),
-      stored,
-    ]);
-  }
-
-  async function retryStoredTypedTurn(failed: FailedTypedTurn & { reply: RecoverableAppend }): Promise<boolean> {
-    setBotThinking(true);
-    try {
-      const [userStored, replyStored] = await Promise.all([failed.user.retry(), failed.reply.retry()]);
-      if (!userStored || !replyStored) {
-        setDraftText(failed.draft);
-        return false;
-      }
-      failedTypedTurnRef.current = null;
-      await reload();
-      return true;
-    } catch {
-      setDraftText(failed.draft);
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
-  }
-
   function regularScreenHistory(screen: LoungeMessage[]): ChatHistoryEntry[] {
-    if (!thread.signedIn) return loungeToHistory(messages);
+    if (!thread.signedIn) return loungeToHistory(screen);
     return screenHistory(screen, {
       walkOf: (message) => {
         const walk = walkAt.get(message.client_id);
@@ -2080,20 +2024,7 @@ export default function Lounge({
     });
   }
 
-  async function appendRegularReply(
-    response: ChatQueryResponse,
-    q: string,
-    screen: LoungeMessage[],
-    draft: LoungeMessageDraft,
-  ): Promise<void> {
-    if (!thread.signedIn) {
-      await thread.append(draft);
-      return;
-    }
-    const botMessage = thread.appendLocalOnly(draft);
-    rememberPlace(botMessage.client_id, place);
-    if (response.persisted) announceDiscoveriesFromPersistedMessages([botMessage]);
-
+  function openReplyActions(response: ChatQueryResponse, q: string, screen: LoungeMessage[]) {
     const chatOffer = readOfferType({ offer: response.offer });
     settleAsks(response, q);
     if (chatOffer) {
@@ -2110,224 +2041,74 @@ export default function Lounge({
     }
   }
 
-  async function runRegularTypedTurn(q: string, submittedDraft: string): Promise<boolean> {
-    const screen = shownItems.map((item) => item.message);
-    const history = regularScreenHistory(screen);
-    // Free-form Speaking-coach chat belongs to the visible shared thread.
-    // Project-question turns use runProjectTypedTurn and keep their arc id;
-    // adding it here hid the optimistic bubble before the server replied.
-    const hint = typedHint(place, null, openChat);
-    const userDraft = withHint({ role: "user", kind: "text", body: q } as LoungeMessageDraft, hint);
-    const retrying = failedTypedTurn(q, null);
-    const recoverableDraft = retrying?.draft ?? submittedDraft;
-    const userTurn = retrying?.user ?? thread.appendRecoverable(userDraft);
-    rememberPlace(userTurn.message.client_id, place);
-    const stored = retrying ? userTurn.retry() : userTurn.stored;
-
-    setBotThinking(true);
-    try {
-      const [response] = await queryTypedTurn({ q, history, user: userTurn.message, stored, project: null });
-      if (thread.signedIn && response.persisted !== true) {
-        throw new Error("Chat turn was not persisted");
-      }
-      const body = chatReplyBody(response, "I know nothing about that, at least yet 😏")!;
-      if (isReplayedTerminalReply(body, messages)) {
-        throw new Error("Chat returned stale terminal copy");
-      }
-      await appendRegularReply(response, q, screen, {
-        role: "bot",
-        kind: "text",
-        body,
-        metadata: chatReplyMetadata(response),
-      });
-      failedTypedTurnRef.current = null;
-      return true;
-    } catch (err) {
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId: null,
-        question: null,
-        user: userTurn,
-      };
-      setDraftText(recoverableDraft);
-      await thread.append(withHint(
-        chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null),
-        hint,
-      ));
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
-  }
-
-  async function runProjectTypedTurn(
-    q: string,
-    project: ProjectQuestionTurn,
-    submittedDraft: string,
-  ): Promise<boolean> {
-    const questionId = project.row.client_id;
-    const failed = failedTypedTurn(q, questionId);
-    if (failed?.reply) return retryStoredTypedTurn({ ...failed, reply: failed.reply });
-
-    const recoverableDraft = failed?.draft ?? submittedDraft;
-    const metadata = {
-      ...(typedHint(place, project.arcId, openChat) ?? {}),
+  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string) {
+    const project = projectQuestionTurn(question);
+    const hint = typedHint(place, project?.arcId, openChat);
+    const metadata = project ? {
+      ...hint,
       ...typedProjectTurnMetadata({
-        arcId: project.arcId,
-        takeSessionId: project.takeSessionId,
-        questionClientId: questionId,
-        role: "answer",
-        place,
+        arcId: project.arcId, takeSessionId: project.takeSessionId,
+        questionClientId: project.row.client_id, role: "answer", place,
       }),
-    };
-    const userDraft: LoungeMessageDraft = {
-      role: "user",
-      kind: "text",
-      body: q,
-      metadata,
-    };
-    // One idempotent outbox row gives the speaker an immediate bubble and a
-    // durable retry key. The backend's persist:true write uses this same id,
-    // so its upsert and this write reconcile to one user row.
-    const userTurn = failed?.user ?? thread.appendRecoverable(userDraft);
-    rememberPlace(userTurn.message.client_id, place);
-    const stored = failed ? userTurn.retry() : userTurn.stored;
-
-    setBotThinking(true);
-    try {
-      const [response, userStored] = await queryTypedTurn({
-        q,
-        history: projectConversationHistory(
-          messages.filter((message) => message.client_id !== userTurn.message.client_id),
-          project.arcId,
-        ),
-        user: userTurn.message,
-        stored,
-        project,
-      });
-      if (thread.signedIn && response.persisted !== true) {
-        // The model can answer even when finish_chat_turn did not durably own
-        // the rows. Keep the exact outbox bubble and draft; retry with its same
-        // client id so the question can close and after_take can release.
-        failedTypedTurnRef.current = {
-          body: q,
-          draft: recoverableDraft,
-          questionId,
-          question: project.row,
-          user: userTurn,
-        };
-        setDraftText(recoverableDraft);
-        await thread.append(withHint(
-          {
-            ...chatFailureReply(new Error("Chat turn was not persisted"), thread.signedIn, true),
-            metadata: typedProjectErrorMetadata({
-              arcId: project.arcId,
-              takeSessionId: project.takeSessionId,
-              questionClientId: questionId,
-              place,
-            }),
-          },
-          typedHint(place, project.arcId, openChat),
-        ));
-        return false;
-      }
-      const body = chatReplyBody(response, null);
-      if (!body) throw new Error("Typed chat returned no reply");
-      if (isReplayedTerminalReply(body, messages)) {
-        throw new Error("Typed chat returned stale terminal copy");
-      }
-      const replyDraft: LoungeMessageDraft = {
-        role: "bot",
-        kind: "text",
-        body,
-        metadata: {
-          ...chatReplyMetadata(response),
-          ...typedProjectTurnMetadata({
-            arcId: project.arcId,
-            takeSessionId: project.takeSessionId,
-            questionClientId: questionId,
-            role: "reply",
-            place,
-          }),
-          ...(response.row_metadata ?? {}),
-        },
-      };
-      if (thread.signedIn) {
-        const reply = thread.appendLocalOnly(replyDraft);
-        rememberPlace(reply.client_id, place);
-        failedTypedTurnRef.current = null;
-        // Reload is authoritative for both rows and, when after_take is true,
-        // for the closing/next ask that finish_chat_turn just released.
-        await reload();
-        return true;
-      }
-
-      const reply = thread.appendRecoverable(replyDraft);
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId,
-        question: project.row,
-        user: userTurn,
-        reply,
-      };
-      const replyStored = await reply.stored;
-      if (!userStored || !replyStored) {
-        setDraftText(recoverableDraft);
-        return false;
-      }
-      failedTypedTurnRef.current = null;
-      await reload();
-      return true;
-    } catch (err) {
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId,
-        question: project.row,
-        user: userTurn,
-      };
-      setDraftText(recoverableDraft);
-      await thread.append(withHint(
-        {
-          ...chatFailureReply(err, thread.signedIn, true),
-          metadata: typedProjectErrorMetadata({
-            arcId: project.arcId,
-            takeSessionId: project.takeSessionId,
-            questionClientId: questionId,
-            place,
-          }),
-        },
-        typedHint(place, project.arcId, openChat),
-      ));
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
+    } : hint;
+    const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
+    const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
+    const history = project
+      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), project.arcId)
+      : regularScreenHistory(screen);
+    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, question, {
+      question: q, history, historySource: thread.signedIn ? "screen" : undefined,
+      projectId: project?.arcId, sessionId: project?.takeSessionId, place, persist: thread.signedIn,
+      presentationContext: currentPresentationContext(),
+    });
+    rememberPlace(turn.user.client_id, place);
+    return turn;
   }
 
-  // The shared send core dispatches the ordinary Lounge path or the project
-  // content path. Both put the own bubble on screen before model work begins.
-  async function runSend(
-    q: string,
-    question: LoungeMessage | null = null,
-    submittedDraft: string = q,
-  ): Promise<boolean> {
-    if (!q || botThinking || sendingRef.current) return false;
+  async function sendTypedTurn(turn: PendingChatTurn) {
+    if (sendingRef.current || outbox.isSending(turn)) return;
     sendingRef.current = true;
+    setDraftText((draft) => draft === turn.draft ? "" : draft);
+    setBotThinking(true);
+    setUploadAskActive(isUploadAsk(turn.user.body));
+    setActiveOffer((open) => open === "feedback_check" ? null : open);
+    atBottomRef.current = true;
+    const project = projectQuestionTurn(turn.question);
     try {
-      setUploadAskActive(isUploadAsk(q));
-      setActiveOffer((open) => (open === "feedback_check" ? null : open));
-      atBottomRef.current = true;
-      const project = projectQuestionTurn(question);
-      return project
-        ? await runProjectTypedTurn(q, project, submittedDraft)
-        : await runRegularTypedTurn(q, submittedDraft);
+      const result = await outbox.deliver(turn, (response) => {
+        const body = chatReplyBody(response, project ? null : "I know nothing about that, at least yet 😏");
+        if (!body || isReplayedTerminalReply(body, messages)) throw new Error("Missing contextual reply");
+        const projectMeta = project ? typedProjectTurnMetadata({
+          arcId: project.arcId, takeSessionId: project.takeSessionId,
+          questionClientId: project.row.client_id, role: "reply", place,
+        }) : null;
+        return {
+          role: "bot", kind: "text", body,
+          metadata: { ...typedHint(place, project?.arcId, openChat), ...chatReplyMetadata(response),
+            ...projectMeta, ...response.row_metadata },
+        };
+      });
+      if (!result || !outbox.isCurrent()) return;
+      setDraftText((draft) => draft === turn.draft ? "" : draft);
+      rememberPlace(result.reply.client_id, place);
+      if (thread.signedIn) {
+        announceDiscoveriesFromPersistedMessages([result.reply]);
+        if (project) await reload();
+        else openReplyActions(result.response, turn.user.body, shownMessages);
+      }
+    } catch (err) {
+      if (!outbox.isPending(turn)) return;
+      const failure = chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null);
+      if (failure.metadata?.suggested_action === "start_first_recording") {
+        await thread.append(withHint(failure, typedHint(place, null, openChat)));
+        outbox.forget(turn);
+      } else {
+        setDraftText((draft) => draft || turn.draft);
+      }
     } finally {
       sendingRef.current = false;
+      setBotThinking(false);
+      followAnswer();
     }
   }
 
@@ -2357,6 +2138,13 @@ export default function Lounge({
     />
   );
   const drawItem = (item: ThreadItem, i: number) => {
+    const failed = outbox.turns.find((turn) => turn.user.client_id === item.message.client_id && !outbox.isSending(turn));
+    if (failed) return (
+      <Fragment key={item.reactKey}>
+        {drawThreadItem(item, i)}
+        <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} />
+      </Fragment>
+    );
     const setup = joinSetupOf(item.message);
     if (setup) return drawSetup(item, i, setup);
     // The earlier builder's rows, once the new setup took over, are Will's
@@ -2558,7 +2346,7 @@ export default function Lounge({
             actual in-conversation replies below. */}
         {/* Principles opens with its own line, above everything (N640). */}
         <PlaceOpening place={place} />
-        {thread.loading ? (
+        {outbox.waitingForHistory ? (
           <LoadingState placement="surface" />
         ) : emptyHelloIn(place, threadItems.length === 0) ? (
           <LoungeEmptyState hidden={plan.holdsEmpty} />

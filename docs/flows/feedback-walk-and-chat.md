@@ -56,6 +56,8 @@ existing controls remain unchanged.
 
 ### Project result and Speaking Coach (N663)
 
+Speaking Coach sends project identity with each project bubble in screen history. An interrupted typed turn stays in its conversation through refresh, and **Try again** reuses its original words and identity until the stored reply arrives.
+
 The compact project result has one title inside the selected slide row, not a
 second repeated heading above Progress. Its black **Feedback** control opens
 that selected Take's Feedback Walk directly; **Ideal text** remains the white
