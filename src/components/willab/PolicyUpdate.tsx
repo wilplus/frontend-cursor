@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
 import {
   fetchAuthorization,
@@ -68,6 +69,7 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
   const [pending, setPending] = useState<Pending | null>(null);
   const resumes = useRef<Array<() => void>>([]);
   const lastRead = useRef(Date.now());
+  const app = useRef<HTMLDivElement>(null);
 
   const read = useCallback(async () => {
     lastRead.current = Date.now();
@@ -77,6 +79,10 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
     if (!next) resumes.current = [];
     setPending(next);
   }, []);
+
+  useEffect(() => {
+    if (app.current) app.current.inert = pending !== null;
+  }, [pending]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -108,9 +114,16 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
 
   return (
     <PolicyUpdateContext.Provider value={api}>
-      {children}
-      {pending ? (
-        <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top)]">
+      <div
+        ref={app}
+        data-policy-gated={pending ? "true" : undefined}
+        className={pending ? "hidden" : "contents"}
+        aria-hidden={pending ? true : undefined}
+      >
+        {children}
+      </div>
+      {pending ? createPortal(
+        <div className="fixed inset-0 z-[2147483647] overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top)]">
           <div className="flex min-h-full flex-col">
             <Phase1AcceptanceFlow
               key={pending.policy.policyVersion}
@@ -120,7 +133,8 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
               onStale={() => void read()}
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </PolicyUpdateContext.Provider>
   );

@@ -112,6 +112,10 @@ describe("current-policy consent gate", () => {
     io.fetchAuthorization.mockResolvedValue(update("pl"));
     await mount({ kind: "authorized", policy: POLICY }, createElement(RefusedTake));
     expect(document.querySelector('[data-testid="acceptance-flow"]')).not.toBeNull();
+    const gated = document.querySelector('[data-policy-gated="true"]');
+    expect(gated).not.toBeNull();
+    expect(gated?.classList.contains("hidden")).toBe(true);
+    expect((gated as HTMLDivElement).inert).toBe(true);
     expect(processAgain).not.toHaveBeenCalled();
 
     await act(async () => accept()?.click());

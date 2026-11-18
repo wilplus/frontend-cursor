@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { OVERLAY_ICON_BUTTON_CLASS, OVERLAY_ICON_CLASS } from "./OverlayCloseButton";
 import MarkedEditor from "./MarkedEditor";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
+import { useBackDismiss } from "./useBackDismiss";
 
 /**
  * The whole-document Ideal Text editor opened from the ⋯ menu. It deliberately
@@ -26,6 +27,14 @@ export default function IdealTextEditor({
   const [failed, setFailed] = useState(false);
   const empty = draft.trim() === "";
   const dirty = draft !== initial;
+
+  // The editor is a real layer above IdealTextOverlay. Device/browser Back
+  // must therefore take the same save-safe path as the visible Back button,
+  // rather than reaching the parent overlay and closing the whole Ideal Text.
+  useBackDismiss(onCancel, () => {
+    goBack();
+    return true;
+  });
 
   async function save(): Promise<void> {
     if (saving || empty) return;

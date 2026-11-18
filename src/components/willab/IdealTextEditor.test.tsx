@@ -15,6 +15,19 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const back = vi.hoisted(() => ({
+  onClose: null as (() => void) | null,
+  onBack: null as (() => boolean) | null,
+}));
+
+vi.mock("./useBackDismiss", () => ({
+  useBackDismiss: (onClose: () => void, onBack?: () => boolean) => {
+    back.onClose = onClose;
+    back.onBack = onBack ?? null;
+    return vi.fn();
+  },
+}));
+
 vi.mock("./MarkedEditor", () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) =>
     createElement("textarea", {
@@ -34,6 +47,8 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.appendChild(host);
   act(() => { root = createRoot(host); });
+  back.onClose = null;
+  back.onBack = null;
 });
 
 afterEach(() => {
@@ -110,6 +125,31 @@ describe("Edit ideal text", () => {
     expect(onSave).toHaveBeenCalledWith("Words I changed.");
     expect(onCancel).not.toHaveBeenCalled();
     expect((host.querySelector("textarea") as HTMLTextAreaElement).value).toBe("Words I changed.");
+    expect(host.querySelector('[data-testid="ideal-text-editor-failed"]')).not.toBeNull();
+  });
+
+  it("routes device Back through the same save-safe path", async () => {
+    const onSave = vi.fn(async () => false);
+    const onCancel = vi.fn();
+    act(() => root.render(createElement(IdealTextEditor, {
+      initial: "Words.",
+      onSave,
+      onCancel,
+    })));
+
+    const editor = host.querySelector("textarea") as HTMLTextAreaElement;
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+      setter.call(editor, "Words changed with Back.");
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      expect(back.onBack?.()).toBe(true);
+      await Promise.resolve();
+    });
+
+    expect(onSave).toHaveBeenCalledWith("Words changed with Back.");
+    expect(onCancel).not.toHaveBeenCalled();
     expect(host.querySelector('[data-testid="ideal-text-editor-failed"]')).not.toBeNull();
   });
 });
