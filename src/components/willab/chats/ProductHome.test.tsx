@@ -2,8 +2,8 @@
 /*
 STORY    As a speaker, I want one speaking-coach home with all my active
          projects, so I can keep and practise projects concurrently.
-OUTCOME  The home waits for the project index and Speaking coach state, then
-         paints Speaking coach, every active project and Start a new project.
+OUTCOME  The home paints Speaking coach and Start a new project immediately,
+         then fills the stable project-index slot without blocking the shell.
          Polish app UI localises the fixed rows without translating project names.
 PROVES   Opening a project is a local navigation callback; it never archives
          another project; the locale test keeps user-authored names byte-for-byte.
@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LocaleSwitcher from "@/components/ui/LocaleSwitcher";
 import UiLocaleProvider from "@/components/ui/UiLocaleProvider";
 import { UI_LOCALE_STORAGE_KEY } from "@/lib/uiLocale";
-import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { TrainingArc } from "@/services/api/trainings";
 
 const api = vi.hoisted(() => ({
@@ -25,13 +24,11 @@ const api = vi.hoisted(() => ({
   renameProject: vi.fn(),
 }));
 const pdf = vi.hoisted(() => ({ page: vi.fn() }));
-const thread = vi.hoisted(() => ({ loading: true, messages: [] as LoungeMessage[] }));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: api.fetchTrainings }));
 vi.mock("@/services/api/bootPrefetch", () => ({ takeTrainings: api.takeTrainings }));
 vi.mock("@/services/api/projectArchive", () => ({ archiveProject: api.archiveProject }));
 vi.mock("@/services/api/projectDeletion", () => ({ requestProjectDeletion: api.requestProjectDeletion }));
 vi.mock("@/services/api/projectRename", () => ({ renameProject: api.renameProject }));
-vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => thread }));
 vi.mock("../pdfSlides", () => ({
   PdfPage: (props: { url: string; pageIndex: number }) => {
     pdf.page(props);
@@ -92,7 +89,6 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  thread.loading = true;
   api.fetchTrainings.mockReset();
   api.takeTrainings.mockReset().mockImplementation(() => api.fetchTrainings());
   api.archiveProject.mockReset();
@@ -126,7 +122,6 @@ function button(label: string): HTMLButtonElement | undefined {
 
 async function renderHome(projects: TrainingArc[]) {
   api.fetchTrainings.mockResolvedValue(projects);
-  thread.loading = false;
   act(() => root.render(createElement(ProductHome, {
     onOpenSpeaking: vi.fn(),
     onOpenProject: vi.fn(),
@@ -140,7 +135,6 @@ describe("Speaking coach home", () => {
     let resolve: (value: TrainingArc[]) => void = () => undefined;
     const projects = new Promise<TrainingArc[]>((done) => { resolve = done; });
     api.fetchTrainings.mockReturnValue(projects);
-    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
@@ -165,7 +159,6 @@ describe("Speaking coach home", () => {
   it("opens projects without an archive side effect", async () => {
     const open = vi.fn();
     api.fetchTrainings.mockResolvedValue([arc("a", "Board pitch"), arc("b", "Team update")]);
-    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: open,
@@ -183,6 +176,13 @@ describe("Speaking coach home", () => {
     expect(projectButton?.className).toContain("pl-0");
     expect(button("More options for Speaking coach")).toBeUndefined();
     expect(button("More options for Board pitch")).toBeDefined();
+    expect(button("More options for Board pitch")?.parentElement?.parentElement?.classList.contains("isolate"))
+      .toBe(false);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    const menu = document.querySelector<HTMLElement>('[role="menu"]');
+    expect(menu?.parentElement).toBe(document.body);
+    expect(host.contains(menu)).toBe(false);
   });
 
   it("archives only the selected project and removes it without a reload", async () => {
@@ -283,7 +283,6 @@ describe("Speaking coach home", () => {
 
   it("keeps a deckless project's palette background stable across renders", async () => {
     api.fetchTrainings.mockResolvedValue([arc("stable-project", "Board pitch")]);
-    thread.loading = false;
     const props = {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
@@ -313,7 +312,6 @@ describe("Speaking coach home", () => {
     api.fetchTrainings.mockResolvedValue([
       arc("deck-project", "Board pitch", false, coverRef),
     ]);
-    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
@@ -349,7 +347,6 @@ describe("Speaking coach home", () => {
     api.fetchTrainings.mockResolvedValue([
       arc("fallback-project", "Team update", false, coverRef),
     ]);
-    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
@@ -366,7 +363,6 @@ describe("Speaking coach home", () => {
   it("uses Polish fixed navigation while leaving project names unchanged", async () => {
     document.documentElement.lang = "pl";
     api.fetchTrainings.mockResolvedValue([arc("a", "English board pitch")]);
-    thread.loading = false;
     act(() => root.render(createElement(ProductHome, {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
@@ -383,7 +379,6 @@ describe("Speaking coach home", () => {
   it("uses the server-resolved locale on the first mounted render", async () => {
     localStorage.setItem(UI_LOCALE_STORAGE_KEY, "en");
     api.fetchTrainings.mockResolvedValue([arc("a", "English board pitch")]);
-    thread.loading = false;
 
     act(() => root.render(
       createElement(
@@ -407,7 +402,6 @@ describe("Speaking coach home", () => {
 
   it("propagates a manual locale choice through an already-mounted screen", async () => {
     api.fetchTrainings.mockResolvedValue([arc("a", "English board pitch")]);
-    thread.loading = false;
 
     act(() => root.render(
       createElement(

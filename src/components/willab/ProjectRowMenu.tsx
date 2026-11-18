@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Archive, MoreHorizontal, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,29 @@ export interface ConfirmCopy {
   failedLabel?: string;
 }
 
+const MENU_WIDTH = 176;
+const MENU_EDGE_GAP = 8;
+const MENU_TRIGGER_GAP = 4;
+const MENU_ROW_HEIGHT = 41;
+
+function positionMenu(
+  trigger: DOMRect,
+  actionCount: number,
+  align: "left" | "right",
+): CSSProperties {
+  const estimatedHeight = actionCount * MENU_ROW_HEIGHT + 10;
+  const below = trigger.bottom + MENU_TRIGGER_GAP;
+  const top = below + estimatedHeight <= window.innerHeight - MENU_EDGE_GAP
+    ? below
+    : Math.max(MENU_EDGE_GAP, trigger.top - MENU_TRIGGER_GAP - estimatedHeight);
+  const wantedLeft = align === "left" ? trigger.left : trigger.right - MENU_WIDTH;
+  const left = Math.max(
+    MENU_EDGE_GAP,
+    Math.min(wantedLeft, window.innerWidth - MENU_WIDTH - MENU_EDGE_GAP),
+  );
+  return { top, left, width: MENU_WIDTH };
+}
+
 /** A draft's confirmation, unchanged since 2026-09-25. */
 const DRAFT_CONFIRM: ConfirmCopy = {
   title: "Delete this draft?",
@@ -84,8 +107,10 @@ export default function ProjectRowMenu({
 }) {
   const [failedDirect, setFailedDirect] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<CSSProperties | null>(null);
   const [pendingAction, setPendingAction] = useState<RowMenuAction | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const menuActions: RowMenuAction[] = actions ?? [
     {
@@ -115,16 +140,24 @@ export default function ProjectRowMenu({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!wrapRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    const onViewportMove = () => setOpen(false);
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onViewportMove);
+    window.addEventListener("scroll", onViewportMove, true);
     return () => {
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onViewportMove);
+      window.removeEventListener("scroll", onViewportMove, true);
     };
   }, [open]);
 
@@ -135,15 +168,28 @@ export default function ProjectRowMenu({
         aria-label={menuAriaLabel ?? `More options for ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={(event) => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          setMenuPosition(positionMenu(
+            event.currentTarget.getBoundingClientRect(),
+            menuActions.length,
+            menuAlign,
+          ));
+          setOpen(true);
+        }}
         className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
       >
         <MoreHorizontal className="h-5 w-5" aria-hidden />
       </button>
-      {open ? (
+      {open && menuPosition && typeof document !== "undefined" ? createPortal(
         <div
+          ref={menuRef}
           role="menu"
-          className={`absolute ${menuAlign === "left" ? "left-0" : "right-0"} top-full z-10 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg`}
+          style={menuPosition}
+          className="fixed z-[70] overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg"
         >
           {menuActions.map((action) => {
             const Icon = action.icon;
@@ -174,7 +220,8 @@ export default function ProjectRowMenu({
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body,
       ) : null}
       {failedDirect ? (
         <p

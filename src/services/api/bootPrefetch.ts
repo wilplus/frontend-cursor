@@ -130,6 +130,13 @@ export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void>
  *  decide; the chats no longer wait on them. */
 export function prefetchChatsDoor(): void {
   void loadRingState(); // the one shared read per page load (rings.ts)
+  remember(TRAININGS, async () => {
+    // Start the project index with the older chats read. ProductHome takes
+    // this exact in-flight request, so its stable shell does not add a new
+    // round trip after the door becomes visible.
+    if (!(await getAuthToken())) return undefined;
+    return (await fetchTrainings()) ?? undefined;
+  });
   remember(CHATS, async () => {
     // Signed out, the read would fail for a reason that is not the answer.
     if (!(await getAuthToken())) return undefined;

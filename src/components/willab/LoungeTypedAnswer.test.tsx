@@ -52,6 +52,7 @@ vi.mock("@/services/api/willQuestion", async (importOriginal) => ({
 import Lounge from "./Lounge";
 import { LoungeThreadProvider, useLoungeThreadCtx } from "./LoungeThreadContext";
 import { setOpenPlace } from "./chats/loungePlace";
+import { writeExploreArc } from "@/lib/willab/exploreArc";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -409,6 +410,41 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
     expect(ownWords("did you spot any patterns?")).toHaveLength(1);
     expect(host.textContent).toContain("Yes, actually—we did spot a pattern.");
+  });
+
+  it("shows free-form Speaking-coach words immediately even when a project is current", async () => {
+    harness.rows = [];
+    writeExploreArc("user-a", "arc-current", 2);
+    const request = deferred<{ answer: string; persisted: boolean }>();
+    harness.query.mockReturnValue(request.promise);
+    const field = await renderLounge();
+    const thread = host.querySelector("[data-thread]") as HTMLDivElement;
+    const metrics = scrollMetrics(thread);
+    thread.scrollTop = 0;
+
+    enter(field, "Hi");
+    send(field);
+    await flush();
+
+    expect(ownWords("Hi")).toHaveLength(1);
+    expect(thread.scrollTop).toBe(1_200);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
+    const optimistic = harness.appended.find(
+      (message) => message.role === "user" && message.body === "Hi",
+    )!;
+    expect(optimistic.metadata).toEqual(expect.objectContaining({ place: "speaking" }));
+    expect(optimistic.metadata).not.toHaveProperty("arc_id");
+
+    thread.scrollTop = 0;
+    metrics.setHeight(1_600);
+    await act(async () => request.resolve({
+      answer: "Hi! What would you like to practise?",
+      persisted: true,
+    }));
+    await flush();
+    expect(host.textContent).toContain("Hi! What would you like to practise?");
+    expect(ownWords("Hi")).toHaveLength(1);
+    expect(thread.scrollTop).toBe(1_600);
   });
 
   it("does not replay an old terminal walk line as the answer to a new message", async () => {

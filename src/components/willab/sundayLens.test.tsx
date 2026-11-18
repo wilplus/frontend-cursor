@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const api = vi.hoisted(() => ({ getSundayNote: vi.fn(), answerSundayNote: vi.fn() }));
 vi.mock("@/services/api/voiceNotebook", () => api);
 
-import SundayLens from "./SundayLens";
+import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayWaiting } from "@/lib/willab/sundayNote";
 
 const CASE = "Twice this week you put off calling the client because you did not feel like it.";
@@ -170,5 +170,16 @@ describe("the Sunday note lens", () => {
     expect(sundayAskOf(thread)).toBe("s1");
     expect(sundayWaiting(thread, "s0")).toBe(false);
     expect(sundayWaiting(thread, "s1")).toBe(true);
+  });
+
+  it("keeps the waiting outline inside a separated pattern bubble", () => {
+    act(() => root.render(createElement(SundayHeadBubble, {
+      body: "We spotted a pattern!",
+      waiting: true,
+      onOpen: vi.fn(),
+    })));
+    const bubble = container.querySelector("[data-sunday-head]");
+    expect(bubble?.classList.contains("mt-2")).toBe(true);
+    expect(bubble?.classList.contains("ring-inset")).toBe(true);
   });
 });

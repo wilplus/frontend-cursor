@@ -34,7 +34,7 @@ vi.mock("@/components/willab/chats/ChatList", () => ({
     createElement("button", { type: "button", "data-chat-row": id, onClick: onOpen }, circle, title),
   WillMark: () => createElement("span", { "data-will-mark": "" }),
 }));
-vi.mock("../useBackDismiss", () => ({ useBackStop: vi.fn() }));
+vi.mock("../useBackDismiss", () => ({ useBackStop: vi.fn(), useBackDismiss: vi.fn() }));
 
 import { useChatsDoor } from "./useChatsDoor";
 
@@ -105,5 +105,26 @@ describe("the speaking-coach door", () => {
     expect(openProject).toHaveBeenCalledWith(expect.objectContaining({ arcId: "b" }));
     await act(async () => (host.querySelector("[data-start-new-project]") as HTMLButtonElement).click());
     expect(startNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the project index mounted while Speaking coach is open", async () => {
+    act(() => root.render(createElement(Surface, {
+      onOpenProject: vi.fn(),
+      onStartNewProject: vi.fn(),
+    })));
+    await flush();
+    expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      (host.querySelector('[data-home-row="speaking-coach"] button') as HTMLButtonElement).click();
+    });
+    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(true);
+    const back = host.querySelector('button[aria-label="Back"]') as HTMLButtonElement;
+    await act(async () => back.click());
+    await flush();
+
+    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(false);
+    expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("Board pitch");
   });
 });

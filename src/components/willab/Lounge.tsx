@@ -2039,7 +2039,10 @@ export default function Lounge({
   async function runRegularTypedTurn(q: string, submittedDraft: string): Promise<boolean> {
     const screen = shownItems.map((item) => item.message);
     const history = regularScreenHistory(screen);
-    const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
+    // Free-form Speaking-coach chat belongs to the visible shared thread.
+    // Project-question turns use runProjectTypedTurn and keep their arc id;
+    // adding it here hid the optimistic bubble before the server replied.
+    const hint = typedHint(place, null, openChat);
     const userDraft = withHint({ role: "user", kind: "text", body: q } as LoungeMessageDraft, hint);
     const retrying = failedTypedTurn(q, null);
     const recoverableDraft = retrying?.draft ?? submittedDraft;
