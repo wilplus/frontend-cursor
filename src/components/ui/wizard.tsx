@@ -92,8 +92,12 @@ export function WizardProgress({
   backLabel?: string;
 }) {
   return (
-    <div className="mb-6 flex items-center gap-3">
-      <div className="w-16 shrink-0">
+    <div
+      className="relative mb-6 flex min-h-11 items-center"
+      role="group"
+      aria-label="Setup progress"
+    >
+      <div className="w-16">
         {showBack && onBack && current > 0 ? (
           <button
             type="button"
@@ -104,7 +108,10 @@ export function WizardProgress({
           </button>
         ) : null}
       </div>
-      <div className="flex flex-1 items-center justify-center gap-1.5">
+      <div
+        data-wizard-progress
+        className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5"
+      >
         {Array.from({ length: count }, (_, i) => (
           <span
             key={i}
@@ -121,7 +128,7 @@ export function WizardProgress({
           />
         ))}
       </div>
-      <div className="flex w-16 shrink-0 justify-end">{trailing}</div>
+      <div className="ml-auto flex w-16 justify-end">{trailing}</div>
     </div>
   );
 }
@@ -136,7 +143,7 @@ export function WizardCancel({
   onClick: () => void;
   ariaLabel?: string;
 }) {
-  return <OverlayCloseButton onClick={onClick} ariaLabel={ariaLabel} className="-mr-2.5" />;
+  return <OverlayCloseButton onClick={onClick} ariaLabel={ariaLabel} />;
 }
 
 /** A tappable preset. The neutral foreground when selected — orange stays

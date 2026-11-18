@@ -101,6 +101,50 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { PageHeader } from "./PageHeader";
 import type { PracticeDeliveryLabel } from "@/services/api/trainings";
 
+type IdealTextSaveStatus = "saved" | "authority" | "error" | null;
+
+function exitIdealText(
+  guard: (() => boolean) | null,
+  onClose: () => void,
+): void {
+  if (guard?.()) return;
+  onClose();
+}
+
+function editorBackGuardResult(guard: (() => boolean) | null): boolean {
+  return guard ? guard() : false;
+}
+
+function saveFailureStatus(reason: "authority" | "error"): IdealTextSaveStatus {
+  return reason === "authority" ? "authority" : "error";
+}
+
+function saveStatusCopyFor(status: IdealTextSaveStatus): string | null {
+  switch (status) {
+    case "saved":
+      return IDEAL_EDIT_COPY.editorSaved;
+    case "authority":
+      return IDEAL_EDIT_COPY.editorSaveAuthority;
+    case "error":
+      return IDEAL_EDIT_COPY.editorSaveFailed;
+    default:
+      return null;
+  }
+}
+
+function carryOwnerEdit(
+  current: IdealTextSd["confidentMomentOwnerEdit"],
+  next: IdealTextSd["confidentMomentOwnerEdit"] | undefined,
+): IdealTextSd["confidentMomentOwnerEdit"] {
+  return next === undefined ? current : next;
+}
+
+function servedOwnerEdit(
+  value: IdealTextSd["confidentMomentOwnerEdit"] | undefined,
+): IdealTextSd["confidentMomentOwnerEdit"] {
+  return value ?? null;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
 /*                                                                            */
@@ -142,6 +186,7 @@ export default function IdealTextOverlay({
   reviewTakeIndex = null,
   reviewSlideRange = null,
   requireFeedbackWalk = false,
+  projectFlow = false,
   notice = null,
   reviewAt = null,
   onClose,
@@ -149,9 +194,9 @@ export default function IdealTextOverlay({
 }: {
   arcId: string;
   practiceDecision?: {
-    readiness: PracticeDeliveryLabel | null;
-    onContinue: () => void;
-    onRepeat: () => void;
+    deliveryLabel?: PracticeDeliveryLabel;
+    onFragment: () => void;
+    onWholePresentation: () => void;
   };
   /** With "review": the Lounge step tapped, where the walk opens. */
   reviewAt?: WalkStepTarget | null;
@@ -178,6 +223,8 @@ export default function IdealTextOverlay({
   /** Project-card Feedback must remain in the Feedback Walk, including when
    *  the selected Take has no waiting moment left. */
   requireFeedbackWalk?: boolean;
+  /** Project conversations keep the walk's final handoff inside the overlay. */
+  projectFlow?: boolean;
   /** One line at the top of the page: an older card's words were not kept,
    *  so this is the latest Take (backend N380). */
   notice?: string | null;
@@ -189,9 +236,17 @@ export default function IdealTextOverlay({
    *  now — kept as-is so the two call sites don't churn.) */
   onReadAloud?: (version: number | null) => void;
 }) {
+  // The editor registers its one save-safe exit here. Every route out of this
+  // full-screen surface (navbar controls, device/browser Back, and the walk's
+  // close) goes through the same guard, so a draft can never disappear just
+  // because the user chose a different exit affordance.
+  const editBackRef = useRef<(() => boolean) | null>(null);
+  const requestExit = useCallback(() => {
+    exitIdealText(editBackRef.current, onClose);
+  }, [onClose]);
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
   // nested FeedbackOverlay, which pushes its own entry on top).
-  useBackDismiss(onClose);
+  useBackDismiss(requestExit, () => editorBackGuardResult(editBackRef.current));
   // The lens's address goes on the Back entry just pushed, after it exists,
   // and comes off on every close (✕, Back, the next Take).
   useEffect(() => {
@@ -245,6 +300,10 @@ export default function IdealTextOverlay({
   // version, and whether the moments unlock has run.
   // Voice Album is a separate personal surface, outside project editing.
   const [sd, setSd] = useState<IdealTextSd | null>(null);
+  // The current CAS head is separate from the render parts: the backend owns
+  // the user-text revision and each part revision, and every Save must carry
+  // that exact enrollment-era state forward once it has been returned.
+  const ownerEditRef = useRef<IdealTextSd["confidentMomentOwnerEdit"]>(null);
 
   useVisibleLearningExposure({
     handles: sd?.learningExposures ?? [],
@@ -303,7 +362,7 @@ export default function IdealTextOverlay({
     if (initialMode === "export") setExportChooserOpen(true);
   }, [initialMode, sd, status]);
   const [tooLong, setTooLong] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<IdealTextSaveStatus>(null);
   // The version every PUT is stamped with, advanced SYNCHRONOUSLY on each
   // answer so a queued second save can never re-send the version the first
   // one just consumed. Armed by the SD fetch; until then there is nothing to
@@ -412,6 +471,7 @@ export default function IdealTextOverlay({
       setIdeal((prev) => carryKeyMoments(prev, r.ideal, sections, keep));
       setNotes(null);
       setSd((prev) => carryShownFeedback(prev, sdFromResult(r), sections, keep));
+      ownerEditRef.current = servedOwnerEdit(r.confidentMomentOwnerEdit);
       versionRef.current = r.version;
       versionArmedRef.current = true;
       // A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18).
@@ -479,12 +539,14 @@ export default function IdealTextOverlay({
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
+        ownerEditRef.current = null;
         setStatus("ready");
       } else if (r.kind === "instant") {
         // The free machine draft — same reading view plus the polishing banner;
         // no personal-notes editing (that stays a perfected-lane feature).
         setIdeal(r.ideal);
         setNotes(null);
+        ownerEditRef.current = null;
         setStatus("instant");
       } else {
         setStatus(r.kind);
@@ -659,13 +721,19 @@ export default function IdealTextOverlay({
       setNotes(null);
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
       setTooLong(false);
-      setSaveFailed(false);
+      setSaveStatus(null);
       // Serialized, and stamped from versionRef rather than sd.version: two
       // quick actions would otherwise race, and the second would arrive with
       // the version the FIRST one just consumed — a 409 that looks exactly
       // like a take landing when nothing of the sort happened.
       const run = chainRef.current.then(() =>
-        saveIdealUserEdit(arcId, next, versionRef.current, { parts }),
+        saveIdealUserEdit(arcId, next, versionRef.current, {
+          parts,
+          current: {
+            ownerEdit: ownerEditRef.current,
+            desiredParts: parts,
+          },
+        }),
       );
       chainRef.current = run.then(
         () => undefined,
@@ -673,25 +741,30 @@ export default function IdealTextOverlay({
       );
       const r = await run;
       if (r.ok) {
+        partsRef.current = parts;
+        setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
         versionRef.current = r.version ?? versionRef.current;
+        ownerEditRef.current = carryOwnerEdit(ownerEditRef.current, r.ownerEdit);
         setSd((prev) =>
           prev
             ? { ...prev, version: versionRef.current, userEdited: true, parts }
             : prev,
         );
+        setSaveStatus("saved");
         return true;
       }
       if (r.reason === "superseded") {
-        // A take landed mid-edit. Under per-part persistence the refetch
-        // below returns the COMPOSED document — the typed paragraphs arrive
-        // pinned inside it — so there is nothing to hold and offer back.
+        // A rejected CAS write did not save the draft. Refresh the server
+        // head while keeping the editor mounted; only an explicit retry may
+        // apply the speaker's words to that head.
         if (r.currentVersion !== null) versionRef.current = r.currentVersion;
         setSd((prev) =>
           prev ? { ...prev, version: versionRef.current } : prev,
         );
         fetchGenRef.current++; // fence any in-flight pre-supersede GET
         setRefetchNonce((n) => n + 1); // adopt the NEW version's text
-        return true;
+        setSaveStatus("error");
+        return false;
       }
       // Persistence failed: the editor retains its own draft for retry, while
       // the delivered Ideal Text must continue to show only server-kept words.
@@ -708,7 +781,7 @@ export default function IdealTextOverlay({
         setTooLong(true);
         return false;
       }
-      setSaveFailed(true);
+      setSaveStatus(saveFailureStatus(r.reason));
       return false;
     },
     [arcId, ideal?.notes, ideal?.text],
@@ -962,7 +1035,7 @@ export default function IdealTextOverlay({
         onReview={() => setReviewRequest((n) => n + 1)}
         onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={() => onReadAloud(sd.version)}
-        onClose={onClose}
+        onClose={requestExit}
         shareFirst={!endCard && initialMode === "share"}
         confirmFirst={archivedReturn.confirmFirst}
         practiceDecision={practiceDecision}
@@ -974,6 +1047,7 @@ export default function IdealTextOverlay({
   // the bottom no longer waits on any fact ("See next steps" is gone,
   // Q-B10 A), so the page draws its own status as it is.
   const shownStatus = status;
+  const saveStatusCopy = saveStatusCopyFor(saveStatus);
   const mediaPayload = useMemo(() => [sd, ideal], [sd, ideal]);
 
   return (
@@ -1034,10 +1108,12 @@ export default function IdealTextOverlay({
             <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
               {IDEAL_EDIT_COPY.tooLong}
             </p>
-          ) : saveFailed ? (
-            <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
-              Couldn&apos;t save your edit just now. It stays here; change
-              something and it retries.
+          ) : saveStatusCopy ? (
+            <p
+              data-testid="ideal-text-save-status"
+              className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground"
+            >
+              {saveStatusCopy}
             </p>
           ) : null}
           <FeedbackFailedNotice
@@ -1053,19 +1129,19 @@ export default function IdealTextOverlay({
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
-            onLensClose={onClose}
+            onLensClose={walkCloseFor(projectFlow, requestExit, lens.reveal)}
             coachOnly={coachOnly}
             coachTake={coachTake}
             // Nothing of the coach's to show: back to the chat, at the
             // coach's bubble, never the text (founder 2026-10-21, WIL-93).
             onCoachOnlyEmpty={() => {
               showCoachBubble(coachTake ?? null);
-              onClose();
+              requestExit();
             }}
             onLensReveal={lens.reveal}
-            onWalkEnd={walkEndFor(coachOnly, onClose, lens)}
+            onWalkEnd={walkEndFor(coachOnly, requestExit, lens)}
             onWalkClose={() => {
-              if (lens.onRef.current) onClose();
+              if (lens.onRef.current) requestExit();
             }}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
@@ -1087,6 +1163,9 @@ export default function IdealTextOverlay({
             onSetRootPhrase={deckSetRootPhrase}
             onSetHelperWordsFromTake={deckSetHelperWordsFromTake}
             onEditSlide={deckEditSlide}
+            onRegisterBackGuard={(guard) => {
+              editBackRef.current = guard;
+            }}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,
@@ -1186,10 +1265,12 @@ export default function IdealTextOverlay({
                   <p className="text-[12px] leading-relaxed text-muted-foreground">
                     {IDEAL_EDIT_COPY.tooLong}
                   </p>
-                ) : saveFailed ? (
-                  <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    Couldn&apos;t save your edit just now. It stays here; change
-                    something and it retries.
+                ) : saveStatusCopy ? (
+                  <p
+                    data-testid="ideal-text-save-status"
+                    className="text-[12px] leading-relaxed text-muted-foreground"
+                  >
+                    {saveStatusCopy}
                   </p>
                 ) : null}
 
@@ -1272,6 +1353,17 @@ export default function IdealTextOverlay({
     </div>
     </MediaRefreshProvider>
   );
+}
+
+/** Project conversations keep the final walk handoff inside the overlay: the
+ * walk's close reveals the completed Ideal Text, while all other walk entry
+ * points preserve the normal return-to-chat behavior. */
+export function walkCloseFor(
+  projectFlow: boolean,
+  close: () => void,
+  reveal: () => void,
+): () => void {
+  return projectFlow ? reveal : close;
 }
 
 /** What the lens screen reads of the page. The coach's door opens its

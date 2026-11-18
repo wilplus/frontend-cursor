@@ -432,20 +432,22 @@ function renderIdealTextReportCard(
 // library. Never claims a "best presentation".
 function renderTranscriptReadyReportCard(
   message: LoungeMessage,
-  onOpenTranscripts?: () => void,
+  onOpenTranscripts?: (arcId?: string) => void,
 ): React.ReactNode {
   const openable = !!onOpenTranscripts;
+  const arcId = typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : undefined;
+  const open = openable ? () => onOpenTranscripts!(arcId) : undefined;
   return (
     <div
       role={openable ? "button" : undefined}
       tabIndex={openable ? 0 : undefined}
-      onClick={openable ? onOpenTranscripts : undefined}
+      onClick={open}
       onKeyDown={
         openable
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onOpenTranscripts!();
+                open?.();
               }
             }
           : undefined
@@ -698,8 +700,8 @@ export default function ReportCard({
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
-  /** transcript_ready — opens the Trainings library (where transcripts live). */
-  onOpenTranscripts?: () => void;
+  /** transcript_ready — opens the owning project conversation. */
+  onOpenTranscripts?: (arcId?: string) => void;
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Take 1 failure card — enqueue document-only work from stored artifacts. */

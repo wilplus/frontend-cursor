@@ -13,7 +13,7 @@ import { isAppUserAgent } from "@/lib/nativeAppAgent";
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
 // entry only decides that an anonymous visitor goes to login, exactly like
 // /dashboard does.
-const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/audits", "/panel"];
+const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/panel"];
 const ADMIN_ROUTES = ["/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
 

@@ -82,7 +82,11 @@ export function LoadingBubble({ size = 64, className }: { size?: number; classNa
 /** Compatibility name for compact action states. It uses the same bubble as
  *  every full-surface wait, only scaled to the control that owns it. */
 export function VoiceMark({ size, className }: { size: number; className?: string }) {
-  return <LoadingBubble size={size} className={className} />;
+  return (
+    <span data-voice-mark="" className="inline-flex">
+      <LoadingBubble size={size} className={className} />
+    </span>
+  );
 }
 
 export default function LoadingState({

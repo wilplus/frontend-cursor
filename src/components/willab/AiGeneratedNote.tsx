@@ -42,7 +42,7 @@ export default function AiGeneratedNote({
     <>
       <p
         {...aiGeneratedAttrs(kind)}
-        className={`text-[11px] leading-snug text-muted-foreground ${className}`}
+        className={`break-words text-[11px] leading-snug text-muted-foreground ${className}`}
       >
         {aiGeneratedLabel(kind, take)}
       </p>

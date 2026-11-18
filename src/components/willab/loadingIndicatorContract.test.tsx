@@ -11,7 +11,7 @@ import WalkLoading from "./walk/WalkLoading";
 /*
 STORY As a speaker, I want one centered loading indicator to stay in place while my Take moves through processing phases, so that the wait does not jump, duplicate or disappear.
 OUTCOME O1  Generic full-surface waits render one stable frame and one circular three-dot bubble.
-O2  Analysis to document assembly reuses the same processing frame and bubble.
+O2  Analysis to document assembly reuses the same processing presentation, bubble and progress rail.
 O3  Inline chat typing dots remain a separate response bubble and do not become a page loader.
 PROVES LoadingState, ProcessingWait and TypingDots keep the canonical page/response distinction.
 WHY A visible loading jump interrupts the record → process → Ideal Text loop; this protects the locked wait and the intentional chat feedback separately.
@@ -54,7 +54,7 @@ describe("full-surface loading indicator contract", () => {
     );
   });
 
-  it("keeps the same processing frame and indicator across analysis and document phases", () => {
+  it("keeps the same processing presentation, indicator and rail across phases", () => {
     mount(
       createElement(ProcessingWait, {
         phase: "analysis",
@@ -63,9 +63,9 @@ describe("full-surface loading indicator contract", () => {
       }),
     );
 
-    const firstSurface = host.querySelector('[data-loading-surface="processing"]');
-    const firstIndicator = firstSurface?.querySelector("[data-loading-indicator]");
-    const firstFrame = firstSurface?.querySelector("[data-loading-frame]");
+    const firstSurface = host.querySelector("[data-processing-wait]");
+    const firstIndicator = firstSurface?.querySelector("[data-voice-mark]");
+    const firstFrame = firstSurface?.querySelector('[role="progressbar"]');
     expect(firstSurface).not.toBeNull();
     expect(firstIndicator).not.toBeNull();
     expect(firstFrame).not.toBeNull();
@@ -80,11 +80,11 @@ describe("full-surface loading indicator contract", () => {
       ),
     );
 
-    const nextSurface = host.querySelector('[data-loading-surface="processing"]');
+    const nextSurface = host.querySelector("[data-processing-wait]");
     expect(nextSurface).toBe(firstSurface);
-    expect(nextSurface?.querySelector("[data-loading-frame]")).toBe(firstFrame);
-    expect(nextSurface?.querySelector("[data-loading-indicator]")).toBe(firstIndicator);
-    expect(nextSurface?.querySelectorAll("[data-loading-indicator]")).toHaveLength(1);
+    expect(nextSurface?.querySelector('[role="progressbar"]')).toBe(firstFrame);
+    expect(nextSurface?.querySelector("[data-voice-mark]")).toBe(firstIndicator);
+    expect(nextSurface?.querySelectorAll("[data-voice-mark]")).toHaveLength(1);
     expect(nextSurface?.querySelectorAll("[data-loading-bubble]")).toHaveLength(1);
     expect(nextSurface?.querySelectorAll("[data-loading-dot]")).toHaveLength(3);
   });

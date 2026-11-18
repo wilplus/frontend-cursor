@@ -208,6 +208,26 @@ green); the app shows the speaker's own slides, unchanged.
 
 ### Amendments
 
+- **2026-11-18 · accepted-upload processing truth.** The Lounge's
+  “Processing your recording” bubble is rendered only after the upload has
+  received a server acceptance and the readout still says `processing` for
+  that session. Visiting or closing Ideal Text, the Feedback Walk, a pre-Take
+  screen, or practice navigation cannot create it. A marker found on reload is
+  reconciled against the readout before it is shown; ready, failed, cancelled
+  and abandoned states clear it. The marker carries the project and session,
+  so a Take cannot leak into another project (`LabOverlay.tsx`, `Lounge.tsx`,
+  `processingTake.ts`, `processingBubble.ts`). · FE (this task)
+
+- **2026-11-18 · honest processing wait copy and progress.** The existing
+  centred three-dot mark remains unchanged. The bar starts at 1%, then moves
+  only from backend-reported processing state; when the document phase has no
+  report, it holds the last real value instead of advancing from elapsed time.
+  Under it, the localized line says the wait usually takes about a minute and
+  that the screen may be closed while processing continues in the background.
+  The outlined close control remains a view-only exit after the Take is held by
+  the upload or worker (`ProcessingWait.tsx`,
+  `RecordingAnalysisPresentation.tsx`, `LabOverlay.tsx`). · FE (this task)
+
 - **2026-10-07 · one close button (Q-B14 A, N63; build plan D-RC-6).** The
   app's one small grey close X (`OverlayCloseButton`) is the close button
   everywhere, the recording screen included; the ⋯ beside it on the text
@@ -428,6 +448,7 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 ## 4. Where it lives
 
+
 Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
 - `src/components/willab/LabOverlay.tsx`
@@ -441,7 +462,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/ProcessingWait.tsx` — the processing view of the shared loader (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
-- `src/lib/willab/takeUploading.ts` — a Take still going up after the ✕ closed the processing screen, for the chat's processing bubble (2026-11-10).
+- `src/lib/willab/processingTake.ts` — the accepted session/project marker the Lounge reconciles against the server's readout before showing the processing bubble.
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-recording-screens-2026-10-07.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-recording-screens-2026-10-07.md) (history).
 
@@ -580,7 +601,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-09 · N556 item 3 · a kept Take knows a newer Take of its project by the upload key the server now names for each Take (`upload_key` in `/v2/user/trainings`): one later Take with another key is newer, and one with its own key is itself. Was: a guess from how many Takes came after its Finish and whether one had its "Your Recording" line, which missed a Take from another device that lost its line. A server without the keys keeps the guess (`lib/willab/takeResend.ts`, `services/api/trainings.ts`). No new words · BE #1824, FE (this PR)
 - 2026-11-09 · N553 item 2, N556 · a finished Take is kept on the device (IndexedDB) until the server has it, and sent again at the next open, when the connection comes back and when the app returns to the front, through the same upload with the same upload key; deleted once the server names it, on a discard, a refusal for good, a newer Take of its project on the server, withdrawn recording consent, an account deletion, or after 7 days (`lib/willab/takeOutbox.ts`, `lib/willab/takeResend.ts`, `useTakeResend.ts`, `LabOverlay.tsx`, `Lounge.tsx`, `accountDeletion.ts`). No new words. Was: a Take whose upload never finished (the app killed, the page refreshed, the connection lost) was gone · BE N553, N556 (#1818), FE (this PR)
 - 2026-11-09 · N553 item 1 · while a Take is recorded and until the server answers that it has it (201 or 202), refreshing or closing the page in a browser shows the browser's own "Leave page?" warning, with no words of ours; a failed upload keeps it until the Take goes up, and a discard or leaving the screens ends it; iPhone Safari and the app ignore it, item 2 is for them (`labLeaveGuard.ts`, `LabOverlay.tsx`). Nothing on screen changes. Was: a refresh or a close lost the Take with no warning · BE N553 (#1818), FE (this PR)
-- 2026-11-10 · no rule changed · a bug fix: the ✕ on the processing screen while the Take is still going up shows "Processing your recording" in the chat at once, and Record waits, until the server has the Take; then the bubble follows its processing as before (`lib/willab/takeUploading.ts`, `LabOverlay.tsx`, `Lounge.tsx`). No new words. Was: nothing in the chat said the Take was processing until the upload answered (founder 2026-11-10: "if I close the processing earlier there is no indication that it is processing") · FE (this PR)
+- 2026-11-10 · no rule changed · a bug fix: after the processing screen closes while a Take is still going up, the chat waits for the upload response; only once the server has the Take can its processing bubble appear (`LabOverlay.tsx`, `Lounge.tsx`). No new words. Was: nothing in the chat said the Take was processing until the upload answered (founder 2026-11-10: "if I close the processing earlier there is no indication that it is processing") · FE (this PR)
 - 2026-11-10 · no rule changed · a bug fix: the ✕ on the processing screen while the Take is still going up no longer loses it for the chat. The upload goes on, and when the server answers, the Take's "Your Recording" line, its share and the processing marker are still written, so the chat shows "Processing your recording" and the walk opens when the feedback is ready, as for any Take (`landUnwatched` in `LabOverlay.tsx`). Nothing on screen changes. Was: the answer came back to screens that were gone and was dropped, so the Take never showed in the chat, no bubble, no walk, no goodbye, and the chat's "Record Take N" stayed on the Take before (founder 2026-11-10) · FE (this PR)
 - 2026-11-09 · N549 · "Record Take N" opens "How do you feel?" at once: no 0.4 s fade into it, and the check draws from the tab's last "authorized" while the Lab's own consent read runs; a pick or Skip starts the Take only once that read agrees, and a read that says otherwise puts the acceptance flow in front (`LabOverlay.tsx`, `LabEntryGate.tsx`, `useSignedIn.ts`, `processingAuthorization.ts`). No new words. Was: the Lab faded in over 0.4 s and waited behind a loader for the read, so the page under it showed for a moment · BE (N549 log), FE (this PR)
 - 2026-11-09 · no rule changed · a bug fix: the wait's ✕ shows the chat landed on "Processing your recording", and the thread lands on that bubble whenever a Take's processing starts (`useLandOnProcessing` in `usePinThreadBottom.ts`, `Lounge.tsx`). Nothing on screen changes. Was: since the chat follows only a new message (2026-11-05), the bubble, which is not a message, could stay below the screen after the ✕, and looked gone · FE (this PR)

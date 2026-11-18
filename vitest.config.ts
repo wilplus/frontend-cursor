@@ -15,7 +15,12 @@ export default defineConfig({
   oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
-    exclude: ["node_modules/**"],
+    // DOM/animation suites share CPU with the app. Bound concurrency so a
+    // busy workstation cannot starve their effects and five-second budget.
+    maxWorkers: 2,
+    // Nested checkouts have their own config and source aliases. Running them
+    // with this checkout's aliases mixes two applications in one test suite.
+    exclude: ["node_modules/**", "worktrees/**", ".codex-worktrees/**"],
   },
   resolve: {
     alias: {

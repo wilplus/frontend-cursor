@@ -31,7 +31,6 @@ import {
   type FailedTakeVerdict,
 } from "./useFailedTakeRecheck";
 import { useUserId } from "./useUserId";
-import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import {
   readProcessingTake,
   clearProcessingTake,
@@ -41,6 +40,8 @@ import {
   updateProcessingTakeProgress,
   writeProcessingTake,
   type ProcessingPhase,
+  type ProcessingTake,
+  type ProcessingTakeProgress,
 } from "@/lib/willab/processingTake";
 import {
   retryIdealTextGeneration,
@@ -203,13 +204,17 @@ import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 import { useTakeResend } from "./useTakeResend";
+import {
+  isActiveProcessingState,
+  isTerminalProcessingState,
+  processingBubbleVisible,
+} from "@/lib/willab/processingBubble";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillNeedsYou = dynamic(() => import("./chats/hostsetup/WillNeedsYou"), { ssr: false, loading: () => null });
-const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
 // A host's chat's own messages, among its Takes (N648 item 8): off the boot bundle.
 const HostChatRow = dynamic(() => import("./chats/HostChatRow"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
@@ -297,6 +302,55 @@ type ThreadItem = {
   message: LoungeMessage;
 };
 
+type ProcessingResume = {
+  sessionId: string;
+  arcId: string | null;
+  serverState: "processing" | null;
+  takeIndex: number | null;
+  status: "analyzing" | "failed";
+  startedAt: number;
+  progress: ProcessingTakeProgress | null;
+  phase: ProcessingPhase;
+  phaseStartedAt: number;
+};
+
+function readoutProgress(
+  userId: string | null,
+  sessionId: string,
+  progress: ProcessingTakeProgress | null,
+): ProcessingTakeProgress | null {
+  return progress
+    ? updateProcessingTakeProgress(userId, sessionId, progress)
+    : null;
+}
+
+function resumeForActiveReadout(
+  current: ProcessingResume | null,
+  marker: ProcessingTake,
+  state: string | null,
+  progress: ProcessingTakeProgress | null,
+): ProcessingResume | null {
+  if (!isActiveProcessingState(state)) return current;
+  if (current?.sessionId === marker.sessionId) {
+    return {
+      ...current,
+      serverState: "processing",
+      progress: progress ?? current.progress,
+    };
+  }
+  return {
+    sessionId: marker.sessionId,
+    arcId: marker.arcId,
+    serverState: "processing",
+    takeIndex: marker.takeIndex,
+    status: "analyzing",
+    startedAt: marker.startedAt,
+    progress: progress ?? marker.progress,
+    phase: marker.phase,
+    phaseStartedAt: marker.phaseStartedAt,
+  };
+}
+
 /** Which take's failed note is on screen, if any. Under the Lab the Lab owns
  *  the wait, so no recheck runs there. Pure, so the sheet's own function does
  *  not grow a branch for it (complexity ratchet). */
@@ -309,8 +363,18 @@ function failedNoteSession(
 }
 
 /** A Take is being worked: the analysis phase or the document phase. */
-function takeAnalysing(resume: { status: "analyzing" | "failed" } | null, settling: boolean): boolean {
-  return resume?.status === "analyzing" || settling;
+function takeAnalysing(
+  resume: {
+    status: "analyzing" | "failed";
+    serverState: "processing" | null;
+    phase: ProcessingPhase;
+  } | null,
+  settling: boolean,
+): boolean {
+  return (
+    resume?.status === "analyzing" &&
+    (resume.serverState === "processing" || resume.phase === "document")
+  ) || settling;
 }
 
 /** The in-flight wait covers only its own project's text (founder
@@ -336,11 +400,14 @@ function wordsWaitFor(missing: unknown, setupWaits: { words: boolean } | null, w
   return missing !== null || setupWaits?.words === true || wayInWords;
 }
 
-/** The processing bubble at the bottom of the thread: any Take but the way
- *  in's Take 1, whose wait is the thin row on top (N453 item 1), and a Take
- *  still going up after its screens closed (founder 2026-11-10). */
-function bottomProcessing(resume: { status: string } | null, firstTakeWayIn: boolean, uploading: boolean): boolean {
-  return uploading || (resume?.status === "analyzing" && !firstTakeWayIn);
+/** The processing bubble at the bottom of the thread: only an accepted Take
+ *  whose server readout still says processing, except the way in's Take 1,
+ *  whose wait is the thin row on top (N453 item 1). */
+function bottomProcessing(
+  resume: Parameters<typeof processingBubbleVisible>[0],
+  firstTakeWayIn: boolean,
+): boolean {
+  return processingBubbleVisible(resume, { firstTakeWayIn });
 }
 
 /** The bar's middle: the way in's "Send" while its choice has picks, else
@@ -465,6 +532,7 @@ export default function Lounge({
   onStart,
   onStartNewProject,
   onStartInProject,
+  onOpenProject,
   onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
@@ -487,6 +555,8 @@ export default function Lounge({
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
+  /** Open one project conversation from a durable project card/deep link. */
+  onOpenProject?: (arcId: string | null) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
    *  with the topic filled in from the voice message, no feelings check; or,
    *  on a first-Take plan, the five questions at once (backend N401), and
@@ -547,7 +617,6 @@ export default function Lounge({
   // composer still posts the same /v2/chat/query.
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [botThinking, setBotThinking] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -752,7 +821,8 @@ export default function Lounge({
       if (target) void answerFeedbackCheck(target, "skip");
       return;
     }
-    setLibraryOpen(true);
+    if (onOpenProject) onOpenProject(null);
+    else onStart();
   }
 
   /** An older Ideal Text card: its own version, read only (founder
@@ -901,20 +971,8 @@ export default function Lounge({
   // always-mounted, so a marker written mid-session must be picked up the
   // moment the user comes back from the Lab). While the Lab is open it owns
   // the live subscription, so this stands down.
-  const [processingResume, setProcessingResume] = useState<{
-    sessionId: string;
-    takeIndex: number | null;
-    status: "analyzing" | "failed";
-    startedAt: number;
-    progress: { stage: string; percent: number | null } | null;
-    /* Carried so the resumed view can say WHICH wait it is. The marker has
-       always known; this state used to drop it on the way to the screen. */
-    phase: ProcessingPhase;
-    /* And WHEN that wait began, for the same reason. The bar's document tail
-       is measured from it; without it the screen can only time itself from
-       its own mount, which restarts the tail on every remount. */
-    phaseStartedAt: number;
-  } | null>(null);
+  const [processingResume, setProcessingResume] =
+    useState<ProcessingResume | null>(null);
   // A presentation key, not a second lifecycle owner. The job observer below
   // stays mounted in the Lounge while this exact session is shown full-screen.
   const [openedProcessingSessionId, setOpenedProcessingSessionId] = useState<
@@ -1071,8 +1129,21 @@ export default function Lounge({
       }
       const status = marker.status === "failed" ? "failed" : "analyzing";
       setProcessingResume((previous) => {
+        // A marker found on navigation or reload is only a durable pointer to
+        // an accepted Take. It is not, by itself, proof that the job is still
+        // active: a completed/failed/cancelled job can leave that pointer
+        // behind until the readout observer reconciles it. Keep an already
+        // displayed session optimistic, but never create a fresh bubble from
+        // stale localStorage before the server has answered for this session.
+        if (
+          status === "analyzing" &&
+          previous?.sessionId !== marker.sessionId
+        ) {
+          return null;
+        }
         const unchanged =
           previous?.sessionId === marker.sessionId &&
+          previous.arcId === marker.arcId &&
           previous.takeIndex === marker.takeIndex &&
           previous.status === status &&
           previous.startedAt === marker.startedAt &&
@@ -1087,6 +1158,12 @@ export default function Lounge({
           ? previous
           : {
               sessionId: marker.sessionId,
+              arcId: marker.arcId,
+              serverState:
+                marker.phase === "analysis" &&
+                previous?.sessionId === marker.sessionId
+                  ? previous.serverState
+                  : null,
               takeIndex: marker.takeIndex,
               status,
               startedAt: marker.startedAt,
@@ -1143,20 +1220,19 @@ export default function Lounge({
       ) {
         return;
       }
-      if (r.processing) {
-        const latestProgress = updateProcessingTakeProgress(
-          userId,
-          resumeWatch.sessionId,
-          r.processing,
-        );
-        setProcessingResume((current) =>
-          current?.sessionId === resumeWatch.sessionId &&
-          current.status === "analyzing" &&
-          latestProgress
-            ? { ...current, progress: latestProgress }
-            : current,
-        );
-      }
+      const latestProgress = readoutProgress(
+        userId,
+        resumeWatch.sessionId,
+        r.processing,
+      );
+      setProcessingResume((current) =>
+        resumeForActiveReadout(
+          current,
+          currentMarker,
+          r.state,
+          latestProgress,
+        ),
+      );
       const hasContent =
         r.readout.snippets.length > 0 ||
         r.readout.instantChunks.length > 0 ||
@@ -1176,6 +1252,11 @@ export default function Lounge({
         const failedMarker = readProcessingTake(userId);
         setProcessingResume({
           sessionId: resumeWatch.sessionId,
+          arcId:
+            failedMarker?.sessionId === resumeWatch.sessionId
+              ? failedMarker.arcId
+              : null,
+          serverState: null,
           takeIndex: resumeWatch.takeIndex,
           status: "failed",
           startedAt: resumeWatch.startedAt,
@@ -1202,13 +1283,18 @@ export default function Lounge({
         // and a fresh analysing marker replaces it. Same copy, longer life.
         return;
       }
-      if (
-        r.state === "ready" ||
-        r.state === "readout_ready" ||
-        (r.state !== "processing" && hasContent)
-      ) {
+      if (isTerminalProcessingState(r.state)) {
+        // The readout is the server's terminal truth. A stale local marker
+        // must not survive a ready, cancelled, abandoned, or other terminal
+        // response merely because that response carries no readout content.
+        // `ready`/`readout_ready` still enter the existing document-settle
+        // phase when the project has a canonical text to confirm.
+        const keepsDocumentWait =
+          r.state === "ready" ||
+          r.state === "readout_ready" ||
+          hasContent;
         const marker = readProcessingTake(userId);
-        if (marker?.sessionId === resumeWatch.sessionId && marker.arcId) {
+        if (keepsDocumentWait && marker?.sessionId === resumeWatch.sessionId && marker.arcId) {
           const cached = readExploreArc(userId);
           writeExploreArc(
             userId,
@@ -1218,7 +1304,7 @@ export default function Lounge({
             marker.sessionId,
           );
         }
-        if (marker?.arcId) {
+        if (keepsDocumentWait && marker?.arcId) {
           // Every spoken Take owns a durable review version. Hold until the
           // served Ideal Text proves that exact 1.0/2.0/3.0 state landed.
           transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
@@ -1227,6 +1313,7 @@ export default function Lounge({
             current.status === "analyzing"
               ? {
                   ...current,
+                  serverState: null,
                   progress: { stage: "document_assembly", percent: null },
                 }
               : current,
@@ -1320,11 +1407,7 @@ export default function Lounge({
   // (backend N553 item 2, N556): while it does, Record waits with its signed
   // line, as for any Take still landing.
   const resending = useTakeResend({ userId, labOpen: isLabOverlay(state), busy: analysing, thread });
-  // A Take still going up after its screens closed: its bubble and the held
-  // record button at once, before the server has answered (founder
-  // 2026-11-10).
-  const uploadingUnwatched = useTakeUploadingUnwatched();
-  const takeInFlight = [analysing, resending, uploadingUnwatched].some(Boolean);
+  const takeInFlight = [analysing, resending].some(Boolean);
 
   // One's own chat (backend N582, the chat builder's ring): Will's offer,
   // the builder's way in, and whether "Set up my chat ›" can begin it.
@@ -1466,6 +1549,8 @@ export default function Lounge({
     });
     setProcessingResume({
       sessionId: marker.sessionId,
+      arcId: marker.arcId,
+      serverState: "processing",
       takeIndex: marker.takeIndex,
       status: "analyzing",
       startedAt: now,
@@ -1502,6 +1587,8 @@ export default function Lounge({
     });
     setProcessingResume({
       sessionId: target.takeSessionId,
+      arcId: target.arcId,
+      serverState: "processing",
       takeIndex: 1,
       status: "analyzing",
       startedAt: now,
@@ -1680,10 +1767,6 @@ export default function Lounge({
   // comes, and when the wait's ✕ shows the chat, the thread lands on it
   // (founder 2026-11-09: closing the wait left it below the screen).
   useLandOnProcessing(processingResume, followAnswer);
-  // The bubble of a Take still going up lands in view too.
-  useEffect(() => {
-    if (uploadingUnwatched) followAnswer();
-  }, [uploadingUnwatched, followAnswer]);
   /** The bubble's tap: the full wait, once the Take has a session (until the
    *  upload answers there is nothing to open yet). */
   function openProcessing(resume: { sessionId: string; status: string } | null): void {
@@ -2358,7 +2441,10 @@ export default function Lounge({
         onOpenBestPresentation={(arcId) =>
           openIdealText(arcId)
         }
-        onOpenTranscripts={() => setLibraryOpen(true)}
+        onOpenTranscripts={(arcId) => {
+          if (onOpenProject) onOpenProject(arcId ?? null);
+          else onStart();
+        }}
         // A GUEST'S WAY BACK TO THE TEXT (founder live test
         // 2026-10-05): the coach's feedback page needs an account, and
         // a guest gets no "your text is ready" bubble, so a guest's
@@ -2516,7 +2602,7 @@ export default function Lounge({
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
-        {bottomProcessing(processingResume, plan.firstTakeWayIn, uploadingUnwatched) ? (
+        {bottomProcessing(processingResume, plan.firstTakeWayIn) ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <button
               ref={processingTriggerRef}
@@ -2758,10 +2844,11 @@ export default function Lounge({
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
                sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${
+            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary data-[words-active=true]:border-primary ${
               draftText.trim() ? "pr-11" : "pr-4"
             }`}
             aria-label="Message Will"
+            data-words-active={String(words.active)}
           />
           {/* Only once there is text: an always-present grey Send is a button
               that cannot be pressed, and it costs the field 32px to say so. */}
@@ -2888,39 +2975,6 @@ export default function Lounge({
           onClose={() => setConfidencePracticeId(null)}
         />
       )}
-      {libraryOpen && (
-        <LibraryOverlay
-          onClose={() => setLibraryOpen(false)}
-          onOpenBestPresentation={(arcId) => openIdealText(arcId)}
-          onRecordAnother={(arc) => {
-            // Continue this deck's arc: seed the explore-arc (id + next index +
-            // deck) so the Lab carries arc_id and pre-fills the deck, then open
-            // the Lab. The BE appends the take to the same arc. The session id
-            // (FE-1) lets the Lab re-fetch the deck from the server if the
-            // cached one is stale/incomplete; trainings-mode arcs pass their
-            // own (latest take's) id, else derive from the thread. A deckless
-            // seed (trainings mode carries no slide bodies) must not WIPE a
-            // deck already cached for this same arc — keep it.
-            const cached = readExploreArc(userId);
-            const deck =
-              arc.deck ??
-              (cached?.arcId === arc.arcId ? cached.deck : undefined);
-            writeExploreArc(
-              userId,
-              arc.arcId,
-              arc.nextTakeIndex,
-              deck,
-              arc.sessionId ?? latestArcSessionId(arc.arcId),
-            );
-            setLibraryOpen(false);
-            // The arc is seeded immediately above — never ask WHICH project
-            // (the picker's new-topic exit would clear it, and the take would
-            // mint a new project instead of joining this one — review R-pp0).
-            (onStartInProject ?? onStart)();
-          }}
-        />
-      )}
-
       {waitScreen.view ? (
         <ProcessingResumeOverlay
           progress={waitScreen.view.progress}
@@ -3358,8 +3412,8 @@ function BubbleBody({
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
-  /** transcript_ready card — opens the Trainings library. */
-  onOpenTranscripts?: () => void;
+  /** transcript_ready card — opens the owning project conversation. */
+  onOpenTranscripts?: (arcId?: string) => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — every ideal-text bubble opens the live notebook. */

@@ -8,10 +8,10 @@ export const runtime = "nodejs";
  * PUT /api/v2/explore/arc/[arcId]/ideal-text/user-edit
  *
  * BFF proxy — persist the STUDENT's edit of their ideal text (#214). Body
- * {text, version}; 200 {saved, version}; 409 {code: "VERSION_SUPERSEDED",
- * current_version} when a newer version assembled mid-edit (the FE retries
- * against it — the student's edit always wins, locked founder rule). Status +
- * body relay verbatim.
+ * The current request carries text, source version, expected owner revision
+ * and hash, part lineage and an idempotency key (CAS v2). Status and body are
+ * relayed verbatim. A stale edit is never automatically retried over newer
+ * words; the editor retains the draft for recovery.
  */
 
 const FAILURES: Failures = {

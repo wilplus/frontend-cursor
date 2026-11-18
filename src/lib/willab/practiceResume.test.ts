@@ -38,4 +38,21 @@ describe("practice resume selection", () => {
     expect(readPracticeResume(null, "a1")).toBeNull();
     expect(readPracticeCheckpoint(null, "a1")).toBe(3);
   });
+
+  it("keeps the exact fragment scope alongside the recorder start slide", () => {
+    writePracticeResume(null, "a1", {
+      durationSeconds: 300,
+      slideIndex: 2,
+      scope: "fragment",
+      startSlide: 3,
+      endSlide: 5,
+    });
+    expect(readPracticeResume(null, "a1")).toEqual({
+      durationSeconds: 300,
+      slideIndex: 2,
+      scope: "fragment",
+      startSlide: 3,
+      endSlide: 5,
+    });
+  });
 });

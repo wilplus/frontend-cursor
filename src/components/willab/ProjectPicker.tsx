@@ -13,7 +13,7 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
-import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
+import type { TrainingArc } from "@/services/api/trainings";
 import { archiveProject } from "@/services/api/projectArchive";
 import {
   deleteSetupDraft,
@@ -21,6 +21,10 @@ import {
   type SetupDraft,
 } from "@/lib/willab/setupDraft";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import {
+  removeProjectTraining,
+  useProjectTrainings,
+} from "@/lib/willab/projectTrainings";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectPicker — context-aware recording setup, Scenario A (founder         */
@@ -84,14 +88,8 @@ export default function ProjectPicker({
 }) {
   const locale = useUiLocale();
   useBackDismiss(onClose);
-  const [arcs, setArcs] = useState<TrainingArc[]>([]);
-  // Three-way, so "still loading" and "couldn't load" are never mistaken for
-  // "you have no projects" — that mistake steers the student into starting a
-  // new topic when they meant to continue one (review R-pp3/R-pp6).
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading"
-  );
-  const [attempt, setAttempt] = useState(0);
+  const { projects: arcs, status, reload } = useProjectTrainings();
+  const safeArcs = arcs ?? [];
   // Drafts are local and synchronous — read after mount (hydration-safe).
   const [drafts, setDrafts] = useState<SetupDraft[]>([]);
   useEffect(() => {
@@ -100,7 +98,7 @@ export default function ProjectPicker({
 
   async function archive(arc: TrainingArc): Promise<boolean> {
     const ok = await archiveProject(arc.arcId);
-    if (ok) setArcs((list) => list.filter((a) => a.arcId !== arc.arcId));
+    if (ok) removeProjectTraining(arc.arcId);
     return ok;
   }
 
@@ -113,26 +111,9 @@ export default function ProjectPicker({
     return true;
   }
 
-  useEffect(() => {
-    let active = true;
-    setStatus("loading");
-    void fetchTrainings().then((r) => {
-      if (!active) return;
-      if (r === null) {
-        setStatus("error");
-        return;
-      }
-      setArcs(r);
-      setStatus("ready");
-    });
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
-
   // Only projects with a real title are offerable — an untitled arc cannot be
   // told apart from another in a list of words.
-  const titled = arcs.filter((a) => a.topic.trim().length > 0);
+  const titled = safeArcs.filter((a) => a.topic.trim().length > 0);
 
   // Arcs exist but none carry a title: there is nothing to put in a list of
   // words, so skip the question rather than leave "Start a new project" as the
@@ -142,7 +123,7 @@ export default function ProjectPicker({
   // A draft IS something to choose, so its presence keeps the question.
   const untitledOnly =
     status === "ready" &&
-    arcs.length > 0 &&
+    safeArcs.length > 0 &&
     titled.length === 0 &&
     drafts.length === 0;
   useEffect(() => {
@@ -155,7 +136,7 @@ export default function ProjectPicker({
   // account never lands here and loses its seed to the new-topic path.
   // A draft is also something to come back to, so it keeps the list.
   const firstProject =
-    status === "ready" && arcs.length === 0 && drafts.length === 0;
+    status === "ready" && safeArcs.length === 0 && drafts.length === 0;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -207,7 +188,7 @@ export default function ProjectPicker({
               </p>
               <button
                 type="button"
-                onClick={() => setAttempt((n) => n + 1)}
+                onClick={() => void reload()}
                 className="text-[13px] text-foreground underline underline-offset-2"
               >
                 {uiText(locale, "tryAgain")}

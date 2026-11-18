@@ -230,7 +230,7 @@ const lastAnswer = () => posts().at(-1)?.init.json?.answer;
 
 it("FT-05: the processing labels sit in a thin row at the top of Will's chat instead of the processing screen", async () => {
   await act(async () =>
-    root.render(<WayInTop on resume={{ status: "analyzing" }} readyArc={null} walkReady={false} label="Processing your recording" onOpen={() => {}} />),
+    root.render(<WayInTop on resume={{ status: "analyzing", serverState: "processing" }} readyArc={null} walkReady={false} label="Processing your recording" onOpen={() => {}} />),
   );
   const row = host.querySelector("[data-way-in-processing]") as HTMLElement;
   expect(row.dataset.wayInProcessing).toBe("processing");
