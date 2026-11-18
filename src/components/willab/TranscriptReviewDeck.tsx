@@ -289,6 +289,7 @@ export default function TranscriptReviewDeck({
   reviewRequest = 0,
   reviewAt = null,
   reviewSlideRange = null,
+  requireFeedbackWalk = false,
   onReviewWaiting,
   replayRequest,
   onReplayReady,
@@ -388,6 +389,9 @@ export default function TranscriptReviewDeck({
   reviewAt?: WalkStepTarget | null;
   /** A project-card Feedback CTA's exact 1-based slide range. */
   reviewSlideRange?: FeedbackWalkSlideRange | null;
+  /** Keep the project-card Feedback CTA in the Feedback Walk if its selected
+   *  Take has already answered every moment. */
+  requireFeedbackWalk?: boolean;
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   /** Null until the deck is up: the page cannot tell yet whether a walk
@@ -864,6 +868,7 @@ export default function TranscriptReviewDeck({
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;
+    if (requireFeedbackWalk) return;
     // Nothing to walk: the text (founder 2026-10-17). The 2026-09-30 sheets
     // and the coach's Step 0 no longer open here: every moment the server
     // sends is a step of the walk, and a review never falls back to them.
@@ -1870,4 +1875,4 @@ export function HelpersLabel({ phrases }: { phrases: string[] }) {
   );
 }
 
-// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; the deck keeps the locked Feedback Walk and Ideal Text surfaces while accepting the selected project Take/range.
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; the deck keeps the locked Feedback Walk and Ideal Text surfaces while accepting the selected project Take/range and prevents the project Feedback CTA from revealing Ideal Text.
