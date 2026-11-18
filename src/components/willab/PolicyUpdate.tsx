@@ -131,7 +131,7 @@ function locale(): string {
 function pendingOf(status: AuthorizationStatus): { phase: Phase; pending: Pending | null } {
   if (status.kind !== "acceptance_required") return { phase: "none", pending: null };
   const pending = { policy: status.policy, priorCountry: status.priorCountry ?? null };
-  return { phase: status.acceptedEarlierVersion ? "needed" : "flow", pending };
+  return { phase: "flow", pending };
 }
 
 /** Whether Accept can write the receipt in one tap. */
@@ -146,16 +146,12 @@ async function oneTapCountry(pending: Pending): Promise<string | null> {
 }
 
 export function PolicyUpdateProvider({
-  initial,
   children,
 }: {
-  /** The gate's own read: an update already outstanding when the app opens. */
-  initial?: AuthorizationStatus | null;
   children: React.ReactNode;
 }) {
-  const first = initial ? pendingOf(initial) : { phase: "none" as Phase, pending: null };
-  const [phase, setPhase] = useState<Phase>(first.phase);
-  const [pending, setPending] = useState<Pending | null>(first.pending);
+  const [phase, setPhase] = useState<Phase>("none");
+  const [pending, setPending] = useState<Pending | null>(null);
   const [screen, setScreen] = useState(false);
   const [presenters, setPresenters] = useState(0);
   const [saving, setSaving] = useState(false);

@@ -99,6 +99,7 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { PageHeader } from "./PageHeader";
+import type { PracticeDeliveryLabel } from "@/services/api/trainings";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -147,7 +148,7 @@ export default function IdealTextOverlay({
 }: {
   arcId: string;
   practiceDecision?: {
-    continueLabel?: string;
+    readiness: PracticeDeliveryLabel | null;
     onContinue: () => void;
     onRepeat: () => void;
   };

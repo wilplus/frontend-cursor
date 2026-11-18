@@ -417,8 +417,10 @@ O4 -> ""a guest is never asked""
 O5 -> ""on a plan, only after its own yes""","Founder 2026-10-27, backend N211: a feeling is the speaker's own, and a check with no way past it is not asked freely. Founder 2026-10-29, backend N272: the set-up's look, no reply, no coach line, and no check for a guest; on a plan, the plan's own yes comes first (N217)."
 src/components/willab/IdealTextEditor.test.tsx,Story,"As a speaker, I want to edit my whole Ideal Text from its menu, so that a valid revision is kept without an empty edit replacing my words.","O1  Saving changed text sends the complete revision and closes after
 the save succeeds.
-O2  An empty revision cannot be submitted.","O1 -> ""persists a valid whole-document change and closes the editor""
-O2 -> ""does not submit an empty document""","Founder-approved Ideal Text editing contract, 2026-11-16; N461."
+O2  An empty revision cannot be submitted.
+O3  Back saves a dirty draft and remains open when that save fails.","O1 -> ""persists a valid whole-document change and closes the editor""
+O2 -> ""does not submit an empty document""
+O3 -> ""Back keeps unsaved words safe""","Founder-approved Ideal Text editing contract, 2026-11-16; N461."
 src/components/willab/Linkified.test.tsx,Story,"As a speaker reading Will's message, I want links in a message to be clickable, so that I can open the booking page.","O1  A web address on its own, or inside a sentence, becomes a link;
 plain text stays plain.","O1 -> ""makes a bubble that is only a URL a link"",
 ""makes a URL inside a sentence a link and leaves plain text alone""",Founder 2026-10-18: the booking link was not clickable.
@@ -500,27 +502,23 @@ acceptance flow or the Lounge.
 O2  With it off, a block does what it did before: the acceptance flow when
 a policy came with it, otherwise the Lounge.
 O3  A cancelled deletion reads the status again and lets the person in.
-O4  A re-acceptance hands the flow the country given last time.
+O4  A newer policy blocks the app in the ordinary acceptance flow and hands
+it the country given last time.
 O5  A signed-up guest is not asked to accept again: the claim comes first.
 O6  A refused identity blocks with Try again, which reads again; no active
 policy still passes (the gate fails open).
 O7  A rejected startup read fails open instead of leaving the chat loading.","O1 -> ""shows the ended state for a block, never the acceptance flow or the Lounge""
 O2 -> ""switched off, a block does what it did before""
 O3 -> ""a cancelled deletion reads the status again, and lets the person back in""
-O4 -> ""a re-acceptance hands the flow the country given last time""
+O4 -> ""a newer policy blocks the app and hands the flow the country given last time""
 O5 -> ""a signed-up guest is not asked to accept again: the claim comes before the read""
 O6 -> ""a refused identity blocks, and Try again reads the status again""
 O7 -> ""a rejected startup read opens the Lounge""","Audit PLF-T1; founder 2026-10-05 (N48.4 Q19 A, Q21 A) and 2026-10-18."
-src/components/willab/PolicyUpdate.test.tsx,Story,"As a speaker who agreed to an older policy, I want one tap to accept the update with my last country, and a refused Take to go through once I accept, so that I am never locked out.","O1  The app opens with the update prompt; one tap accepts it with the
-country I gave last time.
-O2  A Take refused for an old acceptance shows the prompt, then processes
-once I accept.
-O3  Closing keeps the ask, with one Accept button that still works.
-O4  If my last country is no longer allowed, Accept opens the full
-consent screens instead of choosing for me.","O1 -> ""opens the app with the prompt; one tap accepts with the country given last time""
-O2 -> ""a Take refused for an out-of-date acceptance shows the prompt, then processes""
-O3 -> ""Close the app keeps the ask, with one Accept the update that still accepts""
-O4 -> ""opens the full consent screens when the last country is no longer allowed""",Founder 2026-10-15.
+src/components/willab/PolicyUpdate.test.tsx,Story,"As a speaker whose current consent is missing, I want the ordinary consent screen to block the app until I accept, so that an older receipt can never let me keep using the app.","O1  Opening with a newer policy shows the full consent screen and never the
+Lounge or dismissible update prompt.
+O2  A Take refused after a policy change opens the same screen and resumes
+only after acceptance succeeds.","O1 -> ""a newer policy blocks the app in the full consent flow""
+O2 -> ""a mid-session policy refusal blocks and resumes only after acceptance""","Founder 2026-11-18, backend N664."
 src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
@@ -586,6 +584,8 @@ goes to the backend once""
 O3 -> ""suggested answers: two in a row, three stacked, a lone one outlined, saying no a grey word, more than four behind Show more""
 O4 -> ""the box opens only when Will asks for words; the plan's questions never open it""
 O2 -> ""the message after the Take waits under Will's question""","Founder 2026-10-20 (N82): ""only buttons"" in the walk, Will's questions in the Lounge, tap answers plus my own words; 2026-10-31 (N296): ""maybe we should not give them the option to skip; let's try that""."
+src/components/willab/WillabSurface.cancelBeforeTake.test.ts,Story,"As a speaker, I want closing the feelings or setup screen to cancel the attempted Take, so the project does not claim it is processing.","O1 Pre-take screens clear the pending project-recording bridge;
+recording and processing screens do not.","O1 -> ""closing before a Take starts does not show Processing your recording""","Founder report, 2026-11-18."
 src/components/willab/acceptRewrite.test.tsx,Story,"As a speaker accepting a clearer version in the paragraph sheet, I want my answer saved and my text unchanged until I say it in my next Take, so that the Ideal Text is only what I said.","O1  The answer is saved once, as apply_suggestion.
 O2  Never-5: the host's real accept lane (postTrackedDecision) sends no
 decision, suggestion-feedback or other request that could change a

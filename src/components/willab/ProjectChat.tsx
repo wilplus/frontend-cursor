@@ -878,7 +878,10 @@ export default function ProjectChat({
             onRecord(activeProject.arcId);
           }}
           practiceDecision={hasPractice ? {
-            continueLabel: "Continue practice",
+            readiness:
+              openedPractice?.deliveryLabel ??
+              practiceChunks.at(-1)?.deliveryLabel ??
+              null,
             onContinue: () => startPractice("next"),
             onRepeat: () => startPractice("repeat"),
           } : undefined}
@@ -888,4 +891,4 @@ export default function ProjectChat({
   );
 }
 
-// Founder-Approved: the readable result card comes first, then one natural project conversation using the locked chat bar and answer controls, 2026-11-16.
+// Founder-Approved: project practice shows the selected fragment's readiness beside the two recording choices, 2026-11-18.

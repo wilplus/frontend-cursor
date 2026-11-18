@@ -255,18 +255,34 @@ describe("Speaking coach home", () => {
     expect((host.querySelector('[data-chat-row="a"]') as HTMLButtonElement | null)?.disabled).toBe(true);
   });
 
-  it("keeps the project row and confirmation open when deletion fails", async () => {
-    api.requestProjectDeletion.mockResolvedValue({ ok: false, deletion: null });
-    await renderHome([arc("a", "Board pitch")]);
+  it("keeps a failed deletion visible and usable after showing the error", async () => {
+    let finishRequest: (result: { ok: false; deletion: null }) => void = () => undefined;
+    api.requestProjectDeletion.mockReturnValue(new Promise((resolve) => {
+      finishRequest = resolve;
+    }));
+    const open = vi.fn();
+    api.fetchTrainings.mockResolvedValue([arc("a", "Board pitch")]);
+    act(() => root.render(createElement(ProductHome, {
+      onOpenSpeaking: vi.fn(),
+      onOpenProject: open,
+      onStartNewProject: vi.fn(),
+    })));
+    await flush();
 
     await act(async () => button("More options for Board pitch")?.click());
     await act(async () => button("Delete")?.click());
     await act(async () => button("Request deletion")?.click());
-    await flush();
+
+    expect(host.querySelector('[data-chat-row="a"]')).not.toBeNull();
+    await act(async () => finishRequest({ ok: false, deletion: null }));
 
     expect(host.querySelector('[data-chat-row="a"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Couldn't delete. Try again.");
-    expect(button("Request deletion")).toBeDefined();
+    expect(button("Request deletion")).toBeUndefined();
+    const projectRow = host.querySelector<HTMLButtonElement>('[data-chat-row="a"]');
+    expect(projectRow?.disabled).toBe(false);
+    await act(async () => projectRow?.click());
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ arcId: "a" }));
   });
 
   it("does not expose management actions for a project already pending deletion", async () => {

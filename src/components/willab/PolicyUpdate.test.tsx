@@ -1,21 +1,16 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker who agreed to an older policy, I want one tap to accept
-         the update with my last country, and a refused Take to go through
-         once I accept, so that I am never locked out.
+STORY    As a speaker whose current consent is missing, I want the ordinary
+         consent screen to block the app until I accept, so that an older
+         receipt can never let me keep using the app.
 OUTCOME
-  O1  The app opens with the update prompt; one tap accepts it with the
-      country I gave last time.
-  O2  A Take refused for an old acceptance shows the prompt, then processes
-      once I accept.
-  O3  Closing keeps the ask, with one Accept button that still works.
-  O4  If my last country is no longer allowed, Accept opens the full
-      consent screens instead of choosing for me.
-PROVES   O1 -> "opens the app with the prompt; one tap accepts with the country given last time"
-         O2 -> "a Take refused for an out-of-date acceptance shows the prompt, then processes"
-         O3 -> "Close the app keeps the ask, with one Accept the update that still accepts"
-         O4 -> "opens the full consent screens when the last country is no longer allowed"
-WHY      Founder 2026-10-15.
+  O1  Opening with a newer policy shows the full consent screen and never the
+      Lounge or dismissible update prompt.
+  O2  A Take refused after a policy change opens the same screen and resumes
+      only after acceptance succeeds.
+PROVES   O1 -> "a newer policy blocks the app in the full consent flow"
+         O2 -> "a mid-session policy refusal blocks and resumes only after acceptance"
+WHY      Founder 2026-11-18, backend N664.
 */
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -28,24 +23,24 @@ import type {
 const io = vi.hoisted(() => ({
   takeAuthorization: vi.fn(),
   fetchAuthorization: vi.fn(),
-  acceptAuthorization: vi.fn(),
-  fetchConsentChoices: vi.fn(),
 }));
 
 vi.mock("@/services/api/bootPrefetch", () => ({ takeAuthorization: io.takeAuthorization }));
 vi.mock("@/services/api/processingAuthorization", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchAuthorization: io.fetchAuthorization,
-  acceptAuthorization: io.acceptAuthorization,
   recordAiNoticeRendered: vi.fn().mockResolvedValue(true),
 }));
-vi.mock("@/services/api/consentChoices", () => ({ fetchConsentChoices: io.fetchConsentChoices }));
 vi.mock("./Phase1AcceptanceFlow", () => ({
-  default: () => createElement("div", { "data-testid": "acceptance-flow" }),
+  default: ({ onAccepted }: { onAccepted: () => void }) => createElement(
+    "div",
+    { "data-testid": "acceptance-flow" },
+    createElement("button", { type: "button", onClick: onAccepted }, "ACCEPT CURRENT POLICY"),
+  ),
 }));
 
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
-import { POLICY_UPDATE_COPY, usePolicyUpdate } from "./PolicyUpdate";
+import { usePolicyUpdate } from "./PolicyUpdate";
 
 const POLICY: ProcessingPolicy = {
   policyId: "policy-uuid",
@@ -68,7 +63,7 @@ const update = (priorCountry: string | null = "pl"): AuthorizationStatus => ({
   priorCountry,
 });
 
-describe("policy update prompt", () => {
+describe("current-policy consent gate", () => {
   let host: HTMLDivElement;
   let root: Root;
 
@@ -77,10 +72,6 @@ describe("policy update prompt", () => {
     document.body.appendChild(host);
     root = createRoot(host);
     for (const fn of Object.values(io)) fn.mockReset();
-    io.fetchConsentChoices.mockResolvedValue({ practiceOffered: false });
-    io.acceptAuthorization.mockResolvedValue({
-      kind: "accepted", receiptId: "r1", policyVersion: POLICY.policyVersion,
-    });
   });
   afterEach(() => {
     act(() => root.unmount());
@@ -90,8 +81,8 @@ describe("policy update prompt", () => {
   const flush = () => act(async () => {
     for (let i = 0; i < 8; i += 1) await Promise.resolve();
   });
-  const button = (label: string) =>
-    [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === label);
+  const accept = () => [...document.querySelectorAll("button")]
+    .find((b) => b.textContent?.trim() === "ACCEPT CURRENT POLICY");
 
   async function mount(first: AuthorizationStatus, child: React.ReactElement) {
     io.takeAuthorization.mockResolvedValue(first);
@@ -101,26 +92,13 @@ describe("policy update prompt", () => {
     await flush();
   }
 
-  it("opens the app with the prompt; one tap accepts with the country given last time", async () => {
+  it("a newer policy blocks the app in the full consent flow", async () => {
     await mount(update("pl"), createElement("p", null, "THE LOUNGE"));
-    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.bubble);
-    expect(document.body.textContent).toContain(POLICY.agreementCopy);
-    expect(document.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
-
-    await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
-    await flush();
-
-    expect(io.acceptAuthorization).toHaveBeenCalledTimes(1);
-    expect(io.acceptAuthorization.mock.calls[0][0]).toMatchObject({
-      policy: POLICY,
-      countryOfResidence: "pl",
-      optionalPurposes: [],
-    });
-    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.bubble);
-    expect(document.body.textContent).toContain("THE LOUNGE");
+    expect(document.querySelector('[data-testid="acceptance-flow"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("THE LOUNGE");
   });
 
-  it("a Take refused for an out-of-date acceptance shows the prompt, then processes", async () => {
+  it("a mid-session policy refusal blocks and resumes only after acceptance", async () => {
     const processAgain = vi.fn();
     function RefusedTake() {
       const policyUpdate = usePolicyUpdate();
@@ -133,33 +111,12 @@ describe("policy update prompt", () => {
     }
     io.fetchAuthorization.mockResolvedValue(update("pl"));
     await mount({ kind: "authorized", policy: POLICY }, createElement(RefusedTake));
-    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.bubble);
-
-    await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
-    await flush();
-
-    expect(processAgain).toHaveBeenCalledTimes(1);
-    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.bubble);
-  });
-
-  it("Close the app keeps the ask, with one Accept the update that still accepts", async () => {
-    await mount(update("pl"), createElement("p", null, "THE LOUNGE"));
-    await act(async () => button(POLICY_UPDATE_COPY.close)?.click());
-    await flush();
-    expect(document.body.textContent).toContain(POLICY_UPDATE_COPY.closedLead);
-    expect(button(POLICY_UPDATE_COPY.close)).toBeUndefined();
-
-    await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
-    await flush();
-    expect(io.acceptAuthorization).toHaveBeenCalledTimes(1);
-    expect(document.body.textContent).not.toContain(POLICY_UPDATE_COPY.closedLead);
-  });
-
-  it("opens the full consent screens when the last country is no longer allowed", async () => {
-    await mount(update("fr"), createElement("p", null, "THE LOUNGE"));
-    await act(async () => button(POLICY_UPDATE_COPY.accept)?.click());
-    await flush();
-    expect(io.acceptAuthorization).not.toHaveBeenCalled();
     expect(document.querySelector('[data-testid="acceptance-flow"]')).not.toBeNull();
+    expect(processAgain).not.toHaveBeenCalled();
+
+    await act(async () => accept()?.click());
+    await flush();
+    expect(processAgain).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
   });
 });

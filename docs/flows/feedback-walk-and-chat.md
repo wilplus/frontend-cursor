@@ -50,6 +50,25 @@ in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.ts
 `src/components/willab/FeedbackOverlay.tsx` and
 `src/components/willab/chats/TopBar.tsx`.
 
+### Project result and Speaking Coach (N663)
+
+The compact project result has one title inside the selected slide row, not a
+second repeated heading above Progress. Its black **Feedback** control opens
+that selected Take's Feedback Walk directly; **Ideal text** remains the white
+door to the document. The practice decision is one row: white **Rehearse this
+again** with a red, yellow or green readiness dot, then black **Continue
+practice**. Red is Not yet there, yellow is the intermediate/Almost state, and
+green is Good to go or stronger. These labels describe the next action, not a
+score (founder, 2026-11-18; backend N663).
+
+The Speaking Coach answers the latest turn in that turn's language. A greeting
+gets a greeting and cannot replay an older project answer. A request for an
+overall speaking view may use the speaker's authorised Takes across projects,
+their transcripts, feedback outcomes, coach words, earlier conversation and
+private memory together with the curated speaking-science source. It separates
+direct observation from tentative interpretation and does not diagnose a
+personality or challenge/threat state from voice alone (N663).
+
 ---
 
 ## 1. The rules

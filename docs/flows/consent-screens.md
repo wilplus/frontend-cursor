@@ -173,6 +173,12 @@ no longer applies to the first-time screen.
 "yeah approved"), as unified with every Lounge ask, <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY>
 (version 2). The code already follows both (`PolicyUpdate.tsx`, and the Lounge's `LoungeTopUpCard.tsx`).
 
+**Amended 2026-11-18 (backend N664): the newest consent is a hard gate.** When the canonical
+authorization read says the current policy still needs acceptance, the ordinary consent screen occupies
+the app until that exact policy is accepted. An older receipt no longer opens the Lounge behind a
+dismissible update prompt. A policy change found while the app is open opens the same full consent screen;
+the client never compares versions itself and a stale response always refetches the policy bytes.
+
 
 ### Amended 2026-10-26: Email and password (backend N190)
 
@@ -471,6 +477,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-18 · N664 · an `acceptance_required` status, including a newer policy after an earlier receipt, always opens the ordinary full consent screen and blocks normal app use until the current policy is accepted; a mid-session refusal does the same · BE/FE (this PR)
 - 2026-11-16 · founder approval · the acceptance gate fails open when its retired authorization endpoint rejects, so a missing legacy consent route cannot strand the signed-in app on a loading or error screen; the current admission boundary remains unchanged (`Phase1AcceptanceGate.tsx`) · FE (this PR)
 - 2026-11-16 · the shared menu no longer exposes the legacy personal-chat invitation control; the fixed early-coach admission URL and product-sharing links remain · FE (this task)
 - 2026-11-09 · N465, N559 item 6 · §1: the signed card "Matching by how you speak" after Personal answers in your plan: On with Turn off, the ask in the card, Off with Turn on; Turn off deletes what Will learned from how you speak (`SpeakingMatchCard.tsx`, `getSpeakingMatch`/`setSpeakingMatch` in `takeMatches.ts`, BFF `/api/v2/me/speaking-match`). Shown only while `available` and on; nobody sees it today (`TAKE_MATCH_SKILLS` unset) · BE N559 (wilplus/backend-cursor#1861), FE (this PR)

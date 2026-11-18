@@ -52,6 +52,16 @@ import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 import ProjectChat from "./ProjectChat";
 import type { TrainingArc } from "@/services/api/trainings";
 
+/** A project recording has not begun in these screens. Closing one cancels
+ *  the pending bridge back to ProjectChat instead of inventing processing. */
+export function cancelsPendingProjectRecording(state: WillabState | null): boolean {
+  return (
+    state === "lab_feelings" ||
+    state === "lab_session_context" ||
+    state === "lab_prerecord"
+  );
+}
+
 // The recording screens are not on first paint: they load after it (warmed
 // below), so a tap on Record finds them ready.
 const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
@@ -523,6 +533,9 @@ export default function WillabSurface({
           sessionId={sessionId}
           dispatch={flow.dispatch}
           onClose={() => {
+            if (cancelsPendingProjectRecording(flow.state)) {
+              setRecordingInProgress(false);
+            }
             flow.closeLab();
             // An answer's project was never the speaker's current one.
             endAnswer();
@@ -565,4 +578,4 @@ function shellPadding(flush: boolean, bare: boolean): string {
   return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }
 
-// Founder-Approved: a project conversation replaces the site bar with its single locked chat top bar, 2026-11-16.
+// Founder-Approved: closing feelings or setup cancels the pending project recording instead of showing processing, 2026-11-18.

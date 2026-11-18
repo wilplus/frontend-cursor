@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import OverlayCloseButton from "./OverlayCloseButton";
+import { ChevronLeft } from "lucide-react";
+import { OVERLAY_ICON_BUTTON_CLASS, OVERLAY_ICON_CLASS } from "./OverlayCloseButton";
 import MarkedEditor from "./MarkedEditor";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 
@@ -24,15 +25,34 @@ export default function IdealTextEditor({
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const empty = draft.trim() === "";
+  const dirty = draft !== initial;
 
   async function save(): Promise<void> {
     if (saving || empty) return;
     setSaving(true);
     setFailed(false);
-    const ok = await onSave(draft);
+    let ok = false;
+    try {
+      ok = await onSave(draft);
+    } catch {
+      // The draft stays in this mounted editor and can be retried.
+    }
     setSaving(false);
     if (ok) onCancel();
     else setFailed(true);
+  }
+
+  function goBack(): void {
+    if (saving) return;
+    if (!dirty) {
+      onCancel();
+      return;
+    }
+    if (empty) {
+      setFailed(true);
+      return;
+    }
+    void save();
   }
 
   return (
@@ -42,12 +62,20 @@ export default function IdealTextEditor({
       aria-modal="true"
       aria-label="Edit ideal text"
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5">
+        <button
+          type="button"
+          aria-label="Back to ideal text"
+          disabled={saving}
+          onClick={goBack}
+          className={`${OVERLAY_ICON_BUTTON_CLASS} disabled:opacity-50`}
+        >
+          <ChevronLeft className={OVERLAY_ICON_CLASS} aria-hidden />
+        </button>
         <div className="flex min-w-0 flex-col">
           <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
           <p className="text-[11px] leading-snug text-muted-foreground">Ideal text</p>
         </div>
-        <OverlayCloseButton onClick={onCancel} />
       </div>
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-5">
@@ -113,4 +141,4 @@ export function IdealTextEditorLayer({
   );
 }
 
-// Founder-Approved: task delegation, 2026-11-16.
+// Founder-Approved: the whole Ideal Text editor has Back and preserves dirty edits before leaving, 2026-11-18.
