@@ -713,13 +713,7 @@ export default function IdealTextOverlay({
       // PR 3 will hang on those ids, on paragraphs that never changed.
       // Editing and committing are separate decisions. A typed paragraph is
       // saved here but stays evolvable until the explicit post-feedback lock.
-      const beforeParts = partsRef.current;
-      const parts = reconcileParts(next, nextParts ?? beforeParts ?? []);
-      partsRef.current = parts;
-      const before = ideal?.text ?? "";
-      const beforeNotes = ideal?.notes ?? null;
-      setNotes(null);
-      setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
+      const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
       setTooLong(false);
       setSaveStatus(null);
       // Serialized, and stamped from versionRef rather than sd.version: two
@@ -742,6 +736,7 @@ export default function IdealTextOverlay({
       const r = await run;
       if (r.ok) {
         partsRef.current = parts;
+        setNotes(null);
         setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
         versionRef.current = r.version ?? versionRef.current;
         ownerEditRef.current = carryOwnerEdit(ownerEditRef.current, r.ownerEdit);
@@ -766,11 +761,8 @@ export default function IdealTextOverlay({
         setSaveStatus("error");
         return false;
       }
-      // Persistence failed: the editor retains its own draft for retry, while
-      // the delivered Ideal Text must continue to show only server-kept words.
-      partsRef.current = beforeParts;
-      setNotes(beforeNotes);
-      setIdeal((prev) => (prev ? { ...prev, text: before } : prev));
+      // The editor keeps its draft. Delivered text changes only after a
+      // confirmed write, so a refusal needs no optimistic-state rollback.
       if (r.reason === "nothingToEdit") {
         // Nothing is assembled — there was no document to edit. Put back what
         // was on screen; the caller reports the refusal (there is no
@@ -784,7 +776,7 @@ export default function IdealTextOverlay({
       setSaveStatus(saveFailureStatus(r.reason));
       return false;
     },
-    [arcId, ideal?.notes, ideal?.text],
+    [arcId],
   );
 
   // THE DECK's lock: save the modal draft first when it changed, then call the
