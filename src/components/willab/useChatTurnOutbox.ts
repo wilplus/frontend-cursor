@@ -91,6 +91,9 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
       const response: ChatQueryResponse = turn.reply ? {} : await postChatQuery({
         ...turn.request, clientId: id, clientCreatedAt: turn.user.client_created_at,
       });
+      if (response.outcome === "recoverable_error" || response.failure) {
+        throw new Error(response.failure?.code ?? "Chat reply could not complete");
+      }
       if (thread.signedIn && response.persisted !== true) throw new Error("Chat turn was not persisted");
       if (current.current !== key) {
         // The server may have answered during navigation. The current view

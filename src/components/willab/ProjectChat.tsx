@@ -549,18 +549,19 @@ export default function ProjectChat({
   async function answerText(retry?: PendingChatTurn): Promise<void> {
     const answer = retry?.request.question ?? draft.trim();
     const question = retry?.question ?? activeQuestion;
-    const take = question?.metadata?.take_session_id;
+    const take = retry?.request.sessionId ?? question?.metadata?.take_session_id ??
+      activeProject.takes.at(-1)?.sessionId;
     const arc = activeProject.arcId;
-    if (!answer || sending || sendingRef.current || !outbox.ready || !question || typeof take !== "string") return;
+    if (!answer || sending || sendingRef.current || !outbox.ready || typeof take !== "string") return;
     const existing = retry ?? outbox.turns.findLast((t) =>
-      t.request.question === answer && t.question?.client_id === question.client_id);
+      t.request.question === answer && t.question?.client_id === question?.client_id);
     if (existing && outbox.isSending(existing)) return;
     sendingRef.current = true;
     setSending(true);
     setDraft((current) => !retry || current === retry.draft ? "" : current);
     setTypingQuestion(null);
     pinBottom();
-    const scope = { arcId: arc, takeSessionId: take, questionClientId: question.client_id, place: "speaking" };
+    const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const turn = existing ?? outbox.begin(draft, {
       role: "user", kind: "text", body: answer, metadata: typedProjectTurnMetadata({ ...scope, role: "answer" }),
@@ -583,7 +584,7 @@ export default function ProjectChat({
     } catch {
       if (outbox.isPending(turn)) {
         setDraft((current) => current || turn.draft);
-        setTypingQuestion(question.client_id);
+        setTypingQuestion(question?.client_id ?? null);
       }
     } finally {
       sendingRef.current = false;
@@ -728,7 +729,7 @@ export default function ProjectChat({
         </div>
       </div>
 
-      {activeQuestion ? (
+      {activeQuestion || hasPractice ? (
           <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
             <form
               data-project-question-composer
@@ -762,7 +763,8 @@ export default function ProjectChat({
               ) : null}
             </form>
           </div>
-      ) : (
+      ) : null}
+      {!activeQuestion ? (
         <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
           <button type="button" data-project-record onClick={() => {
             if (hasPractice) setOpened("decision");
@@ -775,7 +777,7 @@ export default function ProjectChat({
             {hasPractice ? "Continue recording" : "Start recording"}
           </button>
         </div>
-      )}
+      ) : null}
 
       {opened ? (
         <IdealTextOverlay

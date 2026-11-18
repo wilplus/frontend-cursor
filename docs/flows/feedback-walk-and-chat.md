@@ -1,5 +1,7 @@
 # The Feedback walk and the chat
 
+- 2026-11-18 · N663, N665, N660 · Speaking Coach uses the authorized longitudinal answer path and retains unfinished turns for same-ID retry. Project Chat keeps its composer after audience/goal setup alongside the existing next-recording action. Every turn retains its project identity through submission, storage, reload and retry; project dialogue never becomes Speaking Coach conversation. Feedback, Ideal Text, transcription and recording navigation remain present. Founder-Approved: contact-point chat, integration and production release request, 2026-11-18.
+
 > **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 One page for one loop: a Take is processed → the lens opens on the walk →

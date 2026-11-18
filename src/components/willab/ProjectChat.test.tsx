@@ -261,6 +261,23 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("project conversation", () => {
+  it("keeps contextual follow-ups available after the setup questions finish", async () => {
+    state.chatQuery.mockResolvedValue({
+      answer: "Try returning to the decision from your opening.",
+      persisted: true, persisted_client_id: "reply-follow-up",
+      row_metadata: { arc_id: "arc-a", take_session_id: "take-a", project_chat: true },
+    });
+    render();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    enterAnswer("How should I finish this talk?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery).toHaveBeenCalledWith(expect.objectContaining({
+      question: "How should I finish this talk?", projectId: "arc-a", sessionId: "take-a",
+    }));
+    expect(host.textContent).toContain("Try returning to the decision from your opening.");
+    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+  });
   it("shows the neutral result card as soon as the accepted Take reaches the thread", () => {
     const accepted: LoungeMessage = {
       client_id: "accepted-take",

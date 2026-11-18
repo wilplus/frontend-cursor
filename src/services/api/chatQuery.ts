@@ -80,6 +80,10 @@ export interface ChatQueryArgs {
  * shape forward-compatible by only typing what we actively read.
  */
 export interface ChatQueryResponse {
+  terminal?: boolean;
+  outcome?: "reply" | "structured" | "recoverable_error";
+  retryable?: boolean;
+  failure?: { code: string; retryable: boolean; timeout?: boolean } | null;
   answer?: string;
   /** RULE F (server-side split) — the answer pre-split into render-ready bubbles.
    *  Authoritative over `answer`; render each 1:1. Absent → split `answer`. */
