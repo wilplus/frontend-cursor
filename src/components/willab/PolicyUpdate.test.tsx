@@ -8,8 +8,11 @@ OUTCOME
       Lounge or dismissible update prompt.
   O2  A Take refused after a policy change opens the same screen and resumes
       only after acceptance succeeds.
+  O3  The refusal blocks synchronously and stays blocked if the policy read
+      fails; a slow network never creates a usable gap.
 PROVES   O1 -> "a newer policy blocks the app in the full consent flow"
          O2 -> "a mid-session policy refusal blocks and resumes only after acceptance"
+         O3 -> "a known refusal blocks before the policy read completes"
 WHY      Founder 2026-11-18, backend N664.
 */
 import { act, createElement, useEffect } from "react";
@@ -122,5 +125,31 @@ describe("current-policy consent gate", () => {
     await flush();
     expect(processAgain).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
+  });
+
+  it("a known refusal blocks before the policy read completes", async () => {
+    let resolveRead!: (status: AuthorizationStatus) => void;
+    io.fetchAuthorization.mockReturnValue(new Promise<AuthorizationStatus>((resolve) => {
+      resolveRead = resolve;
+    }));
+    function RefusedTake() {
+      const policyUpdate = usePolicyUpdate();
+      useEffect(() => {
+        policyUpdate?.refused("PROCESSING_POLICY_STALE");
+        // Once, as the refusal arrives once.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return createElement("p", null, "PROCESSING");
+    }
+
+    await mount({ kind: "authorized", policy: POLICY }, createElement(RefusedTake));
+    const gated = document.querySelector('[data-policy-gated="true"]');
+    expect(gated?.classList.contains("hidden")).toBe(true);
+    expect((gated as HTMLDivElement).inert).toBe(true);
+    expect(document.querySelector('[data-testid="acceptance-flow"]')).toBeNull();
+
+    resolveRead({ kind: "error", message: "offline" });
+    await flush();
+    expect(document.querySelector('[data-policy-gated="true"]')).not.toBeNull();
   });
 });

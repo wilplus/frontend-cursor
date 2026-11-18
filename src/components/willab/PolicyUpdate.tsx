@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
+import LoadingState from "./LoadingState";
 import {
   fetchAuthorization,
   type AuthorizationStatus,
@@ -66,6 +67,7 @@ function pendingOf(status: AuthorizationStatus): Pending | null {
 }
 
 export function PolicyUpdateProvider({ children }: { children: React.ReactNode }) {
+  const [blocked, setBlocked] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const resumes = useRef<Array<() => void>>([]);
   const lastRead = useRef(Date.now());
@@ -76,13 +78,18 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
     const status = await fetchAuthorization();
     if (status.kind === "error") return;
     const next = pendingOf(status);
-    if (!next) resumes.current = [];
+    if (!next) {
+      resumes.current = [];
+      setBlocked(false);
+    } else {
+      setBlocked(true);
+    }
     setPending(next);
   }, []);
 
   useEffect(() => {
-    if (app.current) app.current.inert = pending !== null;
-  }, [pending]);
+    if (app.current) app.current.inert = blocked;
+  }, [blocked]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -97,11 +104,15 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
   const refused = useCallback((code: string | null | undefined, resume?: () => void) => {
     if (!needsPolicyAcceptance(code)) return;
     if (resume) resumes.current.push(resume);
+    // The refusal is already authoritative. Block synchronously; the follow-up
+    // read supplies the current policy but must never create a usable gap.
+    setBlocked(true);
     void read();
   }, [read]);
 
   const accepted = useCallback(() => {
     setPending(null);
+    setBlocked(false);
     const queued = resumes.current;
     resumes.current = [];
     queued.forEach((resume) => resume());
@@ -116,22 +127,26 @@ export function PolicyUpdateProvider({ children }: { children: React.ReactNode }
     <PolicyUpdateContext.Provider value={api}>
       <div
         ref={app}
-        data-policy-gated={pending ? "true" : undefined}
-        className={pending ? "hidden" : "contents"}
-        aria-hidden={pending ? true : undefined}
+        data-policy-gated={blocked ? "true" : undefined}
+        className={blocked ? "hidden" : "contents"}
+        aria-hidden={blocked ? true : undefined}
       >
         {children}
       </div>
-      {pending ? createPortal(
+      {blocked ? createPortal(
         <div className="fixed inset-0 z-[2147483647] overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top)]">
           <div className="flex min-h-full flex-col">
-            <Phase1AcceptanceFlow
-              key={pending.policy.policyVersion}
-              policy={pending.policy}
-              priorCountry={pending.priorCountry}
-              onAccepted={accepted}
-              onStale={() => void read()}
-            />
+            {pending ? (
+              <Phase1AcceptanceFlow
+                key={pending.policy.policyVersion}
+                policy={pending.policy}
+                priorCountry={pending.priorCountry}
+                onAccepted={accepted}
+                onStale={() => void read()}
+              />
+            ) : (
+              <LoadingState placement="surface" />
+            )}
           </div>
         </div>,
         document.body,

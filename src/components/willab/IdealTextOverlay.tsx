@@ -651,9 +651,11 @@ export default function IdealTextOverlay({
       // PR 3 will hang on those ids, on paragraphs that never changed.
       // Editing and committing are separate decisions. A typed paragraph is
       // saved here but stays evolvable until the explicit post-feedback lock.
-      const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
+      const beforeParts = partsRef.current;
+      const parts = reconcileParts(next, nextParts ?? beforeParts ?? []);
       partsRef.current = parts;
       const before = ideal?.text ?? "";
+      const beforeNotes = ideal?.notes ?? null;
       setNotes(null);
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
       setTooLong(false);
@@ -691,21 +693,25 @@ export default function IdealTextOverlay({
         setRefetchNonce((n) => n + 1); // adopt the NEW version's text
         return true;
       }
+      // Persistence failed: the editor retains its own draft for retry, while
+      // the delivered Ideal Text must continue to show only server-kept words.
+      partsRef.current = beforeParts;
+      setNotes(beforeNotes);
+      setIdeal((prev) => (prev ? { ...prev, text: before } : prev));
       if (r.reason === "nothingToEdit") {
         // Nothing is assembled — there was no document to edit. Put back what
         // was on screen; the caller reports the refusal (there is no
         // header-level edit mode left to retire).
-        setIdeal((prev) => (prev ? { ...prev, text: before } : prev));
         return false;
       }
       if (r.reason === "invalid") {
         setTooLong(true);
-        return false; // the words stay on screen, unsaved
+        return false;
       }
       setSaveFailed(true);
       return false;
     },
-    [arcId, ideal?.text],
+    [arcId, ideal?.notes, ideal?.text],
   );
 
   // THE DECK's lock: save the modal draft first when it changed, then call the

@@ -517,10 +517,12 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-18 · N663 · the project-practice footer is one side-by-side choice:
   white **Rehearse this again** with the chunk's red/yellow/green readiness dot,
   and black **Continue practice**. The whole-document editor has a Back control;
-  Back saves a changed draft through the same versioned user-edit contract and
-  stays on the draft when the save fails. A successful save returns to the
-  document with the saved words. The duplicate project-card slide heading is
-  removed and the card is proportionally tightened · BE, FE (this PR)
+  visible Back and device/browser Back save a changed draft through the same
+  versioned user-edit contract and stay on the draft when the save fails. The
+  delivered document keeps its last server-saved words on every failed save; a
+  successful save returns to it with the newly saved words. The duplicate
+  project-card slide heading is removed and the card is proportionally
+  tightened · BE, FE (this PR)
 - 2026-11-16 · N461 · the project-practice Ideal Text footer has only the two
   recording actions: "Continue practice" advances to the next fragment (or
   reopens the final fragment) and "Repeat this fragment" keeps the current
