@@ -2494,6 +2494,8 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-18 · Founder-approved project Feedback card correction · the project conversation is positioned inside its scrollable app canvas above the global footer, so Feedback and Ideal text remain fully visible and operable on desktop and mobile. The card shows no delivery-status dot or text; internal delivery evidence and the recording decision keep their existing behavior. No new copy (`WillabSurface.tsx`, `FeedbackWalkCard.tsx`). Founder-Approved: contact-point chat, 2026-11-18.
+
 - 2026-11-18 · Gate cleanup · review-plan selection and shown-step messages have one named policy each in `useDeckFeedbackWalk.tsx`; live/replay entry, coach-note delivery and AI clip wording keep the same behavior. Existing speaker-story tests cover those public paths; no complexity baseline is raised.
 - 2026-11-18 · Practice story timing · the AI-clip wait stories advance a fake clock through typing, fallback words and late playback. This removes workstation timing races while preserving the same speaker outcomes and time limits.
 - 2026-11-18 · Navigation story isolation · chat tests drain queued history events after closing a view; the edge-swipe story supplies its own gesture clock. Back/Forward, scroll restoration and short-swipe behavior are unchanged, and no history event leaks into the next story.

@@ -406,8 +406,10 @@ and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
 src/components/willab/FeedbackWalkCard.test.tsx,Story,"As a speaker, I want one compact view of every slide range I have practised, so that I can see where to continue without confusing effort with delivery quality.","O1 Only the latest chunk shows until I ask for earlier chunks.
 O2 One chunk reserves no empty history-control space and both
-destinations open for that chunk.","O1 -> ""shows only the latest chunk until earlier chunks are requested""
-O2 -> ""omits the history control for one chunk and opens the latest destinations""","Founder-approved Feedback Walk handoff, 2026-11-16."
+destinations open for that chunk.
+O3 No delivery status dot or label is shown on the card.","O1 -> ""shows only the latest chunk until earlier chunks are requested""
+O2 -> ""omits the history control for one chunk and opens the latest destinations""
+O3 -> ""keeps the status out of the result card while its actions still work""","Founder-approved Feedback Walk handoff, 2026-11-16."
 src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to name how I feel before I record, or skip it, and as a guest not to be asked at all.","O1  Signed in, the check offers a Skip every time it shows.
 O2  Skipping goes on to the recording set-up and keeps no feeling.
 O3  Naming a feeling keeps it and goes on, with nothing said back.

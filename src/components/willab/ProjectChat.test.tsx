@@ -285,7 +285,7 @@ describe("project conversation", () => {
 
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Take 1");
-    expect(host.textContent).toContain("Processing");
+    expect(host.querySelector("[data-practice-status]")).toBeNull();
     expect(host.textContent).not.toContain("Not yet there");
     expect(host.querySelector('[data-project-message="accepted-take"]')).toBeNull();
   });
@@ -295,7 +295,7 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Progress");
     expect(host.textContent).toContain("Slides 1-2");
-    expect(host.textContent).toContain("Almost");
+    expect(host.textContent).not.toContain("Almost");
     expect(host.textContent).toContain("Feedback");
     expect(host.textContent).toContain("Ideal text");
     expect(host.textContent).toContain("Continue recording");
@@ -494,7 +494,7 @@ describe("project conversation", () => {
     });
     expect(host.querySelector("[data-processing-bubble]")).toBeNull();
     expect(host.textContent).toContain("2 attempts");
-    expect(host.textContent).toContain("Good");
+    expect(host.textContent).not.toContain("Good");
   });
 
   it("restores a durable failure as an actionable project-chat state", () => {

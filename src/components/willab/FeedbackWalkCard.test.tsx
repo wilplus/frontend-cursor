@@ -6,8 +6,10 @@ STORY    As a speaker, I want one compact view of every slide range I have
 OUTCOME  O1 Only the latest chunk shows until I ask for earlier chunks.
          O2 One chunk reserves no empty history-control space and both
          destinations open for that chunk.
+         O3 No delivery status dot or label is shown on the card.
 PROVES   O1 -> "shows only the latest chunk until earlier chunks are requested"
          O2 -> "omits the history control for one chunk and opens the latest destinations"
+         O3 -> "keeps the status out of the result card while its actions still work"
 WHY      Founder-approved Feedback Walk handoff, 2026-11-16.
 */
 import { act, createElement } from "react";
@@ -55,7 +57,8 @@ describe("Feedback Walk practice history", () => {
     draw();
     expect(host.querySelector("[data-feedback-walk-title]")).toBeNull();
     expect(host.textContent).toContain("74%");
-    expect(host.querySelector("[data-practice-status]")?.textContent).toContain("Strong delivery");
+    expect(host.querySelector("[data-practice-status]")).toBeNull();
+    expect(host.textContent).not.toContain("Strong delivery");
     expect(host.textContent).toContain("Slides 25-30");
     expect(host.textContent).not.toContain("Slides 1-5");
     const toggle = [...host.querySelectorAll("button")].find((button) => button.textContent === "Show 2 earlier chunks")!;
@@ -72,6 +75,7 @@ describe("Feedback Walk practice history", () => {
   it("omits the history control for one chunk and opens the latest destinations", () => {
     draw([chunks[2]]);
     expect(host.textContent).not.toContain("earlier chunks");
+    expect(host.textContent).not.toContain("Strong delivery");
     const buttons = [...host.querySelectorAll("button")];
     act(() => buttons.find((button) => button.textContent?.includes("Feedback"))!.click());
     act(() => buttons.find((button) => button.textContent?.includes("Ideal text"))!.click());
