@@ -33,9 +33,21 @@ overlays; mobile margins and safe-area spacing stay intact, and the existing
 overlay close plus browser-back behavior is unchanged. Onboarding progress is
 left-aligned within that safe rail rather than globally centered.
 
+The 2026-11-18 screenshot correction keeps that divider anchored to the
+header's bottom edge and centered to `100vw`, so it remains edge-to-edge when
+the surface is mounted inside the desktop canvas.
+
 ---
 
 ## 1. The rules
+
+The whole-document editor mounts in RootLayout's content slot above the
+global footer, outside the project canvas. Its shared header lays out Back,
+the complete title/subtitle and the canonical X in one row. Save, Back, X,
+Cancel and browser Back share one in-flight guard: a dirty exit saves first,
+and a failed save leaves the draft open. The delivered document and parts
+change only after the versioned CAS confirms persistence. The editor's
+original draft stays fixed even if a newer Take refreshes the parent.
 
 `LOCKED 2026-09-30 · B1 yes · B2 yes · B3 yes · B4 yes · B5 yes · B6 yes · B7 yes · B8 yes · B9 yes · B10 yes · D1 yes · D2 yes · D3 yes · D4 yes · D5 yes · D6 yes · D7 yes · D8 yes · D9 yes · D10 yes · Q1 yes · Q2 yes · Q3 no · Q4 no · Q5 no · closed 2026-09-30: Q1 B · Q2 A · Q3 A · Q4 A · Q5 A`
 

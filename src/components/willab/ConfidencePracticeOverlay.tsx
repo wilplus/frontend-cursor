@@ -11,6 +11,7 @@ import {
   type ConfidencePractice,
 } from "@/services/api/confidentVoicePractice";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
+import { PageHeader } from "@/components/willab/PageHeader";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 
 /** Read-only destination for a coach-shared Chat bubble. It opens the exact
@@ -48,26 +49,24 @@ export default function ConfidencePracticeOverlay({
   return (
     <MediaRefreshProvider refresh={media.refresh} payload={practice}>
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
-      <header className="h-16 shrink-0 border-b border-border">
-        <div className={`${WILLAB_CONTENT_RAIL} flex h-full items-center justify-between px-5`}>
-          <div>
+      <PageHeader contentClassName="h-16 justify-between px-5">
+        <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Coach exercise
             </p>
             <h2 className="text-[17px] font-semibold text-foreground">
               {practice?.exercise.title ?? "Exercise"}
             </h2>
-          </div>
-          <button
+        </div>
+        <button
             type="button"
             onClick={onClose}
             className="rounded-full border border-border p-2 text-muted-foreground hover:bg-muted"
             aria-label="Close exercise"
           >
             <X className="h-5 w-5" aria-hidden />
-          </button>
-        </div>
-      </header>
+        </button>
+      </PageHeader>
       <main className="scrollbar-none flex-1 overflow-y-auto overscroll-contain px-5 py-6">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col gap-4`}>
           {loading ? (

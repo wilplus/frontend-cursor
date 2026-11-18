@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState } from "react";
 import { MessageSquareText, MonitorPlay } from "lucide-react";
 import type { PracticeChunk, PracticeDeliveryLabel } from "@/services/api/trainings";
-import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 export type FeedbackWalkChunk = Omit<
   PracticeChunk,
@@ -128,10 +127,6 @@ export default function FeedbackWalkCard({
           const compact = !single;
           const defaultRange = chunk.pendingLabel ?? `Slides ${chunk.startSlide}-${chunk.endSlide}`;
           const range = rangeLabels[chunk.latestSessionId] ?? defaultRange;
-          const status = chunk.deliveryLabel ?? chunk.pendingStatus ?? "Processing";
-          const statusTone = chunk.deliveryLabel
-            ? PRACTICE_READINESS_TONE[chunk.deliveryLabel]
-            : "#a3a3a3";
           return (
             <div
               key={chunk.latestSessionId}
@@ -155,10 +150,6 @@ export default function FeedbackWalkCard({
                     <span className="shrink-0 rounded-full bg-[#ffeadf] px-2 py-[3px] text-[11px] font-bold text-[#ff6727]">{attemptsLabel(chunk.attempts)}</span>
                   ) : null}
                 </div>
-                <div data-practice-status className="mt-1.5 inline-flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-[#737373]">
-                  <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusTone }} />
-                  {status}
-                </div>
               </div>
             </div>
           );
@@ -177,4 +168,4 @@ export default function FeedbackWalkCard({
   );
 }
 
-// Founder-Approved: remove the duplicate card title and tighten the project result card, 2026-11-18.
+// Founder-Approved: contact-point chat, 2026-11-18; remove the project Feedback card's visible status dot and label.

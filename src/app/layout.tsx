@@ -117,7 +117,9 @@ export default function RootLayout({
       */}
       <body className="flex h-[100dvh] flex-col font-sans antialiased">
         <UiLocaleProvider initialLocale={uiLocale}>
-          <div className="flex-1 overflow-y-auto">{children}</div>
+          <div data-app-content className="relative min-h-0 flex-1">
+            <div className="h-full overflow-y-auto">{children}</div>
+          </div>
           <Footer />
           <Toaster position="top-center" />
           <ServiceWorkerRegistrar />

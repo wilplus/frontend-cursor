@@ -42,11 +42,13 @@ export default function OverlayCloseButton({
   onClick,
   ariaLabel,
   className,
+  disabled = false,
 }: {
   onClick: () => void;
   ariaLabel?: string;
   /** Position / offset overrides only — the visual treatment is fixed. */
   className?: string;
+  disabled?: boolean;
 }) {
   const locale = useUiLocale();
   const label = ariaLabel ?? uiText(locale, "close");
@@ -54,6 +56,7 @@ export default function OverlayCloseButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       className={cn(OVERLAY_ICON_BUTTON_CLASS, CLOSE_TAP_AREA_CLASS, className)}
     >

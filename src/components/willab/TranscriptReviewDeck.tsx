@@ -1266,7 +1266,7 @@ export default function TranscriptReviewDeck({
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (
-        <div className="shrink-0 border-b border-border">
+        <div className={`shrink-0 ${TOP_NAV_SEPARATOR_CLASS}`}>
           <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-3`}>
             <span className="flex min-w-0 items-baseline gap-2">
               <span className="truncate text-[15px] font-semibold text-foreground">

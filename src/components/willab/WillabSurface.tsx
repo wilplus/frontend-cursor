@@ -334,7 +334,7 @@ export default function WillabSurface({
         className={`willab-canvas flex flex-1 flex-col overflow-hidden ${shellPadding(
           flush,
           bare,
-        )}${flush && chats.front ? " relative" : ""}`}
+        )}${(flush && chats.front) || pickedProject ? " relative" : ""}`}
       >
         {children}
       </div>
@@ -603,4 +603,4 @@ function shellPadding(flush: boolean, bare: boolean): string {
   return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }
 
-// Founder-Approved: closing feelings or setup cancels the pending project recording instead of showing processing, 2026-11-18.
+// Founder-Approved: contact-point chat, 2026-11-18; keep the project Feedback actions inside the canvas above the global footer.
