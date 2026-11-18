@@ -550,7 +550,7 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
-  // The policy update prompt (PolicyUpdate.tsx); refs, so the upload effect
+  // The current-policy consent gate (PolicyUpdate.tsx); refs, so the upload effect
   // reads the current ones without re-running.
   const policyUpdate = usePolicyUpdate();
   const policyUpdateRef = useRef(policyUpdate);
@@ -1592,7 +1592,7 @@ export default function LabOverlay({
     return asksBeforeClosing();
   }
 
-  // Try processing again. Also run once a policy update is accepted after
+  // Try processing again. Also run once the current policy is accepted after
   // the upload was refused for an out-of-date acceptance (PolicyUpdate.tsx).
   const retryProcessing = async () => {
     if (labSessionId) {
