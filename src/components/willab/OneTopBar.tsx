@@ -6,6 +6,7 @@ import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { useBackDismiss } from "./useBackDismiss";
 import { useEdgeSwipe } from "./chats/useEdgeSwipe";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /* -------------------------------------------------------------------------- */
 /*  The one top bar (backend N639): what opens from one of Will's lines (the  */
@@ -29,9 +30,9 @@ export function useOneBar(): boolean {
 
 /** The one bar's row: the chats' top bars' height (60 px) and their line
  *  under it, so every bar in the app lines up (N639). */
-export const ONE_BAR_ROW = "flex h-[60px] shrink-0 items-center border-b border-border px-2.5";
+export const ONE_BAR_ROW = `flex h-[60px] shrink-0 items-center ${TOP_NAV_SEPARATOR_CLASS} px-2.5`;
 /** A walk screen's own top row, as it was. */
-const WALK_ROW = "flex min-h-[44px] items-center justify-between px-2.5 pt-2";
+const WALK_ROW = `flex min-h-[44px] items-center justify-between ${TOP_NAV_SEPARATOR_CLASS} px-2.5 pt-2`;
 
 /** A walk screen's bar controls: as given, or, opened from Will's lines,
  *  the back arrow as the only control (a screen with only a close goes back

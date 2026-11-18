@@ -37,12 +37,21 @@ export function isPersistedTerminalReplay(
 }
 
 export function projectIdOf(message: Pick<LoungeMessage, "metadata">): string | null {
-  const id = message.metadata?.arc_id;
+  const metadata = message.metadata ?? {};
+  const id = metadata.arc_id ?? metadata.project_id ?? metadata.projectId;
   return typeof id === "string" && id.length > 0 ? id : null;
 }
 
 export function isProjectMessage(message: Pick<LoungeMessage, "metadata">): boolean {
   return projectIdOf(message) !== null;
+}
+
+/** Shared Coach history is longitudinal across projects, but project chat
+ * turns remain owned by their project and never become Coach dialogue. */
+export function speakingCoachMessages(
+  messages: readonly LoungeMessage[],
+): LoungeMessage[] {
+  return messages.filter((message) => !isProjectMessage(message));
 }
 
 /** A project question and every turn answering it still belong to the

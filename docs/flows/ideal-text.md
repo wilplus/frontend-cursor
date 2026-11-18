@@ -479,6 +479,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
 - `src/components/willab/PageHeader.tsx` — the locked cross-app header/divider primitive used by this page and its authenticated overlays.
 - `src/components/willab/IdealTextOverlay.tsx`
+- `src/components/TopNavbar.tsx` — shared full-bleed separator and safe-width Back control used by the Ideal Text page and its editor.
 - `src/components/willab/IdealTextPastVersion.tsx` — an older Take's card: its own words read only, which Take it is, the way to the latest and the helper words of its time (N375, N380).
 - `src/lib/willab/pastIdealText.ts` — which version an older card opens, read before the page is drawn, and its slides (N376).
 - `src/components/willab/IdealTextHeading.tsx`
@@ -512,6 +513,9 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-18 · History protection · the retired strengths client stays removed. App Model SET-07's stable `src/services/api/strengths.test.ts` story now exercises the surviving authenticated Take-deletion BFF and proves that its 409 `TAKE_HAS_LINEAGE` explanation reaches the caller unchanged.
+- 2026-11-18 · Save recovery · only a confirmed write updates the displayed document. A rejected stale-version/CAS write refreshes the server head and leaves the editor open with its draft; the speaker explicitly retries. Save, Back, X, Cancel and browser Back all use the same in-flight guard. Success is shown once by the host after the editor closes.
+
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-18 · N663 · the project-practice footer is one side-by-side choice:
@@ -536,6 +540,10 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
 - 2026-11-16 · loader contract · the document-assembly wait keeps the canonical centered frame and one indicator while the Ideal Text readout settles; it does not add a page-specific loader during the processing hand-off · FE (this PR)
 - 2026-11-17 · founder-approved loader correction · the Ideal Text page and its processing hand-off use one stable full-surface shell with one centered circular three-dot bubble; no progress, ring or bottom-corner variant is introduced, and inline dots remain only for a real in-chat response · FE (this PR)
+- 2026-11-18 · Ideal Text editor save hardening · the editor sends the current user-edit CAS v2 state (document revision/hash, part lineage and idempotency key); Save, Back, X, Cancel and browser Back share one save-safe exit path, with failed or authority-refused writes keeping the draft mounted and showing localized status copy; the shared navbar wraps the full title/subtitle instead of clipping them · FE (this task)
+
+- 2026-11-18 · N461 · a project's Continue recording path uses the source Ideal Text as the practice decision: Repeat this fragment or Rehearse whole presentation. The fragment keeps the latest Feedback Walk span; the whole choice starts the complete text. The durable Ideal Text result and Feedback Walk semantics are unchanged · FE (this PR)
+- 2026-11-18 · N461 · when a project Feedback Walk is closed, its final handoff reveals the completed Take's Ideal Text in the same overlay; closing that page still returns to the project conversation (`IdealTextOverlay.tsx`, `ProjectChat.tsx`) · FE (source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e)
 
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)
 - 2026-11-09 · N565 · `ONE_THING_COPY` in `idealEditCopy.ts`: their best's line becomes "To our ears, this one sounded really sure." or "To us, this one sounded really sure." (`best`, `bestToUs`); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N565, FE (this PR)

@@ -26,6 +26,7 @@ import {
   widgetSignUpLine,
   widgetSignedUp,
 } from "@/components/willab/chats/joinCopy";
+import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /* -------------------------------------------------------------------------- */
 /*  The website chat (backend N591, N595, N606, N610; rules: docs/flows/      */
@@ -436,7 +437,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
 
   return (
     <section data-widget-chat="" aria-label={name} className="fixed inset-0 flex flex-col overflow-hidden rounded-[22px] bg-background text-foreground">
-      <header className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-border pl-3.5 pr-2">
+      <header className={`flex h-[60px] shrink-0 items-center gap-2.5 ${TOP_NAV_SEPARATOR_CLASS} pl-3.5 pr-2`}>
         <LetterCircle id={token} name={name} size={36} />
         <b className="min-w-0 flex-1 truncate text-[16px]">{name}</b>
         <button type="button" aria-label="Close" data-widget-close="" onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-[15px]">

@@ -51,6 +51,7 @@ import {
 import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 import ProjectChat from "./ProjectChat";
 import type { TrainingArc } from "@/services/api/trainings";
+import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
 
 /** A project recording has not begun in these screens. Closing one cancels
  *  the pending bridge back to ProjectChat instead of inventing processing. */
@@ -131,8 +132,16 @@ export default function WillabSurface({
     }
     if (!labWasOpenRef.current || !returnProject) return;
     labWasOpenRef.current = false;
-    setPickedProject(returnProject);
-    setReturnProject(null);
+    const returning = returnProject;
+    let active = true;
+    void refreshProjectTrainings().then((projects) => {
+      if (!active) return;
+      setPickedProject(projects?.find((project) => project.arcId === returning.arcId) ?? returning);
+      setReturnProject(null);
+    });
+    return () => {
+      active = false;
+    };
   }, [flow.labOverlayOpen, returnProject]);
   // The Take whose wait the Lab just handed to the Lounge, until the Lounge
   // shows it (founder 2026-10-21: "make it stay"; useWaitScreen).
@@ -187,6 +196,21 @@ export default function WillabSurface({
     [],
   );
   const userId = useUserId();
+  const openProject = useCallback((arcId: string | null) => {
+    if (!arcId) {
+      flow.startRecording();
+      return;
+    }
+    void refreshProjectTrainings().then((projects) => {
+      const project = projects?.find((candidate) => candidate.arcId === arcId);
+      if (!project) {
+        flow.startRecording();
+        return;
+      }
+      setPickedProject(project);
+      flow.closeLab();
+    });
+  }, [flow]);
   // The coach's link (?lens= / ?idealArc=): the Ideal Text page's code and
   // its opening read start now, beside the boot reads, not once the Lounge
   // has mounted and the code has loaded. The same page opens on the same
@@ -381,6 +405,7 @@ export default function WillabSurface({
           clearActiveSetupDraft(userId);
           flow.startRecordingSetup();
         }}
+        onOpenProject={openProject}
         onStartPlanRecording={(topic, start) => {
           // After the first Take, the real talk is that project's Take 2
           // (backend N449 item 1): "How do you feel?" with its Skip, then

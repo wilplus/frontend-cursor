@@ -102,14 +102,14 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
   it("offers rehearse and continue side by side with the fragment readiness", () => {
     render({
       practiceDecision: {
-        readiness: "Almost",
-        onContinue: vi.fn(),
-        onRepeat: vi.fn(),
+        deliveryLabel: "Almost",
+        onFragment: vi.fn(),
+        onWholePresentation: vi.fn(),
       },
     });
     const decision = host.querySelector("[data-practice-decision]")!;
-    expect(labels()).toEqual(["Rehearse this again", "Continue practice"]);
-    expect(decision.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe("Almost");
+    expect(labels()).toEqual(["Repeat this fragment", "Rehearse whole presentation"]);
+    expect(decision.querySelector("[data-practice-status]")?.textContent).toContain("Almost");
   });
 });
 

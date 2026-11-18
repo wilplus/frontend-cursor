@@ -5,6 +5,7 @@ import { TypingGlyph } from "../../TypingDots";
 import { W } from "./hostSetupCopy";
 import { BarBox } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
+import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup's pieces, as the locked prototype draws them: Will's top  */
@@ -61,7 +62,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, children }: {
       {bar ? (
         bar
       ) : circle ? (
-        <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
+        <div className={`flex min-h-[56px] items-center gap-2.5 ${TOP_NAV_SEPARATOR_CLASS} px-3`}>
           {onBack ? (
             <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">
               {W.back}

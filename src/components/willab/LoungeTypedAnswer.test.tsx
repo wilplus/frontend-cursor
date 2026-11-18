@@ -390,7 +390,7 @@ describe("typed answer in the main Will/Lounge chat", () => {
       (node) => node.textContent === "Yes, actually—we did spot a pattern.",
     )!;
     expect(Boolean(own.compareDocumentPosition(reply) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    expect(host.textContent).toContain("Your presentations");
+    expect(host.textContent).toContain("Your projects");
     expect(thread.scrollTop).toBe(1_600);
     expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
 

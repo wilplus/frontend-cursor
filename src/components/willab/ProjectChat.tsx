@@ -33,13 +33,13 @@ import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { RecoverableAppend } from "./useLoungeThread";
 import FeedbackWalkCard, { type FeedbackWalkChunk } from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
+import TakeTranscriptSheet from "./TakeTranscriptSheet";
 import TypingDots, { TypingGlyph } from "./TypingDots";
 import WillQuestionBubble, { SOMETHING_ELSE, TYPE_YOUR_ANSWER } from "./WillQuestion";
 import { LetterCircle } from "./chats/ChatList";
 import { TopBar } from "./chats/TopBar";
 import { useBackDismiss } from "./useBackDismiss";
 import { useUserId } from "./useUserId";
-import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import { refreshLiveIdealDoc } from "./ReportCard";
 import {
   PRACTICE_CHUNK_SECONDS,
@@ -292,7 +292,6 @@ function useProjectRecordingLifecycle({
   recordingInProgress: boolean;
   onRecordingSettled?: () => void;
 }) {
-  const uploadingUnwatched = useTakeUploadingUnwatched();
   const [liveProject, setLiveProject] = useState(project);
   const [recordingActive, setRecordingActive] = useState(recordingInProgress);
   const [processingMarker, setProcessingMarker] = useState<ProcessingTake | null>(null);
@@ -313,13 +312,13 @@ function useProjectRecordingLifecycle({
       if (marker?.arcId === activeProject.arcId) {
         setProcessingMarker(marker);
         setRecordingActive(true);
-      } else if (!recordingActive && !uploadingUnwatched) {
+      } else if (!recordingActive) {
         setProcessingMarker(null);
       }
     };
     sync();
     window.addEventListener("storage", sync);
-    if (!recordingActive && !uploadingUnwatched) {
+    if (!recordingActive) {
       return () => window.removeEventListener("storage", sync);
     }
     const id = window.setInterval(sync, 500);
@@ -327,7 +326,7 @@ function useProjectRecordingLifecycle({
       window.clearInterval(id);
       window.removeEventListener("storage", sync);
     };
-  }, [activeProject.arcId, recordingActive, uploadingUnwatched, userId]);
+  }, [activeProject.arcId, recordingActive, userId]);
 
   useEffect(() => {
     if (!recordingActive) {
@@ -456,6 +455,10 @@ export default function ProjectChat({
   });
   const [opened, setOpened] = useState<Opened>(null);
   const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
+  const [openedTranscript, setOpenedTranscript] = useState<{
+    sessionId: string;
+    takeIndex: number;
+  } | null>(null);
   const reviewSelection = projectReviewSelection(opened, openedPractice);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -488,8 +491,9 @@ export default function ProjectChat({
     thread.messages,
     checkpoint,
   );
-  const finalFragment =
-    slideCount !== null && checkpoint >= slideCount - 1;
+  const recordingTakes = [...activeProject.takes].sort(
+    (a, b) => a.takeIndex - b.takeIndex,
+  );
   const pinBottom = useProjectChatScroll(
     scrollRef,
     activeProject.arcId,
@@ -716,13 +720,18 @@ export default function ProjectChat({
     void thread.reload();
   };
 
-  function startPractice(intent: "next" | "repeat"): void {
+  function startPractice(scope: "fragment" | "whole"): void {
+    const latest = openedPractice ?? practiceChunks.at(-1) ?? null;
+    const startSlide = scope === "whole" ? 1 : latest?.startSlide ?? 1;
+    const endSlide = scope === "whole"
+      ? slideCount ?? undefined
+      : latest?.endSlide ?? slideCount ?? undefined;
     writePracticeResume(userId, activeProject.arcId, {
       durationSeconds: PRACTICE_CHUNK_SECONDS,
-      // At the end of the deck, Continue practice repeats the current final
-      // fragment instead of closing the result with no recording. Repeat is
-      // always scoped to the current checkpoint.
-      slideIndex: Math.max(0, checkpoint + (intent === "next" && !finalFragment ? 1 : 0)),
+      slideIndex: Math.max(0, startSlide - 1),
+      scope,
+      startSlide,
+      ...(endSlide === undefined ? {} : { endSlide }),
     });
     setOpened(null);
     startRecording();
@@ -740,6 +749,25 @@ export default function ProjectChat({
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
+          {recordingTakes.map((take) => (
+            <div
+              key={`recording:${take.sessionId}`}
+              data-project-recording={take.sessionId}
+              className="ml-auto max-w-[86%] rounded-[18px] bg-primary px-4 py-3 text-primary-foreground"
+            >
+              <p className="text-[15px] font-semibold">Your recording · Take {take.takeIndex}</p>
+              <button
+                type="button"
+                onClick={() => setOpenedTranscript({
+                  sessionId: take.sessionId,
+                  takeIndex: take.takeIndex,
+                })}
+                className="mt-1 text-left text-[13px] underline underline-offset-2"
+              >
+                Open raw transcript
+              </button>
+            </div>
+          ))}
           {hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
@@ -873,19 +901,28 @@ export default function ProjectChat({
           analysisPending={analysisPending}
           initialMode={opened === "walk" ? "review" : undefined}
           requireFeedbackWalk={opened === "walk"}
+          projectFlow={opened === "walk"}
           onClose={closeResult}
           onReadAloud={() => {
             startRecording();
             onRecord(activeProject.arcId);
           }}
           practiceDecision={hasPractice ? {
-            readiness:
+            deliveryLabel:
               openedPractice?.deliveryLabel ??
               practiceChunks.at(-1)?.deliveryLabel ??
-              null,
-            onContinue: () => startPractice("next"),
-            onRepeat: () => startPractice("repeat"),
+              undefined,
+            onFragment: () => startPractice("fragment"),
+            onWholePresentation: () => startPractice("whole"),
           } : undefined}
+        />
+      ) : null}
+      {openedTranscript ? (
+        <TakeTranscriptSheet
+          projectTopic={activeProject.topic}
+          takeIndex={openedTranscript.takeIndex}
+          takeSessionId={openedTranscript.sessionId}
+          onClose={() => setOpenedTranscript(null)}
         />
       ) : null}
     </div>

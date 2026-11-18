@@ -1,11 +1,11 @@
 /*
-STORY    As a speaker, I want the wait bar to show it has started from the first second and never to show full until my Ideal Text is ready, so that I know it is working and a full bar means it is there now.
+STORY    As a speaker, I want the wait bar to show it has started from the first second and only move on real processing updates, so that it never pretends the work is further along than it is.
 OUTCOME
-  O1  However long the wait, the bar stops short of full until the text is ready.
+  O1  A document-phase wait holds its last real value when no document progress is reported.
   O2  From the first second, before anything is reported, the bar shows at least 1%.
-PROVES   O1 -> NEVER reaches a full bar, even past the cap
+PROVES   O1 -> elapsed time never advances the bar
          O2 -> shows 1% before the first report, and a real report takes over
-WHY      Founder 2026-09-22: "100% means instant switch to the ideal text". Founder 2026-10-21: "at least 1% from the very first second".
+WHY      Founder 2026-10-21: "at least 1% from the very first second"; a wait duration is not a processing report.
 */
 import { describe, expect, it } from "vitest";
 import {
@@ -14,7 +14,7 @@ import {
   waitPercent,
 } from "./waitProgress";
 
-describe("the bar spans both phases and stops short of full", () => {
+describe("the bar spans both phases and stays honest", () => {
   const CAP = 120_000;
   const doc = (elapsed: number, over: Partial<Parameters<typeof waitPercent>[0]> = {}) =>
     waitPercent({
@@ -26,13 +26,13 @@ describe("the bar spans both phases and stops short of full", () => {
       ...over,
     });
 
-  it("NEVER reaches a full bar, even past the cap", () => {
-    // THE GUARD THAT MAKES THE REST HONEST (founder 2026-09-22: "100% means
-    // instant switch to the ideal text"). The last point belongs to
-    // settlement, so a full bar is never something anyone waits behind.
-    expect(doc(CAP)).toBeLessThanOrEqual(DOCUMENT_CEILING);
-    expect(doc(CAP * 10)).toBe(DOCUMENT_CEILING);
-    expect(doc(Number.POSITIVE_INFINITY)).toBe(DOCUMENT_CEILING);
+  it("holds the last real value instead of advancing from elapsed time", () => {
+    expect(doc(0, { held: null })).toBe(WAIT_STARTED);
+    expect(doc(0)).toBe(90);
+    expect(doc(CAP * 10)).toBe(90);
+    expect(doc(Number.POSITIVE_INFINITY)).toBe(90);
+    expect(doc(0, { reported: 50 })).toBe(95);
+    expect(doc(0, { reported: 100 })).toBe(DOCUMENT_CEILING);
   });
 
   it("shows 1% before the first report, and a real report takes over", () => {

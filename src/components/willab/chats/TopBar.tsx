@@ -55,14 +55,14 @@ export function TopBar({
       dividerClassName="top-[calc(env(safe-area-inset-top)_+_60px)]"
       contentClassName="h-[60px] gap-1 px-[15px]"
     >
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label={CHUNK_SHEET_COPY.pagerBack}
-        className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
-      >
-        <ChevronLeft className="h-6 w-6" aria-hidden />
-      </button>
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={CHUNK_SHEET_COPY.pagerBack}
+          className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
+        >
+          <ChevronLeft className="h-6 w-6" aria-hidden />
+        </button>
       {onOpen ? (
         <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
           {who}

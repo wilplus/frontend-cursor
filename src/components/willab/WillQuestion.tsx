@@ -287,21 +287,30 @@ export function useWordsBox(
   draft: string,
   box: RefObject<HTMLTextAreaElement | null>,
   wordsWait = false,
-): { show: boolean; start: () => void; close: () => void } {
+): { show: boolean; active: boolean; start: () => void; close: () => void } {
   const asks = willWaiting(shown) !== null && !typingOff;
   const noTaps = asks && (willQuestionOf(shown[shown.length - 1]?.metadata)?.chips.length ?? 0) === 0;
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!asks) setOpen(false);
   }, [asks]);
+  const focusBox = () => {
+    const el = box.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const caret = el.value.length;
+    el.setSelectionRange(caret, caret);
+    el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  };
   return {
     show: !typingOff && (!!draft || open || noTaps || wordsWait),
+    active: open,
     // The box is drawn and focused inside the tap itself: a phone opens its
     // keyboard only for a focus made while the tap is handled, so a focus a
     // frame later left the box focused, keyboard down, a second tap needed.
     start: () => {
       flushSync(() => setOpen(true));
-      box.current?.focus();
+      focusBox();
     },
     close: () => setOpen(false),
   };

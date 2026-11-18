@@ -250,6 +250,7 @@ let host: HTMLDivElement;
 let root: Root;
 let ended: number;
 beforeEach(() => {
+  vi.useFakeTimers();
   Object.assign(mic, { starts: 0, stops: 0, cancels: 0, fail: false, opening: false });
   answers = [];
   uploadFails = false;
@@ -269,6 +270,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 function draw(
@@ -329,7 +331,7 @@ const stop = () => click(recorder()?.querySelector("button[aria-label='Stop']"))
 async function settle(ms = 0) {
   for (let i = 0; i < 8; i += 1) {
     await act(async () => {
-      await new Promise((r) => setTimeout(r, ms));
+      await vi.advanceTimersByTimeAsync(ms);
     });
   }
 }

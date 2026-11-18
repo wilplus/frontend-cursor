@@ -7,6 +7,7 @@ import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefres
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
+import TopNavbar from "@/components/TopNavbar";
 import {
   fetchArcFeedback,
   groupKeyMomentsBySlide,

@@ -354,6 +354,26 @@ personality or challenge/threat state from voice alone (N663).
   the things that are there that we went through, the judgment time, the
   sniper, whatever intervention was included in the feedback", then "Both,
   read only".)
+
+  **Canonical state table and entry-point invariants.** The FE persists one
+  versioned walk-state snapshot on each idempotent `walk_step` event for the
+  Take (`shown`, `answered`, `skipped`, `completed`). The Lounge remains the
+  persistence contract; state-only rows are not drawn as chat bubbles.
+
+  | State | Meaning | Entry rendering |
+  | --- | --- | --- |
+  | `not_started` | No step has been completed for this Take | First canonical plan, step by step, in order: praise → moment/judgement when served → one thing to improve → exercise/practice → remaining sections |
+  | `in_progress` | The walk has been entered and has work left | Same canonical plan; completed parts are given, first pending part has controls |
+  | `practice_pending` | Practice was reached, then skipped/deferred | Preceding sections remain expanded; the same exercise is focused with its persisted attempts, up to the established maximum or Skip |
+  | `completed` | The walk's `end` transition is persisted | One fully expanded, scrollable read-only review of every seen/completed element; no Next, Skip or pending control |
+
+  The processing-complete door and the project's black Feedback button pass
+  the same selected `take_session_id` into the same overlay and state machine.
+  A Lounge or paragraph door may choose a target step, but it cannot choose a
+  second plan. A reload reconstructs the state from the same Take's Lounge
+  rows; it never resets the moment identity, praise, judgement, exercise,
+  attempts or responses. The exact Take is preserved separately from
+  `coachTake`, which is only the coach-link route.
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -2474,10 +2494,16 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-18 · Gate cleanup · review-plan selection and shown-step messages have one named policy each in `useDeckFeedbackWalk.tsx`; live/replay entry, coach-note delivery and AI clip wording keep the same behavior. Existing speaker-story tests cover those public paths; no complexity baseline is raised.
+- 2026-11-18 · Practice story timing · the AI-clip wait stories advance a fake clock through typing, fallback words and late playback. This removes workstation timing races while preserving the same speaker outcomes and time limits.
+- 2026-11-18 · Navigation story isolation · chat tests drain queued history events after closing a view; the edge-swipe story supplies its own gesture clock. Back/Forward, scroll restoration and short-swipe behavior are unchanged, and no history event leaks into the next story.
+
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-17 · release-blocking chat reliability audit · B14, B15: an accepted typed or quick-choice turn draws exactly one durable orange bubble and brings it into view; the composer and choices disable behind one typing state until its contextual reply or the existing recoverable-error line arrives, with a 45-second request timeout. A stale `next_take` terminal line cannot answer or reappear as a new turn; structured replies stay after their typed trigger; authoritative reloads reconcile the exact optimistic identity without consuming an intentional repeated same-body message. Both the Lounge and project chat pin the send and settlement on desktop/mobile while history reads otherwise keep their place (`Lounge.tsx`, `ProjectChat.tsx`, `WillQuestion.tsx`, `useLoungeThread.ts`, `projectChat.ts`, `chatQuery.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
+- 2026-11-18 · N461 · a project Take's Feedback Walk ends, or its finished walk is closed, on that Take's Ideal Text; closing that text returns to the same project conversation, and closing the conversation returns to the project picker, which revalidates the list so the newly completed project is present without a page reload (`IdealTextOverlay.tsx`, `ProjectChat.tsx`, `ProjectPicker.tsx`, `projectTrainings.ts`, `WillabSurface.tsx`) · FE (source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e)
+- 2026-11-16 · chat list · the chat list waits for its current chats and host setup reads and then appears once; the browser's previous list is used only if the chats read fails, so neither old rows nor the non-builder pinned rows flash before current ones. On a computer, the chat list and a person's chat use the same max-width and side padding as the WillpowerLab logo and menu; phones stay full width. Was: the previous list appeared first and was replaced by the current list, the pinned rows changed after the host setup arrived, and both chat screens filled the whole computer window (founder 2026-11-16) · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 - 2026-11-16 · loader contract · the processing wait's centered frame is shared across the Lab, Lounge resume overlay and document wait; inline chat/lens typing dots remain distinct · FE (this PR)
 - 2026-11-17 · founder-approved loader correction · the chat list, project chat, pattern flow, Feedback Walk, Ideal Text hand-off, overlays and route openings use one stable full-surface shell with one centered circular three-dot bubble; page boot and walk-step waits no longer use bottom-corner or moving typing indicators, while true in-chat replies keep their inline dots · FE (this PR)
@@ -2509,7 +2535,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-10 · no rule changed · B8: a tap on "Did this help?" (Yes, No, Skip) shows the typing dots until Will's reply is in the thread, as a tap on Will's question and a typed answer do (`answerFeedbackCheck` in `Lounge.tsx`). Nothing new on screen. Was: nothing for a moment, then the reply (founder 2026-11-10) · FE (this PR)
 - 2026-11-10 · N624 · C4: the One thing walk's fix no longer plays their confident moment again when it has its own example (the AI clip, the exercise's video): "Say this one like your confident moment:" stands right above it, in the walk and the chat (`OneExerciseBody` in `FeedbackWalk.tsx`). With no example of its own, their best stays full after the line. No new words. Was: the "Your confident moment" chip between the line and the AI clip (N379 item 1) · BE #1902, FE (this PR)
 - 2026-11-10 · N623 · D4, B16: after the walk, on a plan, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`); D4 now says the goodbye and the bar as N564 left them (no "15 minutes", no "{n} of {total} practices done."). No new words. Was: the bar under the hello and again after every walk the same day · BE #1897, BE #1900, FE (this PR)
-- 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, the bubble, then the walk), and the bubble shows at once, before the server has answered (recording-screens.md §6). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
+- 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, then the bubble once the server accepts it, then the walk). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
 - 2026-11-09 · — · §3, D4 (WILL-07): the summary row comes at once with the signed line and GPT-4o's words replace it in place; while its metadata says `writing`, Will reads it as "not in yet", never as the failed summary (`loungeScreen.ts`). No new words on screen. What stops: Will treating a summary still being written as one that failed · BE wilplus/backend-cursor#1865, FE (this PR)
 - 2026-11-09 · N559 · G1: your own chats, best fit first: opened for a Take, the screen of who hears it puts first the people in your chats the matcher finds best able to answer it (`useChatOrder`, `bestFitFirst` in `NextTakeShareScreen.tsx`; `getChatOrder` in `takeMatches.ts`; BFF `/api/v2/takes/<take>/match/chats`), then the list's order; "Last sent" and the ticks unchanged, no score, no new words; a failed, slow (1.5 s) or switched-off read keeps the list's order. Before a Take nothing changes. What stops: the person sent to last always on top when the screen opens for a Take · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N576 · B17: a Take's bubble in Will's chat opens its words behind "Read it", one paragraph per slide, "Hide" closes them; closed by default, nothing before there are words (`ReportCard.tsx` `TakeWords`, `takeWordsOf`, with `VoiceWords` from `chats/ChatThread.tsx`). Was: only the chats with people, the inquiry and the website chat had it · BE (the Take's words on the Lounge read), FE (this PR)
