@@ -169,6 +169,8 @@ language rather than this UI table.
 - Copy `.env.example` to `.env.local` and set Supabase + API URL.
 - `npm run dev`
 
+Xcode Cloud archives with pinned Swift packages. After changing Capacitor dependencies, run `npx cap sync ios` and `xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App`, then commit the updated `Package.resolved` with the dependency change.
+
 ## Scripts
 
 - `npm run dev`: start the dev server
