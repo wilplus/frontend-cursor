@@ -1,0 +1,68 @@
+{
+  "prototype": "chat-continue-prototype.html",
+  "lockVersion": 4,
+  "lockedAt": "2026-11-15",
+  "rule": "Change a locked contract only with explicit founder approval, then update this file and the verifier in the same edit.",
+  "lockedContracts": [
+    {
+      "id": "project-chat-two-results",
+      "contract": "A practised project chat shows exactly two durable result surfaces: Feedback Walk and Ideal Text. It does not show a separate recording bubble."
+    },
+    {
+      "id": "project-chat-single-action",
+      "contract": "The project bottom bar has one black primary CTA: Start recording before practice, Continue recording after practice. After post-Take questions, Continue recording opens the Ideal Text repeat-or-next-fragment decision before the saved-slide picker."
+    },
+    {
+      "id": "project-chat-contextual-input",
+      "contract": "Project chats normally show the single recording CTA. When the project asks about the content or substance of its Take, the bottom action temporarily becomes tap choices plus an optional text-answer composer; after the questions, the black Continue recording CTA returns. There is no voice composer, paused card, saved badge, or choose-training-length action."
+    },
+    {
+      "id": "will-text-only",
+      "contract": "Will contains only cross-project patterns, principles, mindset insights and its real text composer. A weekly cross-project pattern reuses the existing Sunday-note Principles mechanism: Not now or Investigate, a speaking pattern from the Speaking Errors library or a complete new observed-error form, relevant held principles, the user's reflection, and explicit Accept, Edit or Not now before a one-line principle is kept. Project-specific Take questions and recording actions never appear there."
+    },
+    {
+      "id": "source-project-picker",
+      "contract": "The source-derived What are you recording? picker starts a new project or opens an existing project."
+    },
+    {
+      "id": "source-onboarding",
+      "contract": "The source-derived onboarding asks for the whole presentation time limit with 3, 5, 10, 30, 60, Other and No time limit choices. Other accepts positive whole minutes. The selected limit is not the practice duration."
+    },
+    {
+      "id": "saved-slide-picker",
+      "contract": "Continue recording shows the saved slide, helper words, Continue from slide CTA and Back to chat. Practice duration is not configurable; every recording has a fixed five-minute maximum. It has no slide range bar."
+    },
+    {
+      "id": "source-recording-screen",
+      "contract": "The recording screen keeps the source slide-first composition, helper words, a fixed five-minute recording clock/progress and source bottom controls. It has no practice-duration picker."
+    },
+    {
+      "id": "feedback-walk-owns-moments",
+      "contract": "Finishing or leaving a recording immediately opens the source-like single-thread Feedback Walk with grey coach prompts and the speaker's orange audio bubbles. The invented grey feedback-summary screen stays removed, and the project Feedback Walk bubble reopens this walk."
+    },
+    {
+      "id": "ideal-text-decision",
+      "contract": "Ideal Text shows every slide touched by the practised fragment in order, with each slide visual immediately followed by that slide's spoken text. It keeps the top-right X and has only Continue to next fragment and Repeat this fragment at the bottom. It has no practised-so-far label, recommendation sentence, or bottom Close action."
+    },
+    {
+      "id": "post-walk-project-research",
+      "contract": "Feedback Walk Next returns to the same project's conversational chat, which asks the qualitative audience, intent and system-read alignment questions using taps or optional text. Once answered, Continue recording opens Ideal Text so the user chooses Repeat this fragment or Continue to next fragment, then starts the chosen next or repeated fragment directly. Finishing the final fragment returns to the project chat. Will is not part of this project-specific loop."
+    },
+    {
+      "id": "no-prototype-explanations",
+      "contract": "Prototype-only implementation notes, mapping panels and explanatory training-paused cards stay off the user surface."
+    },
+    {
+      "id": "public-principles-boundary",
+      "contract": "The Principles experience defined here is intended for the open-to-everyone ring. Will proposes every principle and the user must accept or edit it before it is kept. The unfinished swipe-down notes entry from the top bar remains unavailable and is not required for public Principles access."
+    },
+    {
+      "id": "shared-responsive-canvas",
+      "contract": "Every prototype surface shares one centered 1080px maximum app canvas on desktop and remains full-width on narrower screens. Setup, recording, Feedback Walk and Ideal Text overlays fill that same canvas rather than introducing their own outer widths."
+    }
+  ],
+  "openForDesign": [
+    "Evidence-threshold tuning after testing",
+    "Weekly reflection copy suggested by Will for founder acceptance"
+  ]
+}

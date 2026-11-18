@@ -1,0 +1,185 @@
+<div id="will-insights-scope">
+  <style>
+    #will-insights-scope {
+      color: var(--foreground);
+      background: transparent;
+    }
+    #will-insights-scope form {
+      display: grid;
+      gap: 0;
+    }
+    #will-insights-scope header {
+      display: grid;
+      gap: 0.35rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #will-insights-scope header p,
+    #will-insights-scope .scope-note {
+      margin: 0;
+      color: var(--muted-foreground);
+    }
+    #will-insights-scope fieldset {
+      display: grid;
+      gap: 0.75rem;
+      margin: 0;
+      padding: 1rem 0;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #will-insights-scope legend {
+      padding: 0;
+      font-weight: 500;
+    }
+    #will-insights-scope .scope-options {
+      display: grid;
+      gap: 0.55rem;
+    }
+    #will-insights-scope .scope-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding-top: 1rem;
+    }
+    #will-insights-scope .scope-status {
+      margin: 0;
+      color: var(--muted-foreground);
+    }
+    #will-insights-scope textarea {
+      min-height: 7rem;
+    }
+  </style>
+
+  <form id="will-insights-form">
+    <header>
+      <h2>Scope Will’s general insights</h2>
+      <p>Decide what Will may generalise across projects and what should become a reusable principle.</p>
+    </header>
+
+    <fieldset>
+      <legend>1. What is Will’s primary role?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="radio" name="role" value="Pattern spotter across projects" required><span class="form-check-label">Pattern spotter across projects</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="role" value="Mindset coach"><span class="form-check-label">Mindset coach</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="role" value="Principles coach"><span class="form-check-label">Principles coach</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="role" value="All three, with patterns first"><span class="form-check-label">All three, with patterns first</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. What evidence may Will use?</legend>
+      <p class="scope-note">Choose every source that may contribute to a cross-project insight.</p>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="evidence" value="Repeated patterns across projects"><span class="form-check-label">Repeated patterns across projects</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="evidence" value="My project answers about audience and intent"><span class="form-check-label">My project answers about audience and intent</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="evidence" value="Changes between Takes"><span class="form-check-label">Changes between Takes</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="evidence" value="Coach-reviewed feedback"><span class="form-check-label">Coach-reviewed feedback</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. When is a pattern strong enough to mention?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="radio" name="threshold" value="After it appears across two projects" required><span class="form-check-label">After it appears across two projects</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="threshold" value="After it appears across three projects"><span class="form-check-label">After it appears across three projects</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="threshold" value="After one project, but only as an early hypothesis"><span class="form-check-label">After one project, but only as an early hypothesis</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="threshold" value="Only after I explicitly confirm it"><span class="form-check-label">Only after I explicitly confirm it</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. How should a principle be created?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="radio" name="creation" value="Will suggests it and I confirm it" required><span class="form-check-label">Will suggests it and I confirm it</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="creation" value="Will creates it automatically after enough evidence"><span class="form-check-label">Will creates it automatically after enough evidence</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="creation" value="I create principles manually"><span class="form-check-label">I create principles manually</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="creation" value="Both Will and I can propose one, but I always confirm it"><span class="form-check-label">Both Will and I can propose one, but I always confirm it</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>5. What should each principle contain?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="contents" value="A short principle"><span class="form-check-label">A short principle</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="contents" value="Why it seems relevant to me"><span class="form-check-label">Why it seems relevant to me</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="contents" value="The projects that support it"><span class="form-check-label">The projects that support it</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="contents" value="One action for my next Take"><span class="form-check-label">One action for my next Take</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="contents" value="A way to retire or revise it"><span class="form-check-label">A way to retire or revise it</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>6. How much project detail may appear in Will?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="radio" name="detail" value="Only the generalised pattern; no project wording" required><span class="form-check-label">Only the generalised pattern; no project wording</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="detail" value="Name supporting projects, but do not quote them"><span class="form-check-label">Name supporting projects, but do not quote them</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="detail" value="Allow a short project example when it helps"><span class="form-check-label">Allow a short project example when it helps</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="detail" value="Show project evidence only when I ask"><span class="form-check-label">Show project evidence only when I ask</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>7. When should Will surface a general insight?</legend>
+      <div class="scope-options">
+        <label class="form-check"><input class="form-check-input" type="radio" name="cadence" value="Only when there is enough new evidence" required><span class="form-check-label">Only when there is enough new evidence</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="cadence" value="After each completed project"><span class="form-check-label">After each completed project</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="cadence" value="As a weekly reflection"><span class="form-check-label">As a weekly reflection</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="cadence" value="Only when I ask Will"><span class="form-check-label">Only when I ask Will</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>8. Show me your ideal Will insight</legend>
+      <label class="form-label" for="will-insight-example">Write one example in the tone and level of detail you want.</label>
+      <textarea class="form-control" id="will-insight-example" name="example" placeholder="Example: Across your recent projects, you become more convincing when you turn an abstract point into one concrete image..."></textarea>
+    </fieldset>
+
+    <div class="scope-actions">
+      <button class="btn btn-primary" type="submit">Send my decisions</button>
+      <p class="scope-status" id="will-insights-status" aria-live="polite"></p>
+    </div>
+  </form>
+
+  <script>
+    (() => {
+      const root = document.getElementById("will-insights-scope");
+      const form = root?.querySelector("#will-insights-form");
+      const status = root?.querySelector("#will-insights-status");
+      if (!form || !status) return;
+
+      const selected = (name) => Array.from(form.querySelectorAll(`[name="${name}"]:checked`)).map((input) => input.value);
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+
+        const example = form.querySelector("#will-insight-example")?.value.trim() || "No example provided";
+        const prompt = [
+          "I completed the Will general-insights and principles scope form.",
+          `Primary role: ${selected("role").join(", ")}.`,
+          `Allowed evidence: ${selected("evidence").join(", ") || "None selected"}.`,
+          `Evidence threshold: ${selected("threshold").join(", ")}.`,
+          `Principle creation: ${selected("creation").join(", ")}.`,
+          `Principle contents: ${selected("contents").join(", ") || "None selected"}.`,
+          `Project detail in Will: ${selected("detail").join(", ")}.`,
+          `Insight cadence: ${selected("cadence").join(", ")}.`,
+          `Ideal example: ${example}.`,
+          "Use these answers to define the product scope for Will and the Principles feature. Separate firm decisions from remaining open questions, identify any product-safety boundary, and propose the next prototype change."
+        ].join("\n");
+
+        status.textContent = "Sending your decisions…";
+        try {
+          if (window.openai?.sendFollowUpMessage) {
+            await window.openai.sendFollowUpMessage({ prompt, title: "Send Will scope decisions?" });
+            status.textContent = "Decisions sent.";
+          } else {
+            status.textContent = "Your decisions are ready to send.";
+          }
+        } catch (error) {
+          status.textContent = "Could not send yet. Please try again.";
+        }
+      });
+    })();
+  </script>
+</div>
