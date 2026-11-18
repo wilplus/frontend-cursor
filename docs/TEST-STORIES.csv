@@ -2018,6 +2018,21 @@ O4 -> keeps the screen awake while recording and lets it lock after
 O5 -> a stop while the mic is opening leaves the mic off
 O6 -> remembers a Take recorded through earbuds
 O7 -> a phone call pauses the Take, which carries on after, the call not in its length",Never-rule 3 (never break record → process → Ideal Text).
+src/hooks/useTakeMic.test.tsx,Story,"As a speaker in the iPhone app, I want my Take recorded by the phone itself, with my voice as it is, and everything else exactly as a web Take, so that nothing I rely on changes (backend N655, N662).","O1  Only the app with the native recorder and the switch on records
+natively; a browser, an older app or the switch off keep the web
+recorder.
+O2  The phone's Take is handed over as an m4a with its recorded length; a
+call pauses the clock the slides are timed on and the paused time is
+counted; the phone lets go of its copy once the web has it.
+O3  Earbuds are remembered by the kind of mic, for the line before the
+next Take (N372).
+O4  Discard keeps nothing, and a Finish while the mic is still opening
+leaves the mic off and hands over an empty try.
+O5  A refused microphone shows today's words, never new ones.","O1 -> records natively only in the app with the plugin and the switch on
+O2 -> hands over the phone's m4a with a call's pause counted
+O3 -> remembers earbuds by the kind of mic
+O4 -> discard keeps nothing; a Finish while opening leaves the mic off
+O5 -> a refused microphone says today's words",Never-rule 3 (record → process → Ideal Text) and Never-rule 4.
 src/lib/admission.test.ts,Story,"As an invited early tester, I want the one admission URL to be stable, so that every valid invitation opens the speaking-coach welcome.",O1  Only the founder-approved token is admitted.,"O1 -> ""accepts only the founder-approved admission link""",Founder 2026-11-15: this is the app's only admission link.
 src/lib/api/bffFetch.test.ts,Story,"As a developer, I want every call to our own server routes to carry the sign-in token and to report ""no connection"" separately from a server answer, so that screens handle being offline correctly.","O1  The call carries the sign-in token and only the options it was given.
 O2  A dropped connection comes back as ""network"", never as a server answer.","O1 -> sends the Bearer header and only the options it was given
@@ -2569,13 +2584,20 @@ O4  A payment problem says the recording is safe, not that analysis failed.
 O5  A Take I discard while it uploads is reported as discarded and is not
 re-sent another way.
 O6  A recording with no audio in it is never sent: I am asked to record
-again, as for a Take with no clear speech.","O1 -> ""appends slides + presentation_ref + slide_advances when a deck is attached""
+again, as for a Take with no clear speech.
+O7  A Take the iPhone app recorded goes up as an m4a, so the server keeps
+it as one (backend N655, N662); a web Take still goes up as WebM.
+O8  A Take too large for the website route is never sent there when the
+upload Worker can't be reached: it stays a connection failure, so the
+copy on the device is kept and sent again, never refused as too large.","O1 -> ""appends slides + presentation_ref + slide_advances when a deck is attached""
 O2 -> ""sends only the canonical project id and upload key""
 O3 -> ""routes a 504 with session_id into the async 'processing' path""
 O4 -> ""keeps 402 out of the analysis-failed path""
 O5 -> ""reports `discarded`, never the connection-error copy"",
 ""does NOT re-send the discarded take down the BFF lane""
-O6 -> ""asks for the take again instead of sending an empty recording""",Never-rule 3: never break record -> process -> Ideal Text.
+O6 -> ""asks for the take again instead of sending an empty recording""
+O7 -> ""names an iPhone app Take lab.m4a and a web Take lab.webm""
+O8 -> ""keeps a Take too large for the website route off it""",Never-rule 3: never break record -> process -> Ideal Text.
 src/services/api/learningExposures.test.ts,Story,"As the founder, I want a record that a speaker saw feedback counted as saved only when every part of it was accepted, so that the learning record never claims a speaker saw something they didn't.","O1  If any one receipt is refused, the whole save reports ""not saved"".","O1 -> ""returns false when any surface receipt is not accepted""",
 src/services/api/mlc2Consent.test.ts,Story,"As a speaker, I want agreeing to training use refused clearly while pooled training is switched off, so that I never think I agreed to something that isn't running.","O1  While pooled training is off, the agreement is refused with the
 server's own explanation.","O1 -> ""keeps consent writes fail-closed when Phase 2 is disabled""",

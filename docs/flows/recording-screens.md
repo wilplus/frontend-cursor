@@ -389,6 +389,23 @@ green); the app shows the speaker's own slides, unchanged.
   go"). Lives in `src/components/willab/labLeaveGuard.ts`
   (`whenNoTakeAtRisk`), `src/lib/nativePush.ts`, `src/lib/nativeLinks.ts`
   and `src/components/willab/PendingCoachSend.tsx`.
+- **2026-11-17 · in the iPhone app, the phone records the Take (backend N655,
+  N661, N662).** With the app's native recorder (app version 1.1) and the
+  ring row `native_take` on (the founder first), the phone records the Take
+  itself: an m4a, AAC, mono, 48 kHz, 64 kbps, the phone-call processing off,
+  the microphone the phone picks, a call or another app's audio paused and
+  resumed by the phone. Only the capture moves: these screens, their words,
+  the slides and their times, the clock, Discard, the upload and its device
+  copy are the web code they were, and the earbuds line reads the kind of
+  microphone, never its name. A browser, the home-screen app, an app without
+  the native recorder, or the row off record on the web, as before. A Take
+  too large for the website route is never sent there when the upload
+  Worker can't be reached: it is kept and sent again. Nothing on screen
+  changes. Signed in the Claude Code chat, 17 November 2026: "OK to the
+  shape. 64 kbps. The mic the phone picks. The switch, on for me first."
+  Lives in `src/hooks/useTakeMic.ts`, `src/hooks/useNativeTakeMic.ts`,
+  `src/lib/willab/nativeTakeRecorder.ts`, `src/services/api/labRecording.ts`
+  (`labAudioName`) and the one line in `LabOverlay.tsx`.
 
 
 ## 2. In flight
@@ -541,6 +558,7 @@ unknown server text.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-17 · N655, N661, N662 · in the iPhone app with the native recorder and the ring row `native_take` on, the phone records the Take (m4a, AAC mono 48 kHz 64 kbps, call processing off); the screens, slides, clock, upload and device copy stay the web code; an m4a goes up as `lab.m4a`; a Take too large for the website route is kept instead of sent there when the Worker can't be reached. Nothing on screen changes · backend #1993, FE (this PR)
 - 2026-11-16 · reactive UI-locale source · RootLayout's server-resolved locale seeds the one provider used by mounted recording, project, Lounge quick-action and footer surfaces; a manual EN/PL choice propagates immediately without a reload or remount, so an active recording is not interrupted. Footer links whose Polish wording is still pending continue to fall back visibly to English. Transcript, feedback and generated-coaching language remain separate · FE (this PR)
 - 2026-11-16 · founder-approved localization task · project entry, newcomer setup, the pre-recording feelings check, slide upload and later-Take presentation status use the app/system locale; user-authored and model-generated content keep their own language. Exact Polish copy is inventoried above. Was: these fixed controls remained English while the recording still frame was Polish · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
