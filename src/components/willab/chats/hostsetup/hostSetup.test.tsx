@@ -139,6 +139,13 @@ async function back() {
   await act(async () => arrow.click());
   await flush();
 }
+/** Test my chat wears the chat header. Its arrow is the way out. */
+async function leaveOwnChat() {
+  const arrow = container.querySelector<HTMLButtonElement>("[data-host-own-chat] [data-chat-header] button[aria-label='Back']");
+  if (!arrow) throw new Error(`no own-chat back in: ${text()}`);
+  await act(async () => arrow.click());
+  await flush();
+}
 const chips = () => [...container.querySelectorAll("[data-chip]")].map((c) => c.textContent);
 const blocks = () => [...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent);
 async function tapBlock(label: string) {
@@ -1228,7 +1235,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Test my chat");
     expect(container.querySelector("[data-host-own-chat]")).not.toBeNull();
     expect(covered).toBe(true);
-    await tap("‹ Back");
+    await leaveOwnChat();
     await tap("Not yet");
     expect(container.querySelector("[data-host-setup]")).toBeNull();
     expect(covered).toBe(false);
@@ -1262,7 +1269,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Lena's model");
     expect(text()).toContain("Was this useful?");
     expect(field()).not.toBeNull();
-    await tap("‹ Back");
+    await leaveOwnChat();
     expect(text()).toContain("Open your chat to people?");
   });
 

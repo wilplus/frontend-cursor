@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Mic } from "lucide-react";
-import { BarBox } from "@/components/willab/chats/ChatBar";
+import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 import { OwnAvatar } from "./ChatIconPicker";
 import { TopBar } from "../TopBar";
 import { W } from "./hostSetupCopy";
@@ -61,7 +61,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
           <p key={n} data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] min-w-0 self-end break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{line.text}</p>
         ))}
       </div>
-      <div data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+      <ChatBarRow>
         {sends.includes("rec") ? (
           <button type="button" aria-label="Send a recording" data-visitor-rec="" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void say("A recording", "rec")}>
             <Mic className="h-5 w-5" aria-hidden />
@@ -70,7 +70,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
         {sends.includes("text") ? (
           <BarBox hint={W.message(name)} open grow onSend={async (words) => { await say(words, "text"); return true; }} />
         ) : null}
-      </div>
+      </ChatBarRow>
     </div>
   );
 }

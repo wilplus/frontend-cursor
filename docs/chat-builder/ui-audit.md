@@ -6,7 +6,7 @@
 
 Before: `BackRow` inside `ONE_BAR_ROW` (`h-[60px] px-2.5`), a 20px arrow, the name at 13.5px, no circle, no subtitle.
 
-After: `TopBar`. Classes: `h-[60px] pl-1 pr-4`, back button `h-11 w-11`, chevron `h-6 w-6`, circle 36px, name `text-[16px] font-semibold`, subtitle `text-[12.5px] text-muted-foreground` ("You run this chat."). The Live / Build switch stays on the right when there is something to try.
+After: `TopBar`, drawn by the shared `PageHeader` (founder visual feedback, 2026-11-17; the divider correction, 2026-11-18). The row is `h-[60px]`, `px-[15px]`, on the content rail. Back is `h-11 w-11` with a `h-6 w-6` chevron. The circle is 36px. The name is `text-[16px] font-semibold`. The subtitle is `text-[12.5px] text-muted-foreground` ("You run this chat."). Share, and Live / Build when there is something to try, stay in the right slot. The separator is the header's own line, viewport-wide, on the header's bottom edge. An earlier note on this page said `pl-1 pr-4`, and the branch had used a fixed line at `safe-area + 60px`. The shared header replaces both.
 
 ## The page
 
@@ -16,7 +16,7 @@ Your chat stays `px-4 py-4`, the same inset as a chat thread. Search is `h-11 ro
 
 Before: `h-12 px-2`.
 
-After: `h-[60px] px-4`, the header's height and the thread's inset. Back, the place in the list, and Next sit in that row. The bottom of a visitor chat is still `ChatBar` (`p-2`, the + on the left, one thing in the middle).
+After: the shared `ChatBarRow` (`min-h-[60px]`, 8px around the controls, and the phone's home-bar inset when that is larger). Back, the place in the list, and Next sit in the header's right slot. The bottom of a visitor chat, the talk, and a setup step is that same row (the + on the left when the chat takes it, one thing in the middle). A button footer that is not the composer uses `bar-space`. `docs/flows/feedback-walk-and-chat.md` J9 names `bar-space` for every bottom bar; the chat thread's own row is this shared row, which keeps J9's 8px and adds the home-bar inset.
 
 ## AI models
 

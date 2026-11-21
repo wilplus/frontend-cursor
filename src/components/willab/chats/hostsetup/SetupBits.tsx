@@ -5,8 +5,9 @@ import { TypingGlyph } from "../../TypingDots";
 import { TapRow } from "../../WillQuestion";
 import { W } from "./hostSetupCopy";
 import AskSheet from "../AskSheet";
-import { BarBox, BarPlus, SendTakes } from "../ChatBar";
+import { BarBox, BarPlus, ChatBarRow, SendTakes } from "../ChatBar";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
+import { TopBar } from "../TopBar";
 
 /* -------------------------------------------------------------------------- */
 /*  The blank setup's pieces, as the locked prototype draws them: Will's top  */
@@ -61,7 +62,7 @@ export const FrameLead = createContext<ReactNode>(null);
  *  last one is the one that keeps. */
 function BigChoices({ labels, onChoice, disabled }: { labels: string[]; onChoice: (label: string) => void; disabled?: boolean }) {
   return (
-    <div data-setup-dock-choices="" className="flex gap-2 px-4 pt-3">
+    <div data-setup-dock-choices="" className="flex gap-2 px-2 pt-2">
       {labels.map((label, i) => (
         <button
           key={label}
@@ -116,9 +117,9 @@ export function BinaryRow({ title, sub, on, onLabel, offLabel, onPick }: {
 export function SetupDock({ choices, onChoice, onSend, placeholder, lines, disabled, initial }: SetupDockSpec) {
   const pair = choices && choices.length > 0 && choices.length <= 2 && onChoice;
   return (
-    <div data-setup-dock="" className="shrink-0 border-t border-border bg-background">
+    <div data-setup-dock="" className="shrink-0 bg-background">
       {pair ? <BigChoices labels={choices} onChoice={onChoice} disabled={disabled} /> : choices?.length && onChoice ? (
-        <div className="px-4 pt-2">
+        <div className="px-2 pt-2">
           <TapRow even={false} disabled={disabled} labels={choices} onTap={onChoice} dataAttr={{ "data-setup-dock-choices": "" }} />
         </div>
       ) : null}
@@ -160,15 +161,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
       {bar ? (
         bar
       ) : circle ? (
-        <div className="flex min-h-[56px] items-center gap-2.5 border-b border-border px-3">
-          {onBack ? (
-            <button type="button" data-host-back="" onClick={onBack} className="min-h-[44px] pr-1 text-[16px] font-medium text-foreground">
-              {W.back}
-            </button>
-          ) : null}
-          {circle}
-          <b className="text-[17px] font-semibold text-foreground">{title ?? W.will}</b>
-        </div>
+        <TopBar circle={circle} title={typeof title === "string" ? title : W.will} onBack={onBack ?? (() => undefined)} />
       ) : (
         makeBar ? makeBar(onBack) : <OneTopBar onBack={onBack} title={title ?? named} />
       )}
@@ -178,7 +171,7 @@ export function Frame({ title, onBack, circle, foot, bar = null, dock, children 
         {children}
         {note}
       </div>
-      {dockSpec ? <SetupDock {...dockSpec} /> : foot ? <div data-host-foot="" className="flex flex-col gap-2 border-t border-border px-4 py-3">{foot}</div> : null}
+      {dockSpec ? <SetupDock {...dockSpec} /> : foot ? <div data-host-foot="" className="bar-space flex flex-col gap-2 border-t border-border">{foot}</div> : null}
     </div>
   );
 }
@@ -320,7 +313,7 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
   const sent = useContext(SendTakes);
   const [sheet, setSheet] = useState(false);
   return (
-    <div data-host-box="" data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+    <ChatBarRow data-host-box="">
       {sent ? <BarPlus fresh={false} onClick={() => setSheet(true)} /> : null}
       {before}
       <BarBox
@@ -341,6 +334,6 @@ export function Box({ placeholder, onSend, before, after, initial = "", lines = 
           onRecord={sent.takes.record ? () => setSheet(false) : undefined}
         />
       ) : null}
-    </div>
+    </ChatBarRow>
   );
 }
