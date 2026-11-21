@@ -28,6 +28,15 @@ person. The same rule is applied to the text that comes back.
 Until this patch is deployed, the frontend route answers `{ preview: true }`
 and the screen keeps today's preview. No key is sent to the browser.
 
+A photo (up to 4 MB) is sent to the model as an image. A PDF (up to 8 MB)
+is read with `pypdf` and the text is put in the same prompt, so a
+question such as "Is this a dry scalp?" can use the photo or the
+document. A file that is too big or cannot be read comes back as
+`error: too-big` or `error: unreadable`. The visitor sees a plain line
+and the file is not sent on.
+
+`pypdf` is the only new Python package.
+
 Environment, on the backend only:
 
 - `OPENAI_API_KEY` — required. The call is skipped when it is missing.

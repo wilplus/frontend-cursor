@@ -31,6 +31,8 @@ new file mode 100644
 +from services.db import db
 +
 +ASSISTANT_READY = 20
++PHOTO_MAX = 4 * 1024 * 1024
++FILE_MAX = 8 * 1024 * 1024
 +OUT_LINE = {
 +    "answer": "Answer in the host's own words. One short message.",
 +    "words": "Tidy what the person said. Keep their meaning.",
@@ -125,14 +127,24 @@ new file mode 100644
 +    }
 +
 +
-+def _openai(prompt: str) -> str:
++def _pdf_text(raw: bytes) -> str:
++    from io import BytesIO
++    from pypdf import PdfReader
++    reader = PdfReader(BytesIO(raw))
++    return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
++
++
++def _openai(prompt: str, image: str | None = None, mime: str = "image/jpeg") -> str:
 +    key = os.environ.get("OPENAI_API_KEY", "").strip()
 +    if not key:
 +        return ""
 +    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
++    content: list = [{"type": "text", "text": prompt}]
++    if image:
++        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image}"}})
 +    payload = json.dumps({
 +        "model": model,
-+        "messages": [{"role": "user", "content": prompt}],
++        "messages": [{"role": "user", "content": content}],
 +    }).encode()
 +    req = urllib.request.Request(
 +        "https://api.openai.com/v1/chat/completions",
@@ -153,18 +165,44 @@ new file mode 100644
 +@v2_bp.route("/chats/<chat_id>/reply", methods=["POST"])
 +@require_auth
 +def chat_reply(chat_id: str):
++    import base64
 +    payload = request.get_json(silent=True) or {}
 +    message = str(payload.get("text") or "").strip()
-+    if not message:
++    kind = str(payload.get("kind") or "text")
++    data = str(payload.get("data") or "")
++    extra = {"picks": None}
++    image = None
++    mime = str(payload.get("mime") or "image/jpeg")
++    if kind in ("photo", "file"):
++        try:
++            raw = base64.b64decode(data)
++        except Exception:
++            return jsonify({"error": "unreadable"})
++        limit = PHOTO_MAX if kind == "photo" else FILE_MAX
++        if len(raw) > limit:
++            return jsonify({"error": "too-big"})
++        if kind == "photo":
++            image = data
++            extra["has_image"] = True
++        else:
++            name = str(payload.get("name") or "").lower()
++            try:
++                extra["file_text"] = _pdf_text(raw) if name.endswith(".pdf") else raw.decode("utf-8")
++            except Exception:
++                return jsonify({"error": "unreadable"})
++            if not extra["file_text"].strip():
++                return jsonify({"error": "unreadable"})
++    if not message and not data:
 +        return jsonify({"error": "empty"}), 400
 +    setup = _setup(chat_id)
++    extra["picks"] = setup["picks"]
 +    act = reply_act(setup["who"], setup["care"], setup["host_answers"])
 +    if act == "none":
 +        return jsonify({"shown": False, "quiet": True, "reply": None})
 +    if act == "wait":
 +        return jsonify({"shown": False, "wait": True, "reply": None})
-+    prompt = build_prompt(setup, message, {"picks": setup["picks"]})
-+    reply = _openai(prompt)
++    prompt = build_prompt(setup, message or "They sent a file.", extra)
++    reply = _openai(prompt, image, mime)
 +    if act == "draft":
 +        _save_draft(chat_id, message, reply)
 +        return jsonify({"shown": False, "held": True, "reply": None})
