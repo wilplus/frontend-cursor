@@ -97,6 +97,9 @@ describe("talk the chat into shape", () => {
     await tap("Next steps");
     expect(container.textContent).toContain("Do you check each answer before someone sees it?");
     await tap("Yes");
+    expect(container.textContent).toContain("Are these the right first questions?");
+    expect(container.textContent).toContain("How does memory work?");
+    await tap("Yes");
     expect(container.textContent).toContain("Say go?");
     await tap("Yes");
     expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);

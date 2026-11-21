@@ -40,6 +40,31 @@ export function giveAsk(): JobAsk {
   return GIVE;
 }
 
+const COACH_STARTS = ["Practise a talk", "Get ready for a pitch", "Answer a hard question"];
+const GENERIC_STARTS = ["Ask a question", "Tell me more", "Something else"];
+const STARTS: Record<string, string[]> = {
+  Neurobiologist: ["How does memory work?", "Explain a study", "Ask something else"],
+  "ML specialist": ["How does this model work?", "Explain a result", "Ask something else"],
+};
+
+/** The three first taps. A speaking job keeps the coach set. A known job
+ *  uses the table. Anything else is generic until the reply route answers. */
+export function startersFor(spec: string): string[] {
+  if (voiceJob(spec)) return COACH_STARTS;
+  return STARTS[spec.trim()] ?? GENERIC_STARTS;
+}
+
+export async function startersFromRoute(spec: string): Promise<string[]> {
+  const known = startersFor(spec);
+  if (voiceJob(spec) || STARTS[spec.trim()]) return known;
+  const remote = await askReply("job", {
+    text: `Three short first questions a ${spec.trim()} chat should offer. Separate them with |.`,
+    kind: "text",
+  });
+  const parts = (remote?.reply ?? "").split("|").map((part) => part.trim()).filter(Boolean);
+  return parts.length >= 3 ? parts.slice(0, 3) : known;
+}
+
 /** The table for a known job, otherwise the generic set. */
 export function jobAsk(spec: string): JobAsk {
   return TABLE[spec.trim()] ?? GENERIC;

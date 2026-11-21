@@ -42,6 +42,7 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
     hello,
     questions,
     taps,
+    starters: taps.slice(0, 3),
     smart: false,
     way: "own",
     models: [],
@@ -59,6 +60,7 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
     { part: "send", title: "They send", value: send.map((kind) => SEND[kind][0]).join(" · ") },
     { part: "questions", title: "Questions", value: questions.map((item) => item.q).join(" · ") },
     { part: "taps", title: "Taps", value: taps.join(" · ") },
+    { part: "starters", title: "Questions people tap first", value: taps.slice(0, 3).join(" · ") },
     { part: "out", title: "They get back", value: OUT[chat.out][0] },
     { part: "who", title: "Who answers", value: WHO_LINE[chat.who] },
   ];

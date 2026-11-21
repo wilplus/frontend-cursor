@@ -6,7 +6,7 @@ import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
-import { giveAsk, jobAsk, questionFor, voiceJob } from "./jobQuestions";
+import { giveAsk, jobAsk, questionFor, startersFor, voiceJob } from "./jobQuestions";
 import { COACH_HELLO, editEffect, speakTurn, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 
 /* The chat, built by talking. One question at a time, in the same bubbles as
@@ -61,6 +61,7 @@ function replyLabels(phase: string, spec: string, models: { q: string }[], draft
   if (phase === "kinds") return [];
   if (phase === "for") return jobAsk(spec).taps;
   if (phase === "give") return giveAsk().taps;
+  if (phase === "starters") return ["Yes", "Change them"];
   if (phase === "brief") return JOBS;
   if (phase === "codeWay") return [W.codeTell, W.codeOwn];
   if (phase === "codeKeep") return [W.codeChange, W.codeKeep];
@@ -75,10 +76,12 @@ function replyLabels(phase: string, spec: string, models: { q: string }[], draft
 const WILL = "mr-auto max-w-[88%] whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground";
 const MINE = "ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-left text-[15px] text-primary-foreground";
 
-export default function TalkBuild({ onList, onTry, models = [] }: {
+export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
   onList: () => void;
   /** Opens the chat as a visitor, the same as the Test tile. */
   onTry?: () => void;
+  /** Build is finished. The home opens Settings. */
+  onReady?: () => void;
   /** Models already on the account. A tap picks one. */
   models?: { id: string; q: string }[];
 }) {
@@ -94,6 +97,7 @@ export default function TalkBuild({ onList, onTry, models = [] }: {
   const [editing, setEditing] = useState<number | null>(null);
   const [picked, setPicked] = useState<SendKind[]>([]);
   const pickedRef = useRef<SendKind[]>([]);
+  const fixAt = useRef<number | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<Line[]>(OPENING);
   const snapRef = useRef<Snap>(blank());
@@ -140,6 +144,7 @@ export default function TalkBuild({ onList, onTry, models = [] }: {
     saveTalkDraft(built);
     markTalkReady(true);
     setSavedName(built.definition.name);
+    onReady?.();
   };
 
   const onBrief = (text: string) => {
@@ -232,6 +237,36 @@ export default function TalkBuild({ onList, onTry, models = [] }: {
       write({ snap: next.snap, phase: next.phase, i: 0, add: [{ who: "me", text: said, q: next.q }, { who: "will", text: next.ask }] });
       return;
     }
+    if (fixAt.current !== null) {
+      const list = [...(snapRef.current.starters ?? startersFor(snapRef.current.spec))];
+      const said = text.trim();
+      if (said) list[fixAt.current] = said;
+      const at = fixAt.current + 1;
+      if (at < list.length) {
+        fixAt.current = at;
+        snapRef.current = { ...snapRef.current, starters: list };
+        setSnap(snapRef.current);
+        setDraft(list[at]);
+        return;
+      }
+      fixAt.current = null;
+      write({
+        snap: { ...snapRef.current, starters: list }, phase: "plan", i: 0,
+        add: [{ who: "me", text: list.join(" · "), q: "starters" }, { who: "will", text: "Say go?" }],
+      });
+      return;
+    }
+    if (phaseRef.current === "starters" && /^yes$/i.test(text.trim())) {
+      const starters = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+      write({
+        snap: { ...snapRef.current, starters }, phase: "plan", i: 0,
+        add: [
+          { who: "me", text: "Yes", q: "starters" },
+          { who: "will", text: "Say go?" },
+        ],
+      });
+      return;
+    }
     if (phaseRef.current === "brief") onBrief(text);
     else void onSend(text);
   };
@@ -321,6 +356,24 @@ export default function TalkBuild({ onList, onTry, models = [] }: {
       write({
         snap: { ...snapRef.current, gives: label }, phase: "who", i: 0,
         add: [{ who: "me", text: label, q: "give" }, { who: "will", text: W.talkCheck }],
+      });
+      return;
+    }
+    if (q === "starters") {
+      if (label === "Change them") {
+        const list = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+        fixAt.current = 0;
+        setDraft(list[0] ?? "");
+        return;
+      }
+      const starters = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+      write({
+        snap: { ...snapRef.current, starters }, phase: "plan", i: 0,
+        add: [
+          { who: "me", text: "Yes", q: "starters" },
+          { who: "will", text: `${snapRef.current.spec || "Your chat"}. First line: ${snapRef.current.hello || "Your chat is ready."}` },
+          { who: "will", text: "Say go?" },
+        ],
       });
       return;
     }

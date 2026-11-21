@@ -144,6 +144,8 @@ try {
     await give("A question");
     await give("An answer");
     await give("Yes");
+    check(`${mode} a shop is asked about its first questions`, (await page.locator("text=Are these the right first questions?").count()) > 0);
+    await give("Yes");
     check(`${mode} a shop reaches say go`, (await page.locator("text=Say go?").count()) > 0);
   }
 

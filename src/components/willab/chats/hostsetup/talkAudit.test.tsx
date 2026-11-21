@@ -133,6 +133,8 @@ describe("the talk, scored by the script", () => {
     await tap("An answer");
     expect(container.textContent).toContain("Do you check each answer before someone sees it?");
     await tap("Yes");
+    expect(container.textContent).toContain("Are these the right first questions?");
+    await tap("Yes");
     expect(container.textContent).toContain("Say go?");
     expect(snap().walk).toEqual([]);
     expect(snap().asked).toBe("A question");

@@ -167,6 +167,14 @@ new file mode 100644
 +def chat_reply(chat_id: str):
 +    import base64
 +    payload = request.get_json(silent=True) or {}
++    if payload.get("keep"):
++        ask = str(payload.get("ask") or "").strip()
++        answer = str(payload.get("answer") or "").strip()
++        if ask and answer:
++            db.table("chat_reply_examples").insert({
++                "chat_id": chat_id, "ask": ask, "answer": answer,
++            }).execute()
++        return jsonify({"kept": True})
 +    message = str(payload.get("text") or "").strip()
 +    kind = str(payload.get("kind") or "text")
 +    data = str(payload.get("data") or "")

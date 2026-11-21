@@ -1,5 +1,5 @@
 import { PRICES, W } from "./hostSetupCopy";
-import { voiceJob } from "./jobQuestions";
+import { startersFor, voiceJob } from "./jobQuestions";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
 import type { TalkPlugin, TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
@@ -9,7 +9,7 @@ export const WALKS = ["best", "fix", "words"] as const;
 export const COACH_HELLO = "Hi. Record a short talk, and I'll tell you what worked.";
 export const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
-export type Phase = "brief" | "send" | "kinds" | "for" | "give" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
+export type Phase = "brief" | "send" | "kinds" | "for" | "give" | "starters" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
 export type Snap = TalkSnap & { label: string };
 export type Line = {
   who: "will" | "me";
@@ -89,7 +89,13 @@ function afterWho(t: Turn) {
     t.write({ snap: next, phase: "pay", add: [...t.said, { who: "will", text: W.talkPay }], label: `Coach ${t.step}` });
     return;
   }
-  plan(t, next, `Who ${t.step}`);
+  const starters = startersFor(next.spec);
+  t.write({
+    snap: { ...next, starters },
+    phase: "starters",
+    add: [...t.said, { who: "will", text: `Are these the right first questions?\n${starters.join("\n")}` }],
+    label: `Who ${t.step}`,
+  });
 }
 
 function afterPay(t: Turn) {
