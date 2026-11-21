@@ -7,12 +7,13 @@ OUTCOME
       document matches the fixture, and the screens read it.
   O2  A shop chat sets all four sends, an assistant, price 1, a training
       machine, the hedge model, another model and a checked paste.
-  O3  You decide, Just build it, a targeted edit, chips and Publish stay
-      on this device.
+  O3  You decide answers only the question it is on. The host answers
+      the rest one at a time. A targeted edit, chips and Publish stay
+      on this device. There is no way to skip the questions.
   O4  The technical score is printed from the fixture and the shop fields.
 PROVES   O1 -> "fifteen taps build the Speaking Coach"
          O2 -> "the shop chat sets price, model and paste, and the mic transcribes"
-         O3 -> "express, you decide, a targeted edit, chips, and publish stay on this device"
+         O3 -> "you decide answers one question, then a targeted edit, chips, and publish stay on this device"
          O4 -> "prints the technical score from the fixture and the shop fields"
 */
 import { act, createElement } from "react";
@@ -185,26 +186,21 @@ describe("the talk, scored by the script", () => {
     vi.unstubAllGlobals();
   });
 
-  it("express, you decide, a targeted edit, chips, and publish stay on this device", async () => {
+  it("you decide answers one question, then a targeted edit, chips, and publish stay on this device", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
+    expect(container.querySelector("[data-express]")).toBeNull();
     expect([...container.querySelectorAll("[data-quote]")].map((b) => b.getAttribute("data-say"))).toEqual(["Speaking coach", "You decide"]);
     await tap("You decide");
     await tap("Send");
     expect(snap().spec).toBe("Speaking coach");
-    await tap("Just build it");
+    expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("send");
+    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).not.toContain("Say go?");
+    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
-    expect(container.querySelector("[data-talk-saved]")).toBeNull();
-    await tap("Yes");
-    expect(container.querySelector("[data-talk-greeting]")?.textContent).toContain("Record a short talk");
-    expect(container.querySelector("[data-preview-keep]")).not.toBeNull();
-    expect(container.querySelector("[data-preview-next]")).not.toBeNull();
-    const fixture = JSON.parse(readFileSync("docs/chat-builder/arturs-chat-speaking-coach.json", "utf8"));
-    expect(readTalkDraft()?.definition).toEqual(fixture);
-    clearTalkDraft();
-    act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
-    await tap("Just build it");
+    expect([...container.querySelectorAll("[data-quote]")].filter((b) => b.getAttribute("data-say") === "You decide")).toHaveLength(1);
     await tap("No");
     await tap("The price");
     await tap("Send");
@@ -230,6 +226,7 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     const edited = snap().hello === "Hello there.";
     const chipped = snap().send.includes("photo");
+    const preview = container.querySelector("[data-preview-keep]") !== null && container.querySelector("[data-preview-next]") !== null;
     await tap("Publish");
     const publishedLocal = readTalkDraft()?.published === true && fetchSpy.mock.calls.length === 0;
     expect(readTalkDraft()?.published).toBe(true);
@@ -238,10 +235,10 @@ describe("the talk, scored by the script", () => {
     expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).not.toBe("look");
     const usability = [
       ["success", true],
-      ["you decide on the brief", true],
+      ["you decide answers one question", true],
       ["plan before build", true],
-      ["express path", true],
-      ["live preview keep and next", true],
+      ["no express path", container.querySelector("[data-express]") === null],
+      ["live preview keep and next", preview],
       ["targeted edit", edited],
       ["write this for me, then rewrite", true],
       ["capability chips", chipped],

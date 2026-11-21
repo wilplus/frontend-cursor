@@ -68,7 +68,14 @@ async function run(width, height) {
   check(`${tag} the icon opens the picker`, await page.locator("[data-chat-icon]").count() === 1);
   await page.locator("[data-icon-open]").click();
   await page.locator("[data-build-tile='build']").click();
-  await page.locator("[data-express]").click();
+  check(`${tag} there is no express button`, await page.locator("[data-express]").count() === 0);
+  await page.locator("[data-say='Speaking coach']").click();
+  await page.locator("[data-talk-composer] button[type='submit']").click();
+  await page.waitForSelector("text=Can they send a recording?");
+  check(`${tag} the next question is one question`, (await page.locator("text=Say go?").count()) === 0);
+  for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
+    await page.getByRole("button", { name: answer, exact: true }).click();
+  }
   await page.getByRole("button", { name: "Yes", exact: true }).click();
   await page.locator("[data-build-bar] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");

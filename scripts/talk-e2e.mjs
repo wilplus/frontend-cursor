@@ -171,9 +171,10 @@ try {
 
   await open();
   check("you decide is on the brief", (await page.locator("[data-say='You decide']").count()) === 1);
-  await click("Just build it");
-  check("express reaches the plan", (await page.locator("text=Say go?").count()) > 0);
-  await click("Yes");
+  check("there is no express button", (await page.locator("[data-express]").count()) === 0);
+  await page.locator("[data-say='You decide']").click();
+  await page.locator("[data-talk-composer] button[type='submit']").click();
+  check("you decide asks the next question", (await page.locator("text=Can they send a recording?").count()) > 0 && (await page.locator("text=Say go?").count()) === 0);
   const boxes = await page.$$eval("[data-talk-screen] button", (els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { text: (el.textContent || "").trim().slice(0, 24), w: Math.round(r.width), h: Math.round(r.height) };

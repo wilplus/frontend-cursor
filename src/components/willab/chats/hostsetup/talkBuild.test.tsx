@@ -66,8 +66,9 @@ describe("talk the chat into shape", () => {
     expect(close).toHaveBeenCalled();
   });
 
-  it("done jumps to the result, and Earlier moves a walk step", async () => {
+  it("done does not skip the question that is open", async () => {
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
+    expect(container.querySelector("[data-express]")).toBeNull();
     await tap("Speaking coach");
     await tap("Send");
     const input = container.querySelector<HTMLTextAreaElement>("[data-talk-composer] textarea")!;
@@ -77,8 +78,8 @@ describe("talk the chat into shape", () => {
     });
     await act(async () => input.form!.requestSubmit());
     await flush();
-    expect(container.querySelector("[data-talk-result]")).not.toBeNull();
-    expect(container.textContent).toContain("Open the list");
-    expect(container.textContent).toContain("Try it out loud");
+    expect(container.querySelector("[data-talk-result]")).toBeNull();
+    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Yes or no.");
   });
 });

@@ -14,13 +14,13 @@ Share, in the locked top bar's right slot, copies the public link. That is `/c/<
 
 Finishing the talk writes a coach draft on this device. The Speaking Coach answers produce the fixture, field for field. Recording, Ideal Text and the walk read that draft through `usePublishedCoach`. A shop chat sets every builder field. Publish stays on the device.
 
-The talk also follows the four builders in the competitor research (`638b0c14`, not merged): You decide, a plan you approve, Just build it, a preview with Keep and Next, a change that touches one part, Write this for me, capability chips, a first line, and auto-save plus Publish.
+The talk asks one question at a time. You decide answers only the question it is on. There is no Just build it. After the questions, Say go opens a preview with Keep and Next. A change touches one part. Write this for me, capability chips, a first line, and auto-save plus Publish stay.
 
 ## Scores, from the tests
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 36/36` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 40/40` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.
@@ -29,7 +29,7 @@ Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay with
 
 - Fifteen taps, then the screens read the fixture: "fifteen taps build the Speaking Coach".
 - Shop, including the mic: "the shop chat sets price, model and paste, and the mic transcribes".
-- You decide, express, targeted edit, chips, publish: "express, you decide, a targeted edit, chips, and publish stay on this device".
+- You decide, one question at a time, a targeted edit, chips, publish: "you decide answers one question, then a targeted edit, chips, and publish stay on this device".
 - Phone: `node scripts/talk-e2e.mjs` runs tap, type and voice for both scripts.
 
 ## Known gaps

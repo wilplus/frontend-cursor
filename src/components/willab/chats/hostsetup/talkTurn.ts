@@ -39,7 +39,7 @@ function planLine(snap: Snap): string {
 }
 
 function plan(t: Turn, next: Snap, label: string, said: Line[] = t.said) {
-  t.write({ snap: next, phase: "plan", add: [...said, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }], label });
+  t.write({ snap: next, phase: "plan", add: [...said, { who: "will", text: planLine(next) }, { who: "will", text: "Say go?" }], label });
 }
 
 function afterSend(t: Turn) {
@@ -224,7 +224,7 @@ const PHASES: Record<string, (t: Turn) => void | Promise<void>> = {
 
 export async function speakTurn(t: Turn): Promise<void> {
   const trimmed = t.text.trim();
-  const yes = /^(yes|the first one|1)$/i.test(trimmed) || (t.phase === "plan" && /^(go|you decide)$/i.test(trimmed));
+  const yes = /^(yes|the first one|1)$/i.test(trimmed) || (t.phase === "plan" && /^go$/i.test(trimmed));
   const no = /^no$/i.test(trimmed);
   if (!FREE.has(t.phase)) {
     if (!yes && !no) {

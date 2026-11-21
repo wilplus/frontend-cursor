@@ -41,9 +41,9 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 8 | Visible progress | 10 | The stepper is on screen. "Say go?" shows before the preview. |
 | 9 | No hidden state | 10 | `data-talk-snap` is what both tests read. |
 | 10 | No scrollbars or overflow | 10 | The e2e found no visible scrollbar at 390×844. |
-| 11 | You decide on every brief question | 10 | The brief and the plan both offer You decide. |
+| 11 | You decide answers one question | 10 | The brief offers You decide. It sets what the chat does, then asks the next question. The plan does not offer it. |
 | 12 | Plan before build, then say go | 10 | "not saved as the live coach yet" passed, then Say go opens the preview. |
-| 13 | An express path | 10 | Just build it reaches the plan. The unit test then says go and matches the fixture. |
+| 13 | One question at a time | 10 | There is no Just build it. Saying done does not skip the open question. The phone run answers each question, then Say go. |
 | 14 | A live preview with Keep and Next | 10 | `data-preview-keep` and `data-preview-next` are on the preview. |
 | 15 | Targeted edits | 10 | Changing the price and the greeting left They send as it was. |
 | 16 | Write this for me, then keep or rewrite | 10 | The button fills the field. Rewrite clears it. Keep stores it. |
@@ -59,6 +59,6 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 26 | Your own code is one tap | 10 | The row says what the code does. It opens from the list. |
 | 27 | Test the chat as a visitor | 10 | The Test tile opens the chat as a visitor. A send gets the chat's own reply. Back returns to the four tiles. |
 
-**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 36/36` at 390×844 and at 1024×768.
+**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 40/40` at 390×844 and at 1024×768.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

@@ -6,7 +6,7 @@ import { BarBox } from "@/components/willab/chats/ChatBar";
 import { PRICES, SEND, W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
-import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt, type TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
 import { transcribeAnswer } from "@/services/api/lifeGoals";
 import { COACH_HELLO, SENDS, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 import ChatIconPicker from "./ChatIconPicker";
@@ -25,7 +25,6 @@ const CHIPS: { id: string; label: string }[] = [
   { id: "machine", label: "Train" },
 ];
 
-type Who = TalkSnap["who"];
 type Frame = { snap: Snap; phase: Phase; i: number; priceAt: number; lines: Line[]; label: string };
 
 const blank = (): Snap => ({
@@ -44,11 +43,6 @@ function hear(onText: (said: string) => void) {
 
 function copySnap(snap: Snap): Snap {
   return { ...snap, send: [...snap.send], walk: [...snap.walk], otherModels: [...snap.otherModels] };
-}
-
-function planLine(snap: Snap): string {
-  const hello = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
-  return `${snap.spec || "Your chat"}. First line: ${hello}`;
 }
 
 function stepLabel(phase: Phase): string {
@@ -75,11 +69,10 @@ function generatedDraft(phase: Phase, spec: string): string {
   return spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.";
 }
 
-function TalkProgress({ phase, versions, onUndo, onExpress }: {
+function TalkProgress({ phase, versions, onUndo }: {
   phase: Phase;
   versions: { label: string }[];
   onUndo: () => void;
-  onExpress: () => void;
 }) {
   const stepName = stepLabel(phase);
   const shown = versions.at(-1)?.label ?? "";
@@ -93,9 +86,6 @@ function TalkProgress({ phase, versions, onUndo, onExpress }: {
           </span>
         ))}
         <button type="button" data-talk-undo="" className="ml-auto inline-flex min-h-11 min-w-11 items-center rounded-full bg-muted px-3 text-[12.5px] font-medium disabled:opacity-40" onClick={onUndo} disabled={!versions.length}>Undo{shown ? `: ${shown}` : ""}</button>
-      </div>
-      <div className="px-4 pt-2">
-        <button type="button" data-express="" className="inline-flex min-h-11 min-w-11 items-center rounded-full border border-border px-3 text-[15px] font-medium" onClick={onExpress}>Just build it</button>
       </div>
       {shown ? <p data-talk-version="" className="mx-4 mt-3 flex min-h-8 items-center rounded-2xl border border-border px-3 text-[14px] font-semibold">{shown}</p> : null}
     </>
@@ -269,10 +259,6 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   };
 
   const onBrief = (text: string) => {
-    if (/^just build it$/i.test(text.trim())) {
-      express();
-      return;
-    }
     const spec = /first one|^1$|speaking coach|^you decide$/i.test(text) ? "Speaking coach" : text.trim();
     if (!spec || /^something else$/i.test(spec)) {
       write({ add: [{ who: "will", text: "Say it in your own words." }] });
@@ -283,23 +269,6 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
       snap: next, phase: "send", i: 0,
       add: [{ who: "me", text: spec }, { who: "will", text: W.sendOne(SEND[SENDS[0]][0]) }],
       label: "Brief v1",
-    });
-  };
-
-  const express = () => {
-    const cur = snapRef.current;
-    const next: Snap = {
-      ...cur,
-      spec: cur.spec || "Speaking coach",
-      send: cur.send.length ? cur.send : ["rec", "text"],
-      walk: cur.walk.length ? cur.walk : ["best", "fix", "words"],
-      who: cur.spec ? cur.who : "shadow",
-      machine: cur.spec ? cur.machine : true,
-    };
-    write({
-      snap: next, phase: "plan", i: 0,
-      add: [{ who: "me", text: "Just build it" }, { who: "will", text: planLine(next), quotes: ["You decide"] }, { who: "will", text: "Say go?" }],
-      label: "Plan v1",
     });
   };
 
@@ -347,16 +316,6 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
   };
 
   const take = (text: string) => {
-    if (/^done$/i.test(text.trim()) && phaseRef.current !== "brief") {
-      const next = snapRef.current;
-      write({ phase: "done", add: [{ who: "me", text: "done" }, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], label: "Done" });
-      if (next.spec) {
-        saveTalkDraft(talkBuilt(next));
-        markTalkReady(true);
-        setSavedName(talkBuilt(next).definition.name);
-      }
-      return;
-    }
     if (phaseRef.current === "brief") onBrief(text);
     else void onSend(text);
   };
@@ -428,7 +387,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
 
   return (
     <div data-talk-build="" data-talk-phase={phase} data-talk-saved={savedName || undefined} data-talk-snap={JSON.stringify({ spec: snap.spec, send: snap.send, walk: snap.walk, who: snap.who, pay: snap.pay, price: snap.price, machine: snap.machine, connect: snap.connect, code: snap.code, model: snap.model, otherModels: snap.otherModels, paste: snap.paste, hello: snap.hello })} className="flex min-h-0 flex-1 flex-col bg-background">
-      <TalkProgress phase={phase} versions={versions} onUndo={undo} onExpress={express} />
+      <TalkProgress phase={phase} versions={versions} onUndo={undo} />
       <TalkThread
         phase={phase} lines={lines} snap={snap} kept={kept} liveDraft={liveDraft}
         onTake={take} onMove={move} onReorder={reorder} onList={onList}
