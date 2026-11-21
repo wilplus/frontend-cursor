@@ -24,7 +24,7 @@ import TalkBuild from "./hostsetup/TalkBuild";
 import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
-import { BarBox } from "@/components/willab/chats/ChatBar";
+import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -416,9 +416,9 @@ function CodeChat({ onBack }: { onBack: () => void }) {
         {open ? <p className="m-0 text-[16px]">{W.codePaste}</p> : null}
       </div>
       {open ? (
-        <div data-chat-bar="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+        <ChatBarRow>
           <BarBox hint={W.codePaste} open grow onSend={async (words) => { saveTalkCode(words); onBack(); return true; }} />
-        </div>
+        </ChatBarRow>
       ) : null}
     </div>
   );

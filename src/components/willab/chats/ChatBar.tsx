@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Image as ImageIcon, Plus, Send } from "lucide-react";
 import { TYPE_YOUR_ANSWER } from "@/components/willab/WillQuestion";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
@@ -177,6 +178,32 @@ export function ThanksTaps({ onPick }: { onPick: (emoji: ChatEmoji) => void }) {
           {emoji}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** The locked chat bar row (N505, N610). 8px around the controls. The bottom
+ *  grows to the phone's home-bar inset when that is larger. On a computer
+ *  the bottom stays 8px, the same space `p-2` already used. */
+export const CHAT_BAR_ROW =
+  "flex min-h-[60px] shrink-0 items-center gap-1 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]";
+
+/** One bottom row for a person's chat and for the builder. `flush` is for a
+ *  row that sits on the screen edge. A row with something under it (the
+ *  talk's "See the list") keeps a flat 8px. */
+export function ChatBarRow({
+  flush = true,
+  className,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"div"> & { flush?: boolean }) {
+  return (
+    <div
+      {...props}
+      data-chat-bar=""
+      className={cn(flush ? CHAT_BAR_ROW : "flex min-h-[60px] shrink-0 items-center gap-1 p-2", className)}
+    >
+      {children}
     </div>
   );
 }

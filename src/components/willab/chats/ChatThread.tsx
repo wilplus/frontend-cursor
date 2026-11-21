@@ -22,7 +22,7 @@ import {
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
 import AskSheet from "./AskSheet";
-import { BarMiddle, BarPlus, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, recordInSheet, takesFor, thanksDue, useFilePicker, usePhotoPicker, type Takes } from "./ChatBar";
+import { BarMiddle, BarPlus, ChatBarRow, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, recordInSheet, takesFor, thanksDue, useFilePicker, usePhotoPicker, type Takes } from "./ChatBar";
 import { photoForUpload } from "./photoForUpload";
 import {
   answerChatSetup,
@@ -1138,7 +1138,7 @@ export default function ChatThread({
       </div>
       {/* The locked bar inside (centred, 4px between, 44px tall inside; N483)
           and 8px around it: above, on each side, below (N505). */}
-      <div data-chat-bar className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+      <ChatBarRow>
         {safety.blocked ? (
           <BlockedBar name={chat.title} onUnblock={safety.unblock} />
         ) : (
@@ -1162,7 +1162,7 @@ export default function ChatThread({
             onFile={(file) => void sendFile(file)}
           />
         )}
-      </div>
+      </ChatBarRow>
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
       {setup.sheet}
       {toast}

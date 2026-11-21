@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { TapRow } from "../../WillQuestion";
 import { LetterCircle } from "../ChatList";
+import { TopBar } from "../TopBar";
 import { HostAboutLines } from "../HostChat";
 import { tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
 import { W } from "./hostSetupCopy";
@@ -44,19 +45,17 @@ export default function HostOwnChat({ name, recipe, onBack, bar = null, about = 
       setUseful(true);
     });
   };
+  const header = bar ?? (
+    <TopBar
+      circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
+      title={name}
+      subtitle={recipe.spec}
+      onBack={onBack}
+    />
+  );
   return (
     <div data-host-own-chat="" className="flex min-h-0 flex-1 flex-col">
-      <Frame
-        bar={bar}
-        onBack={onBack}
-        circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
-        title={
-          <span className="flex flex-col leading-tight">
-            {name}
-            <small className="text-[12.5px] font-normal text-muted-foreground">{recipe.spec}</small>
-          </span>
-        }
-      >
+      <Frame bar={header} onBack={onBack}>
         <HostAboutLines lines={about} />
         {log.map((m, k) => (m.me ? <Mine key={k}>{m.me}</Mine> : <Say key={k} by={m.by}>{m.w}</Say>))}
         {asking ? (

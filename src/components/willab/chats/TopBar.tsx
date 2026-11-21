@@ -7,7 +7,7 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
-import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "../PageHeader";
 import { W } from "./hostsetup/hostSetupCopy";
 
 /** Live or Build, the same switch on a chat and on the setup. */
@@ -72,36 +72,29 @@ export function TopBar({
     </>
   );
   return (
-    <div
+    <PageHeader
       data-chat-header
-      className="relative shrink-0 bg-background pt-[env(safe-area-inset-top)]"
+      safeArea
+      divider="viewport"
+      contentClassName="h-[60px] gap-1 px-[15px]"
     >
-      <div className={`${WILLAB_CONTENT_RAIL} flex h-[60px] items-center gap-1 px-[15px]`}>
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={CHUNK_SHEET_COPY.pagerBack}
-          className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
-        >
-          <ChevronLeft className="h-6 w-6" aria-hidden />
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={CHUNK_SHEET_COPY.pagerBack}
+        className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
+      >
+        <ChevronLeft className="h-6 w-6" aria-hidden />
+      </button>
+      {onOpen ? (
+        <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
+          {who}
         </button>
-        {onOpen ? (
-          <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
-            {who}
-          </button>
-        ) : (
-          <span className="flex min-w-0 items-center gap-2.5">{who}</span>
-        )}
-        {right ? <span className="relative z-30 ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
-      </div>
-      {/* This bar replaces the global bar and sits at the viewport's top. A
-          fixed rule spans the viewport without a 100vw-wide box that can
-          enlarge the horizontal scroll area. */}
-      <span
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)_+_60px)] h-px bg-border"
-      />
-    </div>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2.5">{who}</span>
+      )}
+      {right ? <span className="ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
+    </PageHeader>
   );
 }
 

@@ -14,17 +14,22 @@ const read = (path: string) => readFileSync(path, "utf8");
 describe("the locked bars", () => {
   it("the builder uses the locked top bar and the locked composer", () => {
     const top = read("src/components/willab/chats/TopBar.tsx");
+    const header = read("src/components/willab/PageHeader.tsx");
+    const bar = read("src/components/willab/chats/ChatBar.tsx");
     const thread = read("src/components/willab/chats/ChatThread.tsx");
     const build = read("src/components/willab/chats/WillBuild.tsx");
     const talk = read("src/components/willab/chats/hostsetup/TalkBuild.tsx");
-    expect(top).toContain("WILLAB_CONTENT_RAIL");
+    expect(top).toContain("PageHeader");
     expect(top).toContain("h-[60px]");
-    expect(thread).toContain('data-chat-bar className="flex min-h-[60px] shrink-0 items-center gap-1 p-2"');
+    expect(header).toContain("WILLAB_CONTENT_RAIL");
+    expect(header).toContain("w-screen");
+    expect(bar).toContain("export function ChatBarRow");
+    expect(thread).toContain("<ChatBarRow>");
     expect(build).toContain("<TopBar");
+    expect(build).toContain("<ChatBarRow>");
     expect(build).not.toContain("data-part-chat-bar");
     expect(talk).toContain("BarBox");
-    expect(talk).toContain('data-chat-bar=""');
-    expect(talk).toContain("min-h-[60px] shrink-0 items-center gap-1 p-2");
+    expect(talk).toContain("<ChatBarRow");
     expect(talk).not.toContain("rounded-[28px]");
   });
 });

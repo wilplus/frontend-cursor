@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Mic } from "lucide-react";
-import { BarBox } from "@/components/willab/chats/ChatBar";
+import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 import { PRICES, SEND, W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
@@ -396,7 +396,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
         setDraft={setDraft}
       />
       <TalkTools phase={phase} snap={snap} draft={draft} onChip={onChip} onTake={take} setDraft={setDraft} />
-      <div data-chat-bar="" data-talk-composer="" className="flex min-h-[60px] shrink-0 items-center gap-1 p-2">
+      <ChatBarRow flush={false} data-talk-composer="">
         <button type="button" aria-label="Speak" data-talk-mic="" data-recording={recording ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onPointerDown={(e) => { e.preventDefault(); downAt.current = Date.now(); void onMic(); }} onPointerUp={() => { if (live.current && Date.now() - downAt.current >= 280) void onMic(); }}>
           <Mic className="h-5 w-5" aria-hidden />
         </button>
@@ -408,8 +408,8 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
           initial={draft}
           onSend={async (words) => { setDraft(""); take(words); return true; }}
         />
-      </div>
-      <button type="button" data-talk-list="" className="min-h-11 border-t border-border text-[15px] font-semibold" onClick={onList}>See the list</button>
+      </ChatBarRow>
+      <button type="button" data-talk-list="" className="min-h-11 border-t border-border pb-[env(safe-area-inset-bottom)] text-[15px] font-semibold" onClick={onList}>See the list</button>
     </div>
   );
 }
