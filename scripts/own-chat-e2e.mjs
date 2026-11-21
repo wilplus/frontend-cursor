@@ -150,8 +150,12 @@ async function run(width, height) {
   check(`${tag} back returns to the builder`, await page.locator("[data-build-home]").count() === 1);
   check(`${tag} Test has a tick and AI does not`, await page.locator("[data-tile-tick='test']").count() === 1 && await page.locator("[data-tile-tick='ai']").count() === 0);
   await page.locator("[data-build-tile='ai']").click();
+  await page.waitForSelector("[data-ai-split]");
+  check(`${tag} AI asks Experiments or Training`, await page.locator("[data-ai-choice='experiments']").count() === 1 && await page.locator("[data-ai-choice='training']").count() === 1);
+  check(`${tag} the AI split has one top bar`, await bars() === 1);
+  await page.locator("[data-ai-choice='training']").click();
   await page.waitForSelector("[data-build-models]");
-  check(`${tag} AI has one top bar`, await bars() === 1);
+  check(`${tag} Training is the model list, with one top bar`, await bars() === 1);
   await page.locator("[data-chat-header] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
   const share = page.locator("[data-build-bar] [data-share-chat]");

@@ -540,11 +540,28 @@ describe("what needs you is in Will (backend N629)", () => {
   const tab = async (t: string) => {
     await act(async () => (container.querySelector(`[data-build-tile="${t}"]`) as HTMLButtonElement).click());
     await flush();
+    if (t === "ai") {
+      await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
+      await flush();
+    }
   };
   const toggle = async (m: string) => {
     await act(async () => (container.querySelector(`[data-switch="${m}"]`) as HTMLButtonElement).click());
     await flush();
   };
+
+  it("the AI tile asks Experiments or Training, and Training is the model list", async () => {
+    await build({ ...SETUP, can_try: false });
+    await act(async () => (container.querySelector("[data-build-tile='ai']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-build-models]")).toBeNull();
+    expect(container.querySelector("[data-ai-choice='experiments']")?.textContent).toContain("Experiments");
+    expect(container.querySelector("[data-ai-choice='training']")?.textContent).toContain("Training");
+    expect(container.querySelectorAll("[data-chat-header]").length).toBeGreaterThan(0);
+    await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-build-models]")?.textContent).toContain("Your models, and everything you teach.");
+  });
 
   it("N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too", async () => {
     moments.speakers = [{ waiting: 2 }, { waiting: 1 }];
