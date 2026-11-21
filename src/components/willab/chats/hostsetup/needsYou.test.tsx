@@ -135,6 +135,8 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, can_try: false };
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
+    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await flush();
     const search = container.querySelector<HTMLInputElement>("[data-part-search] input")!;
     expect(search).not.toBeNull();
     const set = async (value: string) => {
@@ -187,6 +189,8 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/what"] = (c: Call) => ({ recipe: { ...recipe, spec: (c.json as { value: string }).value }, cost: null });
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
+    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await flush();
     await act(async () => (container.querySelector('[data-build-part="what"]') as HTMLButtonElement).click());
     await flush();
     const chat = container.querySelector('[data-part-chat="what"]')!;
@@ -227,6 +231,8 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/hello"] = kept("hello", "hello");
     bff.routes["PUT /api/v2/chats/setup/out"] = kept("out", "out");
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
     await flush();
     const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
     const shown = (id: string) => !chat(id).className.includes("hidden");
@@ -277,6 +283,11 @@ describe("what needs you is in Will (backend N629)", () => {
     expect(back).toHaveBeenCalledTimes(1);
     back.mockClear();
     const open = async () => {
+      const tile = container.querySelector("[data-build-tile='answers']") as HTMLButtonElement | null;
+      if (tile) {
+        await act(async () => tile.click());
+        await flush();
+      }
       await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
       await flush();
     };
@@ -533,7 +544,7 @@ describe("what needs you is in Will (backend N629)", () => {
     return got;
   };
   const tab = async (t: string) => {
-    await act(async () => (container.querySelector(`[data-build-tab="${t}"]`) as HTMLButtonElement).click());
+    await act(async () => (container.querySelector(`[data-build-tile="${t}"]`) as HTMLButtonElement).click());
     await flush();
   };
   const toggle = async (m: string) => {
@@ -694,6 +705,8 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/send"] = (c: Call) => ({ recipe: { ...recipe, send: (c.json as { value: string[] }).value }, cost: null });
     bff.routes["PUT /api/v2/chats/setup/walk"] = (c: Call) => ({ recipe: { ...recipe, walk: (c.json as { value: unknown }).value }, cost: null });
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
     await flush();
     const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
     const shown = (id: string) => !chat(id).className.includes("hidden");

@@ -54,11 +54,11 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 21 | The sheet is one or two sentences, then Yes and Close | 10 | Close leaves the row where it was. Yes is the only way on. |
 | 22 | Yes opens Build and pins the chat at the top | 10 | The row's name is the chat's name. Back returns to the list. |
 | 23 | Share copies the link | 10 | The button copies `/c/…` and says Link copied. The phone run does the same at 390×844. |
-| 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. An emoji replaces it. The badge is about 40% of the circle. |
-| 25 | Your chat lists each answer | 10 | After setup, each question is one line and the answer is under it. A tap opens that question. |
+| 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. Tapping it in the top bar opens the picker. An emoji replaces it. The badge is about 40% of the circle. |
+| 25 | Answers lists each answer | 10 | The Answers tile opens the list. Each question is one line and the answer is under it. A tap opens that question. Search stays on that list. |
 | 26 | Your own code is one tap | 10 | The row says what the code does. It opens from the list. |
-| 27 | Try it as a visitor | 10 | One tap from Your chat and from the Build card. A send gets the chat's own reply. Back returns to the builder. |
+| 27 | Try the chat as a visitor | 10 | The Try tile opens the chat as a visitor. A send gets the chat's own reply. Back returns to the four tiles. |
 
-**270 / 270 = 100%.** That is above 95%. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 16/16` at 390×844 and at 1024×768.
+**270 / 270 = 100%.** That is above 95%. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 24/24` at 390×844 and at 1024×768. The home is four equal tiles: Talk, Answers, Try, Models. None is highlighted. The page does not scroll at either size.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

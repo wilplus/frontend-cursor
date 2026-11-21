@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link as LinkIcon } from "lucide-react";
+import { Boxes, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
@@ -22,6 +22,7 @@ import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou
 import TalkBuild from "./hostsetup/TalkBuild";
 import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
+import ChatIconPicker from "./hostsetup/ChatIconPicker";
 import { BarBox } from "@/components/willab/chats/ChatBar";
 
 /* -------------------------------------------------------------------------- */
@@ -53,23 +54,30 @@ function live(recipe: HostRecipe, own: OwnChat | null): HostRecipe {
   return { ...recipe, hello: own?.hello || recipe.hello, taps };
 }
 
-function Tabs({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
-  const one = (t: Tab, label: string) => (
-    <button
-      type="button"
-      role="tab"
-      data-build-tab={t}
-      aria-selected={tab === t}
-      onClick={() => onTab(t)}
-      className={`flex-1 border-b-2 py-2.5 text-[15px] font-semibold ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
-    >
-      {label}
-    </button>
-  );
+const TILES = [
+  { id: "talk", word: W.tileTalk, Icon: MessageSquare },
+  { id: "answers", word: W.tileAnswers, Icon: List },
+  { id: "try", word: W.tileTry, Icon: Play },
+  { id: "models", word: W.tileModels, Icon: Boxes },
+] as const;
+
+function BuildHome({ onOpen }: { onOpen: (id: (typeof TILES)[number]["id"]) => void }) {
   return (
-    <div role="tablist" className="flex shrink-0 border-b border-border">
-      {one("chat", W.yourChatTitle)}
-      {one("models", W.aiModelsTab)}
+    <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 py-6">
+      <div className="grid aspect-square w-full max-w-[min(100%,28rem)] grid-cols-2 gap-3">
+        {TILES.map(({ id, word, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            data-build-tile={id}
+            onClick={() => onOpen(id)}
+            className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground"
+          >
+            <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
+            <span className="text-[16px] font-medium">{word}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -116,6 +124,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const [talk, setTalk] = useState(false);
   const [table, setTable] = useState(false);
   const [visitor, setVisitor] = useState(false);
+  const [iconOpen, setIconOpen] = useState(false);
   const [seen, setSeen] = useState<string[]>([]);
   const { profile } = useUserProfile();
   const draft = useCoachDraft();
@@ -146,6 +155,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     if (visitor) { setVisitor(false); return true; }
     if (talk) { setTalk(false); return true; }
     if (active !== null && tab === "chat") { setActive(null); return true; }
+    if (tab === "models") { setTab("chat"); return true; }
     if (table && !setup?.recipe) { setTable(false); return true; }
     return false;
   });
@@ -158,7 +168,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // The header arrow leaves Build only from the list. A row's chat goes back
   // to that list, and so does the browser's Back (PartHistory).
   const rowOpen = active !== null && tab === "chat";
-  const headerBack = () => leaveBuild({ visitor, talk, rowOpen, table, hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, onBack });
+  const headerBack = () => leaveBuild({ visitor, talk, rowOpen, table, models: tab === "models", hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, closeModels: () => setTab("chat"), onBack });
   return (
     <BuildScreen
       mode={mode}
@@ -187,6 +197,8 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       order={order}
       seen={seen}
       profileName={profile?.first_name ?? ""}
+      iconOpen={iconOpen}
+      setIconOpen={setIconOpen}
     />
   );
 }
@@ -196,16 +208,19 @@ function leaveBuild(p: {
   talk: boolean;
   rowOpen: boolean;
   table: boolean;
+  models: boolean;
   hasRecipe: boolean;
   setVisitor: (v: boolean) => void;
   setTalk: (v: boolean) => void;
   closePart: () => void;
   setTable: (v: boolean) => void;
+  closeModels: () => void;
   onBack: () => void;
 }) {
   if (p.visitor) return p.setVisitor(false);
   if (p.talk) return p.setTalk(false);
   if (p.rowOpen) return p.closePart();
+  if (p.models) return p.closeModels();
   if (p.table && !p.hasRecipe) return p.setTable(false);
   return p.onBack();
 }
@@ -237,14 +252,40 @@ function BuildScreen(p: {
   order: SetupPart[];
   seen: string[];
   profileName: string;
+  iconOpen: boolean;
+  setIconOpen: (open: boolean) => void;
 }) {
   if (p.mode === "live" && p.canTry && p.recipe) return <LiveCover name={p.name} tools={p.tools} onBack={p.onBack} doc={p.coachDoc} recipe={p.recipe} own={p.own} />;
-  if (p.tab === "models") return <Cover><BuildTop name={p.name} tools={p.tools} onBack={p.headerBack} tab={p.tab} setTab={p.setTab} /><BuildModels /></Cover>;
   const doc = readTalkDefinition();
+  const home = !p.talk && !p.table && !p.visitor && !p.rowOpen && p.tab !== "models";
+  const top = (
+    <BuildTop
+      name={p.name}
+      tools={p.tools}
+      onBack={p.headerBack}
+      onIcon={() => p.setIconOpen(!p.iconOpen)}
+      iconOpen={home && p.iconOpen}
+    />
+  );
+  if (p.tab === "models") return <Cover>{top}<BuildModels /></Cover>;
   if (p.visitor && doc) return <Cover><VisitorTry name={p.name} doc={doc} sends={doc.chat.send} onBack={() => p.setVisitor(false)} /></Cover>;
+  if (home) {
+    return (
+      <Cover>
+        {top}
+        <BuildHome onOpen={(id) => {
+          p.setIconOpen(false);
+          if (id === "talk") p.setTalk(true);
+          if (id === "answers") p.setTable(true);
+          if (id === "try") p.setVisitor(true);
+          if (id === "models") p.setTab("models");
+        }} />
+      </Cover>
+    );
+  }
   return (
     <Cover>
-      <BuildTop name={p.name} tools={p.tools} onBack={p.headerBack} tab={p.tab} setTab={p.setTab} />
+      {top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
       <div className={p.active ? "hidden" : "no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"}>
         {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} /> : (
@@ -252,9 +293,6 @@ function BuildScreen(p: {
             page
             source={p.table && !p.setup?.recipe ? p.local : null}
             onPart={(part) => p.openPart(part.part)}
-            onTalk={() => p.setTalk(true)}
-            onTry={doc ? () => p.setVisitor(true) : undefined}
-            onOpenChat={() => (p.local ? p.setTable(true) : p.setTalk(true))}
           />
         )}
       </div>
@@ -279,17 +317,27 @@ function LiveCover({ name, tools, onBack, doc, recipe, own }: {
   return <Cover><HostOwnChat key={name} name={name} recipe={live(recipe, own)} about={own?.about ?? []} onBack={onBack} bar={bar} /></Cover>;
 }
 
-function BuildTop({ name, tools, onBack, tab, setTab }: {
+function BuildTop({ name, tools, onBack, onIcon, iconOpen }: {
   name: string;
   tools: ReactNode;
   onBack: () => void;
-  tab: Tab;
-  setTab: (tab: Tab) => void;
+  onIcon: () => void;
+  iconOpen: boolean;
 }) {
   return (
     <div data-build-bar="" className="shrink-0 bg-background">
-      <TopBar circle={<OwnAvatar id={`build-${name}`} name={name} size={36} />} title={name} subtitle={W.youRunIt} onBack={onBack} right={tools} />
-      <Tabs tab={tab} onTab={setTab} />
+      <TopBar
+        circle={(
+          <button type="button" data-icon-open="" aria-label="Icon" aria-expanded={iconOpen} onClick={onIcon} className="rounded-full">
+            <OwnAvatar id={`build-${name}`} name={name} size={36} />
+          </button>
+        )}
+        title={name}
+        subtitle={W.youRunIt}
+        onBack={onBack}
+        right={tools}
+      />
+      {iconOpen ? <div className="border-b border-border px-4 py-3"><ChatIconPicker name={name} /></div> : null}
     </div>
   );
 }

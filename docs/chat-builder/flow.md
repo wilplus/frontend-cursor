@@ -27,4 +27,4 @@ The composer is one row: mic, a text box that can hold a pasted step, send. A qu
 
 The walk steps, once there are two, are a list. Drag one onto another, or tap Earlier / Later.
 
-Your chat, the searchable table, is unchanged. Header back from the talk returns to that table. A row chat is unchanged.
+The home under the header is four equal tiles: Talk, Answers, Try, Models. Answers opens the searchable list. Header back from the talk returns to the tiles. A row chat is unchanged.

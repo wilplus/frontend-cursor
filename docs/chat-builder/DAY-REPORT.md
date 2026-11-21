@@ -6,7 +6,9 @@
 
 The chat list leads to Build again. "Start your own chat" is the last chat row, above "Start a new project", because that control is the action under the list and the new one is a row like the others. A short sheet explains it. Yes opens Build and pins the chat at the top under its name. Close changes nothing. The name and the pin stay on this device (`docs/chat-builder/backend-own-chat-list.patch`).
 
-The circle is the locked avatar. The host picks an emoji, a colour, a photo, or their initial, from a row in Your chat and from the talk's preview. A three-dots badge sits on the bottom-right, about 40% of the circle, with a white ring.
+The circle is the locked avatar. Tapping it in the locked top bar opens the picker: an emoji, a colour, a photo, or their initial. A three-dots badge sits on the bottom-right, about 40% of the circle, with a white ring.
+
+The builder home is four equal tiles: Talk, Answers, Try, Models. Each tile is an icon and one word. Talk opens the talk. Answers opens the list of questions and answers. Try opens the chat as a visitor. Models opens the model list. The tab row and the search box are gone from this page. Search stays on the answer list.
 
 Share, in the locked top bar's right slot, copies the public link. That is `/c/<token>` when the host already has a join path, and the same route built from the local chat id otherwise. The button says "Link copied", and opens the phone's share sheet where the browser has one.
 
@@ -18,7 +20,7 @@ The talk also follows the four builders in the competitor research (`638b0c14`, 
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 16/16` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 24/24` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.

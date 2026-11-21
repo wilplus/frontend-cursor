@@ -23,7 +23,6 @@ import { useUserProfile } from "../../useUserProfile";
 import { W } from "./hostSetupCopy";
 import { openOverList, useKnownSetup, type OpenDetail } from "./hostSetupDoor";
 import { answerPriceChange, useHostWork } from "./hostWork";
-import ChatIconPicker, { useOwnFace } from "./ChatIconPicker";
 
 /* -------------------------------------------------------------------------- */
 /*  Build's "Your chat", in Will's chat (backend N642 item 3, N643 item 4;     */
@@ -201,46 +200,16 @@ export function PartBubble({ part }: { part: SetupPart }) {
   );
 }
 
-function iconMatches(query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || "icon".includes(q) || "your initial".includes(q);
-}
-
-function iconLine(face: ReturnType<typeof useOwnFace>): string {
-  if (face.kind === "emoji") return face.emoji;
-  if (face.kind === "photo") return "A photo";
-  if (face.kind === "color") return "A colour";
-  return "Your initial";
-}
-
-/** One row of Your chat: the circle people see, then the presets. */
-function IconPart() {
-  const [open, setOpen] = useState(false);
-  const face = useOwnFace();
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-background">
-      <button type="button" data-own-icon="" onClick={() => setOpen((was) => !was)} className="flex min-h-12 w-full items-center gap-3 px-3.5 py-3 text-left">
-        <span className="shrink-0 text-[15px] font-medium text-foreground sm:w-40">Icon</span>
-        <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{iconLine(face)}</span>
-      </button>
-      {open ? <div className="border-t border-border px-3.5 py-3"><ChatIconPicker name="Icon" /></div> : null}
-    </section>
-  );
-}
-
 /** Build's "Your chat" (backend N642 item 3, N643 item 4): the parts, then
  *  what needs you about the chat. On the stable page (`page`) it is the
  *  whole screen, with a search, and a row opens that row's own chat.
  *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
  *  Only for the ring `chat_builder`. */
-export default function WillNeedsYou({ page = false, onPart, onTalk, onOpenChat, onTry, source = null }: {
+export default function WillNeedsYou({ page = false, onPart, onOpenChat, source = null }: {
   page?: boolean;
   onPart?: (part: SetupPart) => void;
-  onTalk?: () => void;
   /** The Build page: the card opens the table, not the server setup. */
   onOpenChat?: () => void;
-  /** Open the chat as a visitor would see the shared link. */
-  onTry?: () => void;
   /** Rows from the talk on this device, when the server has none. */
   source?: SetupRead | null;
 }) {
@@ -266,8 +235,6 @@ export default function WillNeedsYou({ page = false, onPart, onTalk, onOpenChat,
       localTable={localTable}
       shown={shown}
       openPart={openPart}
-      onTalk={onTalk}
-      onTry={onTry}
       onOpenChat={onOpenChat}
       recipe={recipe}
       groups={groups}
@@ -281,7 +248,7 @@ export default function WillNeedsYou({ page = false, onPart, onTalk, onOpenChat,
 }
 
 function NeedsPage({
-  page, query, setQuery, localTable, shown, openPart, onTalk, onTry, onOpenChat, recipe, groups, over, needs, answers, work, isCoach,
+  page, query, setQuery, localTable, shown, openPart, onOpenChat, recipe, groups, over, needs, answers, work, isCoach,
 }: {
   page: boolean;
   query: string;
@@ -289,8 +256,6 @@ function NeedsPage({
   localTable: boolean;
   shown: SetupPart[];
   openPart: (part: SetupPart) => void;
-  onTalk?: () => void;
-  onTry?: () => void;
   onOpenChat?: () => void;
   recipe: HostRecipe | null;
   groups: { heading: string | null; parts: SetupPart[] }[];
@@ -318,13 +283,6 @@ function NeedsPage({
             </button>
           ) : null}
         </form>
-      ) : null}
-      {page && !localTable && iconMatches(query) ? <IconPart /> : null}
-      {page && onTalk && !localTable ? (
-        <button type="button" data-talk-open="" onClick={onTalk} className="min-h-11 self-start text-[15px] font-semibold text-primary">{W.talkBuild}</button>
-      ) : null}
-      {page && onTry ? (
-        <button type="button" data-try-visitor="" onClick={onTry} className="flex min-h-[52px] w-full items-center rounded-2xl bg-foreground px-4 text-left text-[17px] font-semibold text-background">{W.tryAsVisitor}</button>
       ) : null}
       {localTable ? (
         <div data-answer-list="" className="flex min-h-0 w-full min-w-0 flex-col overflow-x-hidden">

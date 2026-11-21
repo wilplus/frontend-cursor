@@ -142,7 +142,7 @@ describe("Start your own chat", () => {
     const listed = host.querySelector<HTMLElement>("[data-home-row='own-chat'] [data-will-badge]")!;
     expect(listed.style.width).toBe(`${Math.round(48 * 0.4)}px`);
     expect(host.querySelector("[data-chat-letter]")).not.toBeNull();
-    await click("[data-own-icon]");
+    await click("[data-icon-open]");
     expect(host.textContent).toContain("Pick a picture");
     const emoji = [...host.querySelectorAll("button")].find((button) => button.textContent === "🎤");
     await act(async () => emoji?.click());
@@ -168,8 +168,10 @@ describe("Start your own chat", () => {
     startOwnChat();
     act(() => root.render(createElement(WillBuild, { onBack: () => undefined })));
     await flush();
-    expect(host.textContent).toContain("Try it as a visitor");
-    await click("[data-needs-you='chat']");
+    expect(host.querySelectorAll("[data-build-tile]")).toHaveLength(4);
+    expect(host.querySelector("[data-build-tab]")).toBeNull();
+    expect(host.querySelector("[data-part-search]")).toBeNull();
+    await click("[data-build-tile='answers']");
     expect(host.querySelector("[data-answer-list]")).not.toBeNull();
     expect(host.textContent).toContain("Your own code");
     expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something.");
@@ -179,13 +181,14 @@ describe("Start your own chat", () => {
     await click("[data-build-part='code']");
     expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something?");
     await click("[data-part-chat='code'] button[aria-label='Back']");
-    await click("[data-try-visitor]");
+    await click("[data-build-bar] button[aria-label='Back']");
+    await click("[data-build-tile='try']");
     expect(host.querySelector("[data-visitor-try]")).not.toBeNull();
     expect(host.textContent).toContain("Hi. Record a short talk");
     await click("[data-visitor-rec]");
     await flush();
     expect(host.querySelectorAll("[data-visitor-line='them']").length).toBeGreaterThan(1);
     await click("[data-visitor-try] button[aria-label='Back']");
-    expect(host.querySelector("[data-answer-list]")).not.toBeNull();
+    expect(host.querySelector("[data-build-home]")).not.toBeNull();
   });
 });
