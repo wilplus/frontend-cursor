@@ -13,7 +13,7 @@
 
 ## What the talk does with them
 
-You decide sits on the brief and answers only that question. Each later question is asked on its own. Say go is the approval after those questions, and only then does the preview open. The preview's first line is the greeting, with Keep and Next. A change names the greeting or the price and leaves the rest. Write this for me fills a hard field, then Keep or Rewrite. Record, Type, Photo, File and Train are chips. Every answer saves a draft on this device. Publish marks it live here and does not call the network.
+What do you do? offers four jobs above the box. Someone else focuses the box. Each later question is asked on its own. A tap on an earlier answer opens that question again. Say go is the approval after those questions, and the greeting is then a normal bubble, with Keep. The list of answers is Settings. A change names the greeting or the price and leaves the rest. Write this for me fills a hard field, then Keep or Rewrite. Record, Type, Photo, File and Train are chips. Every answer saves a draft on this device. Publish marks it live here and does not call the network.
 
 ## Sources
 

@@ -313,7 +313,7 @@ function BuildScreen(p: {
     <Cover>
       {p.rowOpen ? null : top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
-      <div className={p.active ? "hidden" : "no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"}>
+      <div className={p.active ? "hidden" : `no-scrollbar flex min-h-0 flex-1 flex-col ${p.talk ? "overflow-hidden" : "overflow-y-auto"}`}>
         {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} /> : (
           <WillNeedsYou
             page

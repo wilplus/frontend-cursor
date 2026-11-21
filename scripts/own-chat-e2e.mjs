@@ -82,8 +82,21 @@ async function run(width, height) {
   await page.locator("[data-build-tile='build']").click();
   check(`${tag} Build has one top bar`, await bars() === 1);
   check(`${tag} there is no express button`, await page.locator("[data-express]").count() === 0);
-  await page.locator("[data-say='Speaking coach']").click();
-  await page.locator("[data-talk-composer] button[type='submit']").click();
+  check(`${tag} no stepper, mic, or list`, await page.locator("[data-talk-steps], [data-talk-mic], [data-talk-list]").count() === 0);
+  const jobs = await page.locator("[data-talk-replies] button").allInnerTexts();
+  check(`${tag} the four jobs sit above the box`, jobs.map((t) => t.trim()).join(",") === "Speaking coach,ML specialist,Neurobiologist,Someone else");
+  const replyBox = await page.locator("[data-talk-replies]").boundingBox();
+  const composerBox = await page.locator("[data-talk-composer]").boundingBox();
+  check(`${tag} taps sit above the input`, !!replyBox && !!composerBox && replyBox.y + replyBox.height <= composerBox.y + 2);
+  const job = (name) => page.locator("[data-talk-replies]").getByRole("button", { name, exact: true });
+  await job("Speaking coach").click();
+  await page.waitForSelector("text=Can they send a recording?");
+  await page.locator("[data-my-answer]").first().click();
+  check(`${tag} an earlier answer opens its taps`, (await page.locator("[data-talk-replies] button").allInnerTexts()).map((t) => t.trim()).join(",") === "Speaking coach,ML specialist,Neurobiologist,Someone else");
+  await job("ML specialist").click();
+  check(`${tag} the answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can they send a recording?").count()) > 0);
+  await page.locator("[data-my-answer]").first().click();
+  await job("Speaking coach").click();
   await page.waitForSelector("text=Can they send a recording?");
   check(`${tag} the next question is one question`, (await page.locator("text=Say go?").count()) === 0);
   for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {

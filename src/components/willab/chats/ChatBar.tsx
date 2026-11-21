@@ -189,8 +189,8 @@ export const CHAT_BAR_ROW =
   "flex min-h-[60px] shrink-0 items-center gap-1 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]";
 
 /** One bottom row for a person's chat and for the builder. `flush` is for a
- *  row that sits on the screen edge. A row with something under it (the
- *  talk's "See the list") keeps a flat 8px. */
+ *  row that sits on the screen edge. A row with something under it keeps a
+ *  flat 8px. */
 export function ChatBarRow({
   flush = true,
   className,

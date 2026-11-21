@@ -3,17 +3,17 @@
 STORY    The talk is scored by driving it. Finishing it writes the coach
          the screens read. A shop chat sets every field the builder has.
 OUTCOME
-  O1  Fifteen taps build the Speaking Coach, then Say go. The saved
+  O1  Fourteen taps build the Speaking Coach, then Say go. The saved
       document matches the fixture, and the screens read it.
   O2  A shop chat sets all four sends, an assistant, price 1, a training
       machine, the hedge model, another model and a checked paste.
-  O3  You decide answers only the question it is on. The host answers
-      the rest one at a time. A targeted edit, chips and Publish stay
-      on this device. There is no way to skip the questions.
+  O3  The brief offers four jobs, not You decide. The host answers
+      the rest one at a time. A tap on an earlier answer changes it.
+      A targeted edit, chips and Publish stay on this device.
   O4  The technical score is printed from the fixture and the shop fields.
 PROVES   O1 -> "fifteen taps build the Speaking Coach"
-         O2 -> "the shop chat sets price, model and paste, and the mic transcribes"
-         O3 -> "you decide answers one question, then a targeted edit, chips, and publish stay on this device"
+         O2 -> "the shop chat sets price, model and paste"
+         O3 -> "an earlier answer changes, then a targeted edit, chips, and publish stay on this device"
          O4 -> "prints the technical score from the fixture and the shop fields"
 */
 import { act, createElement } from "react";
@@ -76,17 +76,17 @@ const snap = () => JSON.parse(container.querySelector("[data-talk-snap]")!.getAt
 const PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
 describe("the talk, scored by the script", () => {
-  it("fifteen taps build the Speaking Coach", async () => {
+  it("fourteen taps build the Speaking Coach", async () => {
     act(() => root.render(createElement("div", null, createElement(TalkBuild, { onList: () => undefined }), createElement(Probe))));
-    expect(container.textContent).toContain("You decide");
+    expect(container.textContent).not.toContain("You decide");
+    expect(container.querySelector("[data-talk-steps]")).toBeNull();
     await tap("Speaking coach");
     expect(container.querySelector("[data-talk-version]")).toBeNull();
-    await tap("Send");
     expect(readTalkDraft()?.definition.chat.spec).toBe("Speaking coach");
     for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     await tap("Yes");
-    expect(taps).toBe(15);
+    expect(taps).toBe(14);
     expect(snap()).toMatchObject({
       spec: "Speaking coach",
       send: ["rec", "text"],
@@ -100,7 +100,7 @@ describe("the talk, scored by the script", () => {
       model: "",
       paste: "",
     });
-    expect(container.querySelector("[data-talk-step='Look']")?.className).toContain("font-semibold");
+    expect(container.querySelector("[data-talk-steps]")).toBeNull();
     expect(container.querySelector("[data-talk-greeting]")?.textContent).toContain("Record a short talk");
     const fixture = JSON.parse(readFileSync("docs/chat-builder/arturs-chat-speaking-coach.json", "utf8"));
     const built = readTalkDraft();
@@ -115,32 +115,13 @@ describe("the talk, scored by the script", () => {
     expect(snap().walk[0]).toBe("fix");
   });
 
-  it("the shop chat sets price, model and paste, and the mic transcribes", async () => {
-    const transcribe = vi.fn(async () => "A shop");
-    class Rec {
-      mimeType = "audio/webm";
-      ondataavailable: ((e: { data: Blob }) => void) | null = null;
-      onstop: (() => void) | null = null;
-      start() {}
-      stop() {
-        this.ondataavailable?.({ data: new Blob(["a"]) });
-        this.onstop?.();
-      }
-    }
-    vi.stubGlobal("MediaRecorder", Rec);
-    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } });
+  it("the shop chat sets price, model and paste", async () => {
     act(() => root.render(createElement(TalkBuild, {
       onList: () => undefined,
       models: [{ id: "hedge", q: "Did they hedge?" }],
-      transcribe,
     })));
-    const mic = container.querySelector<HTMLButtonElement>("[data-talk-mic]")!;
-    await act(async () => mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
-    await flush();
-    expect(mic.getAttribute("data-recording")).toBe("");
-    await act(async () => mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
-    await flush();
-    expect(transcribe).toHaveBeenCalledOnce();
+    await type("A shop");
+    await tap("Send");
     expect(snap().spec).toBe("A shop");
     for (const answer of ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "No", "No"]) await tap(answer);
     await tap("Yes");
@@ -149,7 +130,6 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     await tap("Yes");
     await tap("Did they hedge?");
-    await tap("Send");
     await tap("Yes");
     await type("A second one");
     await tap("Send");
@@ -187,24 +167,24 @@ describe("the talk, scored by the script", () => {
     vi.unstubAllGlobals();
   });
 
-  it("you decide answers one question, then a targeted edit, chips, and publish stay on this device", async () => {
+  it("an earlier answer changes, then a targeted edit, chips, and publish stay on this device", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     expect(container.querySelector("[data-express]")).toBeNull();
-    expect([...container.querySelectorAll("[data-quote]")].map((b) => b.getAttribute("data-say"))).toEqual(["Speaking coach", "You decide"]);
-    await tap("You decide");
-    await tap("Send");
+    expect(container.querySelector("[data-talk-mic]")).toBeNull();
+    expect(container.querySelector("[data-talk-list]")).toBeNull();
+    expect([...container.querySelectorAll("[data-talk-replies] button")].map((b) => b.textContent)).toEqual(["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"]);
+    await tap("Speaking coach");
     expect(snap().spec).toBe("Speaking coach");
     expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("send");
     expect(container.textContent).toContain("Can they send a recording?");
     expect(container.textContent).not.toContain("Say go?");
     for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
-    expect([...container.querySelectorAll("[data-quote]")].filter((b) => b.getAttribute("data-say") === "You decide")).toHaveLength(1);
+    expect(container.querySelector("[data-quote]")).toBeNull();
     await tap("No");
     await tap("The price");
-    await tap("Send");
     const before = snap().send.join(",");
     await tap("Yes");
     expect(snap().send.join(",")).toBe(before);
@@ -212,7 +192,6 @@ describe("the talk, scored by the script", () => {
     expect(container.textContent).toContain("Say go?");
     await tap("No");
     await tap("The greeting");
-    await tap("Send");
     await tap("Write this for me");
     expect(container.querySelector("textarea")!.value).toContain("Record a short talk");
     await tap("Rewrite");
@@ -227,19 +206,23 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     const edited = snap().hello === "Hello there.";
     const chipped = snap().send.includes("photo");
-    const preview = container.querySelector("[data-preview-keep]") !== null && container.querySelector("[data-preview-next]") !== null;
+    const keptOnScreen = [...container.querySelectorAll("button")].some((b) => b.textContent === "Keep");
     await tap("Publish");
     const publishedLocal = readTalkDraft()?.published === true && fetchSpy.mock.calls.length === 0;
     expect(readTalkDraft()?.published).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
-    await tap("Undo");
-    expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).not.toBe("look");
+    await act(async () => (container.querySelector("[data-my-answer]") as HTMLElement).click());
+    await flush();
+    await tap("Neurobiologist");
+    expect(snap().spec).toBe("Neurobiologist");
+    expect(snap().hello).toBe("Hello there.");
+    expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("look");
     const usability = [
       ["success", true],
-      ["you decide answers one question", true],
+      ["an earlier answer can be changed", snap().spec === "Neurobiologist"],
       ["plan before build", true],
       ["no express path", container.querySelector("[data-express]") === null],
-      ["live preview keep and next", preview],
+      ["greeting stays, with Keep", keptOnScreen],
       ["targeted edit", edited],
       ["write this for me, then rewrite", true],
       ["capability chips", chipped],

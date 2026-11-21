@@ -15,7 +15,7 @@ Both scripts passed: 2 / 2. That is the usability evidence for this round, and i
 
 ## What a 12-year-old meets
 
-One question on screen. Yes and No are 52px pills. The quote is the orange chip from the deck (`#fff1e8`, `#c84d06`) and it only fills the box. The stepper is Brief, Steps, Coach, Look, with a hairline between names. Undo names the version it will put back. The version sits in a bordered pill. The mic is a 44px circle, red while it is listening.
+One question on screen, in a normal chat bubble. The taps sit above the typing box, in the app's usual reply style. What do you do? offers four jobs. Someone else focuses the box. There is no stepper, no Undo, and no mic. A tap on an earlier answer opens that question again.
 
 ## Still open
 

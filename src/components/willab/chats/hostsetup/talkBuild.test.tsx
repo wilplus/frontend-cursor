@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 /*
-STORY    As a host, I build my chat by talking or tapping, one step at a
-         time, and I can undo a version and open the list of parts.
+STORY    As a host, I build my chat by talking or tapping, one question at
+         a time. A tap on an earlier answer changes it.
 OUTCOME
-  O1  Brief starts from a quoted "Speaking coach", saves Brief v1, and
-      Undo takes that version away.
-  O2  Yes and no walk They send one kind at a time. See the list closes
-      the talk.
-PROVES   O1 -> "a quoted suggestion saves Brief v1 and Undo restores it"
-         O2 -> "Yes and No walk the send kinds, and See the list closes the talk"
+  O1  What do you do? offers four jobs above the box. A tap sends it.
+      Tapping that answer opens the four jobs again.
+  O2  Yes and no walk They send one kind at a time. There is no See the
+      list on this screen.
+PROVES   O1 -> "four jobs sit above the box, and an earlier answer opens them again"
+         O2 -> "Yes and No walk the send kinds, and this screen has no list"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -37,24 +37,32 @@ const tap = async (label: string) => {
 };
 
 describe("talk the chat into shape", () => {
-  it("a quoted suggestion saves Brief v1 and Undo restores it", async () => {
+  it("four jobs sit above the box, and an earlier answer opens them again", async () => {
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     expect(container.textContent).toContain("What do you do?");
-    expect(container.textContent).toContain("Speaking coach");
+    expect([...container.querySelectorAll("[data-talk-replies] button")].map((b) => b.textContent)).toEqual(["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"]);
+    expect(container.querySelector("[data-talk-steps]")).toBeNull();
+    expect(container.querySelector("[data-talk-mic]")).toBeNull();
+    expect(container.querySelector("[data-talk-list]")).toBeNull();
+    expect(container.textContent).not.toContain("You decide");
+    const box = container.querySelector("textarea")!;
+    await tap("Someone else");
+    expect(document.activeElement).toBe(box);
+    expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("brief");
     await tap("Speaking coach");
-    expect(container.querySelector("textarea")!.value).toBe("Speaking coach");
-    await tap("Send");
-    expect(container.querySelector("[data-talk-version]")?.textContent).toContain("Brief v1");
-    expect(container.querySelector("[data-talk-step='Steps']")?.className).toContain("font-semibold");
-    await tap("Undo");
-    expect(container.querySelector("[data-talk-version]")).toBeNull();
+    expect(container.textContent).toContain("Can they send a recording?");
+    await act(async () => (container.querySelector("[data-my-answer]") as HTMLElement).click());
+    await flush();
+    expect([...container.querySelectorAll("[data-talk-replies] button")].map((b) => b.textContent)).toEqual(["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"]);
+    await tap("ML specialist");
+    expect(container.querySelector("[data-my-answer]")?.textContent).toBe("ML specialist");
+    expect(container.textContent).toContain("Can they send a recording?");
   });
 
-  it("Yes and No walk the send kinds, and See the list closes the talk", async () => {
+  it("Yes and No walk the send kinds, and this screen has no list", async () => {
     const close = vi.fn();
     act(() => root.render(createElement(TalkBuild, { onList: close })));
     await tap("Speaking coach");
-    await tap("Send");
     expect(container.textContent).toContain("Can they send a recording?");
     await tap("Yes");
     expect(container.textContent).toContain("Can they send a message?");
@@ -62,15 +70,14 @@ describe("talk the chat into shape", () => {
     await tap("No");
     await tap("No");
     expect(container.textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
-    await tap("See the list");
-    expect(close).toHaveBeenCalled();
+    expect(container.querySelector("[data-talk-list]")).toBeNull();
+    expect(close).not.toHaveBeenCalled();
   });
 
   it("done does not skip the question that is open", async () => {
     act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     expect(container.querySelector("[data-express]")).toBeNull();
     await tap("Speaking coach");
-    await tap("Send");
     const input = container.querySelector<HTMLTextAreaElement>("[data-talk-composer] textarea")!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "done");

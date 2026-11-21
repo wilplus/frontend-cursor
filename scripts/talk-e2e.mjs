@@ -87,11 +87,6 @@ try {
     await page.locator("[data-talk-composer] textarea").fill(text);
     await page.locator("[data-talk-composer] button[type='submit']").click();
   };
-  const say = async (text) => {
-    await page.evaluate((value) => { window.__said = value; }, text);
-    await page.locator("[data-talk-mic]").click();
-    await page.waitForTimeout(40);
-  };
   const snap = () => page.locator("[data-talk-snap]").getAttribute("data-talk-snap").then((raw) => JSON.parse(raw));
 
   async function open() {
@@ -105,24 +100,19 @@ try {
   async function coach(mode) {
     await open();
     const give = async (text) => {
-      if (mode === "tap") {
-        const quote = page.locator(`[data-say="${text}"]`);
-        if (await quote.count()) {
-          await quote.first().click();
-          await page.locator("[data-talk-composer] button[type='submit']").click();
-          return;
-        }
-        await click(text);
-        return;
-      }
+      if (text === "Write this for me" || text === "Rewrite") return click(text);
       if (mode === "type") return send(text);
-      return say(text);
+      const button = page.getByRole("button", { name: text, exact: true });
+      if (await button.count()) return button.first().click();
+      return send(text);
     };
     await give("Speaking coach");
     await page.waitForSelector("text=Can they send a recording?");
-    await click("Undo");
-    check(`${mode} undo returns to the brief`, (await page.locator("text=What do you do?").count()) > 0);
-    await give("Speaking coach");
+    await page.locator("[data-my-answer]").first().click();
+    await click("ML specialist");
+    check(`${mode} an earlier answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can they send a recording?").count()) > 0);
+    await page.locator("[data-my-answer]").first().click();
+    await click("Speaking coach");
     for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await give(answer);
     check(`${mode} plan before build`, (await page.locator("text=Say go?").count()) > 0);
     check(`${mode} not saved as the live coach yet`, (await page.locator("[data-talk-greeting]").count()) === 0);
@@ -130,33 +120,25 @@ try {
     const saved = await snap();
     check(`${mode} speaking coach snap`, saved.spec === "Speaking coach" && saved.send.join(",") === "rec,text" && saved.who === "shadow");
     check(`${mode} greeting`, (await page.locator("[data-talk-greeting]").innerText()).includes("Record a short talk"));
-    check(`${mode} keep and next`, (await page.locator("[data-preview-keep]").count()) === 1 && (await page.locator("[data-preview-next]").count()) === 1);
+    check(`${mode} keep is there and the list is not`, (await page.getByRole("button", { name: "Keep", exact: true }).count()) === 1 && (await page.locator("[data-talk-list], [data-preview-next]").count()) === 0);
   }
 
   async function shop(mode) {
     await open();
-    if (mode === "tap") await say("A shop");
-    else if (mode === "type") await send("A shop");
-    else await say("A shop");
+    await send("A shop");
     const give = async (text) => {
-      if (mode === "type") return send(text);
-      if (mode === "voice") return say(text);
-      const quote = page.locator(`[data-say="${text}"]`);
-      if (await quote.count()) {
-        await quote.first().click();
-        if (text !== "Write this for me") await page.locator("[data-talk-composer] button[type='submit']").click();
-        return;
-      }
-      if (text === "A second one") return say(text);
-      if (text === "Write this for me") return click("Write this for me");
-      if (text === "Keep") return click("Keep");
-      await click(text);
+      if (text === "Write this for me" || text === "Keep" || text === "Rewrite") return click(text);
+      if (mode === "type" || text === "A second one") return send(text);
+      const button = page.getByRole("button", { name: text, exact: true });
+      if (await button.count()) return button.first().click();
+      return send(text);
     };
     for (const answer of ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "No", "No", "Yes", "No", "Yes", "Yes", "Yes"]) await give(answer);
     await give("Did they hedge?");
     await give("Yes");
     await give("A second one");
     await give("Yes");
+    await give("Paste my code");
     await give("Write this for me");
     await give("Keep");
     await give("Yes");
@@ -164,17 +146,20 @@ try {
     check(`${mode} shop fields`, saved.spec === "A shop" && saved.price === 1 && saved.model === "hedge" && saved.paste.includes("id: hedge") && saved.otherModels[0] === "A second one" && saved.who === "assistant");
   }
 
-  for (const mode of ["tap", "type", "voice"]) {
+  for (const mode of ["tap", "type"]) {
     await coach(mode);
     await shop(mode);
   }
 
   await open();
-  check("you decide is on the brief", (await page.locator("[data-say='You decide']").count()) === 1);
+  const jobs = (await page.locator("[data-talk-replies] button").allInnerTexts()).map((text) => text.trim());
+  check("the four jobs sit above the box", jobs.join(",") === "Speaking coach,ML specialist,Neurobiologist,Someone else");
+  check("no stepper, mic, or list", (await page.locator("[data-talk-steps], [data-talk-mic], [data-talk-list]").count()) === 0);
   check("there is no express button", (await page.locator("[data-express]").count()) === 0);
-  await page.locator("[data-say='You decide']").click();
-  await page.locator("[data-talk-composer] button[type='submit']").click();
-  check("you decide asks the next question", (await page.locator("text=Can they send a recording?").count()) > 0 && (await page.locator("text=Say go?").count()) === 0);
+  await page.getByRole("button", { name: "Someone else", exact: true }).click();
+  check("someone else focuses the box", await page.evaluate(() => document.activeElement?.tagName === "TEXTAREA"));
+  await page.getByRole("button", { name: "Speaking coach", exact: true }).click();
+  check("a job asks the next question", (await page.locator("text=Can they send a recording?").count()) > 0 && (await page.locator("text=Say go?").count()) === 0);
   const boxes = await page.$$eval("[data-talk-screen] button", (els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { text: (el.textContent || "").trim().slice(0, 24), w: Math.round(r.width), h: Math.round(r.height) };
@@ -190,7 +175,7 @@ try {
   check("no scrollbars", bars.length === 0, bars.join("; "));
   const words = await page.locator("[data-talk-screen]").innerText();
   check("reading level at most grade 6", grade(words) <= 6, String(Math.round(grade(words) * 10) / 10));
-  check("see the list is there", (await page.locator("[data-talk-list]").count()) === 1);
+  check("see the list is not on this screen", (await page.locator("[data-talk-list]").count()) === 0);
   await page.locator("[data-talk-back]").click();
   check("back from the talk opens the list", (await page.locator("[data-talk-open]").count()) === 1);
   await page.locator("[data-talk-back]").click();

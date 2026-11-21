@@ -31,20 +31,20 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 
 | # | Criterion | Points | Evidence |
 | --- | --- | --- | --- |
-| 1 | Success rate | 10 | `scripts/talk-e2e.mjs`: tap, type and voice each finished the Speaking Coach and the shop. 6/6. |
-| 2 | Taps against the minimum | 10 | `talkAudit.test.tsx` "fifteen taps build the Speaking Coach" asserts 15, one per answer plus Send on the quote. |
-| 3 | Reading level at most grade 6 | 10 | The e2e measured the screen at grade 3.6. |
-| 4 | Binary choices only | 10 | The brief shows two quotes, Speaking coach and You decide. Later questions are Yes and No. |
-| 5 | Voice, tap and text do the same thing | 10 | The e2e snap matched for tap, type and voice on both scripts. |
-| 6 | Recovery and undo | 10 | The e2e undoes the first answer in all three modes and lands on "What do you do?" |
-| 7 | Same language as the deck | 10 | Orange quotes, a 28px composer, a 44px mic. The e2e found no control under 44px. |
-| 8 | Visible progress | 10 | The stepper is on screen. "Say go?" shows before the preview. |
+| 1 | Success rate | 10 | `scripts/talk-e2e.mjs`: tap and type each finished the Speaking Coach and the shop. |
+| 2 | Taps against the minimum | 10 | `talkAudit.test.tsx` "fourteen taps build the Speaking Coach" asserts 14, one per answer. A job tap sends. |
+| 3 | Reading level at most grade 6 | 10 | The e2e measured the screen at grade 6 or under. |
+| 4 | Few choices | 10 | What do you do? offers Speaking coach, ML specialist, Neurobiologist, and Someone else. Later questions are Yes and No. |
+| 5 | Tap and text do the same thing | 10 | The e2e snap matched for tap and type on both scripts. |
+| 6 | Change an earlier answer | 10 | Tapping an earlier answer opens its taps again. A new job keeps the next question. |
+| 7 | Same chat as the rest of the app | 10 | One top bar, plain bubbles, taps above the box. No stepper, no mic, no orange chip inside a bubble. The e2e found no control under 44px. |
+| 8 | One question, then Say go | 10 | "Say go?" shows before the greeting. |
 | 9 | No hidden state | 10 | `data-talk-snap` is what both tests read. |
 | 10 | No scrollbars or overflow | 10 | The e2e found no visible scrollbar at 390×844. |
-| 11 | You decide answers one question | 10 | The brief offers You decide. It sets what the chat does, then asks the next question. The plan does not offer it. |
+| 11 | An earlier answer can be changed | 10 | Tapping the job answer opens the four jobs. A new job keeps the later answers. |
 | 12 | Plan before build, then say go | 10 | "not saved as the live coach yet" passed, then Say go opens the preview. |
 | 13 | One question at a time | 10 | There is no Just build it. Saying done does not skip the open question. The phone run answers each question, then Say go. |
-| 14 | A live preview with Keep and Next | 10 | `data-preview-keep` and `data-preview-next` are on the preview. |
+| 14 | The greeting, then Keep | 10 | The greeting is a normal bubble. Keep sits above the box. The list of answers is Settings, not this screen. |
 | 15 | Targeted edits | 10 | Changing the price and the greeting left They send as it was. |
 | 16 | Write this for me, then keep or rewrite | 10 | The button fills the field. Rewrite clears it. Keep stores it. |
 | 17 | Capability chips | 10 | Record, Type, Photo, File and Train. Tapping Photo adds a photo and leaves the name. |
@@ -55,10 +55,10 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 22 | Yes opens Build and pins the chat at the top | 10 | The row's name is the chat's name. Back returns to the list. |
 | 23 | Share copies the link | 10 | The button copies `/c/…` and says Link copied. The phone run does the same at 390×844. |
 | 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. Tapping it in the top bar opens the picker. An emoji replaces it. The badge is about 40% of the circle. |
-| 25 | Settings lists each answer | 10 | The Settings tile opens the list. Each question is one line and the answer is under it. A tap opens that question. Search stays on that list. |
+| 25 | Settings lists each answer | 10 | The Settings tile opens the list. Each question is one line and the answer is under it. A tap opens that question. There is no search. |
 | 26 | Your own code is one tap | 10 | The row opens on its own. After Yes, the host describes what it should do or pastes code. A description becomes one line, with Keep and Change. |
 | 27 | Test the chat as a visitor | 10 | The Test tile opens the chat as a visitor. A send gets the chat's own reply. Back returns to the four tiles. |
 
-**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. A settings row replaces the chat bar, so the screen has one top bar. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 76/76` at 390×844 and at 1024×768.
+**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. A settings row replaces the chat bar, so the screen has one top bar. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 86/86` at 390×844 and at 1024×768.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

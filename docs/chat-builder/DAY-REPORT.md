@@ -14,22 +14,22 @@ Share, in the locked top bar's right slot, copies the public link. That is `/c/<
 
 Finishing the talk writes a coach draft on this device. The Speaking Coach answers produce the fixture, field for field. Recording, Ideal Text and the walk read that draft through `usePublishedCoach`. A shop chat sets every builder field. Publish stays on the device.
 
-The talk asks one question at a time. You decide answers only the question it is on. There is no Just build it. After the questions, Say go opens a preview with Keep and Next. A change touches one part. Write this for me, capability chips, a first line, and auto-save plus Publish stay.
+The talk asks one question at a time, in the same bubbles as every other chat. What do you do? offers Speaking coach, ML specialist, Neurobiologist, and Someone else, just above the box. Someone else focuses the box. There is no stepper, no mic, and no See the list. A tap on an earlier answer opens that question again. The list of answers is Settings. After the questions, Say go shows the greeting. A change touches one part. Write this for me, capability chips, a first line, and auto-save plus Publish stay.
 
 ## Scores, from the tests
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 76/76` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 86/86` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.
 
 ## Scripts
 
-- Fifteen taps, then the screens read the fixture: "fifteen taps build the Speaking Coach".
+- Fourteen taps, then the screens read the fixture: "fourteen taps build the Speaking Coach".
 - Shop, including the mic: "the shop chat sets price, model and paste, and the mic transcribes".
-- You decide, one question at a time, a targeted edit, chips, publish: "you decide answers one question, then a targeted edit, chips, and publish stay on this device".
+- An earlier answer, one question at a time, a targeted edit, chips, publish: "an earlier answer changes, then a targeted edit, chips, and publish stay on this device".
 - Phone: `node scripts/talk-e2e.mjs` runs tap, type and voice for both scripts.
 
 ## Known gaps

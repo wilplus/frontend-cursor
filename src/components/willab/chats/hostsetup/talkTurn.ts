@@ -10,7 +10,16 @@ export const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType:
 
 export type Phase = "brief" | "send" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
 export type Snap = TalkSnap & { label: string };
-export type Line = { who: "will" | "me"; text: string; quotes?: string[] };
+export type Line = {
+  who: "will" | "me";
+  text: string;
+  quotes?: string[];
+  /** Which question this answer belongs to, so a tap can open it again. */
+  q?: string;
+  at?: number;
+  /** The chat as it was before this answer. A change that makes later answers wrong starts again from here. */
+  before?: Snap;
+};
 type Who = TalkSnap["who"];
 type Patch = { snap?: Snap; phase?: Phase; i?: number; priceAt?: number; add?: Line[]; label?: string };
 
@@ -127,7 +136,7 @@ function afterModel(t: Turn) {
   const model = picked?.id ?? t.text.trim();
   t.write({
     snap: { ...t.snap, model }, phase: "other",
-    add: [{ who: "me", text: picked?.q ?? model }, { who: "will", text: W.talkAnother }],
+    add: [{ who: "me", text: picked?.q ?? model, q: "model", at: t.i }, { who: "will", text: W.talkAnother }],
     label: `Model ${t.step}`,
   });
 }
@@ -146,7 +155,7 @@ function afterOtherName(t: Turn) {
     t.write({ add: [{ who: "will", text: W.talkName }] });
     return;
   }
-  t.write({ snap: { ...t.snap, otherModels: [name] }, phase: "code", add: [{ who: "me", text: name }, { who: "will", text: W.codeAsk }], label: `Model ${t.step}` });
+  t.write({ snap: { ...t.snap, otherModels: [name] }, phase: "code", add: [{ who: "me", text: name, q: "otherName", at: t.i }, { who: "will", text: W.codeAsk }], label: `Model ${t.step}` });
 }
 
 function afterCode(t: Turn) {
@@ -160,11 +169,11 @@ function afterCode(t: Turn) {
 function afterCodeWay(t: Turn) {
   const text = t.text.trim().toLowerCase();
   if (text === W.codeTell.toLowerCase()) {
-    t.write({ phase: "describe", add: [{ who: "me", text: W.codeTell }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
+    t.write({ phase: "describe", add: [{ who: "me", text: W.codeTell, q: "codeWay" }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
     return;
   }
   if (text === W.codeOwn.toLowerCase()) {
-    t.write({ phase: "paste", add: [{ who: "me", text: W.codeOwn }, { who: "will", text: W.codePaste, quotes: ["Write this for me"] }], label: `Code ${t.step}` });
+    t.write({ phase: "paste", add: [{ who: "me", text: W.codeOwn, q: "codeWay" }, { who: "will", text: W.codePaste }], label: `Code ${t.step}` });
     return;
   }
   t.write({ add: [{ who: "will", text: W.codeHow }] });
@@ -185,18 +194,18 @@ async function afterDescribe(t: Turn) {
   t.write({
     snap: { ...t.snap, code: true, paste: WRITTEN_PASTE, plugin, codeLine: W.codeTold },
     phase: "codeKeep",
-    add: [{ who: "me", text: words }, { who: "will", text: W.codeTold }],
+    add: [{ who: "me", text: words, q: "describe" }, { who: "will", text: W.codeTold }],
     label: `Code ${t.step}`,
   });
 }
 
 function afterCodeKeep(t: Turn) {
   if (/^keep$/i.test(t.text.trim())) {
-    plan(t, t.snap, `Code ${t.step}`, [{ who: "me", text: W.codeKeep }]);
+    plan(t, t.snap, `Code ${t.step}`, [{ who: "me", text: W.codeKeep, q: "codeKeep" }]);
     return;
   }
   if (/^change$/i.test(t.text.trim())) {
-    t.write({ phase: "describe", add: [{ who: "me", text: W.codeChange }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
+    t.write({ phase: "describe", add: [{ who: "me", text: W.codeChange, q: "codeKeep" }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
     return;
   }
   t.write({ add: [{ who: "will", text: W.codeHow }] });
@@ -210,7 +219,7 @@ async function afterPaste(t: Turn) {
     return;
   }
   const plugin: TalkPlugin = { id: checked.manifest.id, hash: checked.hash, interventionType: checked.manifest.interventionType as TalkPlugin["interventionType"] };
-  plan(t, { ...t.snap, code: true, paste: source, plugin, codeLine: W.codePasted }, `Plan ${t.step}`, [{ who: "me", text: "Pasted." }]);
+  plan(t, { ...t.snap, code: true, paste: source, plugin, codeLine: W.codePasted }, `Plan ${t.step}`, [{ who: "me", text: "Pasted.", q: "paste" }]);
 }
 
 function afterPlan(t: Turn) {
@@ -224,12 +233,12 @@ function afterPlan(t: Turn) {
 function afterEdit(t: Turn) {
   const lower = t.text.trim().toLowerCase();
   if (/greeting|first line/.test(lower)) {
-    t.write({ phase: "greet", add: [{ who: "me", text: t.text.trim() }, { who: "will", text: "What is the first line?", quotes: ["Write this for me"] }], label: `Edit ${t.step}` });
+    t.write({ phase: "greet", add: [{ who: "me", text: t.text.trim(), q: "edit" }, { who: "will", text: "What is the first line?" }], label: `Edit ${t.step}` });
     return;
   }
   if (/price|pay/.test(lower)) {
     t.priceBack.current = "plan";
-    t.write({ phase: "price", priceAt: 0, add: [{ who: "me", text: t.text.trim() }, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Edit ${t.step}` });
+    t.write({ phase: "price", priceAt: 0, add: [{ who: "me", text: t.text.trim(), q: "edit" }, { who: "will", text: `Charge ${PRICES[0]}?` }], label: `Edit ${t.step}` });
     return;
   }
   t.write({ add: [{ who: "will", text: W.talkWhichChange, quotes: ["The greeting", "The price"] }] });
@@ -237,7 +246,7 @@ function afterEdit(t: Turn) {
 
 function afterGreet(t: Turn) {
   const hello = /^write this for me$/i.test(t.text.trim()) ? (t.snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.") : t.text.trim();
-  plan(t, { ...t.snap, hello }, `Edit ${t.step}`, [{ who: "me", text: hello }]);
+  plan(t, { ...t.snap, hello }, `Edit ${t.step}`, [{ who: "me", text: hello, q: "greet" }]);
 }
 
 function afterLook(t: Turn) {
@@ -245,7 +254,7 @@ function afterLook(t: Turn) {
     t.onList();
     return;
   }
-  t.write({ phase: "done", add: [{ who: "me", text: t.text.trim() }, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], label: `Done ${t.step}` });
+  t.write({ phase: "done", add: [{ who: "me", text: t.text.trim(), q: "look" }, { who: "will", text: W.talkReady }], label: `Done ${t.step}` });
 }
 
 const PHASES: Record<string, (t: Turn) => void | Promise<void>> = {
@@ -270,6 +279,66 @@ const PHASES: Record<string, (t: Turn) => void | Promise<void>> = {
   look: afterLook,
 };
 
+const YES = /^(yes|the first one|1)$/i;
+type Edited = { snap: Snap; irrelevant: boolean; answer: string };
+
+function sameAnswer(line: Line, yes: boolean): boolean {
+  return (/^yes$/i.test(line.text)) === yes;
+}
+
+function editJob(line: Line, trimmed: string, snap: Snap, answer: string): Edited | null {
+  if (line.q === "brief") {
+    const spec = /speaking coach/i.test(trimmed) ? "Speaking coach" : trimmed;
+    return { snap: { ...snap, spec }, irrelevant: false, answer: spec };
+  }
+  if (line.q === "greet") {
+    const hello = /^write this for me$/i.test(trimmed) ? (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.") : trimmed;
+    return { snap: { ...snap, hello }, irrelevant: false, answer: hello };
+  }
+  if (line.q === "model") return { snap: { ...snap, model: trimmed }, irrelevant: false, answer: trimmed };
+  if (line.q === "otherName") return { snap: { ...snap, otherModels: [trimmed] }, irrelevant: false, answer: trimmed };
+  return line.q === "send" || line.q === "walk" ? null : { snap, irrelevant: false, answer };
+}
+
+function editSend(line: Line, yes: boolean, snap: Snap, answer: string): Edited {
+  const kind = SENDS[line.at ?? 0];
+  if (!kind || sameAnswer(line, yes)) return { snap, irrelevant: false, answer };
+  if (kind === "rec") return { snap, irrelevant: true, answer };
+  const send = yes ? [...snap.send, kind] : snap.send.filter((k) => k !== kind);
+  return { snap: { ...snap, send: send.length ? send : snap.send }, irrelevant: false, answer };
+}
+
+function editWalk(line: Line, yes: boolean, snap: Snap, answer: string): Edited {
+  const id = WALKS[line.at ?? 0];
+  let walk = snap.walk.filter((k) => k !== id);
+  if (yes) walk = [...walk, id];
+  if (!walk.length) walk = [id];
+  return { snap: { ...snap, walk }, irrelevant: false, answer };
+}
+
+function editBranch(line: Line, yes: boolean, snap: Snap, answer: string): Edited {
+  if ((line.q === "who" && (line.at ?? 0) === 0) || line.q === "pay" || line.q === "connect" || line.q === "code") {
+    return { snap, irrelevant: !sameAnswer(line, yes), answer };
+  }
+  if (line.q === "who") return { snap: { ...snap, who: yes ? "you" : "assistant" }, irrelevant: false, answer };
+  if (line.q === "price") return { snap: { ...snap, pay: true, price: yes ? PRICES[line.at ?? 0] : 0 }, irrelevant: false, answer };
+  if (line.q === "machine") return { snap: { ...snap, machine: yes }, irrelevant: false, answer };
+  return { snap, irrelevant: false, answer };
+}
+
+/** A new answer for an old question. `irrelevant` means later answers no longer fit, so the chat asks again from there. */
+export function editEffect(line: Line, text: string, snap: Snap): Edited {
+  const trimmed = text.trim();
+  const yes = YES.test(trimmed);
+  const answer = yes ? "Yes" : /^no$/i.test(trimmed) ? "No" : trimmed;
+  if (line.q === "send") return editSend(line, yes, snap, answer);
+  if (line.q === "walk") return editWalk(line, yes, snap, answer);
+  if (line.q === "who" || line.q === "pay" || line.q === "price" || line.q === "machine" || line.q === "connect" || line.q === "code") {
+    return editBranch(line, yes, snap, answer);
+  }
+  return editJob(line, trimmed, snap, answer) ?? { snap, irrelevant: false, answer };
+}
+
 export async function speakTurn(t: Turn): Promise<void> {
   const trimmed = t.text.trim();
   const yes = /^(yes|the first one|1)$/i.test(trimmed) || (t.phase === "plan" && /^go$/i.test(trimmed));
@@ -279,7 +348,7 @@ export async function speakTurn(t: Turn): Promise<void> {
       t.write({ add: [{ who: "will", text: W.talkYesNo }] });
       return;
     }
-    t.said.push({ who: "me", text: yes ? "Yes" : "No" });
+    t.said.push({ who: "me", text: yes ? "Yes" : "No", q: t.phase, at: t.i });
   }
   const run = PHASES[t.phase];
   if (run) await run({ ...t, yes, no });
