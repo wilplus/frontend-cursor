@@ -130,7 +130,9 @@ export const W = {
   /** The walk's home, each part's value (backend N647 item 1). */
   nothingYet: "Nothing yet",
   lineCount: (n: number) => (n === 1 ? "1 line" : `${n} lines`),
-  walkOnMessages: "Your walk runs on messages. Recordings are not ready yet. Want them?",
+  walkOnMessages: "Your walk runs on a recording too. Want it?",
+  audioTooLong: "That recording is too long. Keep it under five minutes.",
+  audioTooBig: "That recording is too big. Send a shorter one.",
   helloSay: "Your chat opens with:",
   helloAsk: "What should your chat say first?",
   qSay: "Then it asks:",

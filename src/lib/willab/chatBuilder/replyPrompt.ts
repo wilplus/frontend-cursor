@@ -31,6 +31,8 @@ export type ReplyExtra = {
   fileText?: string;
   hasImage?: boolean;
   picks?: ReplyPick[];
+  /** Plain facts about a recording. No feeling is named. */
+  voice?: string[];
 };
 
 const OUT_LINE: Record<ReplyOut, string> = {
@@ -61,6 +63,7 @@ export function buildPrompt(setup: ReplySetup, message: string, extra: ReplyExtr
     `Their first line to a visitor is: ${setup.hello.trim() || "Hello."}`,
     OUT_LINE[setup.out],
     "Never give a score, a mark out of ten, or any number about the person.",
+    "Do not name a feeling. Do not say the person is confident, nervous, calm, or anxious.",
     "Write the way a careful person speaks. Short sentences. No jargon.",
   ];
   parts.push(...lines("Questions the host asks:", setup.questions));
@@ -72,8 +75,12 @@ export function buildPrompt(setup: ReplySetup, message: string, extra: ReplyExtr
       parts.push(`Host: ${example.answer.trim()}`);
     }
   }
+  if (extra.voice?.length) {
+    parts.push("Facts about the recording. Use these, and do not invent a feeling:");
+    parts.push(...extra.voice);
+  }
   if (extra.picks?.length) {
-    parts.push("Also choose one option for each question below. Use the person's photo or document when one is attached.");
+    parts.push("Also choose one option for each question below. Use the person's photo, document, or recording when one is attached.");
     for (const pick of extra.picks) {
       parts.push(`${pick.q} Options: ${pick.opts.join(", ")}.`);
     }
@@ -110,15 +117,17 @@ export type ServerReply = {
   quiet?: boolean;
   wait?: boolean;
   reply?: string | null;
-  error?: "too-big" | "unreadable" | null;
+  error?: "too-big" | "unreadable" | "too-long" | null;
+  walk?: { key: string; text: string; at: number | null }[];
 };
 
-export type VisitorKind = "preview" | "reply" | "held" | "host" | "wait" | "too-big" | "unreadable";
+export type VisitorKind = "preview" | "reply" | "held" | "host" | "wait" | "too-big" | "unreadable" | "too-long";
 
 /** What the visitor may see. A draft is never the model text. */
 export function visitorKind(body: ServerReply | null): VisitorKind {
   if (!body || body.preview) return "preview";
   if (body.error === "too-big") return "too-big";
+  if (body.error === "too-long") return "too-long";
   if (body.error === "unreadable") return "unreadable";
   if (body.held) return "held";
   if (body.quiet) return "host";

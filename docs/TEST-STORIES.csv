@@ -2160,6 +2160,14 @@ O2  They send is a recording and typing. Nothing asked is the box. The
 chat asking records. A photo asked is Add a photo. Thanks stays off
 because typing is on.","O1 -> ""the document matches the speaking coach line for line""
 O2 -> ""They send puts the box, the recorder and Add a photo in the right states""",
+src/lib/willab/chatBuilder/voiceMeasures.test.ts,Story,"As a visitor who sent a recording, I hear facts about the recording, tied to a moment I can replay. Nobody scores me or names a feeling.","O1  A short wav is read, and a pause longer than a second is named
+with its time.
+O2  The walk offers a clear stretch, one place to say again, helper
+words, and the Ideal Text only when the host chose it.
+O3  A recording over 25 MB or 5 minutes is refused. The facts name
+no feeling and no score.","O1 -> ""a short wav shows a pause at its time""
+O2 -> ""the walk is a clear stretch, one retry, helper words, and the text""
+O3 -> ""a long recording is refused, and no feeling or score is named""",
 src/lib/willab/chunkSteps.test.ts,Story,"As a speaker, I want No, Not sure and Audio unclear to take away Lock, so that I am not asked to lock in something I am unsure of.","O1  No, Not sure and Audio unclear close the lock step.
 O2  Yes and In-between keep it.","O1 -> ""No, Not sure and Audio unclear end the ladder early""
 O2 -> ""Yes and In-between keep their Lock""",Founder 2026-09-24 and lock 2026-09-30 (B2).

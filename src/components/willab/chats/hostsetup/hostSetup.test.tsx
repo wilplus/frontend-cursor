@@ -608,11 +608,12 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).not.toContain("What should I say?");
   });
 
-  it("N647 the not-running screen: on messages it asks for recordings; otherwise as before", async () => {
+  it("N647 the not-running screen: a walk on messages also runs on a recording; otherwise as before", async () => {
     await walkHome(WALK_READ);
     await tap("What they get");
     await tap("An Ideal Text");
-    expect(text()).toContain("Your walk runs on messages. Recordings are not ready yet. Want them?");
+    expect(text()).toContain("Your walk runs on a recording too. Want it?");
+    expect(text()).not.toContain("Recordings are not ready yet");
     expect(text()).not.toContain("Your chat can't run this yet.");
     act(() => root.unmount());
     root = createRoot(container);

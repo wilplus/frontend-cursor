@@ -223,7 +223,8 @@ export type AskReply = {
   quiet?: boolean;
   wait?: boolean;
   reply?: string | null;
-  error?: "too-big" | "unreadable" | null;
+  error?: "too-big" | "unreadable" | "too-long" | null;
+  walk?: { key: string; text: string; at: number | null }[];
 };
 
 /** The host's chat, answered from their setup. Null or preview: use today's lines. */

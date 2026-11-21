@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { BarBox, ChatBarRow, useFilePicker, usePhotoPicker } from "@/components/willab/chats/ChatBar";
 import { OwnAvatar } from "./ChatIconPicker";
@@ -13,11 +13,12 @@ import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { fileTooBig, visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
+import { audioTooBig, audioTooLong, readWav } from "@/lib/willab/chatBuilder/voiceMeasures";
 
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
 
-type Bubble = { who: "them" | "me"; text: string };
+type Bubble = { who: "them" | "me"; text: string; at?: number | null };
 
 function fileData(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -52,16 +53,22 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
   const taps = doc.chat.taps;
   const [lines, setLines] = useState<Bubble[]>(hello ? [{ who: "them", text: hello }] : []);
   const [busy, setBusy] = useState(false);
-  const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>) => {
+  const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>): Promise<Bubble[]> => {
     const remote = await askReply(readOwnChat().id || "your-chat", { text: words, kind, ...extra });
     const seen = visitorKind(remote);
-    if (seen === "reply" && remote?.reply) return [remote.reply];
-    if (seen === "held") return [W.replyHeld];
-    if (seen === "host") return [W.replyHost];
-    if (seen === "wait") return [W.replyWait];
-    if (seen === "too-big") return [W.fileTooBig];
-    if (seen === "unreadable") return [W.fileUnread];
-    return localReply(doc, kind);
+    if (seen === "reply" && remote?.shown && remote.walk?.length && !remote.held) {
+      return remote.walk.map((beat) => ({ who: "them" as const, text: beat.text, at: beat.at }));
+    }
+    const text = seen === "reply" && remote?.reply ? remote.reply
+      : seen === "held" ? W.replyHeld
+      : seen === "host" ? W.replyHost
+      : seen === "wait" ? W.replyWait
+      : seen === "too-big" ? W.fileTooBig
+      : seen === "too-long" ? W.audioTooLong
+      : seen === "unreadable" ? W.fileUnread
+      : null;
+    if (text) return [{ who: "them", text }];
+    return localReply(doc, kind).map((line) => ({ who: "them", text: line }));
   };
   const say = async (text: string, kind: "text" | "rec") => {
     const words = text.trim();
@@ -70,7 +77,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
     setLines((was) => [...was, { who: "me", text: words }]);
     setBusy(true);
     const reply = await replyLines(words, kind);
-    setLines((was) => [...was, ...reply.map((line) => ({ who: "them" as const, text: line }))]);
+    setLines((was) => [...was, ...reply]);
     setBusy(false);
   };
   const sendFile = async (file: File, fileKind: "photo" | "file") => {
@@ -91,8 +98,62 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
       return;
     }
     const reply = await replyLines(file.name, "text", { kind: fileKind, data, mime: file.type, name: file.name });
-    setLines((was) => [...was, ...reply.map((line) => ({ who: "them" as const, text: line }))]);
+    setLines((was) => [...was, ...reply]);
     setBusy(false);
+  };
+  const sound = useRef<HTMLAudioElement | null>(null);
+  const sendAudio = async (blob: Blob) => {
+    if (audioTooBig(blob.size)) {
+      setLines((was) => [...was, { who: "me", text: "A recording" }, { who: "them", text: W.audioTooBig }]);
+      return;
+    }
+    const data = await fileData(new File([blob], "talk.webm", { type: blob.type || "audio/webm" }));
+    if (blob.type.includes("wav")) {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      const read = readWav(bytes);
+      if (audioTooLong(read.samples.length / read.sampleRate)) {
+        setLines((was) => [...was, { who: "me", text: "A recording" }, { who: "them", text: W.audioTooLong }]);
+        return;
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    sound.current = new Audio(url);
+    markTileStep("test", true);
+    setLines((was) => [...was, { who: "me", text: "A recording" }]);
+    setBusy(true);
+    const reply = await replyLines("A recording", "rec", { kind: "rec", data, mime: blob.type || "audio/webm", name: "talk.webm" });
+    setLines((was) => [...was, ...reply]);
+    setBusy(false);
+  };
+  const clip = useRef<MediaRecorder | null>(null);
+  const [live, setLive] = useState(false);
+  const onRec = async () => {
+    if (live) {
+      clip.current?.stop();
+      setLive(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const bits: Blob[] = [];
+      const media = new MediaRecorder(stream);
+      media.ondataavailable = (event) => { if (event.data.size) bits.push(event.data); };
+      media.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        void sendAudio(new Blob(bits, { type: media.mimeType || "audio/webm" }));
+      };
+      media.start();
+      clip.current = media;
+      setLive(true);
+    } catch {
+      void say("A recording", "rec");
+    }
+  };
+  const replay = (at: number) => {
+    const audio = sound.current;
+    if (!audio) return;
+    audio.currentTime = at;
+    void audio.play();
   };
   const photo = usePhotoPicker((file) => void sendFile(file, "photo"));
   const file = useFilePicker((file) => void sendFile(file, "file"));
@@ -108,12 +169,16 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
           </div>
         ) : null}
         {lines.map((line, n) => (
-          <p key={n} data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] min-w-0 self-end break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{line.text}</p>
+          line.at != null ? (
+            <button key={n} type="button" data-visitor-line={line.who} data-walk-at={line.at} className="max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[16px]" onClick={() => replay(line.at ?? 0)}>{line.text}</button>
+          ) : (
+            <p key={n} data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] min-w-0 self-end break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{line.text}</p>
+          )
         ))}
       </div>
       <ChatBarRow>
         {sends.includes("rec") ? (
-          <button type="button" aria-label="Send a recording" data-visitor-rec="" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void say("A recording", "rec")}>
+          <button type="button" aria-label="Send a recording" data-visitor-rec="" data-recording={live ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void onRec()}>
             <Mic className="h-5 w-5" aria-hidden />
           </button>
         ) : null}
