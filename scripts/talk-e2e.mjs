@@ -138,20 +138,13 @@ try {
     };
     await give("Yes");
     await give("A recording");
-    await give("A photo");
-    await give("A file (a PDF or document)");
     await give("Done");
-    for (const answer of ["Yes", "Yes", "Yes", "No", "No", "Yes", "No", "Yes", "Yes", "Yes"]) await give(answer);
-    await give("Did they hedge?");
+    const asked = await page.locator("[data-talk-build]").innerText();
+    check(`${mode} a shop skips the speaking walk`, !asked.includes("best moment") && asked.includes("What do people ask you?"));
+    await give("A question");
+    await give("An answer");
     await give("Yes");
-    await give("A second one");
-    await give("Yes");
-    await give("Paste my code");
-    await give("Write this for me");
-    await give("Keep");
-    await give("Yes");
-    const saved = await snap();
-    check(`${mode} shop fields`, saved.spec === "A shop" && saved.price === 1 && saved.model === "hedge" && saved.paste.includes("id: hedge") && saved.otherModels[0] === "A second one" && saved.who === "assistant");
+    check(`${mode} a shop reaches say go`, (await page.locator("text=Say go?").count()) > 0);
   }
 
   for (const mode of ["tap", "type"]) {

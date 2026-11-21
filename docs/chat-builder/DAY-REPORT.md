@@ -20,7 +20,7 @@ The talk asks one question at a time, in the same bubbles as every other chat. W
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 112/112` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 124/124` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.

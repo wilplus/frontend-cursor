@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { BarBox, ChatBarRow, useFilePicker, usePhotoPicker } from "@/components/willab/chats/ChatBar";
 import { OwnAvatar } from "./ChatIconPicker";
@@ -53,6 +53,14 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
   const taps = doc.chat.taps;
   const [lines, setLines] = useState<Bubble[]>(hello ? [{ who: "them", text: hello }] : []);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    let live = true;
+    void askReply(readOwnChat().id || "your-chat", { text: "hello", kind: "text" }).then((remote) => {
+      if (live && !remote) setNote(W.voiceOff);
+    });
+    return () => { live = false; };
+  }, []);
   const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>): Promise<Bubble[]> => {
     const remote = await askReply(readOwnChat().id || "your-chat", { text: words, kind, ...extra });
     const seen = visitorKind(remote);
@@ -168,6 +176,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
             ))}
           </div>
         ) : null}
+        {note ? <p data-voice-note="" className="m-0 text-[15px] text-muted-foreground">{note}</p> : null}
         {lines.map((line, n) => (
           line.at != null ? (
             <button key={n} type="button" data-visitor-line={line.who} data-walk-at={line.at} className="max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[16px]" onClick={() => replay(line.at ?? 0)}>{line.text}</button>

@@ -114,65 +114,29 @@ describe("the talk, scored by the script", () => {
     expect(container.querySelector("[data-probe]")?.getAttribute("data-name")).toBe("Speaking coach");
     expect(container.querySelector("[data-probe]")?.getAttribute("data-record")).toBe("Start recording");
     expect(container.querySelector("[data-probe]")?.getAttribute("data-ideal")).toBe("Your ideal text");
-    await tap("Later");
-    expect(snap().walk[0]).toBe("fix");
+    expect(container.querySelector("[data-talk-order]")).toBeNull();
+    expect(snap().walk).toEqual(["best", "fix", "words"]);
   });
 
-  it("the shop chat sets price, model and paste", async () => {
-    act(() => root.render(createElement(TalkBuild, {
-      onList: () => undefined,
-      models: [{ id: "hedge", q: "Did they hedge?" }],
-    })));
+  it("a shop with a recording is not asked the speaking walk", async () => {
+    act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     await type("A shop");
     await tap("Send");
-    expect(snap().spec).toBe("A shop");
     await tap("Yes");
     await tap("A recording");
-    await tap("A photo");
-    await tap("A file (a PDF or document)");
     await tap("Done");
-    for (const answer of ["Yes", "Yes", "Yes", "No", "No"]) await tap(answer);
+    expect(container.textContent).not.toContain("best moment");
+    expect(container.textContent).not.toContain("helper words");
+    expect(container.textContent).toContain("What do people ask you?");
+    await tap("A question");
+    expect(container.textContent).toContain("What do they get back?");
+    await tap("An answer");
+    expect(container.textContent).toContain("Do you check each answer before someone sees it?");
     await tap("Yes");
-    await tap("No");
-    await tap("Yes");
-    await tap("Yes");
-    await tap("Yes");
-    await tap("Did they hedge?");
-    await tap("Yes");
-    await type("A second one");
-    await tap("Send");
-    await tap("Yes");
-    await tap("Paste my code");
-    await tap("Write this for me");
-    await tap("Keep");
-    await tap("Yes");
-    expect(taps).toBe(24);
-    for (let n = 0; n < 10 && !snap().paste; n += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-    const saved = snap();
-    expect(saved.send).toEqual(["rec", "text", "photo", "file"]);
-    expect(saved.walk).toEqual(["best", "fix", "words"]);
-    expect(saved.who).toBe("assistant");
-    expect(saved.pay).toBe(true);
-    expect(saved.price).toBe(1);
-    expect(saved.machine).toBe(true);
-    expect(saved.connect).toBe(true);
-    expect(saved.model).toBe("hedge");
-    expect(saved.paste).toContain("id: hedge");
-    expect(saved.code).toBe(true);
-    expect(saved.otherModels).toEqual(["A second one"]);
-    const built = readTalkDraft();
-    expect(built?.sends).toEqual(["rec", "text", "photo", "file"]);
-    expect(built?.models).toEqual(["hedge"]);
-    expect(built?.otherModels).toEqual(["A second one"]);
-    expect(built?.pricing).toEqual({ pay: true, price: 1 });
-    expect(built?.api).toBe(true);
-    expect(built?.machine).toBe(true);
-    expect(built?.code).toContain("id: hedge");
-    expect(built?.interaction).toBe("assistant");
-    expect(built?.definition.chat.hello).toBe("Your chat is ready.");
-    expect(built?.definition.plugins[0]?.id).toBe("hedge");
-    expect(built?.published).toBe(false);
-    vi.unstubAllGlobals();
+    expect(container.textContent).toContain("Say go?");
+    expect(snap().walk).toEqual([]);
+    expect(snap().asked).toBe("A question");
+    expect(snap().gives).toBe("An answer");
   });
 
   it("an earlier answer changes, then a targeted edit, chips, and publish stay on this device", async () => {

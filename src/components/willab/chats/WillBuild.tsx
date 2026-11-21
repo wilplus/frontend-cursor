@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { Boxes, Check, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Boxes, Check, ChevronDown, ChevronRight, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
@@ -69,17 +69,23 @@ function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
   const steps = useTileSteps();
   return (
     <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-4 py-4">
-      <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-3 md:h-auto md:w-[70%] md:grid-cols-4 md:grid-rows-1">
-        {TILES.map(({ id, word, Icon }) => {
+      <div className="flex h-full w-full flex-col items-stretch gap-1 md:h-auto md:w-[70%] md:flex-row md:items-center md:gap-2">
+        {TILES.map(({ id, word, Icon }, index) => {
           const next = id === "build" && !steps.build;
           return (
+            <Fragment key={id}>
+            {index > 0 ? (
+              <span data-tile-chevron="" className="flex shrink-0 items-center justify-center text-muted-foreground">
+                <ChevronDown className="h-4 w-4 md:hidden" aria-hidden />
+                <ChevronRight className="hidden h-4 w-4 md:block" aria-hidden />
+              </span>
+            ) : null}
             <button
-              key={id}
               type="button"
               data-build-tile={id}
               data-tile-highlight={next ? "" : undefined}
               onClick={() => onOpen(id)}
-              className={`relative flex min-h-0 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground md:aspect-square ${next ? NEXT_RING : ""}`}
+              className={`relative flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground md:aspect-square ${next ? NEXT_RING : ""}`}
             >
               {steps[id] ? (
                 <span data-tile-tick={id} className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center text-foreground">
@@ -89,6 +95,7 @@ function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
               <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
               <span className="text-[16px] font-medium">{word}</span>
             </button>
+            </Fragment>
           );
         })}
       </div>
@@ -311,7 +318,7 @@ function BuildScreen(p: {
       {p.rowOpen ? null : top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
       <div className={p.active ? "hidden" : `no-scrollbar flex min-h-0 flex-1 flex-col ${p.talk ? "overflow-hidden" : "overflow-y-auto"}`}>
-        {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} /> : (
+        {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} onTry={() => p.setVisitor(true)} /> : (
           <WillNeedsYou
             page
             source={p.table && !p.setup?.recipe ? p.local : null}

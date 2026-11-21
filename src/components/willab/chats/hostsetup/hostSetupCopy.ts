@@ -285,6 +285,7 @@ export const W = {
   yourChatLine: "See it. Try it. Change it.",
   finishBuild: "Finish Build first. Then your answers are here.",
   tryFirst: "Finish Build first. Then you can try the chat.",
+  voiceOff: "You can type. Speaking to the chat is not on yet.",
   /** One tap from Your chat and from the Build card. */
   tryAsVisitor: "Try it as a visitor",
   codeTitle: "Your own code",

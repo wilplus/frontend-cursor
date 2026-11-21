@@ -33,6 +33,10 @@ export type TalkSnap = {
   hello: string;
   /** One plain line about the host's code, shown when they try the chat. */
   codeLine?: string;
+  /** What people ask this host for, when the job is not a speaking walk. */
+  asked?: string;
+  /** What people get back: an answer, next steps, or a mark. */
+  gives?: string;
 };
 
 export type TalkBuilt = {

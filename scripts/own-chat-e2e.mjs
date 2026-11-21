@@ -95,6 +95,7 @@ async function run(width, height) {
     const full = layout.boxes.every((box) => box.w >= layout.homeW - 40);
     check(`${tag} one column, full width`, oneCol && down && equal && full && noScroll);
   }
+  check(`${tag} a chevron sits between the tiles`, await page.locator("[data-tile-chevron]").count() === 3);
   await page.locator("[data-icon-open]").click();
   check(`${tag} the icon opens the picker`, await page.locator("[data-chat-icon]").count() === 1);
   await page.locator("[data-icon-open]").click();
@@ -129,12 +130,21 @@ async function run(width, height) {
   await oneRow("what they can send");
   await page.locator("[data-kind='rec']").click();
   await page.locator("[data-kinds-done]").click();
+  check(`${tag} a speaking coach with a recording is asked the walk`, (await page.locator("text=best moment").count()) > 0);
   await oneRow("the question after send");
   for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
     await page.getByRole("button", { name: answer, exact: true }).click();
     await oneRow(answer);
   }
   await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.getByRole("button", { name: "Keep", exact: true }).click();
+  check(`${tag} Keep marks the chat kept`, (await page.locator("text=Kept.").count()) > 0);
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  check(`${tag} Publish marks the chat live`, (await page.locator("text=Live on this device.").count()) > 0);
+  await page.getByRole("button", { name: "Try it out loud", exact: true }).click();
+  await page.waitForSelector("[data-visitor-try]");
+  check(`${tag} Try it out loud opens the visitor test`, (await page.locator("[data-visitor-rec], [data-voice-note]").count()) > 0);
+  await page.locator("[data-visitor-try] button[aria-label='Back']").click();
   await page.locator("[data-build-bar] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
   check(`${tag} finished setup drops the highlight`, await page.locator("[data-tile-highlight]").count() === 0);
@@ -193,6 +203,13 @@ async function run(width, height) {
   await page.waitForSelector("[data-link-copied]");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   check(`${tag} share copies /c/`, copied.includes("/c/"));
+  await page.locator("[data-build-tile='build']").click();
+  await page.locator("[data-talk-replies]").getByRole("button", { name: "Neurobiologist", exact: true }).click();
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.locator("[data-kind='rec']").click();
+  await page.locator("[data-kinds-done]").click();
+  const asked = await page.locator("[data-talk-build]").innerText();
+  check(`${tag} a neurobiologist with a recording skips the walk`, !asked.includes("best moment") && !asked.includes("helper words") && asked.includes("What do people ask you?"));
   await context.close();
 }
 
