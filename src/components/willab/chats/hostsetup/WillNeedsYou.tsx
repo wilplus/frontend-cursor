@@ -205,11 +205,13 @@ export function PartBubble({ part }: { part: SetupPart }) {
  *  whole screen, with a search, and a row opens that row's own chat.
  *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
  *  Only for the ring `chat_builder`. */
-export default function WillNeedsYou({ page = false, onPart, onOpenChat, source = null }: {
+export default function WillNeedsYou({ page = false, onPart, onOpenChat, onMoments, source = null }: {
   page?: boolean;
   onPart?: (part: SetupPart) => void;
   /** The Build page: the card opens the table, not the server setup. */
   onOpenChat?: () => void;
+  /** Moment -> Intervention settings. The answer list stays. */
+  onMoments?: () => void;
   /** Rows from the talk on this device, when the server has none. */
   source?: SetupRead | null;
 }) {
@@ -236,6 +238,7 @@ export default function WillNeedsYou({ page = false, onPart, onOpenChat, source 
       shown={shown}
       openPart={openPart}
       onOpenChat={onOpenChat}
+      onMoments={onMoments}
       recipe={recipe}
       groups={groups}
       over={over}
@@ -248,7 +251,7 @@ export default function WillNeedsYou({ page = false, onPart, onOpenChat, source 
 }
 
 function NeedsPage({
-  page, query, setQuery, localTable, shown, openPart, onOpenChat, recipe, groups, over, needs, answers, work, isCoach,
+  page, query, setQuery, localTable, shown, openPart, onOpenChat, onMoments, recipe, groups, over, needs, answers, work, isCoach,
 }: {
   page: boolean;
   query: string;
@@ -257,6 +260,7 @@ function NeedsPage({
   shown: SetupPart[];
   openPart: (part: SetupPart) => void;
   onOpenChat?: () => void;
+  onMoments?: () => void;
   recipe: HostRecipe | null;
   groups: { heading: string | null; parts: SetupPart[] }[];
   over: (detail: OpenDetail) => () => void;
@@ -283,6 +287,17 @@ function NeedsPage({
             </button>
           ) : null}
         </form>
+      ) : null}
+      {page && onMoments && !query.trim() ? (
+        <button
+          type="button"
+          data-moment-open=""
+          onClick={onMoments}
+          className="flex min-h-12 w-full flex-col items-start justify-center rounded-2xl border border-border px-3.5 py-3 text-left"
+        >
+          <span className="text-[16px] font-semibold">Moments</span>
+          <span className="text-[14px] text-muted-foreground">Recording, baseline, checkpoints, interventions</span>
+        </button>
       ) : null}
       {localTable ? (
         <div data-answer-list="" className="flex min-h-0 w-full min-w-0 flex-col overflow-x-hidden">
