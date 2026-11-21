@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Boxes, Check, ChevronDown, ChevronRight, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
@@ -11,7 +11,6 @@ import { useLocalSetup } from "@/lib/willab/chatBuilder/localSetup";
 import { readTalkDefinition, saveTalkCode, saveTalkStarters } from "@/lib/willab/chatBuilder/talkDraft";
 import { markTileStep, useTileSteps, type TileId } from "@/lib/willab/chatBuilder/tileSteps";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
-import BuildModels from "./BuildModels";
 import type { HostRecipe, OwnChat, SetupPart } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
 import HostSetup from "./hostsetup/HostSetup";
@@ -25,6 +24,7 @@ import CodeStep from "./hostsetup/CodeStep";
 import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
+import Experiments from "./experiments/AiDoor";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -144,6 +144,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // (backend N642 item 3).
   const [chosen, setMode] = useState<Mode | null>(null);
   const [tab, setTab] = useState<Tab>("chat");
+  const aiBack = useRef<(() => boolean) | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [talk, setTalk] = useState(false);
   const [table, setTable] = useState(false);
@@ -172,6 +173,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
     if (visitor) { setVisitor(false); return true; }
     if (talk) { setTalk(false); return true; }
     if (active !== null && tab === "chat") { setActive(null); return true; }
+    if (tab === "models" && aiBack.current?.()) return true;
     if (tab === "models") { setTab("chat"); return true; }
     if (table && !setup?.recipe) { setTable(false); return true; }
     return false;
@@ -185,7 +187,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // The header arrow leaves Build only from the list. A row's chat goes back
   // to that list, and so does the browser's Back (PartHistory).
   const rowOpen = active !== null && tab === "chat";
-  const headerBack = () => leaveBuild({ visitor, talk, rowOpen, table, models: tab === "models", hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, closeModels: () => setTab("chat"), onBack });
+  const headerBack = () => leaveBuild({ visitor, talk, rowOpen, table, models: tab === "models", aiBack: aiBack.current, hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, closeModels: () => setTab("chat"), onBack });
   return (
     <BuildScreen
       mode={mode}
@@ -199,6 +201,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       own={own}
       tab={tab}
       setTab={setTab}
+      onBindBack={(fn) => { aiBack.current = fn; }}
       visitor={visitor}
       setVisitor={setVisitor}
       talk={talk}
@@ -226,6 +229,7 @@ function leaveBuild(p: {
   rowOpen: boolean;
   table: boolean;
   models: boolean;
+  aiBack: (() => boolean) | null;
   hasRecipe: boolean;
   setVisitor: (v: boolean) => void;
   setTalk: (v: boolean) => void;
@@ -237,6 +241,7 @@ function leaveBuild(p: {
   if (p.visitor) return p.setVisitor(false);
   if (p.talk) return p.setTalk(false);
   if (p.rowOpen) return p.closePart();
+  if (p.models && p.aiBack?.()) return;
   if (p.models) return p.closeModels();
   if (p.table && !p.hasRecipe) return p.setTable(false);
   return p.onBack();
@@ -254,6 +259,7 @@ function BuildScreen(p: {
   own: OwnChat | null;
   tab: Tab;
   setTab: (tab: Tab) => void;
+  onBindBack: (fn: (() => boolean) | null) => void;
   visitor: boolean;
   setVisitor: (v: boolean) => void;
   talk: boolean;
@@ -284,7 +290,7 @@ function BuildScreen(p: {
       iconOpen={home && p.iconOpen}
     />
   );
-  if (p.tab === "models") return <Cover>{top}<BuildModels /></Cover>;
+  if (p.tab === "models") return <Cover>{top}<Experiments onBindBack={p.onBindBack} /></Cover>;
   if (p.visitor && doc) {
     return (
       <Cover>
@@ -322,7 +328,6 @@ function BuildScreen(p: {
           if (id === "build") p.setTalk(true);
           if (id === "settings") p.setTable(true);
           if (id === "test") p.setVisitor(true);
-          // AI keeps today's model list. A later session designs that tile.
           if (id === "ai") p.setTab("models");
         }} />
       </Cover>

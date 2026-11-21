@@ -16,7 +16,8 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
   if (!chat?.spec) return null;
   const name = readOwnChat().name || chat.name || chat.spec;
   const hello = chat.hello || "Hi.";
-  const send: SendKind[] = chat.send.length ? [...chat.send] : ["rec", "text"];
+  const fallback: SendKind[] = ["rec", "text"];
+  const send = chat.send.length ? chat.send : fallback;
   const questions = chat.questions.length ? chat.questions : [{ q: "What do you want to know?" }];
   const taps = chat.taps.length ? chat.taps : ["Ask"];
   const walk = send.includes("rec") ? (["best", "fix", "words"] as const) : [];

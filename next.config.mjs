@@ -36,6 +36,11 @@ const nextConfig = {
         new URL("./src/lib/supabase/noBrowserStorage.ts", import.meta.url),
       );
     }
+    config.module.rules.push({
+      test: /\.yaml$/,
+      resourceQuery: /raw/,
+      type: "asset/source",
+    });
     return config;
   },
   async headers() {

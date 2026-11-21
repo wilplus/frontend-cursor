@@ -797,6 +797,7 @@ row, whether or not the dev read answers.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
 that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
 O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
+src/components/willab/chats/experiments/experimentsArea.test.tsx,Story,A host opens Experiments and moves through a session without seeing a score or a hidden word.,O1  The screens follow the prompt file and stay free of hidden words.,"O1 -> ""the experiment screens""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -2310,6 +2311,8 @@ src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback p
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes
 O2 -> keeps asking to the ceiling, and stops there",
+src/lib/willab/experiments/overlap.test.ts,Story,Two interventions do not fire for the same moment when an earlier step already covers it.,"O1  At most two interventions show, and the earliest step wins.","O1 -> ""fires at most two, and the earliest step in the file's order wins""",
+src/lib/willab/experiments/promptsYaml.test.ts,Story,The experiment prompts file is the one the screens read.,"O1  The file on disk matches the parsed order, lists, and words.","O1 -> ""reads the real file""",
 src/lib/willab/exploreArc.test.ts,Story,"As a speaker on a shared device, I want my open project never shown to another account, so that my work stays private.",O1  Another account reads nothing of the project I have open.,O1 -> never exposes one account's active project to another,
 src/lib/willab/f1LoopContract.test.ts,Story,"As the founder, I want one gate that turns red when the loop's promises break (true paragraph states, no numbers to speakers, the page only shows what the server said), so that parallel work can't quietly break the loop.","O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
 reached from what the speaker and the server actually did.
@@ -2630,6 +2633,8 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
+src/services/api/experiments.test.ts,Story,A host's experiment session stays on this device until they export or delete it.,"O1  Opening, saving, exporting, and deleting a session keep the
+stored takes consistent.","O1 -> ""the experiment store""",
 src/services/api/glueContracts.test.ts,Guard,"Each of 61 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.
