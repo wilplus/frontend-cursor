@@ -26,8 +26,9 @@ describe("the locked bars", () => {
     expect(bar).toContain("export function ChatBarRow");
     expect(thread).toContain("<ChatBarRow>");
     expect(build).toContain("<TopBar");
-    expect(build).toContain("<ChatBarRow>");
+    expect(build).toContain("rowOpen ? null : top");
     expect(build).not.toContain("data-part-chat-bar");
+    expect(read("src/components/willab/chats/hostsetup/CodeStep.tsx")).toContain("<ChatBarRow");
     expect(talk).toContain("BarBox");
     expect(talk).toContain("<ChatBarRow");
     expect(talk).not.toContain("rounded-[28px]");

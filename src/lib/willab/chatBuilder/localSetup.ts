@@ -68,7 +68,13 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
   parts.push({
     part: "code",
     title: W.codeTitle,
-    value: built?.code?.trim() ? W.codeAdded : built?.codeAsked ? W.codeNone : W.codeHint,
+    value: built?.codeLine?.trim()
+      ? built.codeLine
+      : built?.code?.trim()
+        ? W.codeAdded
+        : built?.codeAsked
+          ? W.codeNone
+          : W.codeHint,
   });
   return {
     recipe,

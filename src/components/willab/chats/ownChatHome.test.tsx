@@ -190,6 +190,7 @@ describe("Start your own chat", () => {
     await click("[data-part-chat='hello'] button[aria-label='Back']");
     await click("[data-build-part='code']");
     expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something?");
+    expect(host.querySelectorAll("[data-chat-header]")).toHaveLength(1);
     const no = [...host.querySelectorAll("[data-part-chat='code'] button")].find((button) => button.textContent === "No");
     await act(async () => (no as HTMLButtonElement).click());
     await flush();

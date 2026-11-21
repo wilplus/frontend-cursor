@@ -55,6 +55,8 @@ function stepLabel(phase: Phase): string {
 function hintFor(phase: Phase): string {
   if (phase === "brief") return "Say what you do";
   if (phase === "paste") return W.codePaste;
+  if (phase === "describe") return W.codeDescribe;
+  if (phase === "codeWay" || phase === "codeKeep") return W.codeHow;
   if (phase === "greet") return "The first line";
   if (phase === "model") return "Which one";
   if (phase === "otherName") return "Name the other one";
@@ -107,7 +109,7 @@ function TalkThread({ phase, lines, snap, kept, liveDraft, onTake, onMove, onReo
   onTry: () => void;
   setDraft: (value: string) => void;
 }) {
-  const choice = !["brief", "look", "done", "paste", "model", "otherName", "greet", "edit"].includes(phase);
+  const choice = !["brief", "look", "done", "paste", "model", "otherName", "greet", "edit", "codeWay", "describe", "codeKeep"].includes(phase);
   const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
   return (
     <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
@@ -119,6 +121,18 @@ function TalkThread({ phase, lines, snap, kept, liveDraft, onTake, onMove, onReo
           ))}
         </div>
       ))}
+      {phase === "codeWay" ? (
+        <div className="flex flex-col gap-2">
+          <button type="button" data-code-way="tell" className="h-[52px] min-w-11 rounded-full border border-border text-[16px] font-medium" onClick={() => onTake(W.codeTell)}>{W.codeTell}</button>
+          <button type="button" data-code-way="paste" className="h-[52px] min-w-11 rounded-full border border-border text-[16px] font-medium" onClick={() => onTake(W.codeOwn)}>{W.codeOwn}</button>
+        </div>
+      ) : null}
+      {phase === "codeKeep" ? (
+        <div className="flex gap-2">
+          <button type="button" data-code-change="" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={() => onTake(W.codeChange)}>{W.codeChange}</button>
+          <button type="button" data-code-keep="" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={() => onTake(W.codeKeep)}>{W.codeKeep}</button>
+        </div>
+      ) : null}
       {choice ? (
         <div className="flex gap-2">
           <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={() => onTake("No")}>No</button>

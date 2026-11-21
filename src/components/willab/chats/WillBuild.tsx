@@ -21,10 +21,10 @@ import { W } from "./hostsetup/hostSetupCopy";
 import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
 import TalkBuild from "./hostsetup/TalkBuild";
+import CodeStep from "./hostsetup/CodeStep";
 import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
-import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -303,7 +303,7 @@ function BuildScreen(p: {
   }
   return (
     <Cover>
-      {top}
+      {p.rowOpen ? null : top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
       <div className={p.active ? "hidden" : "no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"}>
         {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} /> : (
@@ -314,7 +314,13 @@ function BuildScreen(p: {
           />
         )}
       </div>
-      {p.active === "code" ? <CodeChat onBack={p.closePart} /> : null}
+      {p.active === "code" ? (
+        <CodeStep
+          place={W.placeInList(Math.max(1, p.order.findIndex((part) => part.part === "code") + 1), Math.max(1, p.order.length))}
+          onBack={p.closePart}
+          onSave={(paste, line) => { saveTalkCode(paste, line); p.closePart(); }}
+        />
+      ) : null}
       <PartChats p={p} />
     </Cover>
   );
@@ -402,28 +408,6 @@ function PartChats({ p }: { p: {
   );
 }
 
-function CodeChat({ onBack }: { onBack: () => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div data-part-chat="code" className="flex min-h-0 flex-1 flex-col">
-      <TopBar circle={<LetterCircle id="part-code" name={W.codeTitle} size={36} />} title={W.codeTitle} subtitle="1 of 1" onBack={onBack} />
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden px-4 py-4">
-        <p className="m-0 text-[18px] font-semibold leading-snug">{W.codeAsk}</p>
-        <div className="flex gap-2">
-          <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full border border-border text-[16px] font-medium" onClick={() => { saveTalkCode(""); onBack(); }}>No</button>
-          <button type="button" className="h-[52px] min-w-11 flex-1 rounded-full bg-primary text-[16px] font-medium text-primary-foreground" onClick={() => setOpen(true)}>Yes</button>
-        </div>
-        {open ? <p className="m-0 text-[16px]">{W.codePaste}</p> : null}
-      </div>
-      {open ? (
-        <ChatBarRow>
-          <BarBox hint={W.codePaste} open grow onSend={async (words) => { saveTalkCode(words); onBack(); return true; }} />
-        </ChatBarRow>
-      ) : null}
-    </div>
-  );
-}
-
 /** One row's chat. It stays mounted, so coming back shows this thread, not another's. */
 function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, ownChat, onBack, onNext }: {
   part: SetupPart;
@@ -442,7 +426,7 @@ function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, 
   return (
     <div data-part-chat={part.part} className={shown ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
       <FrameLead.Provider value={<PartBubble part={part} />}>
-        <FrameBar.Provider value={(stepBack) => (
+        <FrameBar.Provider value={(stepBack) => shown ? (
           <TopBar
             circle={<LetterCircle id={`part-${part.part}`} name={part.title} size={36} />}
             title={part.title}
@@ -457,7 +441,7 @@ function PartChat({ part, index, total, shown, last, name, recipe, parts, cost, 
               </span>
             )}
           />
-        )}>
+        ) : null}>
           <HostSetup
             name={name}
             recipe={recipe}

@@ -8,7 +8,7 @@ export const WALKS = ["best", "fix", "words"] as const;
 export const COACH_HELLO = "Hi. Record a short talk, and I'll tell you what worked.";
 export const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
-export type Phase = "brief" | "send" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
+export type Phase = "brief" | "send" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
 export type Snap = TalkSnap & { label: string };
 export type Line = { who: "will" | "me"; text: string; quotes?: string[] };
 type Who = TalkSnap["who"];
@@ -31,7 +31,7 @@ export type Turn = {
   onList: () => void;
 };
 
-const FREE = new Set<Phase>(["model", "paste", "look", "done", "otherName", "greet", "edit"]);
+const FREE = new Set<Phase>(["model", "paste", "look", "done", "otherName", "greet", "edit", "codeWay", "describe", "codeKeep"]);
 
 function planLine(snap: Snap): string {
   const hello = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
@@ -151,10 +151,55 @@ function afterOtherName(t: Turn) {
 
 function afterCode(t: Turn) {
   if (!t.yes) {
-    plan(t, { ...t.snap, code: false, paste: "", plugin: null }, `Plan ${t.step}`);
+    plan(t, { ...t.snap, code: false, paste: "", plugin: null, codeLine: "" }, `Plan ${t.step}`);
     return;
   }
-  t.write({ snap: { ...t.snap, code: true }, phase: "paste", add: [...t.said, { who: "will", text: W.codePaste, quotes: ["Write this for me"] }], label: `Code ${t.step}` });
+  t.write({ snap: { ...t.snap, code: true }, phase: "codeWay", add: [...t.said, { who: "will", text: W.codeHow }], label: `Code ${t.step}` });
+}
+
+function afterCodeWay(t: Turn) {
+  const text = t.text.trim().toLowerCase();
+  if (text === W.codeTell.toLowerCase()) {
+    t.write({ phase: "describe", add: [{ who: "me", text: W.codeTell }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
+    return;
+  }
+  if (text === W.codeOwn.toLowerCase()) {
+    t.write({ phase: "paste", add: [{ who: "me", text: W.codeOwn }, { who: "will", text: W.codePaste, quotes: ["Write this for me"] }], label: `Code ${t.step}` });
+    return;
+  }
+  t.write({ add: [{ who: "will", text: W.codeHow }] });
+}
+
+async function afterDescribe(t: Turn) {
+  const words = t.text.trim();
+  if (!words) {
+    t.write({ add: [{ who: "will", text: W.codeDescribe }] });
+    return;
+  }
+  const checked = await checkPlugin(WRITTEN_PASTE);
+  if (checked.status !== "checked" || !checked.manifest) {
+    t.write({ add: [{ who: "will", text: W.codeMissing }] });
+    return;
+  }
+  const plugin: TalkPlugin = { id: checked.manifest.id, hash: checked.hash, interventionType: checked.manifest.interventionType as TalkPlugin["interventionType"] };
+  t.write({
+    snap: { ...t.snap, code: true, paste: WRITTEN_PASTE, plugin, codeLine: W.codeTold },
+    phase: "codeKeep",
+    add: [{ who: "me", text: words }, { who: "will", text: W.codeTold }],
+    label: `Code ${t.step}`,
+  });
+}
+
+function afterCodeKeep(t: Turn) {
+  if (/^keep$/i.test(t.text.trim())) {
+    plan(t, t.snap, `Code ${t.step}`, [{ who: "me", text: W.codeKeep }]);
+    return;
+  }
+  if (/^change$/i.test(t.text.trim())) {
+    t.write({ phase: "describe", add: [{ who: "me", text: W.codeChange }, { who: "will", text: W.codeDescribe }], label: `Code ${t.step}` });
+    return;
+  }
+  t.write({ add: [{ who: "will", text: W.codeHow }] });
 }
 
 async function afterPaste(t: Turn) {
@@ -165,7 +210,7 @@ async function afterPaste(t: Turn) {
     return;
   }
   const plugin: TalkPlugin = { id: checked.manifest.id, hash: checked.hash, interventionType: checked.manifest.interventionType as TalkPlugin["interventionType"] };
-  plan(t, { ...t.snap, code: true, paste: source, plugin }, `Plan ${t.step}`, [{ who: "me", text: "Pasted." }]);
+  plan(t, { ...t.snap, code: true, paste: source, plugin, codeLine: W.codePasted }, `Plan ${t.step}`, [{ who: "me", text: "Pasted." }]);
 }
 
 function afterPlan(t: Turn) {
@@ -215,6 +260,9 @@ const PHASES: Record<string, (t: Turn) => void | Promise<void>> = {
   other: afterOther,
   otherName: afterOtherName,
   code: afterCode,
+  codeWay: afterCodeWay,
+  describe: afterDescribe,
+  codeKeep: afterCodeKeep,
   paste: afterPaste,
   plan: afterPlan,
   edit: afterEdit,

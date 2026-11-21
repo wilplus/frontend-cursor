@@ -27,4 +27,4 @@ The composer is one row: mic, a text box that can hold a pasted step, send. A qu
 
 The walk steps, once there are two, are a list. Drag one onto another, or tap Earlier / Later.
 
-The home under the header is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Settings opens the searchable list. Header back from the talk returns to the tiles. A row chat is unchanged.
+The home under the header is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Settings opens the searchable list. A row replaces that bar with its own: the row's name and its place in the list. Header back from the talk returns to the tiles. Your own code, after Yes, is either a description or a paste.
