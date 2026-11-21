@@ -118,6 +118,11 @@ does not export the PUT the client sends.","the models PUT reaches /v2/chats/set
 -> ""PUT /api/v2/chats/setup/models is proxied to the backend""
 every saved setup part has a route that exports PUT
 -> ""every setup part the host saves has a PUT route""","If removed: Teach it fails again with a 405 that never reaches the backend, and the next static setup folder can do the same with nothing failing."
+src/app/api/v2/experiments/voiceBff.test.ts,Story,"The voice-model screens reach the backend only through this app, with the person's own session token.","O1  Each listed route is forwarded to the same path on the backend,
+and a 404 or a 403 comes back unchanged.
+O2  A recording is forwarded as multipart, and the reply-example
+query is forwarded with it.","O1 -> ""a missing catalog stays a 404 and a refused host stays a 403""
+O2 -> ""a take upload and the reply-example query are forwarded""",
 src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker, I want my uploaded slide deck to reach the slide reader with my guest pass, so that my deck is used for my Take.","O1  The upload goes to the backend's slide-reading route with the guest
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
