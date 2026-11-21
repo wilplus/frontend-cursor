@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Boxes, Check, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
@@ -18,7 +18,7 @@ import HostSetup from "./hostsetup/HostSetup";
 import CoachLive from "./coachbuild/CoachLive";
 import { useCoachDraft } from "@/lib/willab/chatBuilder/useCoachDraft";
 import { W } from "./hostsetup/hostSetupCopy";
-import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
+import { useKnownSetup } from "./hostsetup/hostSetupDoor";
 import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
 import TalkBuild from "./hostsetup/TalkBuild";
 import CodeStep from "./hostsetup/CodeStep";
@@ -150,14 +150,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const name = own?.title ?? W.yourChatTitle;
   const recipe = setup?.recipe ?? (table ? local?.recipe ?? null : null);
   const canTry = setup?.can_try === true && recipe !== null;
-  const mode: Mode = chosen ?? (canTry ? "live" : "build");
-  // Before a chat exists, Build opens at "What do you do?", once (N642 item 3).
-  const asked = useRef(false);
-  useEffect(() => {
-    if (asked.current || !setup || setup.recipe) return;
-    asked.current = true;
-    openOverList({});
-  }, [setup]);
+  const mode: Mode = chosen ?? "build";
   useEffect(() => {
     const on = (e: Event) => {
       const next = (e as CustomEvent<string>).detail;
@@ -286,6 +279,21 @@ function BuildScreen(p: {
   );
   if (p.tab === "models") return <Cover>{top}<BuildModels /></Cover>;
   if (p.visitor && doc) return <Cover><VisitorTry name={p.name} doc={doc} sends={doc.chat.send} onBack={() => p.setVisitor(false)} /></Cover>;
+  if (p.visitor && p.recipe) {
+    return (
+      <Cover>
+        <HostOwnChat name={p.name} recipe={live(p.recipe, p.own)} about={p.own?.about ?? []} onBack={() => p.setVisitor(false)} bar={top} />
+      </Cover>
+    );
+  }
+  if (p.visitor) {
+    return (
+      <Cover>
+        {top}
+        <p data-try-empty="" className="m-0 px-6 py-8 text-center text-[16px] leading-snug">{W.tryFirst}</p>
+      </Cover>
+    );
+  }
   if (home) {
     return (
       <Cover>

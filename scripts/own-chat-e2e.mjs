@@ -62,7 +62,13 @@ async function run(width, height) {
   check(`${tag} four equal tiles`, labels.join(",") === "1Build,2Settings,3Test,4AI");
   check(`${tag} Build is the only highlight`, await page.locator("[data-tile-highlight]").count() === 1 && await page.locator("[data-build-tile='build'][data-tile-highlight]").count() === 1);
   check(`${tag} a new chat has no ticks`, await page.locator("[data-tile-tick]").count() === 0);
+  const deadEnd = async (where) => {
+    const search = await page.locator("[data-part-search]").count();
+    const lone = await page.locator("[data-needs-you='chat']").count();
+    check(`${tag} ${where} has no search and no lone row`, search === 0 && lone === 0);
+  };
   check(`${tag} no tabs or search on the home`, await page.locator("[data-build-tab], [data-part-search]").count() === 0);
+  await deadEnd("the home");
   const boxes = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { w: Math.round(r.width), h: Math.round(r.height) };
@@ -90,6 +96,7 @@ async function run(width, height) {
   check(`${tag} Build has a tick`, await page.locator("[data-tile-tick='build']").count() === 1);
   await page.locator("[data-build-tile='settings']").click();
   await page.waitForSelector("[data-answer-list]");
+  await deadEnd("Settings");
   check(`${tag} Settings has one top bar`, await bars() === 1);
   const wide = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
   check(`${tag} the answer list fits`, wide && (await page.locator("[data-answer-list]").innerText()).includes("Your own code"));
@@ -121,6 +128,7 @@ async function run(width, height) {
   check(`${tag} Settings has a tick`, await page.locator("[data-tile-tick='settings']").count() === 1);
   await page.locator("[data-build-tile='test']").click();
   await page.waitForSelector("[data-visitor-try]");
+  await deadEnd("Test");
   check(`${tag} Test has one top bar`, await bars() === 1);
   await page.locator("[data-visitor-rec]").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-visitor-line='them']").length > 1);

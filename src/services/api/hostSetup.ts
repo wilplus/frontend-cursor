@@ -110,23 +110,35 @@ async function call(path: string, init: Parameters<typeof bffFetch>[1]): Promise
 }
 
 const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-const recipeOf = (value: unknown): HostRecipe | null =>
-  value && typeof value === "object" && (value as Body).suggest ? (value as HostRecipe) : null;
+const EMPTY_SUGGEST: HostRecipe["suggest"] = {
+  line: [], send: [], out: [], hello: [], qs: [], taps: [], models: [], sample_in: "", sample_out: "",
+};
+
+/** A saved recipe. `people_profiles.chat_recipe` is v2. An older read can
+ *  omit `suggest`; the tiles still open, and Settings uses `parts`. */
+const recipeOf = (value: unknown): HostRecipe | null => {
+  if (!value || typeof value !== "object") return null;
+  const doc = value as HostRecipe & { v?: number };
+  const saved = Boolean(doc.suggest || doc.spec || doc.hello || doc.v === 2);
+  if (!saved) return null;
+  return doc.suggest ? doc : { ...doc, suggest: EMPTY_SUGGEST };
+};
 const costOf = (value: unknown): ChatCost | null => (value && typeof value === "object" ? (value as ChatCost) : null);
 
 export async function readSetup(): Promise<SetupRead | null> {
   const body = await call("/api/v2/chats/setup", { method: "GET" });
   if (!body) return null;
   const own = body.own_chat as SetupRead["own_chat"];
+  const recipe = recipeOf(body.recipe);
   return {
-    recipe: recipeOf(body.recipe),
+    recipe,
     parts: list<SetupPart>(body.parts),
     own_chat: own && typeof own.title === "string" ? own : null,
     cost: costOf(body.cost),
     skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
     price_changes: list<PriceChange>(body.price_changes).filter((c) => c && typeof c.model_id === "string" && typeof c.by === "string" && typeof c.now === "number"),
     spec_guess: typeof body.spec_guess === "string" && body.spec_guess.trim() ? body.spec_guess.trim() : null,
-    can_try: body.can_try === true,
+    can_try: body.can_try === true || (body.can_try == null && recipe !== null),
   };
 }
 

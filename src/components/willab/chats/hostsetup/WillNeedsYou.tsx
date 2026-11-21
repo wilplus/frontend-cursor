@@ -95,12 +95,6 @@ export function orderedParts(parts: SetupPart[]): SetupPart[] {
   return groupParts(parts).flatMap((g) => g.parts);
 }
 
-function matches(part: SetupPart, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return `${part.title} ${part.value ?? ""}`.toLowerCase().includes(q);
-}
-
 type Icon = ComponentType<LucideProps>;
 
 /** A small picture for each part, from the app's icon set. */
@@ -205,11 +199,9 @@ export function PartBubble({ part }: { part: SetupPart }) {
  *  whole screen, with a search, and a row opens that row's own chat.
  *  Without a chat yet, "Your chat" opens the setup at "What do you do?".
  *  Only for the ring `chat_builder`. */
-export default function WillNeedsYou({ page = false, onPart, onOpenChat, source = null }: {
+export default function WillNeedsYou({ page = false, onPart, source = null }: {
   page?: boolean;
   onPart?: (part: SetupPart) => void;
-  /** The Build page: the card opens the table, not the server setup. */
-  onOpenChat?: () => void;
   /** Rows from the talk on this device, when the server has none. */
   source?: SetupRead | null;
 }) {
@@ -217,7 +209,6 @@ export default function WillNeedsYou({ page = false, onPart, onOpenChat, source 
   const work = useHostWork(isCoach);
   const known = useKnownSetup();
   const setup = known?.recipe ? known : source;
-  const [query, setQuery] = useState("");
   if (!work.ring && !page) return null;
   const over = (detail: OpenDetail) => () => openOverList(detail);
   const openPart = (part: SetupPart) => (onPart ? onPart(part) : openOverList({ part: part.part }));
@@ -225,17 +216,14 @@ export default function WillNeedsYou({ page = false, onPart, onOpenChat, source 
   const localTable = Boolean(page && source && !known?.recipe);
   const answers = work.lines.find((l) => l.kind === "answers");
   const needs = Boolean(answers) || work.skipped.length > 0 || work.priceChanges.length > 0;
-  const shown = (setup?.parts ?? []).filter((part) => matches(part, page ? query : ""));
+  const shown = setup?.parts ?? [];
   const groups = groupParts(shown);
   return (
     <NeedsPage
       page={page}
-      query={query}
-      setQuery={setQuery}
       localTable={localTable}
       shown={shown}
       openPart={openPart}
-      onOpenChat={onOpenChat}
       recipe={recipe}
       groups={groups}
       over={over}
@@ -248,15 +236,12 @@ export default function WillNeedsYou({ page = false, onPart, onOpenChat, source 
 }
 
 function NeedsPage({
-  page, query, setQuery, localTable, shown, openPart, onOpenChat, recipe, groups, over, needs, answers, work, isCoach,
+  page, localTable, shown, openPart, recipe, groups, over, needs, answers, work, isCoach,
 }: {
   page: boolean;
-  query: string;
-  setQuery: (q: string) => void;
   localTable: boolean;
   shown: SetupPart[];
   openPart: (part: SetupPart) => void;
-  onOpenChat?: () => void;
   recipe: HostRecipe | null;
   groups: { heading: string | null; parts: SetupPart[] }[];
   over: (detail: OpenDetail) => () => void;
@@ -267,26 +252,8 @@ function NeedsPage({
 }) {
   return (
     <div data-will-needs-you="" className={page ? "flex w-full flex-col gap-3 px-4 py-4" : "mr-auto flex w-full max-w-[90%] flex-col gap-2 py-1.5"}>
-      {page ? (
-        <form data-part-search="" className="relative" onSubmit={(e) => e.preventDefault()}>
-          <input
-            type="search"
-            value={query}
-            placeholder={W.search}
-            aria-label={W.search}
-            onChange={(e) => setQuery(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-20 text-[16px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-          />
-          {query ? (
-            <button type="button" aria-label="Clear" onClick={() => setQuery("")} className="absolute right-0 top-0 flex h-11 items-center px-3 text-[15px] font-medium text-foreground">
-              Clear
-            </button>
-          ) : null}
-        </form>
-      ) : null}
       {localTable ? (
         <div data-answer-list="" className="flex min-h-0 w-full min-w-0 flex-col overflow-x-hidden">
-          {shown.length === 0 && query.trim() ? <p className="m-0 text-[16px] text-muted-foreground">{W.nothingMatches}</p> : null}
           {shown.map((part) => (
             <AnswerRow key={part.part} part={part} onOpen={() => openPart(part)} />
           ))}
@@ -297,7 +264,6 @@ function NeedsPage({
             <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
             {recipe.live ? <span data-chat-open="" className="inline-flex rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#1F7A55]">{W.openBadge}</span> : null}
           </div>
-          {groups.length === 0 && page && query.trim() ? <p className="m-0 text-[15px] text-muted-foreground">{W.nothingMatches}</p> : null}
           {groups.map((g) => {
             const SectionIcon = g.heading ? SECTION_ICON[g.heading] : null;
             return (
@@ -318,7 +284,7 @@ function NeedsPage({
           })}
         </>
       ) : (
-        <Row kind="chat" title={W.yourChatTitle} line={W.yourChatLine} onOpen={onOpenChat ?? (() => over({ open: "parts" })())} />
+        page ? <p data-settings-empty="" className="m-0 text-[16px] leading-snug">{W.finishBuild}</p> : null
       )}
       {needs ? <Said>{W.needsYou}</Said> : null}
       {work.skipped.map((by, k) => (
