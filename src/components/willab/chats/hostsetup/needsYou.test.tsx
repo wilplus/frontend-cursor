@@ -135,7 +135,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, can_try: false };
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
-    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
     await flush();
     const search = container.querySelector<HTMLInputElement>("[data-part-search] input")!;
     expect(search).not.toBeNull();
@@ -189,7 +189,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/what"] = (c: Call) => ({ recipe: { ...recipe, spec: (c.json as { value: string }).value }, cost: null });
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
-    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
     await flush();
     await act(async () => (container.querySelector('[data-build-part="what"]') as HTMLButtonElement).click());
     await flush();
@@ -232,7 +232,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/out"] = kept("out", "out");
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
-    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
     await flush();
     const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
     const shown = (id: string) => !chat(id).className.includes("hidden");
@@ -283,7 +283,7 @@ describe("what needs you is in Will (backend N629)", () => {
     expect(back).toHaveBeenCalledTimes(1);
     back.mockClear();
     const open = async () => {
-      const tile = container.querySelector("[data-build-tile='answers']") as HTMLButtonElement | null;
+      const tile = container.querySelector("[data-build-tile='settings']") as HTMLButtonElement | null;
       if (tile) {
         await act(async () => tile.click());
         await flush();
@@ -558,7 +558,7 @@ describe("what needs you is in Will (backend N629)", () => {
     await build({ recipe: null, parts: [], own_chat: null, cost: null, can_try: false });
     expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
     expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Your chat");
-    await tab("models");
+    await tab("ai");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer3 waiting›");
     expect(await queueOpened()).toEqual([{ fromWill: true }]);
 
@@ -571,7 +571,7 @@ describe("what needs you is in Will (backend N629)", () => {
     // Opened, a chat with something to try is Live.
     expect(container.querySelector("[data-build-tab]")).toBeNull();
     await toggle("build");
-    await tab("models");
+    await tab("ai");
     expect(await queueOpened()).toEqual([{ fromWill: true }]);
     // And nothing waiting: the line stays, so the way in never goes.
     act(() => root.unmount());
@@ -581,14 +581,14 @@ describe("what needs you is in Will (backend N629)", () => {
     moments.speakers = [];
     await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] }, can_try: true });
     await toggle("build");
-    await tab("models");
+    await tab("ai");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer0 waiting›");
   });
 
   it("N642-5 someone who is not a coach has no moments line in AI models", async () => {
     who.coach = false;
     await build({ ...SETUP, can_try: false });
-    await tab("models");
+    await tab("ai");
     expect(container.querySelector("[data-build-models]")).not.toBeNull();
     expect(container.querySelector('[data-needs-you="moments"]')).toBeNull();
   });
@@ -598,7 +598,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/models/m1/check"] = { version: "v1", answers: ["Yes"], items: [{ example_id: "c1", example: {}, guess: "Yes", kept: null, answer: null }], done: false };
     const kasia = { q: "Is the skin red?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "k1", by: "Kasia" };
     await build({ ...SETUP, recipe: { ...RECIPE, models: [...RECIPE.models, kasia] }, can_try: false });
-    await tab("models");
+    await tab("ai");
     const models = container.querySelector("[data-build-models]")!;
     expect(models.textContent?.startsWith("Your models, and everything you teach.")).toBe(true);
     expect([...models.querySelectorAll("[data-needs-you]")].map((r) => r.textContent)).toEqual([
@@ -664,7 +664,7 @@ describe("what needs you is in Will (backend N629)", () => {
       return { wanted: true };
     };
     await build({ ...SETUP, can_try: false });
-    await tab("models");
+    await tab("ai");
     const models = container.querySelector("[data-build-models]")!;
     const rows = [...models.querySelectorAll("[data-needs-you]")].map((r) => r.textContent);
     expect(rows).toContain("Moments to answer37 waiting›");
@@ -706,7 +706,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["PUT /api/v2/chats/setup/walk"] = (c: Call) => ({ recipe: { ...recipe, walk: (c.json as { value: unknown }).value }, cost: null });
     act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
     await flush();
-    await act(async () => (container.querySelector("[data-build-tile='answers']") as HTMLButtonElement).click());
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
     await flush();
     const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
     const shown = (id: string) => !chat(id).className.includes("hidden");

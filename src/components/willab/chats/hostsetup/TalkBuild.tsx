@@ -6,7 +6,7 @@ import { BarBox } from "@/components/willab/chats/ChatBar";
 import { PRICES, SEND, W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
-import { clearTalkDraft, publishTalkDraft, saveTalkDraft, talkBuilt, type TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt, type TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
 import { transcribeAnswer } from "@/services/api/lifeGoals";
 import { COACH_HELLO, SENDS, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 import ChatIconPicker from "./ChatIconPicker";
@@ -264,6 +264,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
     write({ snap: next, phase: "look", i: 0, add, label });
     const built = talkBuilt(snapRef.current);
     saveTalkDraft(built);
+    markTalkReady(true);
     setSavedName(built.definition.name);
   };
 
@@ -351,6 +352,7 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
       write({ phase: "done", add: [{ who: "me", text: "done" }, { who: "will", text: W.talkReady, quotes: ["Open the list", "Try it out loud"] }], label: "Done" });
       if (next.spec) {
         saveTalkDraft(talkBuilt(next));
+        markTalkReady(true);
         setSavedName(talkBuilt(next).definition.name);
       }
       return;
@@ -384,8 +386,10 @@ export default function TalkBuild({ onList, models = [], transcribe = transcribe
     setVersions(prev);
     if (phaseRef.current !== "look" && phaseRef.current !== "done") {
       setSavedName("");
-      if (snapRef.current.spec) saveTalkDraft(talkBuilt(copySnap(snapRef.current)));
-      else clearTalkDraft();
+      if (snapRef.current.spec) {
+        saveTalkDraft(talkBuilt(copySnap(snapRef.current)));
+        markTalkReady(false);
+      } else clearTalkDraft();
     }
   };
 

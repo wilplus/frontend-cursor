@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Boxes, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
+import { Boxes, Check, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
@@ -9,6 +9,7 @@ import { OwnAvatar } from "./hostsetup/ChatIconPicker";
 import { copyText, publicChatHref, readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { useLocalSetup } from "@/lib/willab/chatBuilder/localSetup";
 import { readTalkDefinition, saveTalkCode } from "@/lib/willab/chatBuilder/talkDraft";
+import { useTileSteps, type TileId } from "@/lib/willab/chatBuilder/tileSteps";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import BuildModels from "./BuildModels";
 import type { HostRecipe, OwnChat, SetupPart } from "@/services/api/hostSetup";
@@ -54,29 +55,45 @@ function live(recipe: HostRecipe, own: OwnChat | null): HostRecipe {
   return { ...recipe, hello: own?.hello || recipe.hello, taps };
 }
 
-const TILES = [
-  { id: "talk", word: W.tileTalk, Icon: MessageSquare },
-  { id: "answers", word: W.tileAnswers, Icon: List },
-  { id: "try", word: W.tileTry, Icon: Play },
-  { id: "models", word: W.tileModels, Icon: Boxes },
-] as const;
+const TILES: { id: TileId; n: string; word: string; Icon: typeof MessageSquare }[] = [
+  { id: "build", n: "1", word: W.tileBuild, Icon: MessageSquare },
+  { id: "settings", n: "2", word: W.tileSettings, Icon: List },
+  { id: "test", n: "3", word: W.tileTest, Icon: Play },
+  { id: "ai", n: "4", word: W.tileAi, Icon: Boxes },
+];
 
-function BuildHome({ onOpen }: { onOpen: (id: (typeof TILES)[number]["id"]) => void }) {
+/** A soft ring on Build until the talk is finished. The other tiles stay plain. */
+const NEXT_RING = "shadow-[inset_0_0_0_2px_rgba(255,106,20,0.45),0_0_18px_rgba(255,106,20,0.18)]";
+
+function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
+  const steps = useTileSteps();
   return (
     <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 py-6">
       <div className="grid aspect-square w-full max-w-[min(100%,28rem)] grid-cols-2 gap-3">
-        {TILES.map(({ id, word, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            data-build-tile={id}
-            onClick={() => onOpen(id)}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground"
-          >
-            <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
-            <span className="text-[16px] font-medium">{word}</span>
-          </button>
-        ))}
+        {TILES.map(({ id, n, word, Icon }) => {
+          const next = id === "build" && !steps.build;
+          return (
+            <button
+              key={id}
+              type="button"
+              data-build-tile={id}
+              data-tile-highlight={next ? "" : undefined}
+              onClick={() => onOpen(id)}
+              className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground ${next ? NEXT_RING : ""}`}
+            >
+              {steps[id] ? (
+                <span data-tile-tick={id} className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center text-foreground">
+                  <Check className="h-4 w-4" strokeWidth={2} aria-hidden />
+                </span>
+              ) : null}
+              <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-medium text-muted-foreground">{n}</span>
+                <span className="text-[16px] font-medium">{word}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -275,10 +292,11 @@ function BuildScreen(p: {
         {top}
         <BuildHome onOpen={(id) => {
           p.setIconOpen(false);
-          if (id === "talk") p.setTalk(true);
-          if (id === "answers") p.setTable(true);
-          if (id === "try") p.setVisitor(true);
-          if (id === "models") p.setTab("models");
+          if (id === "build") p.setTalk(true);
+          if (id === "settings") p.setTable(true);
+          if (id === "test") p.setVisitor(true);
+          // AI keeps today's model list. A later session designs that tile.
+          if (id === "ai") p.setTab("models");
         }} />
       </Cover>
     );

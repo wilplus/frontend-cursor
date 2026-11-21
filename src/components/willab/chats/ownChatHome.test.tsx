@@ -22,7 +22,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrainingArc } from "@/services/api/trainings";
 import { OWN_CHAT_KEY, publicChatHref, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { speakingCoachSeed } from "@/lib/willab/chatBuilder/seed";
-import { clearTalkDraft, saveTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTalkDraft, markTalkReady, saveTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTileSteps } from "@/lib/willab/chatBuilder/tileSteps";
 
 vi.mock("@/lib/api/bffFetch", () => ({
   bffFetch: vi.fn(async () => ({ kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } })),
@@ -44,6 +45,7 @@ beforeEach(() => {
   forgetSetup();
   forgetHostWork();
   clearTalkDraft();
+  clearTileSteps();
   localStorage.clear();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -106,6 +108,9 @@ describe("Start your own chat", () => {
     await click("[data-own-chat-yes]");
     expect(host.querySelector("[data-build-bar]")).not.toBeNull();
     expect(host.querySelector("[data-will-badge]")).not.toBeNull();
+    expect(host.querySelector("[data-build-tile='build']")?.textContent).toContain("Build");
+    expect(host.querySelector("[data-tile-highlight]")).toBe(host.querySelector("[data-build-tile='build']"));
+    expect(host.querySelector("[data-tile-tick]")).toBeNull();
     await click("[data-chat-header] button[aria-label='Back']");
     expect(host.querySelector("[data-build-bar]")).toBeNull();
     expect(ids()[0]).toBe("own-chat");
@@ -165,13 +170,18 @@ describe("Start your own chat", () => {
       interaction: "shadow",
       published: false,
     });
+    markTalkReady(true);
     startOwnChat();
     act(() => root.render(createElement(WillBuild, { onBack: () => undefined })));
     await flush();
     expect(host.querySelectorAll("[data-build-tile]")).toHaveLength(4);
+    expect([...host.querySelectorAll("[data-build-tile]")].map((tile) => (tile.textContent ?? "").replace(/\s+/g, ""))).toEqual(["1Build", "2Settings", "3Test", "4AI"]);
+    expect(host.querySelector("[data-tile-highlight]")).toBeNull();
+    expect(host.querySelector("[data-tile-tick='build']")).not.toBeNull();
+    expect(host.querySelector("[data-tile-tick='settings']")).toBeNull();
     expect(host.querySelector("[data-build-tab]")).toBeNull();
     expect(host.querySelector("[data-part-search]")).toBeNull();
-    await click("[data-build-tile='answers']");
+    await click("[data-build-tile='settings']");
     expect(host.querySelector("[data-answer-list]")).not.toBeNull();
     expect(host.textContent).toContain("Your own code");
     expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something.");
@@ -180,9 +190,13 @@ describe("Start your own chat", () => {
     await click("[data-part-chat='hello'] button[aria-label='Back']");
     await click("[data-build-part='code']");
     expect(host.textContent).toContain("Add a small piece of code that runs when someone sends something?");
-    await click("[data-part-chat='code'] button[aria-label='Back']");
+    const no = [...host.querySelectorAll("[data-part-chat='code'] button")].find((button) => button.textContent === "No");
+    await act(async () => (no as HTMLButtonElement).click());
+    await flush();
     await click("[data-build-bar] button[aria-label='Back']");
-    await click("[data-build-tile='try']");
+    expect(host.querySelector("[data-tile-tick='settings']")).not.toBeNull();
+    expect(host.querySelector("[data-tile-highlight]")).toBeNull();
+    await click("[data-build-tile='test']");
     expect(host.querySelector("[data-visitor-try]")).not.toBeNull();
     expect(host.textContent).toContain("Hi. Record a short talk");
     await click("[data-visitor-rec]");
@@ -190,5 +204,7 @@ describe("Start your own chat", () => {
     expect(host.querySelectorAll("[data-visitor-line='them']").length).toBeGreaterThan(1);
     await click("[data-visitor-try] button[aria-label='Back']");
     expect(host.querySelector("[data-build-home]")).not.toBeNull();
+    expect(host.querySelector("[data-tile-tick='test']")).not.toBeNull();
+    expect(host.querySelector("[data-tile-tick='ai']")).toBeNull();
   });
 });

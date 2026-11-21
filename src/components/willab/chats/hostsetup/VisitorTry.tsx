@@ -9,6 +9,7 @@ import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { tryMyChat } from "@/services/api/hostSetup";
+import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
@@ -37,6 +38,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
   const say = async (text: string, kind: "text" | "rec") => {
     const words = text.trim();
     if (!words || busy) return;
+    markTileStep("test", true);
     setLines((was) => [...was, { who: "me", text: words }]);
     setBusy(true);
     const remote = kind === "text" ? await tryMyChat(words) : null;

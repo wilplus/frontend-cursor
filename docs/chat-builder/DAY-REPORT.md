@@ -8,7 +8,7 @@ The chat list leads to Build again. "Start your own chat" is the last chat row, 
 
 The circle is the locked avatar. Tapping it in the locked top bar opens the picker: an emoji, a colour, a photo, or their initial. A three-dots badge sits on the bottom-right, about 40% of the circle, with a white ring.
 
-The builder home is four equal tiles: Talk, Answers, Try, Models. Each tile is an icon and one word. Talk opens the talk. Answers opens the list of questions and answers. Try opens the chat as a visitor. Models opens the model list. The tab row and the search box are gone from this page. Search stays on the answer list.
+The builder home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Each tile is an icon, a small number and one word. Build opens the talk. Settings opens the list of questions and answers. Test opens the chat as a visitor. AI keeps the model list for a later design. Until the talk is finished, Build has a soft ring. A tick sits on a tile once that step is done, and those ticks stay on this device. The tab row and the search box are gone from this page. Search stays on the answer list.
 
 Share, in the locked top bar's right slot, copies the public link. That is `/c/<token>` when the host already has a join path, and the same route built from the local chat id otherwise. The button says "Link copied", and opens the phone's share sheet where the browser has one.
 
@@ -20,7 +20,7 @@ The talk also follows the four builders in the competitor research (`638b0c14`, 
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 24/24` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 36/36` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.

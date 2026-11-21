@@ -3,6 +3,7 @@
    the walk read it through usePublishedCoach. */
 
 import { speakingCoachSeed } from "./seed";
+import { markTileStep } from "./tileSteps";
 import type { CoachDefinition, PluginType } from "./types";
 
 export const TALK_DRAFT_KEY = "wlp-talk-draft";
@@ -44,6 +45,10 @@ export type TalkBuilt = {
   interaction: TalkWho;
   /** True only after Publish. A draft is never sent to production. */
   published: boolean;
+  /** The talk has reached the preview. An unfinished draft stays false. */
+  ready?: boolean;
+  /** The host answered the code question, including No. */
+  codeAsked?: boolean;
 };
 
 let memory: TalkBuilt | null = null;
@@ -98,17 +103,37 @@ function shop(snap: TalkSnap): CoachDefinition {
   };
 }
 
+function rememberDraftSteps(): void {
+  markTileStep("build", memory?.ready === true);
+  markTileStep("ai", Boolean(memory && (memory.models.length > 0 || memory.otherModels.length > 0)));
+  if (!memory) markTileStep("settings", false);
+}
+
 function persist(): void {
   try {
     if (memory) sessionStorage.setItem(TALK_DRAFT_KEY, JSON.stringify(memory));
   } catch {
     /* a private window keeps the draft in memory for this page */
   }
+  rememberDraftSteps();
   if (typeof window !== "undefined") window.dispatchEvent(new Event(TALK_DRAFT_EVENT));
 }
 
 export function saveTalkDraft(built: TalkBuilt): void {
-  memory = { ...built, published: memory?.published === true };
+  memory = {
+    ...built,
+    published: memory?.published === true,
+    ready: built.ready === true || memory?.ready === true,
+    codeAsked: built.codeAsked === true || memory?.codeAsked === true,
+  };
+  persist();
+}
+
+/** The talk setup is finished, or it has been undone. Stays on this device. */
+export function markTalkReady(on: boolean): void {
+  const current = readTalkDraft();
+  if (!current) return;
+  memory = { ...current, ready: on };
   persist();
 }
 
@@ -142,7 +167,7 @@ export function readTalkDefinition(): CoachDefinition | null {
 export function saveTalkCode(paste: string): void {
   const current = readTalkDraft();
   if (!current) return;
-  memory = { ...current, code: paste };
+  memory = { ...current, code: paste, codeAsked: true };
   persist();
 }
 

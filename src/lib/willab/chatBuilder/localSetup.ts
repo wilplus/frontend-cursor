@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { OUT, SEND, W, WHO_LINE } from "@/components/willab/chats/hostsetup/hostSetupCopy";
 import type { HostRecipe, SetupPart, SetupRead } from "@/services/api/hostSetup";
 import { OWN_CHAT_EVENT, readOwnChat } from "./ownChat";
+import { markTileStep } from "./tileSteps";
 import { readTalkDraft, TALK_DRAFT_EVENT, type TalkBuilt } from "./talkDraft";
 
 const SENDS = ["rec", "text", "photo", "file"] as const;
@@ -67,7 +68,7 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
   parts.push({
     part: "code",
     title: W.codeTitle,
-    value: built?.code?.trim() ? W.codeAdded : W.codeHint,
+    value: built?.code?.trim() ? W.codeAdded : built?.codeAsked ? W.codeNone : W.codeHint,
   });
   return {
     recipe,
@@ -81,11 +82,25 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
   };
 }
 
+/** Every settings row has an answer. The code hint is still a question. */
+export function settingsAnswered(built: TalkBuilt | null): boolean {
+  const parts = setupFromTalk(built)?.parts ?? [];
+  if (!parts.length) return false;
+  return parts.every((part) => {
+    const value = part.value.trim();
+    return Boolean(value) && value !== W.notSet && value !== W.codeHint;
+  });
+}
+
 /** The draft on this device, refreshed when the talk saves. */
 export function useLocalSetup(): SetupRead | null {
   const [read, setRead] = useState<SetupRead | null>(null);
   useEffect(() => {
-    const sync = () => setRead(setupFromTalk(readTalkDraft()));
+    const sync = () => {
+      const built = readTalkDraft();
+      setRead(setupFromTalk(built));
+      markTileStep("settings", settingsAnswered(built));
+    };
     sync();
     window.addEventListener(TALK_DRAFT_EVENT, sync);
     window.addEventListener(OWN_CHAT_EVENT, sync);
