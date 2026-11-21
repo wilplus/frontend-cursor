@@ -1,6 +1,7 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 import {
   analysisPending,
+  classifyStatus,
   readCatalog,
   readConfig,
   readTips,
@@ -29,8 +30,12 @@ function missing(result: { kind: string; status?: number }): boolean {
   return result.kind !== "response" || result.status === 404 || result.status === 405 || result.status === 501;
 }
 
-function hostOnly(result: { kind: string; status?: number }): boolean {
-  return result.kind === "response" && result.status === 403;
+function hostOnly(result: { kind: string; status?: number; body?: unknown }): boolean {
+  return result.kind === "response" && result.status !== undefined && classifyStatus(result.status, result.body) === "host-only";
+}
+
+function absent(result: { kind: string; status?: number; body?: unknown }): boolean {
+  return result.kind === "response" && result.status !== undefined && classifyStatus(result.status, result.body) === "absent";
 }
 
 export async function listVoiceModels(): Promise<CatalogResult> {
@@ -43,6 +48,7 @@ export async function listVoiceModels(): Promise<CatalogResult> {
 export async function readExperimentConfig(chatId: string): Promise<ConfigResult> {
   const result = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/experiment-config`);
   if (hostOnly(result)) return { state: "host-only" };
+  if (absent(result)) return { state: "absent" };
   if (missing(result) || result.kind !== "response" || !result.ok) return { state: "not-on-yet" };
   return readConfig(result.body);
 }
@@ -50,6 +56,7 @@ export async function readExperimentConfig(chatId: string): Promise<ConfigResult
 export async function saveExperimentConfig(chatId: string, config: { model_id: string | null; baseline_prompt_ids: string[] }): Promise<ConfigResult> {
   const result = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/experiment-config`, { method: "PUT", json: config });
   if (hostOnly(result)) return { state: "host-only" };
+  if (absent(result)) return { state: "absent" };
   if (missing(result) || result.kind !== "response" || !result.ok) return { state: "not-on-yet" };
   return readConfig(result.body);
 }

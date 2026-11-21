@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 import BuildModels from "../BuildModels";
+import { SampleData } from "./bits";
 import { readKeptReplies, KEPT_MODEL, KEPT_SEND } from "@/services/api/keptReplies";
 import Experiments from "./Experiments";
 
@@ -68,6 +69,7 @@ function Training() {
   useEffect(() => {
     void readKeptReplies().then((read) => {
       if (read.state === "host-only") setKept("Only the host can change this.");
+      else if (read.state === "absent") setKept("This chat isn't here, or you aren't in it.");
       else if (read.state !== "ready") setKept("Not on yet.");
       else {
         setCount(read.count);
@@ -79,6 +81,7 @@ function Training() {
   return (
     <div data-exp-screen="training" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-2 px-4 pb-2 pt-3">
+        <SampleData />
         <p className="m-0 text-[15px] leading-snug">{kept}</p>
         <p className="m-0 text-[13px] text-muted-foreground">Which brain?</p>
         <div data-pair="brain" className="flex gap-2">

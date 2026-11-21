@@ -46,6 +46,7 @@ describe("the experiment screens", () => {
     const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
 
     await click("[data-exp-go='session']");
+    expect(container.querySelector("[data-sample-data]")?.textContent).toBe("Sample data");
     expect(container.querySelector("[data-ai-disclosure]")?.textContent).toContain("does not name a feeling");
     await click("[data-pair='consent'] [data-choice='yes']");
     await click("[data-pair='page'] [data-choice='no']");

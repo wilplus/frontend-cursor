@@ -11,7 +11,7 @@ const out = "/opt/cursor/artifacts";
 mkdirSync(out, { recursive: true });
 
 const MODEL = {
-  id: "wpl_arousal@0.1",
+  id: "wpl_arousal@0.2",
   name: "Voice and words",
   measures: "How much you join in, how your voice moves, how it lands and how clear it was",
   language: "pl",
@@ -132,10 +132,10 @@ try {
   await page.waitForSelector("text=Should your chat listen to how people speak?");
   check("the listen question is one yes or no", (await page.locator("[data-tap-row] button").allInnerTexts()).map((t) => t.trim()).join(",") === "No,Yes");
   await page.getByRole("button", { name: "Yes", exact: true }).click();
-  await page.waitForSelector("[data-voice-model='wpl_arousal@0.1']");
-  check("the catalog is the route, with the research badge", (await page.locator("[data-voice-model='wpl_arousal@0.1']").innerText()).includes("Voice and words") && (await page.locator("[data-research-badge]").innerText()).includes("For research and testing only"));
+  await page.waitForSelector("[data-voice-model='wpl_arousal@0.2']");
+  check("the catalog is the route, with the research badge", (await page.locator("[data-voice-model='wpl_arousal@0.2']").innerText()).includes("Voice and words") && (await page.locator("[data-research-badge]").innerText()).includes("For research and testing only"));
   await shot("voice-picker");
-  await page.locator("[data-voice-model='wpl_arousal@0.1']").click();
+  await page.locator("[data-voice-model='wpl_arousal@0.2']").click();
   await page.locator("[data-build-bar] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
   await page.locator("[data-build-tile='settings']").click();

@@ -22,7 +22,7 @@ export function VoiceSettings() {
     void saveExperimentConfig(readOwnChat().id || "your-chat", {
       model_id: model.id,
       baseline_prompt_ids: prompts.map((row) => row.id),
-    }).then((result) => setNote(result.state === "ready" ? "Saved." : result.state === "host-only" ? HOST_ONLY : NOT_ON_YET));
+    }).then((result) => setNote(result.state === "ready" ? "Saved." : result.state === "host-only" ? HOST_ONLY : result.state === "absent" ? "This chat isn't here, or you aren't in it." : NOT_ON_YET));
     setOpen(null);
   };
   return (

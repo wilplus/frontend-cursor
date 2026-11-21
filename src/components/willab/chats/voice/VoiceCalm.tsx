@@ -39,7 +39,7 @@ export function VoiceCalmEditor({ onDone }: { onDone: () => void }) {
       model_id: readHold().model?.id ?? null,
       baseline_prompt_ids: ids,
     }).then((result) => {
-      setNote(result.state === "ready" ? "Saved." : result.state === "host-only" ? HOST_ONLY : NOT_ON_YET);
+      setNote(result.state === "ready" ? "Saved." : result.state === "host-only" ? HOST_ONLY : result.state === "absent" ? "This chat isn't here, or you aren't in it." : NOT_ON_YET);
     });
     onDone();
   };

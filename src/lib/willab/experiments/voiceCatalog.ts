@@ -45,8 +45,20 @@ export type ExperimentConfig = {
 };
 
 export type CatalogResult = { state: "ready"; models: VoiceModel[] } | { state: "not-on-yet" } | { state: "host-only" };
-export type ConfigResult = { state: "ready"; config: ExperimentConfig } | { state: "not-on-yet" } | { state: "host-only" };
+export type ConfigResult = { state: "ready"; config: ExperimentConfig } | { state: "not-on-yet" } | { state: "host-only" } | { state: "absent" };
 export const HOST_ONLY = "Only the host can change this.";
+export const NOT_A_MEMBER = "This chat isn't here, or you aren't in it.";
+
+/** 403 NOT_HOST is the host gate. 404 is a missing chat or a caller who is
+ *  not a member. A catalog that is not deployed is a separate 404. */
+export function classifyStatus(status: number, body: unknown): "host-only" | "absent" | "other" {
+  if (status === 403) {
+    const code = body && typeof body === "object" ? (body as { code?: unknown }).code : undefined;
+    if (code === undefined || code === "NOT_HOST") return "host-only";
+  }
+  if (status === 404) return "absent";
+  return "other";
+}
 
 export function isVoiceModel(value: unknown): value is VoiceModel {
   if (!value || typeof value !== "object") return false;

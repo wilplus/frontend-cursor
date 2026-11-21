@@ -1,5 +1,6 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { classifyStatus } from "@/lib/willab/experiments/voiceCatalog";
 
 /* Kept answers Test stores. The count is GET /v2/chats/<id>/reply-examples.
    A missing route is "not on yet". A 403 is the host's own list. */
@@ -19,7 +20,8 @@ export type KeptItem = {
 export type KeptRead =
   | { state: "ready"; count: number; items: KeptItem[] }
   | { state: "not-on-yet" }
-  | { state: "host-only" };
+  | { state: "host-only" }
+  | { state: "absent" };
 
 export async function readKeptReplies(chatId = readOwnChat().id || "your-chat"): Promise<KeptRead> {
   let result;
@@ -29,7 +31,9 @@ export async function readKeptReplies(chatId = readOwnChat().id || "your-chat"):
     return { state: "not-on-yet" };
   }
   if (!result || result.kind !== "response") return { state: "not-on-yet" };
-  if (result.status === 403) return { state: "host-only" };
+  const gate = classifyStatus(result.status, result.body);
+  if (gate === "host-only") return { state: "host-only" };
+  if (gate === "absent") return { state: "absent" };
   if (!result.ok || !result.body || typeof result.body !== "object") return { state: "not-on-yet" };
   const body = result.body as { count?: unknown; items?: unknown };
   if (typeof body.count !== "number" || !Array.isArray(body.items)) return { state: "not-on-yet" };

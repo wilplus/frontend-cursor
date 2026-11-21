@@ -84,6 +84,22 @@ describe("voice-model BFF", () => {
     expect(session.upstream[0].url).toBe("http://backend.test/v2/experiments/sessions");
     expect(session.upstream[0].body).toContain("password");
 
+    const prompts = await run("src/app/api/v2/experiments/prompts/route.ts", "POST", "json");
+    expect(prompts.upstream[0].url).toBe("http://backend.test/v2/experiments/prompts");
+    const changed = await run("src/app/api/v2/experiments/prompts/[promptId]/route.ts", "PUT", "json");
+    expect(changed.upstream[0].url).toBe("http://backend.test/v2/experiments/prompts/promptId-1");
+    const gone = await run("src/app/api/v2/experiments/prompts/[promptId]/route.ts", "DELETE", "none");
+    expect(gone.upstream[0].method).toBe("DELETE");
+    const imported = await run("src/app/api/v2/experiments/prompts/import/route.ts", "POST", "json");
+    expect(imported.upstream[0].url).toBe("http://backend.test/v2/experiments/prompts/import");
+    const rules = await run("src/app/api/v2/experiments/interventions/route.ts", "GET", "none");
+    expect(rules.upstream[0].url).toBe("http://backend.test/v2/experiments/interventions");
+    const rule = await run("src/app/api/v2/experiments/interventions/[interventionId]/route.ts", "PUT", "json");
+    expect(rule.upstream[0].url).toBe("http://backend.test/v2/experiments/interventions/interventionId-1");
+    const deleted = await run("src/app/api/v2/experiments/me/route.ts", "DELETE", "none");
+    expect(deleted.upstream[0].url).toBe("http://backend.test/v2/experiments/me");
+    expect(deleted.upstream[0].method).toBe("DELETE");
+
     ctx.headerToken = "hdr-tok";
     process.env.BACKEND_URL = "http://backend.test";
     process.env.NEXT_PUBLIC_API_URL = "http://backend.test";
@@ -114,5 +130,32 @@ describe("voice-model BFF", () => {
     expect(res.status).toBe(200);
     expect(calls[0].url).toBe("http://backend.test/v2/experiments/sessions/sess-1/takes");
     expect(calls[0].body).toBe("form:audio,prompt_id,self_rating,tag");
+  });
+
+  it("an export keeps its type and filename", async () => {
+    const csv = await run("src/app/api/v2/experiments/export/route.ts", "GET", "none", {
+      ...signed,
+      upstream: {
+        status: 200,
+        body: "audience,take\nself,1\n",
+        headers: { "content-type": "text/csv", "content-disposition": "attachment; filename=\"my-sessions.csv\"" },
+      },
+    });
+    expect(csv.status).toBe(200);
+    expect(csv.contentType).toContain("text/csv");
+    expect(csv.body).toBe("audience,take\nself,1\n");
+    expect(csv.upstream[0].url).toContain("/v2/experiments/export?");
+    ctx.headerToken = "hdr-tok";
+    process.env.BACKEND_URL = "http://backend.test";
+    vi.resetModules();
+    globalThis.fetch = (async () => new Response("audience,take\n", {
+      status: 200,
+      headers: { "content-type": "text/csv", "content-disposition": "attachment; filename=\"my-sessions.csv\"" },
+    })) as typeof fetch;
+    const mod = await load("src/app/api/v2/experiments/export/route.ts");
+    const req = new NextRequest("http://localhost/api/v2/experiments/export?format=csv&audience=self");
+    const sent = await (mod.GET as (req: NextRequest) => Promise<Response>)(req);
+    expect(sent.headers.get("content-type")).toContain("text/csv");
+    expect(sent.headers.get("content-disposition")).toBe("attachment; filename=\"my-sessions.csv\"");
   });
 });

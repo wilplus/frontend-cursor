@@ -1,3 +1,4 @@
+import { getAuthToken } from "@/lib/api/auth-client";
 import { bffFetch } from "@/lib/api/bffFetch";
 import { clearExperimentContext } from "@/lib/willab/experiments/contextStore";
 import { loadPromptFile, PromptFileError } from "@/lib/willab/experiments/promptsYaml";
@@ -257,9 +258,14 @@ export type ExportResult = { ok: true; filename: string; mime: string; body: str
 export async function exportMine(format: "csv" | "json", audience: "self" | "researcher"): Promise<ExportResult> {
   if (audience === "researcher" && !consented()) return { ok: false, reason: "consent" };
   if (!EXPERIMENTS_USE_MOCKS) {
-    const body = await live("GET", `/api/v2/experiments/export?format=${format}&audience=${audience}`);
-    if (!body || typeof body !== "object") return { ok: false, reason: "consent" };
-    return body as ExportResult;
+    const token = await getAuthToken();
+    const res = await fetch(`/api/v2/experiments/export?format=${format}&audience=${audience}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return { ok: false, reason: "consent" };
+    const mime = res.headers.get("content-type") || (format === "json" ? "application/json" : "text/csv");
+    const named = /filename="?([^";]+)"?/.exec(res.headers.get("content-disposition") || "");
+    return { ok: true, filename: named?.[1] || `my-sessions.${format}`, mime, body: await res.text() };
   }
   const volunteer_id = anonymousVolunteerId();
   const takes = store.takes.filter((take) => take.volunteer_id === volunteer_id);
