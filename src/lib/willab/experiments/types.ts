@@ -29,64 +29,95 @@ export type SelfRating = {
   feeling: string;
 };
 
-/** `baseline` or `reference`, as POST /v2/experiments/analyze-take names it. */
-export type CellReference = "baseline" | "reference";
+/** analyze-take/v0.1. Field names such as arousal stay inside this type.
+    Screens use words.ts and never read score_if_unlocked. */
 
+export type AnalyzeStep = "engagement" | "arousal" | "valence" | "clarity";
+
+export type CellVs = "baseline" | "reference";
+
+/** Prompt-file helpers still name a cell this way. The analyze-take wire
+    uses CueCell instead. */
+export type CellReference = CellVs;
 export type Channel = "verbal" | "vocal";
+export type GridCell = { value: number; reference: CellReference };
 
-export type GridCell = {
-  value: number;
-  reference: CellReference;
+export type CueCell = {
+  step: AnalyzeStep;
+  cue: string;
+  value: number | null;
+  vs: CellVs;
+  note?: string;
 };
 
-export type MomentAnalysis = {
-  start: number;
-  end: number;
-  grid: Record<string, { verbal: GridCell; vocal: GridCell }>;
+export type AnalyzeMoment = {
+  t_start: number;
+  t_end: number;
+  grid: CueCell[];
 };
 
 export type StepSummary = {
-  score: number;
+  score: number | null;
   confidence: number;
+  vs: "baseline" | "reference" | "baseline+reference";
+  unlocked: boolean;
+  provisional?: boolean;
+  note?: string;
+  judges?: Record<string, number>;
+  cues?: Record<string, number>;
+  /** Present on locked steps in the wire file. UI code must not read it. */
+  score_if_unlocked?: number | null;
 };
 
-/** Wire shape: summary.<step>.{score,confidence} and summary.gate. */
-export type AnalyzeSummary = {
-  gate: string | null;
-} & Record<string, StepSummary | string | null>;
+export type AnalyzeGate = { step: AnalyzeStep; reason: string } | null;
 
-export type AnalyzeTakeResponse = {
+export type AnalyzeTake = {
   take_id: string;
-  model: string;
-  moments: MomentAnalysis[];
-  summary: AnalyzeSummary;
+  prompt_tag: string | null;
+  duration_s?: number;
+  transcript?: string | null;
+  order: AnalyzeStep[];
+  moments: AnalyzeMoment[];
+  summary: Record<AnalyzeStep, StepSummary>;
+  gate: AnalyzeGate;
+  processing_s?: number;
 };
 
-/** An intervention pattern: grid.<step>.verbal / vocal is a number in [-1, 1]. */
-export type PatternGrid = Record<string, Partial<Record<Channel, number>>>;
+export type AnalyzeDocument = {
+  schema: string;
+  package_version?: string;
+  value_range: [number, number];
+  value_scaling?: string;
+  thresholds: Record<string, number>;
+  provisional?: Record<string, string>;
+  takes: AnalyzeTake[];
+};
+
+export type PatternCell = { step: AnalyzeStep; cue: string; value: number };
 
 export type Intervention = {
   id: string;
   name: string;
-  grid: PatternGrid;
+  grid: PatternCell[];
   threshold: number;
-  rule: { step?: string };
+  rule: { step?: AnalyzeStep };
 };
 
 export type InterventionHit = {
   id: string;
   name: string;
-  step: string;
+  step: AnalyzeStep;
   overlap: number;
   threshold: number;
-  rule: { step?: string };
-  grid: PatternGrid;
+  rule: { step?: AnalyzeStep };
+  grid: PatternCell[];
 };
 
 export type InterventionPick = {
   take_id: string;
-  order: string[];
-  moment: MomentAnalysis;
+  order: AnalyzeStep[];
+  moment: AnalyzeMoment;
+  gate: AnalyzeGate;
   hits: InterventionHit[];
   shown: InterventionHit[];
   chosen_id: string | null;
@@ -95,8 +126,9 @@ export type InterventionPick = {
 /** The object the coaching chat can take. This area only fills it. */
 export type ExperimentCoachingContext = {
   source: "experiments";
-  order: string[];
-  moment: MomentAnalysis;
+  order: AnalyzeStep[];
+  moment: AnalyzeMoment;
+  gate: AnalyzeGate;
   fired: InterventionHit[];
 };
 
@@ -126,5 +158,5 @@ export type ExperimentTake = {
   self_rating: SelfRating;
   audio_name: string | null;
   transcript: string;
-  analysis: AnalyzeTakeResponse;
+  analysis: AnalyzeTake | null;
 };

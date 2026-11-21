@@ -66,16 +66,22 @@ describe("the experiment screens", () => {
     await click("[data-pair='feeling'] [data-choice='tense']");
     expect(container.querySelector("[data-prompt-text]")?.textContent).toContain("Policz na głos");
     await click("[data-pair='save'] [data-choice='yes']");
-
+    await flush();
+    expect(screen()).toBe("reading");
+    expect(container.textContent).toContain("Reading your take");
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1200)); });
     expect(screen()).toBe("analysis");
     const reading = container.querySelector("[data-experiments]")?.textContent ?? "";
     expect(leaksHiddenWord(reading)).toBeNull();
     expect(reading).toContain("vs your baseline");
     expect(reading).toContain("vs the reference");
-    expect(reading).not.toContain("engagement");
-    expect(container.querySelector(`[data-cell='vocal:${file.order[0]}']`)?.getAttribute("data-comparison")).toBe("baseline");
-    expect(container.querySelector("[data-cell='verbal:valence']")?.getAttribute("data-comparison")).toBe("reference");
+    expect(reading).toContain("not measured");
+    expect(reading).toContain("Locked");
+    expect(reading).toContain("early research version");
+    expect(reading).not.toContain("0.802");
+    expect(container.querySelector("[data-gate]")?.getAttribute("data-gate")).toBe("engagement");
     expect(container.querySelector("[data-gate]")?.textContent).toContain("how much you join in");
+    expect(container.querySelector("[data-summary-step='arousal']")?.textContent).toContain("Locked");
 
     await click("[data-pair='next'] [data-choice='yes']");
     expect(screen()).toBe("pick");

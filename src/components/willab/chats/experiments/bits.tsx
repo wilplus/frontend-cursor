@@ -3,23 +3,25 @@
 import type { ReactNode } from "react";
 
 /** The body under the builder's one top bar. Nothing here scrolls. */
-export function Frame({ screen, kicker, title, children, foot }: {
+export function Frame({ screen, kicker, title, children, foot, wide = false }: {
   screen: string;
   kicker?: string;
   title: string;
   children: ReactNode;
   foot?: ReactNode;
+  wide?: boolean;
 }) {
+  const width = wide ? "max-w-5xl" : "max-w-3xl";
   return (
     <div data-experiments="" data-exp-screen={screen} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col justify-center gap-3 overflow-hidden px-6 py-3">
+      <div className={`mx-auto flex min-h-0 w-full ${width} flex-1 flex-col justify-center gap-2 overflow-hidden px-6 py-3`}>
         <div className="flex flex-col gap-1">
           {kicker ? <p className="m-0 text-[13px] font-medium text-muted-foreground">{kicker}</p> : null}
           <p className="m-0 text-[22px] font-semibold leading-tight text-foreground">{title}</p>
         </div>
         {children}
       </div>
-      {foot ? <div className="mx-auto w-full max-w-3xl shrink-0 px-6 pb-4">{foot}</div> : null}
+      {foot ? <div className={`mx-auto w-full ${width} shrink-0 px-6 pb-4`}>{foot}</div> : null}
     </div>
   );
 }

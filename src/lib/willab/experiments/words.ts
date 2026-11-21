@@ -1,4 +1,4 @@
-import type { CellReference, Prompt, PromptFile } from "./types";
+import type { CellVs, Prompt, PromptFile } from "./types";
 
 /* Plain words for the screen. The step order, the cell tags and the
    self-rating choices come from the prompt file. These phrases only
@@ -19,7 +19,24 @@ const TAG_WORDS: Record<string, string> = {
   clarity: "Make it clear",
 };
 
-const HIDDEN = /\b(arousal|valence|angry|happy|sad|stressed|anxious|anxiety)\b/i;
+const HIDDEN = /\b(arousal|valence|dominance|sentiment|wavlm|angry|anger|happy|happiness|sad|sadness|stressed|anxious|anxiety|emotion)\b/i;
+
+const CUE_WORDS: Record<string, string> = {
+  voiced_ratio: "Share of voice",
+  loudness: "Loudness",
+  speech_activity_rate: "Time speaking",
+  pitch_level: "Voice height",
+  pitch_range: "Voice width",
+  voice_brightness: "Voice brightness",
+  wavlm_arousal: "Voice lift",
+  wavlm_valence: "How the voice sits",
+  wavlm_dominance: "Voice firmness",
+  pitch_variability: "Pitch changes",
+  word_sentiment: "How the words read",
+  business_case_coverage: "Page covered",
+  semantic_similarity: "Close to the page",
+  filler_word_rate: "Filler words",
+};
 
 export function axisWords(axis: string): string {
   return AXIS_WORDS[axis] ?? "this step";
@@ -30,8 +47,31 @@ export function axisTitle(axis: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export function comparisonWords(reference: CellReference): string {
+export function comparisonWords(reference: CellVs | "baseline+reference"): string {
+  if (reference === "baseline+reference") return "vs your baseline and the page";
   return reference === "baseline" ? "vs your baseline" : "vs the reference";
+}
+
+export function cueWords(cue: string): string {
+  return CUE_WORDS[cue] ?? "This measure";
+}
+
+/** Plain gate line. The model's reason chooses the second sentence.
+    Field names in that reason are not shown. */
+export function gateSentence(gate: { step: string; reason: string } | null): string {
+  if (!gate) return "Every step is clear enough.";
+  const name = axisWords(gate.step);
+  const reason = gate.reason.toLowerCase();
+  if (reason.includes("business case") || reason.includes("no page") || reason.includes("reference")) {
+    return `The first step that is not clear enough is ${name}. There is no page to read it against.`;
+  }
+  if (reason.includes("too low")) {
+    return `The first step that is not clear enough is ${name}. It sits below your usual voice.`;
+  }
+  if (reason.includes("confidence") || reason.includes("not sure")) {
+    return `The first step that is not clear enough is ${name}. The reading is not sure yet.`;
+  }
+  return `The first step that is not clear enough is ${name}.`;
 }
 
 export function tagWords(tag: string): string {

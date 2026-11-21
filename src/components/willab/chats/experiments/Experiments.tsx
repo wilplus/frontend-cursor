@@ -4,17 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { publishExperimentContext } from "@/lib/willab/experiments/contextStore";
 import { useExperimentVersion } from "@/lib/willab/experiments/context";
 import { pickInterventions } from "@/lib/willab/experiments/overlap";
-import { sampleAnalysis } from "@/lib/willab/experiments/sample";
+import { readingFor } from "@/lib/willab/experiments/sample";
 import {
+  beginAnalysis,
   deleteMine,
   openSession,
   promptSchema,
+  readAnalysis,
   readInterventions,
-  readTakes,
   saveTake,
 } from "@/services/api/experiments";
-import type { AnalyzeTakeResponse, PromptFile } from "@/lib/willab/experiments/types";
-import { Analysis, Consent, Delete, Export, Library, Menu, Pick, PromptStep, Upload, type View } from "./screens";
+import type { AnalyzeTake } from "@/lib/willab/experiments/types";
+import { Analysis, Consent, Delete, Export, Library, Menu, Pick, PromptStep, Reading, Upload, type View } from "./screens";
 
 /* The private experiment area. One screen at a time, under the builder's
    bar. Results stay with the volunteer. The prompt file supplies the order,
@@ -32,12 +33,15 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
     if (view.name === "menu") return false;
     if (view.name === "upload") return step({ name: "consent" });
     if (view.name === "prompt" && view.said) return step({ ...view, said: false, rating: {} });
-    if (view.name === "analysis" && !view.sample) {
+    if (view.name === "reading") {
+      return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, rating: view.rating });
+    }
+    if (view.name === "analysis" && view.source === "saved") {
       return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, rating: view.rating });
     }
     if (view.name === "pick" && view.rules) return step({ ...view, rules: false });
-    if (view.name === "pick" && !view.sample && view.sessionId) {
-      return step({ name: "analysis", sessionId: view.sessionId, index: view.index, takeId: view.takeId, moment: view.moment, sample: false, rating: {} });
+    if (view.name === "pick" && view.source === "saved" && view.sessionId) {
+      return step({ name: "analysis", sessionId: view.sessionId, index: view.index, takeId: view.takeId, moment: view.moment, source: "saved", rating: {} });
     }
     if (view.name === "library" && view.editing) return step({ name: "library", index: view.index, editing: false, adding: false });
     if (view.name === "delete" && view.step !== "ask") return step({ name: "delete", step: "ask" });
@@ -57,8 +61,8 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   const openMenu = (id: string) => {
     if (id === "session") return setView({ name: "consent" });
     if (id === "library") return setView({ name: "library", index: 0, editing: false, adding: false });
-    if (id === "sample") return setView({ name: "analysis", sessionId: "", index: 0, takeId: "sample", moment: 0, sample: true, rating: {} });
-    if (id === "rules") return setView({ name: "pick", sessionId: null, index: 0, takeId: "sample", moment: 0, sample: true, rules: true, slot: 0, cell: 0 });
+    if (id === "sample") return setView({ name: "analysis", sessionId: "", index: 0, takeId: "sample", moment: 0, source: "open", rating: {} });
+    if (id === "rules") return setView({ name: "pick", sessionId: null, index: 0, takeId: "sample", moment: 0, source: "gate", rules: true, slot: 0, cell: 0 });
     if (id === "export") return setView({ name: "export" });
     setView({ name: "delete", step: "ask" });
   };
@@ -81,14 +85,14 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
       />
     );
   }
+  if (view.name === "reading") return <Reading />;
   if (view.name === "analysis") {
     return (
       <Analysis
-        file={file}
         view={view}
         onMoment={(moment) => setView({ ...view, moment })}
-        onTry={() => setView({ name: "pick", sessionId: view.sessionId || null, index: view.index, takeId: view.takeId, moment: view.moment, sample: view.sample, rules: false, slot: 0, cell: 0 })}
-        onNext={() => (view.sample ? setView({ name: "menu", page: menuPage }) : advance(view.sessionId, view.index))}
+        onTry={() => setView({ name: "pick", sessionId: view.sessionId || null, index: view.index, takeId: view.takeId, moment: view.moment, source: view.source, rules: false, slot: 0, cell: 0 })}
+        onNext={() => (view.source === "saved" ? advance(view.sessionId, view.index) : setView({ name: "menu", page: menuPage }))}
       />
     );
   }
@@ -145,22 +149,30 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
     if (!prompt || !rating.energy || !rating.feeling) return;
     const take = await saveTake({ sessionId: current.sessionId, prompt, selfRating: { energy: rating.energy, feeling: rating.feeling } });
     if (!take) return;
-    setView({ name: "analysis", sessionId: current.sessionId, index: current.index, takeId: take.id, moment: 0, sample: false, rating });
+    setView({ name: "reading", sessionId: current.sessionId, index: current.index, takeId: take.id, rating });
+    await beginAnalysis(take.id);
+    const ready = await waitForReading(take.id);
+    if (!ready) return;
+    setView({ name: "analysis", sessionId: current.sessionId, index: current.index, takeId: take.id, moment: 0, source: "saved", rating });
   }
   function choose(current: Extract<View, { name: "pick" }>, chosen: string | null) {
-    const analysis = reading(file, current.takeId);
-    const moment = analysis?.moments[current.moment];
-    if (analysis && moment) {
-      const pick = pickInterventions(moment, readInterventions(), file.order, current.takeId);
+    const analysis = readingFor(current.source === "open" ? "open" : "gate");
+    const moment = analysis.moments[current.moment];
+    if (moment) {
+      const pick = pickInterventions(moment, readInterventions(), analysis.order, current.takeId, analysis.gate);
       const fired = chosen ? pick.shown.filter((hit) => hit.id === chosen) : pick.shown;
-      publishExperimentContext({ source: "experiments", order: [...file.order], moment, fired });
+      publishExperimentContext({ source: "experiments", order: analysis.order, moment, gate: analysis.gate, fired });
     }
-    if (current.sample || !current.sessionId) setView({ name: "menu", page: menuPage });
+    if (current.source !== "saved" || !current.sessionId) setView({ name: "menu", page: menuPage });
     else advance(current.sessionId, current.index);
   }
 }
 
-function reading(file: PromptFile, takeId: string): AnalyzeTakeResponse | null {
-  if (takeId === "sample") return sampleAnalysis("sample", file);
-  return readTakes().find((take) => take.id === takeId)?.analysis ?? null;
+async function waitForReading(takeId: string): Promise<AnalyzeTake | null> {
+  for (let i = 0; i < 8; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const ready = await readAnalysis(takeId);
+    if (ready) return ready;
+  }
+  return null;
 }
