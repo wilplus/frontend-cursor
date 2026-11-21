@@ -10,6 +10,7 @@ import type { SendKind } from "@/services/api/hostSetup";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { tryMyChat } from "@/services/api/hostSetup";
 import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
+import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
 
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
@@ -17,12 +18,13 @@ import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 type Bubble = { who: "them" | "me"; text: string };
 
 function localReply(doc: CoachDefinition, kind: "text" | "rec"): string[] {
+  const extra = readTalkDraft()?.codeLine?.trim();
   if (kind === "rec") {
     const lines = doc.walk.steps.map((step) => step.fixed).filter((line) => line.trim());
-    if (lines.length) return lines.slice(0, 3);
+    if (lines.length) return extra ? [...lines.slice(0, 3), extra] : lines.slice(0, 3);
   }
   const line = doc.chat.line || doc.chat.hello;
-  return line ? [line] : [];
+  return [line, extra].filter((item): item is string => Boolean(item && item.trim()));
 }
 
 export default function VisitorTry({ name, doc, sends, onBack }: {

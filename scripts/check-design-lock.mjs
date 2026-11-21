@@ -191,17 +191,22 @@ function barDivergence(cwd) {
   if (!read("src/components/willab/chats/TopBar.tsx")) return [];
   const problems = [];
   const top = read("src/components/willab/chats/TopBar.tsx");
+  const header = read("src/components/willab/PageHeader.tsx");
   const thread = read("src/components/willab/chats/ChatThread.tsx");
+  const chatBar = read("src/components/willab/chats/ChatBar.tsx");
   const build = read("src/components/willab/chats/WillBuild.tsx");
   const talk = read("src/components/willab/chats/hostsetup/TalkBuild.tsx");
-  const rail = "WILLAB_CONTENT_RAIL} flex h-[60px] items-center gap-1 px-[15px]";
-  const bar = 'data-chat-bar className="flex min-h-[60px] shrink-0 items-center gap-1 p-2"';
-  if (!top.includes(rail)) problems.push("the top bar is not the locked content rail");
-  if (!thread.includes(bar)) problems.push("the chat's bottom bar is not the locked bar");
+  const code = read("src/components/willab/chats/hostsetup/CodeStep.tsx");
+  if (!header.includes("WILLAB_CONTENT_RAIL") || !header.includes("w-screen")) problems.push("the top bar is not the locked content rail");
+  if (!top.includes("PageHeader") || !top.includes("h-[60px]")) problems.push("the chat header is not the locked page header");
+  if (!chatBar.includes("export function ChatBarRow")) problems.push("the chat's bottom bar is not the locked bar");
+  if (!thread.includes("<ChatBarRow>")) problems.push("a person's chat does not use the locked bar");
   if (!build.includes("<TopBar") || build.includes("data-part-chat-bar")) problems.push("Build or a row chat draws its own top bar");
-  if (!talk.includes("BarBox") || !talk.includes("min-h-[60px] shrink-0 items-center gap-1 p-2") || talk.includes("rounded-[28px]")) {
+  if (!build.includes("rowOpen ? null : top")) problems.push("a settings row stacks a second top bar on the chat bar");
+  if (!talk.includes("BarBox") || !talk.includes("<ChatBarRow") || talk.includes("rounded-[28px]")) {
     problems.push("the talk restyles the composer");
   }
+  if (code && !code.includes("<ChatBarRow")) problems.push("your own code restyles the composer");
   return problems;
 }
 

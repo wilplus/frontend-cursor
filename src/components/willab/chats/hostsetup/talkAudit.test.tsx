@@ -154,10 +154,11 @@ describe("the talk, scored by the script", () => {
     await type("A second one");
     await tap("Send");
     await tap("Yes");
+    await tap("Paste my code");
     await tap("Write this for me");
     await tap("Keep");
     await tap("Yes");
-    expect(taps).toBe(22);
+    expect(taps).toBe(23);
     for (let n = 0; n < 10 && !snap().paste; n += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     const saved = snap();
     expect(saved.send).toEqual(["rec", "text", "photo", "file"]);

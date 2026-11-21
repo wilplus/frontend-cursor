@@ -277,7 +277,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, own_chat: { title: "Artur's chat", line: "Hi." }, can_try: false };
     act(() => root.render(createElement(Stay, null, createElement(WillBuild, { onBack: back }), createElement(HostSetupRows))));
     await flush();
-    const header = () => container.querySelector<HTMLButtonElement>("[data-build-bar] button")!;
+    const header = () => container.querySelector<HTMLButtonElement>("[data-chat-header] button[aria-label='Back']")!;
     expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Artur's chat");
     await act(async () => header().click());
     expect(back).toHaveBeenCalledTimes(1);

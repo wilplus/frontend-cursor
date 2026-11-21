@@ -56,9 +56,9 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 23 | Share copies the link | 10 | The button copies `/c/…` and says Link copied. The phone run does the same at 390×844. |
 | 24 | An icon, with the three-dots badge | 10 | The circle starts as the initial. Tapping it in the top bar opens the picker. An emoji replaces it. The badge is about 40% of the circle. |
 | 25 | Settings lists each answer | 10 | The Settings tile opens the list. Each question is one line and the answer is under it. A tap opens that question. Search stays on that list. |
-| 26 | Your own code is one tap | 10 | The row says what the code does. It opens from the list. |
+| 26 | Your own code is one tap | 10 | The row opens on its own. After Yes, the host describes what it should do or pastes code. A description becomes one line, with Keep and Change. |
 | 27 | Test the chat as a visitor | 10 | The Test tile opens the chat as a visitor. A send gets the chat's own reply. Back returns to the four tiles. |
 
-**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 40/40` at 390×844 and at 1024×768.
+**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. A settings row replaces the chat bar, so the screen has one top bar. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 70/70` at 390×844 and at 1024×768.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

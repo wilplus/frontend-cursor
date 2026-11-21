@@ -31,6 +31,8 @@ export type TalkSnap = {
   plugin: TalkPlugin | null;
   /** The first line people hear. Empty means the document's own line. */
   hello: string;
+  /** One plain line about the host's code, shown when they try the chat. */
+  codeLine?: string;
 };
 
 export type TalkBuilt = {
@@ -49,6 +51,8 @@ export type TalkBuilt = {
   ready?: boolean;
   /** The host answered the code question, including No. */
   codeAsked?: boolean;
+  /** One plain line about that code. Test reads it. */
+  codeLine?: string;
 };
 
 let memory: TalkBuilt | null = null;
@@ -78,6 +82,7 @@ export function talkBuilt(snap: TalkSnap): TalkBuilt {
     api: snap.connect,
     machine: snap.machine,
     code: snap.paste,
+    codeLine: snap.codeLine || "",
     interaction: snap.who,
     published: false,
   };
@@ -125,6 +130,7 @@ export function saveTalkDraft(built: TalkBuilt): void {
     published: memory?.published === true,
     ready: built.ready === true || memory?.ready === true,
     codeAsked: built.codeAsked === true || memory?.codeAsked === true,
+    codeLine: built.codeLine || memory?.codeLine || "",
   };
   persist();
 }
@@ -164,10 +170,10 @@ export function readTalkDefinition(): CoachDefinition | null {
 }
 
 /** Keeps a piece of code on this device. Does not call the network. */
-export function saveTalkCode(paste: string): void {
+export function saveTalkCode(paste: string, line?: string): void {
   const current = readTalkDraft();
   if (!current) return;
-  memory = { ...current, code: paste, codeAsked: true };
+  memory = { ...current, code: paste, codeAsked: true, codeLine: line ?? current.codeLine ?? "" };
   persist();
 }
 

@@ -52,6 +52,12 @@ async function run(width, height) {
   await page.locator("[data-home-row='start-own-chat'] button").click();
   await page.locator("[data-own-chat-yes]").click();
   await page.waitForSelector("[data-build-home]");
+  const bars = () => page.locator("[data-chat-header]").evaluateAll((els) => els.filter((el) => {
+    const style = getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+  }).length);
+  check(`${tag} the home has one top bar`, await bars() === 1);
   const labels = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => (el.textContent ?? "").replace(/\s+/g, "")));
   check(`${tag} four equal tiles`, labels.join(",") === "1Build,2Settings,3Test,4AI");
   check(`${tag} Build is the only highlight`, await page.locator("[data-tile-highlight]").count() === 1 && await page.locator("[data-build-tile='build'][data-tile-highlight]").count() === 1);
@@ -68,6 +74,7 @@ async function run(width, height) {
   check(`${tag} the icon opens the picker`, await page.locator("[data-chat-icon]").count() === 1);
   await page.locator("[data-icon-open]").click();
   await page.locator("[data-build-tile='build']").click();
+  check(`${tag} Build has one top bar`, await bars() === 1);
   check(`${tag} there is no express button`, await page.locator("[data-express]").count() === 0);
   await page.locator("[data-say='Speaking coach']").click();
   await page.locator("[data-talk-composer] button[type='submit']").click();
@@ -83,27 +90,49 @@ async function run(width, height) {
   check(`${tag} Build has a tick`, await page.locator("[data-tile-tick='build']").count() === 1);
   await page.locator("[data-build-tile='settings']").click();
   await page.waitForSelector("[data-answer-list]");
+  check(`${tag} Settings has one top bar`, await bars() === 1);
   const wide = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
   check(`${tag} the answer list fits`, wide && (await page.locator("[data-answer-list]").innerText()).includes("Your own code"));
   check(`${tag} each row shows a question and an answer`, (await page.locator("[data-answer-row]").count()) > 3);
-  await page.locator("[data-build-part='hello']").click();
-  await page.waitForSelector("[data-part-chat='hello']");
-  check(`${tag} a row opens its question`, true);
-  await page.locator("[data-part-chat='hello'] button[aria-label='Back']").click();
+  const rows = await page.locator("[data-answer-row]").evaluateAll((els) => els.map((el) => ({
+    id: el.getAttribute("data-build-part"),
+    title: el.querySelector("span")?.textContent?.trim() ?? "",
+  })));
+  for (const row of rows) {
+    await page.locator(`[data-build-part='${row.id}']`).click();
+    await page.waitForSelector(`[data-part-chat='${row.id}']`);
+    const header = await page.locator("[data-chat-header]").innerText();
+    check(`${tag} ${row.id} has one top bar`, await bars() === 1 && header.includes(row.title) && /\d+ of \d+/.test(header));
+    await page.locator("[data-chat-header] button[aria-label='Back']").click();
+    await page.waitForSelector("[data-answer-list]");
+  }
   await page.locator("[data-build-part='code']").click();
-  check(`${tag} your own code is one tap`, (await page.locator("[data-part-chat='code']").innerText()).includes("Add a small piece of code"));
-  await page.locator("[data-part-chat='code']").getByRole("button", { name: "No", exact: true }).click();
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  check(`${tag} code offers describe or paste`, await page.locator("[data-code-way='tell']").count() === 1 && await page.locator("[data-code-way='paste']").count() === 1 && await bars() === 1);
+  await page.locator("[data-code-way='tell']").click();
+  await page.locator("[data-part-chat='code'] textarea").fill("Notice when they hedge.");
+  await page.locator("[data-part-chat='code'] button[type='submit']").click();
+  await page.waitForSelector("[data-code-summary]");
+  check(`${tag} a description becomes one line`, (await page.locator("[data-code-summary]").innerText()).includes("It notices hedging"));
+  await page.locator("[data-code-keep]").click();
+  await page.waitForSelector("[data-answer-list]");
   await page.locator("[data-build-bar] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
   check(`${tag} Settings has a tick`, await page.locator("[data-tile-tick='settings']").count() === 1);
   await page.locator("[data-build-tile='test']").click();
   await page.waitForSelector("[data-visitor-try]");
+  check(`${tag} Test has one top bar`, await bars() === 1);
   await page.locator("[data-visitor-rec]").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-visitor-line='them']").length > 1);
-  check(`${tag} a visitor send gets the chat's reply`, true);
+  check(`${tag} a visitor send gets the chat's reply`, (await page.locator("[data-visitor-try]").innerText()).includes("It notices hedging"));
   await page.locator("[data-visitor-try] button[aria-label='Back']").click();
   check(`${tag} back returns to the builder`, await page.locator("[data-build-home]").count() === 1);
   check(`${tag} Test has a tick and AI does not`, await page.locator("[data-tile-tick='test']").count() === 1 && await page.locator("[data-tile-tick='ai']").count() === 0);
+  await page.locator("[data-build-tile='ai']").click();
+  await page.waitForSelector("[data-build-models]");
+  check(`${tag} AI has one top bar`, await bars() === 1);
+  await page.locator("[data-chat-header] button[aria-label='Back']").click();
+  await page.waitForSelector("[data-build-home]");
   const share = page.locator("[data-build-bar] [data-share-chat]");
   const box = await share.boundingBox();
   check(`${tag} share is on screen`, !!box && box.x >= 0 && box.x + box.width <= width + 1);
