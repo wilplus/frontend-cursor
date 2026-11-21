@@ -1,3 +1,9 @@
+/*
+STORY    The experiment prompts file is the one the screens read.
+OUTCOME
+  O1  The file on disk matches the parsed order, lists, and words.
+PROVES   O1 -> "reads the real file"
+*/
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { cellFor, comparisonFor } from "./grid";

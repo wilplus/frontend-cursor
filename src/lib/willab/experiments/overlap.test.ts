@@ -1,3 +1,10 @@
+/*
+STORY    Two interventions do not fire for the same moment when an
+         earlier step already covers it.
+OUTCOME
+  O1  At most two interventions show, and the earliest step wins.
+PROVES   O1 -> "fires at most two, and the earliest step in the file's order wins"
+*/
 import { describe, expect, it } from "vitest";
 import { loadPromptFile } from "./promptsYaml";
 import { pickInterventions } from "./overlap";

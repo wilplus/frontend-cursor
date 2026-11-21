@@ -1,3 +1,11 @@
+/*
+STORY    A host's experiment session stays on this device until they
+         export or delete it.
+OUTCOME
+  O1  Opening, saving, exporting, and deleting a session keep the
+      stored takes consistent.
+PROVES   O1 -> "the experiment store"
+*/
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   deleteMine,

@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+/*
+STORY    A host opens Experiments and moves through a session without
+         seeing a score or a hidden word.
+OUTCOME
+  O1  The screens follow the prompt file and stay free of hidden words.
+PROVES   O1 -> "the experiment screens"
+*/
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it } from "vitest";
