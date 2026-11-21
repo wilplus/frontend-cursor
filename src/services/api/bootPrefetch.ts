@@ -7,6 +7,7 @@ import { fetchLoungeHistory, type LoungeHistoryPage } from "./loungeMessages";
 import { loadRingState } from "./rings";
 import { getChats, type Chat } from "./chats";
 import { fetchSessionState, type SessionStateValue } from "./chatSessionState";
+import { fetchTrainings, type TrainingArc } from "./trainings";
 import { getAccess, wasMemberHere } from "./access";
 import { markChatBootStarted } from "@/lib/chatBoot";
 
@@ -65,6 +66,7 @@ const AUTHORIZATION = "processing-authorization";
 const LOUNGE_HISTORY = "lounge-history";
 const CHATS = "chats";
 const SESSION_STATE = "session-state";
+const TRAININGS = "trainings";
 
 function rememberThread(): void {
   remember(LOUNGE_HISTORY, async () => {
@@ -128,6 +130,13 @@ export async function prefetchChatOpen(opts: { parked: boolean }): Promise<void>
  *  decide; the chats no longer wait on them. */
 export function prefetchChatsDoor(): void {
   void loadRingState(); // the one shared read per page load (rings.ts)
+  remember(TRAININGS, async () => {
+    // Start the project index with the older chats read. ProductHome takes
+    // this exact in-flight request, so its stable shell does not add a new
+    // round trip after the door becomes visible.
+    if (!(await getAuthToken())) return undefined;
+    return (await fetchTrainings()) ?? undefined;
+  });
   remember(CHATS, async () => {
     // Signed out, the read would fail for a reason that is not the answer.
     if (!(await getAuthToken())) return undefined;
@@ -138,6 +147,13 @@ export function prefetchChatsDoor(): void {
 /** useChatList's first read: the prefetched list or a fresh one. */
 export async function takeChats(): Promise<Chat[] | null> {
   return (await take<Chat[]>(CHATS)) ?? getChats();
+}
+
+/** The project index for the speaking-coach home: the prefetched list or a
+ * fresh read when the door was opened without a chat boot. */
+export async function takeTrainings(): Promise<TrainingArc[] | null> {
+  const prefetched = await take<TrainingArc[] | null>(TRAININGS);
+  return prefetched !== undefined ? prefetched : fetchTrainings();
 }
 
 /** useWillabFlow's session state: the one read at /chat's open, or a fresh one. */

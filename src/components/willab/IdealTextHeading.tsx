@@ -16,15 +16,14 @@
 /* -------------------------------------------------------------------------- */
 
 /** THE WHOLE NAME (Ideal Text Final Screens: "Q3 Board pitch" in full; build
- *  plan D-IT-2). It used to stop at ~10 characters and fade, so "Garage
- *  pitch" read "Garage pitc" with room to spare. Now it takes the room the
- *  header has and an ellipsis appears only when the name truly does not fit
- *  (`truncate` ellipsizes on real overflow and never otherwise). */
+ *  plan D-IT-2). The navbar may wrap: a project name is part of the document
+ *  identity, so it must not be shortened or clipped beside the controls.
+ *  With no project name, a published coach document supplies its empty name. */
 import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
 import { idealEmptyName } from "@/lib/willab/chatBuilder/screenCopy";
 
 const TITLE_CLS =
-  "block min-w-0 truncate text-[17px] font-semibold text-foreground";
+  "block min-w-0 whitespace-normal break-words text-[17px] font-semibold leading-tight text-foreground";
 
 export default function IdealTextHeading({
   title,
@@ -41,7 +40,7 @@ export default function IdealTextHeading({
   const headerTitle = title?.trim() || idealEmptyName(coach);
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <span className={TITLE_CLS} title={headerTitle}>
+      <span className={TITLE_CLS}>
         {headerTitle}
       </span>
     </div>

@@ -8,6 +8,7 @@ import {
 import LoadingState from "./LoadingState";
 import { useOpenChat } from "./chats/loungePlace";
 import { useSignedIn } from "./useSignedIn";
+import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
 /*  LoungeThreadContext — one thread, shared by the Lounge AND the Lab          */
@@ -48,21 +49,25 @@ export function LoungeThreadProvider({
 }) {
   const own = useSignedIn();
   const signedIn = known ?? own;
+  const userId = useUserId();
   if (signedIn === null) {
     return <LoadingState placement="surface" />;
   }
-  return <LoungeThreadInner signedIn={signedIn}>{children}</LoungeThreadInner>;
+  const owner = signedIn ? userId : "guest";
+  return <LoungeThreadInner key={owner} owner={owner} signedIn={signedIn}>{children}</LoungeThreadInner>;
 }
 
 function LoungeThreadInner({
   signedIn,
+  owner,
   children,
 }: {
   signedIn: boolean;
+  owner: string | null;
   children: React.ReactNode;
 }) {
   // A host's chat that takes Takes reads its own rows (N648 item 8).
-  const thread = useLoungeThread(signedIn, useOpenChat());
+  const thread = useLoungeThread(signedIn, useOpenChat(), owner);
   return (
     <LoungeThreadCtx.Provider value={thread}>{children}</LoungeThreadCtx.Provider>
   );

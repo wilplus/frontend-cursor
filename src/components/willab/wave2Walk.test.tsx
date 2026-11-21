@@ -7,7 +7,7 @@
  *          miss my coach, a part of my feedback or a paragraph.
  * OUTCOME
  *   O1  Every moment answered and an unseen coach word: Review feedback
- *       stays, opens Step 0 only on its tap, and goes once watched: only
+ *       stays, opens Step 0 only on its tap, and clears the unseen flag once watched: only
  *       Continue clears it, ✕ keeps it, and a changed word (a new video)
  *       brings it back (N80 D4, D7; backend N77).
  *   O2  After Delete the paragraph rejoins the walk on its earlier answer,
@@ -36,7 +36,7 @@
  *       line the dot drew, and the speakers I judged, with my answers. Nothing is sent again (founder 2026-10-28,
  *       N247: "the whole feedback walk with all the things that are there
  *       that we went through").
- * PROVES   O1 -> "every moment answered: Review feedback stays for the unseen word, ..."
+ * PROVES   O1 -> "Continue marks the coach's word seen once and keeps the answered walk available"
  *          O2 -> "a paragraph whose helper words were deleted is back in the walk on its earlier answer"
  *          O3 -> "every moment answered: a bubble tapped in the Lounge opens the walk on its moment, never the text"
  *          O4 -> "one moment still waiting: its bubble opens the whole walk, the waiting step live, nothing new in the chat"
@@ -168,7 +168,7 @@ const walkScreen = () =>
 
 describe("N80: the coach's word for the Take on screen", () => {
 
-  it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once watched with Continue", async () => {
+  it("Continue marks the coach's word seen once and keeps the answered walk available", async () => {
     const waiting = vi.fn();
     const at = (reviewRequest: number, coachMessage: CoachMessage = WORD) =>
       render({ arcId: "arc-1", coachMessage, onReviewWaiting: waiting, reviewRequest });
@@ -186,13 +186,13 @@ describe("N80: the coach's word for the Take on screen", () => {
     // The lens is one chat (N81): ✕ is the thread's bar's.
     await act(async () => document.querySelector<HTMLButtonElement>('[data-feedback-walk] .walk-layer:not(.walk-ghost) button[aria-label="Close"]')!.click());
     expect(waiting).toHaveBeenLastCalledWith(true);
-    // Opened again, Continue watches it: the server hears it, and nothing
-    // waits, so the walk moves past its last screen.
+    // Continue watches it once. The canonical walk retains the answered
+    // feedback after the note, so it remains available to scroll (B10).
     await at(2);
     const cont = [...document.querySelectorAll("button")].find((b) => b.textContent === "Continue")!;
     await act(async () => cont.click());
     expect(waiting).toHaveBeenLastCalledWith(false);
-    expect(walkScreen()).toBeNull();
+    expect(walkScreen()?.getAttribute("data-testid")).toBe("walk-screen-praise");
     expect(pager()).toBeNull();
     const seen = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/api/v2/user/coach-feedback/seen"));
     expect(seen).toHaveLength(1);

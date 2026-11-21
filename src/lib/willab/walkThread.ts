@@ -662,7 +662,7 @@ export function shownStep(
  *  bubble, a new message (D5). Every other step is in the Feedback walk. */
 export function chatDrawsStep(m: LoungeMessage): boolean {
   const meta = m.metadata ?? {};
-  return m.kind !== "walk_step" || meta.step === "end" || meta.coach_update === true;
+  return m.kind !== "walk_step" || meta.step === "end" || meta.coach_update === true || meta.walk_state_only === true;
 }
 
 /** One Take's walk, as the chat draws it. */

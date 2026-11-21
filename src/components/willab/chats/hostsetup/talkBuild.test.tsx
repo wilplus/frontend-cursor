@@ -50,28 +50,65 @@ describe("talk the chat into shape", () => {
     expect(document.activeElement).toBe(box);
     expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("brief");
     await tap("Speaking coach");
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
     await act(async () => (container.querySelector("[data-my-answer]") as HTMLElement).click());
     await flush();
     expect([...container.querySelectorAll("[data-talk-replies] button")].map((b) => b.textContent)).toEqual(["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"]);
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
     await tap("ML specialist");
     expect(container.querySelector("[data-my-answer]")?.textContent).toBe("ML specialist");
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
   });
 
-  it("Yes and No walk the send kinds, and this screen has no list", async () => {
+  it("more than a typed message, then what they can send, and this screen has no list", async () => {
     const close = vi.fn();
     act(() => root.render(createElement(TalkBuild, { onList: close })));
     await tap("Speaking coach");
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
     await tap("Yes");
-    expect(container.textContent).toContain("Can they send a message?");
-    await tap("No");
-    await tap("No");
-    await tap("No");
+    expect(container.textContent).toContain("What can they send?");
+    expect([...container.querySelectorAll("[data-tap-row] button")].map((b) => b.textContent)).toEqual(["A recording", "A photo", "A file (a PDF or document)", "Done"]);
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
+    await tap("A recording");
+    await tap("Done");
     expect(container.textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
     expect(container.querySelector("[data-talk-list]")).toBeNull();
+    expect(container.querySelector("[data-talk-order]")).toBeNull();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it("a neurobiologist who takes a recording is not asked the speaking walk", async () => {
+    let tried = false;
+    act(() => root.render(createElement(TalkBuild, { onList: () => undefined, onTry: () => { tried = true; } })));
+    await tap("Neurobiologist");
+    await tap("Yes");
+    await tap("A recording");
+    await tap("Done");
+    expect(container.textContent).not.toContain("best moment");
+    expect(container.textContent).not.toContain("helper words");
+    expect(container.textContent).not.toContain("another way");
+    expect(container.querySelector("[data-talk-order]")).toBeNull();
+    expect(container.textContent).toContain("What do people ask you?");
+    expect([...container.querySelectorAll("[data-tap-row] button")].map((b) => b.textContent)).toEqual(["How the brain works", "A study", "Something else"]);
+    await tap("How the brain works");
+    expect(container.textContent).toContain("What do they get back?");
+    await tap("Next steps");
+    expect(container.textContent).toContain("Do you check each answer before someone sees it?");
+    await tap("Yes");
+    expect(container.textContent).toContain("Are these the right first questions?");
+    expect(container.textContent).toContain("How does memory work?");
+    await tap("Yes");
+    expect(container.textContent).toContain("Say go?");
+    await tap("Yes");
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
+    await tap("Keep");
+    expect(container.textContent).toContain("Kept.");
+    await tap("Publish");
+    expect(container.textContent).toContain("Live on this device.");
+    await tap("Try it out loud");
+    expect(tried).toBe(true);
   });
 
   it("done does not skip the question that is open", async () => {
@@ -86,7 +123,7 @@ describe("talk the chat into shape", () => {
     await act(async () => input.form!.requestSubmit());
     await flush();
     expect(container.querySelector("[data-talk-result]")).toBeNull();
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
     expect(container.textContent).toContain("Yes or no.");
   });
 });

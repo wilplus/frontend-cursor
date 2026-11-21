@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
+import { Archive, Pencil, Trash2 } from "lucide-react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
-import { uiText, type UiLocale } from "@/lib/uiLocale";
-import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
-import LoadingState, { VoiceMark } from "../LoadingState";
-import { useLoungeThreadMaybe } from "../LoungeThreadContext";
+import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
+import type { TrainingArc } from "@/services/api/trainings";
+import { archiveProject } from "@/services/api/projectArchive";
+import { requestProjectDeletion } from "@/services/api/projectDeletion";
+import { renameProject } from "@/services/api/projectRename";
+import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
+import { takeTrainings } from "@/services/api/bootPrefetch";
+import { VoiceMark } from "../LoadingState";
 import { PdfPage } from "../pdfSlides";
 import { ChatListRow, PersonCircle, WillMark } from "./ChatList";
 import { OwnAvatar } from "./hostsetup/ChatIconPicker";
+import ProjectRowMenu, { type RowMenuAction } from "../ProjectRowMenu";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { OWN_CHAT_EVENT, ownChatTitle, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { W } from "./hostsetup/hostSetupCopy";
@@ -19,9 +26,9 @@ import { readTalkDraft, TALK_DRAFT_EVENT } from "@/lib/willab/chatBuilder/talkDr
 /*  data for delivery and message side effects, but it is not this product's   */
 /*  primary way into speaking practice.                                      */
 /*                                                                            */
-/*  The first paint waits for both durable sources: the project index and the  */
-/*  Speaking coach thread. This prevents a previous project's shell or a       */
-/*  half-loaded coach view from being presented as the current home.           */
+/*  The project index is an optional region: it loads inside its own stable    */
+/*  slot so the Speaking coach row, existing chat, composer and primary        */
+/*  recording action do not wait for it.                                      */
 /* -------------------------------------------------------------------------- */
 
 type Status = "loading" | "ready" | "error";
@@ -44,12 +51,12 @@ export default function ProductHome({
   knownProjects?: TrainingArc[];
 }) {
   const locale = useUiLocale();
-  const thread = useLoungeThreadMaybe();
   const [projects, setProjects] = useState<TrainingArc[]>(knownProjects ?? []);
   const [status, setStatus] = useState<Status>(knownProjects ? "ready" : "loading");
   const [attempt, setAttempt] = useState(0);
   const [sheet, setSheet] = useState(false);
   const [own, setOwn] = useState(readOwnChat());
+  const [editingProject, setEditingProject] = useState<TrainingArc | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -71,7 +78,7 @@ export default function ProductHome({
     if (knownProjects) return;
     let active = true;
     setStatus("loading");
-    void fetchTrainings().then((list) => {
+    void takeTrainings().then((list) => {
       if (!active) return;
       if (list === null) {
         setStatus("error");
@@ -84,18 +91,6 @@ export default function ProductHome({
       active = false;
     };
   }, [attempt, knownProjects]);
-
-  // The provider is mounted before this component is painted. Treat a missing
-  // provider defensively as not ready; it must never produce a stale home.
-  // A dev page that passes the project list has no Lounge thread.
-  const coachReady = knownProjects !== undefined || (thread !== null && !thread.loading);
-  if (status === "loading" || !coachReady) {
-    return (
-      <div data-product-home data-product-home-loading className="flex min-h-0 flex-1">
-        <LoadingState placement="surface" label={uiText(locale, "loading")} />
-      </div>
-    );
-  }
 
   const title = ownChatTitle();
   const confirm = () => {
@@ -122,19 +117,41 @@ export default function ProductHome({
             circle={<WillMark size={48} />}
             onOpen={onOpenSpeaking}
           />
-          {status === "error" ? (
-            <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
-          ) : (
-            projects.map((project) => (
-              <HomeRow
-                key={project.arcId}
-                id={project.arcId}
-                title={project.topic}
-                circle={<ProjectCircle project={project} />}
-                onOpen={() => onOpenProject(project)}
-              />
-            ))
-          )}
+          <div data-product-projects className="min-h-[56px]">
+            {status === "loading" ? (
+              <ProjectsLoading locale={locale} />
+            ) : status === "error" ? (
+              <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
+            ) : (
+              projects.map((project) => (
+                <HomeRow
+                  key={project.arcId}
+                  id={project.arcId}
+                  title={project.topic}
+                  circle={<ProjectCircle project={project} />}
+                  subtitle={project.deletion ? uiText(locale, "projectDeletionPending") : null}
+                  disabled={Boolean(project.deletion)}
+                  actions={
+                    project.deletion
+                      ? null
+                      : (
+                        <ProjectRowMenu
+                          label={project.topic}
+                          menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: project.topic })}
+                          actions={projectActions(
+                            project,
+                            locale,
+                            setProjects,
+                            setEditingProject,
+                          )}
+                        />
+                      )
+                  }
+                  onOpen={() => onOpenProject(project)}
+                />
+              ))
+            )}
+          </div>
           {own.started ? null : (
             <HomeRow
               id="start-own-chat"
@@ -154,6 +171,21 @@ export default function ProductHome({
         </div>
       </div>
       {sheet ? <OwnChatSheet onYes={confirm} onClose={() => setSheet(false)} /> : null}
+      {editingProject ? (
+        <RenameProjectDialog
+          project={editingProject}
+          locale={locale}
+          onCancel={() => setEditingProject(null)}
+          onRenamed={(displayName) => {
+            setProjects((list) => list.map((item) =>
+              item.arcId === editingProject.arcId
+                ? { ...item, topic: displayName }
+                : item,
+            ));
+            setEditingProject(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -169,6 +201,71 @@ function OwnChatSheet({ onYes, onClose }: { onYes: () => void; onClose: () => vo
       </div>
     </div>
   );
+}
+
+function projectActions(
+  project: TrainingArc,
+  locale: UiLocale,
+  setProjects: Dispatch<SetStateAction<TrainingArc[]>>,
+  setEditingProject: Dispatch<SetStateAction<TrainingArc | null>>,
+): RowMenuAction[] {
+  return [
+    {
+      label: uiText(locale, "projectEdit"),
+      icon: Pencil,
+      failedLabel: uiText(locale, "projectEditFailed"),
+      onRun: async () => {
+        setEditingProject(project);
+        return true;
+      },
+    },
+    {
+      label: uiText(locale, "projectArchive"),
+      icon: Archive,
+      failedLabel: uiText(locale, "projectArchiveFailed"),
+      onRun: async () => {
+        const ok = await archiveProject(project.arcId);
+        if (ok) {
+          setProjects((list) => list.filter((item) => item.arcId !== project.arcId));
+        }
+        return ok;
+      },
+    },
+    {
+      label: uiText(locale, "delete"),
+      icon: Trash2,
+      destructive: true,
+      failedLabel: uiText(locale, "deleteFailed"),
+      dismissConfirmationOnFailure: true,
+      confirm: {
+        title: PROJECT_DELETION_COPY.title(project.topic),
+        body: PROJECT_DELETION_COPY.body,
+        confirmLabel: PROJECT_DELETION_COPY.confirm,
+        cancelLabel: uiText(locale, "cancel"),
+        failedLabel: uiText(locale, "deleteFailed"),
+      },
+      onRun: async () => {
+        const result = await requestProjectDeletion(project.arcId);
+        if (result.ok) {
+          setProjects((list) =>
+            list.map((item) =>
+              item.arcId === project.arcId
+                ? {
+                    ...item,
+                    deletion: result.deletion ?? {
+                      state: "pending",
+                      dueAt: null,
+                      cancellable: true,
+                    },
+                  }
+                : item,
+            ),
+          );
+        }
+        return result.ok;
+      },
+    },
+  ];
 }
 
 const PROJECT_ICON_TONES = ["#244FC5", "#FF6A14", "#E8A317"] as const;
@@ -245,12 +342,18 @@ function HomeRow({
   title,
   circle,
   pinned = false,
+  subtitle = null,
+  actions = null,
+  disabled = false,
   onOpen,
 }: {
   id: string;
   title: string;
   circle?: ReactNode;
   pinned?: boolean;
+  subtitle?: string | null;
+  actions?: ReactNode;
+  disabled?: boolean;
   onOpen: () => void;
 }) {
   return (
@@ -260,6 +363,10 @@ function HomeRow({
         pinned={pinned}
         circle={circle ?? <span aria-hidden className="h-12 w-12 shrink-0 rounded-full bg-muted" />}
         title={title}
+        subtitle={subtitle}
+        actions={actions}
+        disabled={disabled}
+        paddingClassName="pl-0"
         onOpen={onOpen}
       />
     </div>
@@ -277,5 +384,109 @@ function HomeError({ locale, onRetry }: { locale: UiLocale; onRetry: () => void 
         {uiText(locale, "tryAgain")}
       </button>
     </div>
+  );
+}
+
+function ProjectsLoading({ locale }: { locale: UiLocale }) {
+  return (
+    <div data-product-projects-loading role="status" className="flex min-h-[56px] items-center gap-2 px-3 text-[13px] text-muted-foreground">
+      <VoiceMark size={20} />
+      <span>{uiText(locale, "projectLoading")}</span>
+    </div>
+  );
+}
+
+function RenameProjectDialog({
+  project,
+  locale,
+  onCancel,
+  onRenamed,
+}: {
+  project: TrainingArc;
+  locale: UiLocale;
+  onCancel: () => void;
+  onRenamed: (displayName: string) => void;
+}) {
+  const [value, setValue] = useState(project.topic);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rename-project-title"
+    >
+      <form
+        className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (busy || !value.trim()) return;
+          setBusy(true);
+          setFailed(false);
+          void renameProject(project.arcId, value)
+            .then((displayName) => {
+              if (displayName) {
+                onRenamed(displayName);
+                return;
+              }
+              setFailed(true);
+              setBusy(false);
+            })
+            .catch(() => {
+              setFailed(true);
+              setBusy(false);
+            });
+        }}
+      >
+        <h2 id="rename-project-title" className="text-[18px] font-semibold text-foreground">
+          {uiText(locale, "projectEdit")}
+        </h2>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          aria-label={`${uiText(locale, "projectEdit")} ${project.topic}`}
+          className="mt-4 h-12 w-full rounded-2xl border border-border bg-background px-4 text-[16px] text-foreground outline-none focus:border-foreground"
+          disabled={busy}
+        />
+        {failed ? (
+          <p role="alert" className="mt-2 text-[13px] text-record">
+            {uiText(locale, "projectEditFailed")}
+          </p>
+        ) : null}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="h-11 rounded-full border border-border text-[14px] font-medium"
+          >
+            {uiText(locale, "cancel")}
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !value.trim()}
+            className="h-11 rounded-full bg-foreground text-[14px] font-semibold text-background disabled:opacity-50"
+          >
+            {uiText(locale, "projectEdit")}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }

@@ -59,7 +59,7 @@ async function run(width, height) {
   }).length);
   check(`${tag} the home has one top bar`, await bars() === 1);
   const labels = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => (el.textContent ?? "").replace(/\s+/g, "")));
-  check(`${tag} four equal tiles`, labels.join(",") === "1Build,2Settings,3Test,4AI");
+  check(`${tag} tiles are Build, Settings, Test, AI`, labels.join(",") === "Build,Settings,Test,AI");
   check(`${tag} Build is the only highlight`, await page.locator("[data-tile-highlight]").count() === 1 && await page.locator("[data-build-tile='build'][data-tile-highlight]").count() === 1);
   check(`${tag} a new chat has no ticks`, await page.locator("[data-tile-tick]").count() === 0);
   const deadEnd = async (where) => {
@@ -69,13 +69,33 @@ async function run(width, height) {
   };
   check(`${tag} no tabs or search on the home`, await page.locator("[data-build-tab], [data-part-search]").count() === 0);
   await deadEnd("the home");
-  const boxes = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => {
-    const r = el.getBoundingClientRect();
-    return { w: Math.round(r.width), h: Math.round(r.height) };
-  }));
-  const square = boxes.length === 4 && boxes.every((box) => box.w === boxes[0].w && box.h === boxes[0].h && Math.abs(box.w - box.h) <= 2);
-  const homeWide = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 && document.documentElement.scrollHeight <= document.documentElement.clientHeight + 1);
-  check(`${tag} the grid fits`, homeWide && square);
+  const layout = await page.locator("[data-build-tile]").evaluateAll((els) => {
+    const home = document.querySelector("[data-build-home]").getBoundingClientRect();
+    return {
+      homeW: home.width,
+      boxes: els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      }),
+    };
+  });
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  const equal = layout.boxes.every((box) => near(box.w, layout.boxes[0].w) && near(box.h, layout.boxes[0].h));
+  const noScroll = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 && document.documentElement.scrollHeight <= document.documentElement.clientHeight + 1);
+  if (width >= 768) {
+    const oneRow = layout.boxes.every((box) => near(box.y, layout.boxes[0].y));
+    const across = layout.boxes.every((box, i) => i === 0 || box.x > layout.boxes[i - 1].x);
+    const span = layout.boxes[3].x + layout.boxes[3].w - layout.boxes[0].x;
+    const ratio = span / layout.homeW;
+    const square = layout.boxes.every((box) => near(box.w, box.h));
+    check(`${tag} four columns at about 70% width`, oneRow && across && equal && square && ratio >= 0.65 && ratio <= 0.75 && noScroll);
+  } else {
+    const oneCol = layout.boxes.every((box) => near(box.x, layout.boxes[0].x));
+    const down = layout.boxes.every((box, i) => i === 0 || box.y > layout.boxes[i - 1].y);
+    const full = layout.boxes.every((box) => box.w >= layout.homeW - 40);
+    check(`${tag} one column, full width`, oneCol && down && equal && full && noScroll);
+  }
+  check(`${tag} a chevron sits between the tiles`, await page.locator("[data-tile-chevron]").count() === 3);
   await page.locator("[data-icon-open]").click();
   check(`${tag} the icon opens the picker`, await page.locator("[data-chat-icon]").count() === 1);
   await page.locator("[data-icon-open]").click();
@@ -88,25 +108,49 @@ async function run(width, height) {
   const replyBox = await page.locator("[data-talk-replies]").boundingBox();
   const composerBox = await page.locator("[data-talk-composer]").boundingBox();
   check(`${tag} taps sit above the input`, !!replyBox && !!composerBox && replyBox.y + replyBox.height <= composerBox.y + 2);
+  const oneRow = async (where) => {
+    check(`${tag} ${where} has one tap row`, await page.locator("[data-tap-row]").count() === 1);
+  };
   const job = (name) => page.locator("[data-talk-replies]").getByRole("button", { name, exact: true });
+  await oneRow("the jobs");
   await job("Speaking coach").click();
-  await page.waitForSelector("text=Can they send a recording?");
+  await page.waitForSelector("text=Can people send you more than a typed message?");
+  await oneRow("the send question");
   await page.locator("[data-my-answer]").first().click();
   check(`${tag} an earlier answer opens its taps`, (await page.locator("[data-talk-replies] button").allInnerTexts()).map((t) => t.trim()).join(",") === "Speaking coach,ML specialist,Neurobiologist,Someone else");
+  await oneRow("an edited answer");
   await job("ML specialist").click();
-  check(`${tag} the answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can they send a recording?").count()) > 0);
+  check(`${tag} the answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can people send you more than a typed message?").count()) > 0);
   await page.locator("[data-my-answer]").first().click();
   await job("Speaking coach").click();
-  await page.waitForSelector("text=Can they send a recording?");
+  await page.waitForSelector("text=Can people send you more than a typed message?");
   check(`${tag} the next question is one question`, (await page.locator("text=Say go?").count()) === 0);
-  for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.waitForSelector("text=What can they send?");
+  await oneRow("what they can send");
+  await page.locator("[data-kind='rec']").click();
+  await page.locator("[data-kinds-done]").click();
+  check(`${tag} a speaking coach with a recording is asked the walk`, (await page.locator("text=best moment").count()) > 0);
+  await oneRow("the question after send");
+  for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
     await page.getByRole("button", { name: answer, exact: true }).click();
+    await oneRow(answer);
   }
   await page.getByRole("button", { name: "Yes", exact: true }).click();
-  await page.locator("[data-build-bar] button[aria-label='Back']").click();
+  await page.waitForSelector("[data-answer-list]");
+  check(`${tag} Say go opens Settings`, await page.locator("[data-looks-right]").count() === 1 && await bars() === 1);
+  await page.locator("[data-looks-right]").click();
+  await page.waitForSelector("[data-visitor-try]");
+  const tapBox = await page.locator("[data-visitor-taps]").boundingBox();
+  const barBox = await page.locator("[data-visitor-try] [data-chat-bar]").boundingBox();
+  const starterText = (await page.locator("[data-visitor-taps]").innerText()).replace(/\s+/g, " ");
+  check(`${tag} Test taps sit above the box`, !!tapBox && !!barBox && tapBox.y + tapBox.height <= barBox.y + 2 && starterText.includes("Practise a talk") && !starterText.includes("How does memory"));
+  await page.getByRole("button", { name: "This works", exact: true }).click();
+  await page.waitForSelector("[data-ai-split]");
+  check(`${tag} This works opens AI`, await bars() === 1);
+  await page.locator("[data-chat-header] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
-  check(`${tag} finished setup drops the highlight`, await page.locator("[data-tile-highlight]").count() === 0);
-  check(`${tag} Build has a tick`, await page.locator("[data-tile-tick='build']").count() === 1);
+  check(`${tag} done tiles have a check and AI is next`, await page.locator("[data-tile-tick='build']").count() === 1 && await page.locator("[data-tile-tick='settings']").count() === 1 && await page.locator("[data-tile-tick='test']").count() === 1 && await page.locator("[data-build-tile='ai'][data-tile-highlight]").count() === 1);
   await page.locator("[data-build-tile='settings']").click();
   await page.waitForSelector("[data-answer-list]");
   await deadEnd("Settings");
@@ -165,6 +209,13 @@ async function run(width, height) {
   await page.waitForSelector("[data-link-copied]");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   check(`${tag} share copies /c/`, copied.includes("/c/"));
+  await page.locator("[data-build-tile='build']").click();
+  await page.locator("[data-talk-replies]").getByRole("button", { name: "Neurobiologist", exact: true }).click();
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.locator("[data-kind='rec']").click();
+  await page.locator("[data-kinds-done]").click();
+  const asked = await page.locator("[data-talk-build]").innerText();
+  check(`${tag} a neurobiologist with a recording skips the walk`, !asked.includes("best moment") && !asked.includes("helper words") && asked.includes("What do people ask you?"));
   await context.close();
 }
 

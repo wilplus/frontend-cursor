@@ -12,6 +12,11 @@ OUTCOME
       re-sent another way.
   O6  A recording with no audio in it is never sent: I am asked to record
       again, as for a Take with no clear speech.
+  O7  A Take the iPhone app recorded goes up as an m4a, so the server keeps
+      it as one (backend N655, N662); a web Take still goes up as WebM.
+  O8  A Take too large for the website route is never sent there when the
+      upload Worker can't be reached: it stays a connection failure, so the
+      copy on the device is kept and sent again, never refused as too large.
 PROVES   O1 -> "appends slides + presentation_ref + slide_advances when a deck is attached"
          O2 -> "sends only the canonical project id and upload key"
          O3 -> "routes a 504 with session_id into the async 'processing' path"
@@ -19,6 +24,8 @@ PROVES   O1 -> "appends slides + presentation_ref + slide_advances when a deck i
          O5 -> "reports `discarded`, never the connection-error copy",
                "does NOT re-send the discarded take down the BFF lane"
          O6 -> "asks for the take again instead of sending an empty recording"
+         O7 -> "names an iPhone app Take lab.m4a and a web Take lab.webm"
+         O8 -> "keeps a Take too large for the website route off it"
 WHY      Never-rule 3: never break record -> process -> Ideal Text.
 */
 import { readFileSync } from "node:fs";
@@ -269,6 +276,30 @@ describe("submitLabRecording — an aborted upload is a discard, not a failure",
     });
     const res = await submitLabRecording(baseInput(), { signal: abort.signal });
     expect(res.kind).toBe("discarded");
+    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
+  });
+});
+
+describe("submitLabRecording — the iPhone app's Take and the size of the website route", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("names an iPhone app Take lab.m4a and a web Take lab.webm", async () => {
+    await submitLabRecording({ ...baseInput(), audioBlob: new Blob(["m4a"], { type: "audio/mp4" }) });
+    expect((captured?.get("audio_file") as File).name).toBe("lab.m4a");
+    await submitLabRecording(baseInput());
+    expect((captured?.get("audio_file") as File).name).toBe("lab.webm");
+  });
+
+  it("keeps a Take too large for the website route off it", async () => {
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      return Promise.reject(new TypeError("Failed to fetch"));
+    });
+    const big = new Blob([new Uint8Array(4_500_000)], { type: "audio/mp4" });
+    const res = await submitLabRecording({ ...baseInput(), audioBlob: big });
+    expect(res).toMatchObject({ kind: "error", status: 0 });
     expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
   });
 });

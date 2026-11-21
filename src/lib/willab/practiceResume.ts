@@ -1,6 +1,12 @@
 export interface PracticeResumeSelection {
   durationSeconds: number;
   slideIndex: number;
+  /** The user's chosen recording scope. The recorder still starts from the
+   *  zero-based slideIndex for backwards compatibility with older resumes. */
+  scope?: "fragment" | "whole";
+  /** Exact 1-based project span selected for a fragment rehearsal. */
+  startSlide?: number;
+  endSlide?: number;
 }
 
 /** Recording length is fixed product behaviour; presentation target length is
@@ -66,6 +72,13 @@ export function readPracticeResume(
     return {
       durationSeconds: value.durationSeconds,
       slideIndex: value.slideIndex,
+      ...(value.scope === "fragment" || value.scope === "whole" ? { scope: value.scope } : {}),
+      ...(typeof value.startSlide === "number" && Number.isInteger(value.startSlide) && value.startSlide > 0
+        ? { startSlide: value.startSlide }
+        : {}),
+      ...(typeof value.endSlide === "number" && Number.isInteger(value.endSlide) && value.endSlide > 0
+        ? { endSlide: value.endSlide }
+        : {}),
     };
   } catch {
     return null;

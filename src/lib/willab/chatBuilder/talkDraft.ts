@@ -2,6 +2,7 @@
    network, so a draft cannot reach production. Recording, Ideal Text and
    the walk read it through usePublishedCoach. */
 
+import { startersFor } from "@/components/willab/chats/hostsetup/jobQuestions";
 import { speakingCoachSeed } from "./seed";
 import { markTileStep } from "./tileSteps";
 import type { CoachDefinition, PluginType } from "./types";
@@ -33,6 +34,12 @@ export type TalkSnap = {
   hello: string;
   /** One plain line about the host's code, shown when they try the chat. */
   codeLine?: string;
+  /** What people ask this host for, when the job is not a speaking walk. */
+  asked?: string;
+  /** What people get back: an answer, next steps, or a mark. */
+  gives?: string;
+  /** The up to three first taps. */
+  starters?: string[];
 };
 
 export type TalkBuilt = {
@@ -103,6 +110,8 @@ function shop(snap: TalkSnap): CoachDefinition {
       send: snap.send.length ? [...snap.send] : base.chat.send,
       who: snap.who,
       hello: snap.hello || (snap.spec === "Speaking coach" ? base.chat.hello : "Your chat is ready."),
+      taps: (snap.starters?.length ? snap.starters : startersFor(snap.spec)).slice(0, 3),
+      questions: snap.asked ? [{ q: snap.asked }] : [{ q: "What do you want to know?" }],
     },
     plugins,
   };
@@ -174,6 +183,18 @@ export function saveTalkCode(paste: string, line?: string): void {
   const current = readTalkDraft();
   if (!current) return;
   memory = { ...current, code: paste, codeAsked: true, codeLine: line ?? current.codeLine ?? "" };
+  persist();
+}
+
+/** The first taps, on this device, for Test and for the live chat. */
+export function saveTalkStarters(starters: string[]): void {
+  const current = readTalkDraft();
+  if (!current) return;
+  const next = starters.map((line) => line.trim()).filter(Boolean).slice(0, 3);
+  memory = {
+    ...current,
+    definition: { ...current.definition, chat: { ...current.definition.chat, taps: next } },
+  };
   persist();
 }
 

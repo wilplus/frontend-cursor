@@ -8,7 +8,7 @@ The chat list leads to Build again. "Start your own chat" is the last chat row, 
 
 The circle is the locked avatar. Tapping it in the locked top bar opens the picker: an emoji, a colour, a photo, or their initial. A three-dots badge sits on the bottom-right, about 40% of the circle, with a white ring.
 
-The builder home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Each tile is an icon, a small number and one word. Build opens the talk. Settings opens the list of questions and answers. Test opens the chat as a visitor. AI keeps the model list for a later design. Until the talk is finished, Build has a soft ring. A tick sits on a tile once that step is done, and those ticks stay on this device. The tab row and the search box are gone from this page. Search stays on the answer list.
+The builder home is four tiles: Build, Settings, Test, AI. Each tile is an icon and one word. On a wide screen they sit in one row, about 70% of the width. On a phone they stack in one column. Build opens the talk. Settings opens the list of questions and answers. Test opens the chat as a visitor. AI keeps the model list for a later design. Until the talk is finished, Build has a soft ring. A tick sits on a tile once that step is done, and those ticks stay on this device. The tab row and the search box are gone from this page. Search stays on the answer list.
 
 Share, in the locked top bar's right slot, copies the public link. That is `/c/<token>` when the host already has a join path, and the same route built from the local chat id otherwise. The button says "Link copied", and opens the phone's share sheet where the browser has one.
 
@@ -20,14 +20,14 @@ The talk asks one question at a time, in the same bubbles as every other chat. W
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 86/86` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 124/124` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.
 
 ## Scripts
 
-- Fourteen taps, then the screens read the fixture: "fourteen taps build the Speaking Coach".
+- Thirteen taps, then the screens read the fixture: "thirteen taps build the Speaking Coach".
 - Shop, including the mic: "the shop chat sets price, model and paste, and the mic transcribes".
 - An earlier answer, one question at a time, a targeted edit, chips, publish: "an earlier answer changes, then a targeted edit, chips, and publish stay on this device".
 - Phone: `node scripts/talk-e2e.mjs` runs tap, type and voice for both scripts.

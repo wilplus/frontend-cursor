@@ -3,16 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
-import { SEND, W } from "./hostSetupCopy";
+import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
-import { COACH_HELLO, editEffect, SENDS, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
+import { giveAsk, jobAsk, questionFor, startersFor, voiceJob } from "./jobQuestions";
+import { COACH_HELLO, editEffect, speakTurn, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 
 /* The chat, built by talking. One question at a time, in the same bubbles as
    every other chat. Taps sit above the box. A tap on an earlier answer opens
    that question again. The list of answers is Settings, not this screen. */
 
 const JOBS = ["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"];
+const KIND_ORDER = ["rec", "photo", "file"] as const;
+const KIND_LABEL: Record<(typeof KIND_ORDER)[number], string> = {
+  rec: "A recording",
+  photo: "A photo",
+  file: "A file (a PDF or document)",
+};
+const PILL = "min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-[9px] text-left text-[15px] font-semibold leading-snug";
 const OPENING: Line[] = [{ who: "will", text: "What do you do?" }];
 const YESNO = new Set<Phase>(["send", "walk", "who", "pay", "price", "machine", "connect", "code", "other", "plan"]);
 
@@ -26,6 +34,7 @@ function copySnap(snap: Snap): Snap {
 
 function hintFor(phase: Phase): string {
   if (phase === "brief") return "Say what you do";
+  if (phase === "for" || phase === "give") return "Or type your own";
   if (phase === "paste") return W.codePaste;
   if (phase === "describe") return W.codeDescribe;
   if (phase === "codeWay" || phase === "codeKeep") return W.codeHow;
@@ -43,7 +52,16 @@ function generatedDraft(phase: string, spec: string): string {
   return spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.";
 }
 
-function replyLabels(phase: string, models: { q: string }[], draft: string): string[] {
+function kindNames(chosen: readonly SendKind[]): string {
+  const names = KIND_ORDER.filter((id) => chosen.includes(id)).map((id) => KIND_LABEL[id]);
+  return names.length ? names.join(" and ") : "Just a typed message";
+}
+
+function replyLabels(phase: string, spec: string, models: { q: string }[], draft: string): string[] {
+  if (phase === "kinds") return [];
+  if (phase === "for") return jobAsk(spec).taps;
+  if (phase === "give") return giveAsk().taps;
+  if (phase === "starters") return ["Yes", "Change them"];
   if (phase === "brief") return JOBS;
   if (phase === "codeWay") return [W.codeTell, W.codeOwn];
   if (phase === "codeKeep") return [W.codeChange, W.codeKeep];
@@ -58,8 +76,12 @@ function replyLabels(phase: string, models: { q: string }[], draft: string): str
 const WILL = "mr-auto max-w-[88%] whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground";
 const MINE = "ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-left text-[15px] text-primary-foreground";
 
-export default function TalkBuild({ onList, models = [] }: {
+export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
   onList: () => void;
+  /** Opens the chat as a visitor, the same as the Test tile. */
+  onTry?: () => void;
+  /** Build is finished. The home opens Settings. */
+  onReady?: () => void;
   /** Models already on the account. A tap picks one. */
   models?: { id: string; q: string }[];
 }) {
@@ -73,6 +95,9 @@ export default function TalkBuild({ onList, models = [] }: {
   const [, setI] = useState(0);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<number | null>(null);
+  const [picked, setPicked] = useState<SendKind[]>([]);
+  const pickedRef = useRef<SendKind[]>([]);
+  const fixAt = useRef<number | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<Line[]>(OPENING);
   const snapRef = useRef<Snap>(blank());
@@ -89,7 +114,7 @@ export default function TalkBuild({ onList, models = [] }: {
 
   const placeholder = hintFor(editing !== null ? ((lines[editing]?.q as Phase) || phase) : phase);
   const asking = editing !== null ? (lines[editing]?.q || phase) : phase;
-  const labels = replyLabels(asking, models, draft);
+  const labels = replyLabels(asking, snap.spec, models, draft);
 
   const write = (next: { snap?: Snap; phase?: Phase; i?: number; priceAt?: number; add?: Line[]; label?: string }) => {
     const prior = copySnap(snapRef.current);
@@ -106,6 +131,10 @@ export default function TalkBuild({ onList, models = [] }: {
     setPhase(phaseRef.current);
     setI(iRef.current);
     setPriceAt(priceRef.current);
+    if (next.phase === "kinds") {
+      pickedRef.current = [];
+      setPicked([]);
+    }
     if (snapRef.current.spec) saveTalkDraft(talkBuilt(copySnap(snapRef.current)));
   };
 
@@ -115,6 +144,7 @@ export default function TalkBuild({ onList, models = [] }: {
     saveTalkDraft(built);
     markTalkReady(true);
     setSavedName(built.definition.name);
+    onReady?.();
   };
 
   const onBrief = (text: string) => {
@@ -126,7 +156,7 @@ export default function TalkBuild({ onList, models = [] }: {
     const next = { ...snapRef.current, spec };
     write({
       snap: next, phase: "send", i: 0,
-      add: [{ who: "me", text: spec, q: "brief" }, { who: "will", text: W.sendOne(SEND[SENDS[0]][0]) }],
+      add: [{ who: "me", text: spec, q: "brief" }, { who: "will", text: W.sendMore }],
     });
   };
 
@@ -139,7 +169,104 @@ export default function TalkBuild({ onList, models = [] }: {
     });
   };
 
+  const setKinds = (next: SendKind[]) => {
+    pickedRef.current = next;
+    setPicked(next);
+  };
+
+  const commitKinds = (chosen: SendKind[]) => {
+    const send: SendKind[] = (["rec", "text", "photo", "file"] as SendKind[]).filter((id) => id === "text" || chosen.includes(id));
+    const text = kindNames(chosen);
+    const editAt = editingRef.current;
+    const hadRec = snapRef.current.send.includes("rec");
+    const hasRec = send.includes("rec");
+    if (editAt !== null && hadRec === hasRec) {
+      const nextLines = linesRef.current.map((row, n) => (n === editAt ? { ...row, text } : row));
+      const next = { ...snapRef.current, send };
+      linesRef.current = nextLines;
+      snapRef.current = next;
+      setLines(nextLines);
+      setSnap(next);
+      editingRef.current = null;
+      setEditing(null);
+      setKinds([]);
+      if (next.spec) saveTalkDraft(talkBuilt(copySnap(next)));
+      return;
+    }
+    if (editAt !== null) {
+      const line = linesRef.current[editAt];
+      linesRef.current = linesRef.current.slice(0, editAt);
+      if (line?.before) snapRef.current = copySnap(line.before);
+      editingRef.current = null;
+      setEditing(null);
+    }
+    const voice = hasRec && voiceJob(snapRef.current.spec);
+    const ask = voice
+      ? { phase: "walk" as Phase, text: W.walkOne("best") }
+      : { phase: "for" as Phase, text: jobAsk(snapRef.current.spec).question };
+    write({ snap: { ...snapRef.current, send }, phase: ask.phase, i: 0, add: [{ who: "me", text, q: "kinds" }, { who: "will", text: ask.text }] });
+    if (!voice) {
+      const spec = snapRef.current.spec;
+      void questionFor(spec).then((got) => {
+        if (phaseRef.current !== "for" || got.question === jobAsk(spec).question) return;
+        const next = linesRef.current.map((line, n) => n === linesRef.current.length - 1 && line.who === "will" ? { ...line, text: got.question } : line);
+        linesRef.current = next;
+        setLines(next);
+      });
+    }
+    setKinds([]);
+  };
+
   const take = (text: string) => {
+    const editingKinds = editingRef.current !== null && linesRef.current[editingRef.current]?.q === "kinds";
+    if (phaseRef.current === "kinds" || editingKinds) {
+      const said = text.trim().toLowerCase();
+      if (said === "done") commitKinds(pickedRef.current);
+      else {
+        const id = KIND_ORDER.find((kind) => KIND_LABEL[kind].toLowerCase() === said);
+        if (id) setKinds(pickedRef.current.includes(id) ? pickedRef.current.filter((kind) => kind !== id) : [...pickedRef.current, id]);
+      }
+      return;
+    }
+    if (phaseRef.current === "for" || phaseRef.current === "give") {
+      const said = text.trim();
+      if (!said) return;
+      const next = phaseRef.current === "for"
+        ? { snap: { ...snapRef.current, asked: said }, phase: "give" as Phase, ask: giveAsk().question, q: "for" }
+        : { snap: { ...snapRef.current, gives: said }, phase: "who" as Phase, ask: W.talkCheck, q: "give" };
+      write({ snap: next.snap, phase: next.phase, i: 0, add: [{ who: "me", text: said, q: next.q }, { who: "will", text: next.ask }] });
+      return;
+    }
+    if (fixAt.current !== null) {
+      const list = [...(snapRef.current.starters ?? startersFor(snapRef.current.spec))];
+      const said = text.trim();
+      if (said) list[fixAt.current] = said;
+      const at = fixAt.current + 1;
+      if (at < list.length) {
+        fixAt.current = at;
+        snapRef.current = { ...snapRef.current, starters: list };
+        setSnap(snapRef.current);
+        setDraft(list[at]);
+        return;
+      }
+      fixAt.current = null;
+      write({
+        snap: { ...snapRef.current, starters: list }, phase: "plan", i: 0,
+        add: [{ who: "me", text: list.join(" · "), q: "starters" }, { who: "will", text: "Say go?" }],
+      });
+      return;
+    }
+    if (phaseRef.current === "starters" && /^yes$/i.test(text.trim())) {
+      const starters = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+      write({
+        snap: { ...snapRef.current, starters }, phase: "plan", i: 0,
+        add: [
+          { who: "me", text: "Yes", q: "starters" },
+          { who: "will", text: "Say go?" },
+        ],
+      });
+      return;
+    }
     if (phaseRef.current === "brief") onBrief(text);
     else void onSend(text);
   };
@@ -211,53 +338,58 @@ export default function TalkBuild({ onList, models = [] }: {
       return;
     }
     if (label === "Try it out loud") {
-      write({ add: [{ who: "will", text: snap.spec === "Speaking coach" ? "Hi. Record a short talk, and I'll tell you what worked." : "Say the first thing people should hear." }] });
+      onTry?.();
+      return;
+    }
+    if (q === "for") {
+      if (label === "Something else") {
+        document.querySelector<HTMLTextAreaElement>("[data-talk-composer] textarea")?.focus();
+        return;
+      }
+      write({
+        snap: { ...snapRef.current, asked: label }, phase: "give", i: 0,
+        add: [{ who: "me", text: label, q: "for" }, { who: "will", text: giveAsk().question }],
+      });
+      return;
+    }
+    if (q === "give") {
+      write({
+        snap: { ...snapRef.current, gives: label }, phase: "who", i: 0,
+        add: [{ who: "me", text: label, q: "give" }, { who: "will", text: W.talkCheck }],
+      });
+      return;
+    }
+    if (q === "starters") {
+      if (label === "Change them") {
+        const list = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+        fixAt.current = 0;
+        setDraft(list[0] ?? "");
+        return;
+      }
+      const starters = snapRef.current.starters ?? startersFor(snapRef.current.spec);
+      write({
+        snap: { ...snapRef.current, starters }, phase: "plan", i: 0,
+        add: [
+          { who: "me", text: "Yes", q: "starters" },
+          { who: "will", text: `${snapRef.current.spec || "Your chat"}. First line: ${snapRef.current.hello || "Your chat is ready."}` },
+          { who: "will", text: "Say go?" },
+        ],
+      });
       return;
     }
     submit(label);
-  };
-
-  const move = (id: typeof WALKS[number], dir: -1 | 1) => {
-    const at = snap.walk.indexOf(id);
-    const to = at + dir;
-    if (at < 0 || to < 0 || to >= snap.walk.length) return;
-    const walk = [...snap.walk];
-    const [row] = walk.splice(at, 1);
-    walk.splice(to, 0, row);
-    const next = { ...snap, walk };
-    snapRef.current = next;
-    setSnap(next);
-  };
-
-  const reorder = (from: string, onto: typeof WALKS[number]) => {
-    const walk = snap.walk.filter((k) => k !== from);
-    const at = walk.indexOf(onto);
-    walk.splice(at, 0, from as typeof WALKS[number]);
-    const next = { ...snap, walk };
-    snapRef.current = next;
-    setSnap(next);
-  };
-
-  const onChip = (id: string) => {
-    const cur = snapRef.current;
-    if (id === "machine") {
-      write({ snap: { ...cur, machine: !cur.machine } });
-      return;
-    }
-    const kind = id as SendKind;
-    const has = cur.send.includes(kind);
-    const send = has ? cur.send.filter((k) => k !== kind) : [...cur.send, kind];
-    write({ snap: { ...cur, send: send.length ? send : cur.send } });
   };
 
   const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
   const openEdit = (index: number) => {
     editingRef.current = index;
     setEditing(index);
+    const line = linesRef.current[index];
+    if (line?.q === "kinds") setKinds(KIND_ORDER.filter((id) => snapRef.current.send.includes(id)));
   };
 
   return (
-    <div data-talk-build="" data-talk-phase={phase} data-talk-saved={savedName || undefined} data-talk-snap={JSON.stringify({ spec: snap.spec, send: snap.send, walk: snap.walk, who: snap.who, pay: snap.pay, price: snap.price, machine: snap.machine, connect: snap.connect, code: snap.code, model: snap.model, otherModels: snap.otherModels, paste: snap.paste, hello: snap.hello })} className="flex min-h-0 flex-1 flex-col bg-background">
+    <div data-talk-build="" data-talk-phase={phase} data-talk-saved={savedName || undefined} data-talk-snap={JSON.stringify({ spec: snap.spec, send: snap.send, walk: snap.walk, who: snap.who, pay: snap.pay, price: snap.price, machine: snap.machine, connect: snap.connect, code: snap.code, model: snap.model, otherModels: snap.otherModels, paste: snap.paste, hello: snap.hello, asked: snap.asked, gives: snap.gives })} className="flex min-h-0 flex-1 flex-col bg-background">
       <div ref={threadRef} className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
         {lines.map((line, n) => line.who === "me" ? (
           <div
@@ -279,20 +411,6 @@ export default function TalkBuild({ onList, models = [] }: {
             <div data-bubble="" className={WILL}>{line.text}</div>
           </div>
         ))}
-        {snap.walk.length > 1 ? (
-          <ol data-talk-order="" className="m-0 flex list-none flex-col gap-2 p-0">
-            {snap.walk.map((raw) => {
-              const id = raw as typeof WALKS[number];
-              return (
-                <li key={id} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); reorder(e.dataTransfer.getData("text/plain"), id); }} className="flex min-h-12 items-center gap-2 rounded-2xl border border-border px-3">
-                  <span className="text-[15px]">{W.walkSteps[id]}</span>
-                  <button type="button" data-move="earlier" aria-label={`Earlier ${W.walkSteps[id]}`} className="ml-auto min-h-11 min-w-11 px-2" onClick={() => move(id, -1)}>Earlier</button>
-                  <button type="button" data-move="later" aria-label={`Later ${W.walkSteps[id]}`} className="min-h-11 min-w-11 px-2" onClick={() => move(id, 1)}>Later</button>
-                </li>
-              );
-            })}
-          </ol>
-        ) : null}
         {phase === "look" || phase === "done" ? (
           <div data-row="app" className="mr-auto flex max-w-[88%]">
             <div data-bubble="" data-talk-greeting="" className={WILL}>{helloLine}</div>
@@ -301,19 +419,21 @@ export default function TalkBuild({ onList, models = [] }: {
         {kept ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-kept="" className={WILL}>Kept.</div></div> : null}
         {liveDraft ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-live="" className={WILL}>Live on this device.</div></div> : null}
       </div>
-      {phase !== "brief" && editing === null ? (
-        <div data-talk-chips="" className="flex flex-wrap justify-end gap-2 px-3 pb-1">
-          {[["rec", "Record"], ["text", "Type"], ["photo", "Photo"], ["file", "File"], ["machine", "Train"]].map(([id, label]) => {
-            const on = id === "machine" ? snap.machine : snap.send.includes(id as SendKind);
+      {asking === "kinds" ? (
+        <div data-talk-replies="" data-tap-row="" className="ml-auto flex w-full max-w-[86%] flex-col items-end gap-2 px-3 pb-1">
+          {KIND_ORDER.map((id) => {
+            const on = picked.includes(id);
             return (
-              <button key={id} type="button" data-chip={id} aria-pressed={on} className={`inline-flex min-h-11 min-w-11 items-center rounded-full border px-3 text-[15px] font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`} onClick={() => onChip(id)}>{label}</button>
+              <button key={id} type="button" data-kind={id} aria-pressed={on} className={`${PILL} ${on ? "bg-primary text-primary-foreground" : "bg-background text-primary"}`} onClick={() => setKinds(on ? picked.filter((kind) => kind !== id) : [...picked, id])}>
+                {on ? `✓ ${KIND_LABEL[id]}` : KIND_LABEL[id]}
+              </button>
             );
           })}
+          <button type="button" data-kinds-done="" className={`${PILL} bg-primary text-primary-foreground`} onClick={() => commitKinds(pickedRef.current)}>{W.sendDone}</button>
         </div>
-      ) : null}
-      {labels.length ? (
+      ) : labels.length ? (
         <div className="px-3 pb-1">
-          <TapRow labels={labels} even={labels.length !== 2} onTap={onReply} dataAttr={{ "data-talk-replies": "" }} />
+          <TapRow labels={labels} even={labels.length !== 2} onTap={onReply} dataAttr={{ "data-talk-replies": "", "data-tap-row": "" }} />
         </div>
       ) : null}
       <ChatBarRow data-talk-composer="">

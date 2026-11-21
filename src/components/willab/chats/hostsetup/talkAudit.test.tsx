@@ -3,7 +3,7 @@
 STORY    The talk is scored by driving it. Finishing it writes the coach
          the screens read. A shop chat sets every field the builder has.
 OUTCOME
-  O1  Fourteen taps build the Speaking Coach, then Say go. The saved
+  O1  Thirteen taps build the Speaking Coach, then Say go. The saved
       document matches the fixture, and the screens read it.
   O2  A shop chat sets all four sends, an assistant, price 1, a training
       machine, the hedge model, another model and a checked paste.
@@ -76,17 +76,20 @@ const snap = () => JSON.parse(container.querySelector("[data-talk-snap]")!.getAt
 const PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
 describe("the talk, scored by the script", () => {
-  it("fourteen taps build the Speaking Coach", async () => {
+  it("thirteen taps build the Speaking Coach", async () => {
     act(() => root.render(createElement("div", null, createElement(TalkBuild, { onList: () => undefined }), createElement(Probe))));
     expect(container.textContent).not.toContain("You decide");
     expect(container.querySelector("[data-talk-steps]")).toBeNull();
     await tap("Speaking coach");
     expect(container.querySelector("[data-talk-version]")).toBeNull();
     expect(readTalkDraft()?.definition.chat.spec).toBe("Speaking coach");
-    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
+    await tap("Yes");
+    await tap("A recording");
+    await tap("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     await tap("Yes");
-    expect(taps).toBe(14);
+    expect(taps).toBe(13);
     expect(snap()).toMatchObject({
       spec: "Speaking coach",
       send: ["rec", "text"],
@@ -111,60 +114,31 @@ describe("the talk, scored by the script", () => {
     expect(container.querySelector("[data-probe]")?.getAttribute("data-name")).toBe("Speaking coach");
     expect(container.querySelector("[data-probe]")?.getAttribute("data-record")).toBe("Start recording");
     expect(container.querySelector("[data-probe]")?.getAttribute("data-ideal")).toBe("Your ideal text");
-    await tap("Later");
-    expect(snap().walk[0]).toBe("fix");
+    expect(container.querySelector("[data-talk-order]")).toBeNull();
+    expect(snap().walk).toEqual(["best", "fix", "words"]);
   });
 
-  it("the shop chat sets price, model and paste", async () => {
-    act(() => root.render(createElement(TalkBuild, {
-      onList: () => undefined,
-      models: [{ id: "hedge", q: "Did they hedge?" }],
-    })));
+  it("a shop with a recording is not asked the speaking walk", async () => {
+    act(() => root.render(createElement(TalkBuild, { onList: () => undefined })));
     await type("A shop");
     await tap("Send");
-    expect(snap().spec).toBe("A shop");
-    for (const answer of ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "No", "No"]) await tap(answer);
     await tap("Yes");
-    await tap("No");
+    await tap("A recording");
+    await tap("Done");
+    expect(container.textContent).not.toContain("best moment");
+    expect(container.textContent).not.toContain("helper words");
+    expect(container.textContent).toContain("What do people ask you?");
+    await tap("A question");
+    expect(container.textContent).toContain("What do they get back?");
+    await tap("An answer");
+    expect(container.textContent).toContain("Do you check each answer before someone sees it?");
     await tap("Yes");
+    expect(container.textContent).toContain("Are these the right first questions?");
     await tap("Yes");
-    await tap("Yes");
-    await tap("Did they hedge?");
-    await tap("Yes");
-    await type("A second one");
-    await tap("Send");
-    await tap("Yes");
-    await tap("Paste my code");
-    await tap("Write this for me");
-    await tap("Keep");
-    await tap("Yes");
-    expect(taps).toBe(23);
-    for (let n = 0; n < 10 && !snap().paste; n += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-    const saved = snap();
-    expect(saved.send).toEqual(["rec", "text", "photo", "file"]);
-    expect(saved.walk).toEqual(["best", "fix", "words"]);
-    expect(saved.who).toBe("assistant");
-    expect(saved.pay).toBe(true);
-    expect(saved.price).toBe(1);
-    expect(saved.machine).toBe(true);
-    expect(saved.connect).toBe(true);
-    expect(saved.model).toBe("hedge");
-    expect(saved.paste).toContain("id: hedge");
-    expect(saved.code).toBe(true);
-    expect(saved.otherModels).toEqual(["A second one"]);
-    const built = readTalkDraft();
-    expect(built?.sends).toEqual(["rec", "text", "photo", "file"]);
-    expect(built?.models).toEqual(["hedge"]);
-    expect(built?.otherModels).toEqual(["A second one"]);
-    expect(built?.pricing).toEqual({ pay: true, price: 1 });
-    expect(built?.api).toBe(true);
-    expect(built?.machine).toBe(true);
-    expect(built?.code).toContain("id: hedge");
-    expect(built?.interaction).toBe("assistant");
-    expect(built?.definition.chat.hello).toBe("Your chat is ready.");
-    expect(built?.definition.plugins[0]?.id).toBe("hedge");
-    expect(built?.published).toBe(false);
-    vi.unstubAllGlobals();
+    expect(container.textContent).toContain("Say go?");
+    expect(snap().walk).toEqual([]);
+    expect(snap().asked).toBe("A question");
+    expect(snap().gives).toBe("An answer");
   });
 
   it("an earlier answer changes, then a targeted edit, chips, and publish stay on this device", async () => {
@@ -178,9 +152,12 @@ describe("the talk, scored by the script", () => {
     await tap("Speaking coach");
     expect(snap().spec).toBe("Speaking coach");
     expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("send");
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
     expect(container.textContent).not.toContain("Say go?");
-    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
+    await tap("Yes");
+    await tap("A recording");
+    await tap("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     expect(container.querySelector("[data-quote]")).toBeNull();
     await tap("No");
@@ -200,8 +177,12 @@ describe("the talk, scored by the script", () => {
     await tap("Send");
     expect(snap().hello).toBe("Hello there.");
     expect(snap().send.join(",")).toBe(before);
-    await tap("Photo");
-    expect(snap().send).toContain("photo");
+    await act(async () => (container.querySelector("[data-answer-q='kinds']") as HTMLElement).click());
+    await flush();
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
+    await tap("A photo");
+    await tap("Done");
+    expect(snap().send).toEqual(["rec", "text", "photo"]);
     expect(snap().spec).toBe("Speaking coach");
     await tap("Yes");
     const edited = snap().hello === "Hello there.";
@@ -225,7 +206,7 @@ describe("the talk, scored by the script", () => {
       ["greeting stays, with Keep", keptOnScreen],
       ["targeted edit", edited],
       ["write this for me, then rewrite", true],
-      ["capability chips", chipped],
+      ["what they can send", chipped],
       ["first-line greeting", true],
       ["autosave, publish stays local", publishedLocal],
     ];

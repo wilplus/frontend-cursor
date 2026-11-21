@@ -1014,7 +1014,7 @@ export default function IdealTextReadout({
             <OverlayCloseButton onClick={onClose} />
           </div>
         ) : null}
-        <div className="flex flex-1 flex-col items-center justify-start gap-6 pt-1 sm:pt-3">
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* THE SAME waiting screen the pipeline phase shows, and the ONLY
               thing on it. It was once its own "Working on your text" line,
               and that copy is deleted rather than kept as a variant — the

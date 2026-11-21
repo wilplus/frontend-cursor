@@ -66,7 +66,7 @@ function passReads(): PassReads {
       (consent ??= fetchConsentChoices()
         .then((c) => c?.hasReceipt === true && c.sensitiveInformation === false)
         .catch(() => false)),
-    arcs: () => (arcs ??= fetchTrainings().catch(() => null)),
+    arcs: () => (arcs ??= fetchTrainings({ force: true }).catch(() => null)),
   };
 }
 

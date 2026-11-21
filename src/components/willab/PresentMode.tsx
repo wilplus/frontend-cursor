@@ -17,6 +17,7 @@ import {
 import { buildRootPhraseLayer } from "@/lib/willab/rootPhraseLayer";
 import { helperWordRanges } from "@/lib/willab/answeredBookmark";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /* -------------------------------------------------------------------------- */
 /*  PresentMode — the ideal text, fullscreen, for actually presenting it.      */
@@ -125,7 +126,7 @@ export default function PresentMode({
       className="dark fixed inset-0 z-50 bg-background text-foreground"
     >
       {exportFormat ? (
-        <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
+        <div className={`print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 ${TOP_NAV_SEPARATOR_CLASS} bg-background/90 px-4 py-2 backdrop-blur`}>
           <button
             type="button"
             onClick={() => void download()}

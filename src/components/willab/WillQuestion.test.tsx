@@ -141,7 +141,14 @@ function Bar({ shown, typingOff, wordsWait = false }: { shown: { metadata: Recor
           focusedInTap = document.activeElement === box.current && box.current !== null;
         }}
       />
-      {words.show ? <textarea ref={box} placeholder={TYPE_YOUR_ANSWER} /> : <span data-middle="" />}
+      {words.show ? (
+        <textarea
+          ref={box}
+          placeholder={TYPE_YOUR_ANSWER}
+          data-words-active={words.active ? "" : undefined}
+          className={words.active ? "border-primary" : "border-border"}
+        />
+      ) : <span data-middle="" />}
     </div>
   );
 }
@@ -168,4 +175,78 @@ it("the box opens only when Will asks for words; the plan's questions never open
   act(() => root.render(<Bar shown={[{ metadata: META }]} typingOff />));
   await act(async () => (host.querySelector("[data-open]") as HTMLButtonElement).click());
   expect(box()).toBeNull();
+});
+
+function QuestionWithBar({ onOtherAnswer = vi.fn(), onSubmit = vi.fn() }: { onOtherAnswer?: () => void; onSubmit?: () => void }) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  const words = useWordsBox([{ metadata: META }], false, "", box);
+  return (
+    <>
+      <WillQuestionBubble
+        body="Who were you talking to?"
+        chips={META.chips as string[]}
+        open
+        onAnswer={(choice) => {
+          if (choice === SOMETHING_ELSE) return words.start();
+          onOtherAnswer();
+        }}
+      />
+      <form onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+        {words.show ? (
+          <textarea
+            ref={box}
+            aria-label="Message Will"
+            data-words-active={words.active ? "" : undefined}
+            className={words.active ? "border-primary" : "border-border"}
+          />
+        ) : null}
+      </form>
+    </>
+  );
+}
+
+it.each([
+  ["pointer activation", (button: HTMLButtonElement) => button.click()],
+  ["keyboard activation", (button: HTMLButtonElement) => { button.focus(); button.click(); }],
+])("Something else opens the free-form box immediately on %s without submitting or changing the other replies", async (_kind, activate) => {
+  const onOtherAnswer = vi.fn();
+  const onSubmit = vi.fn();
+  act(() => root.render(<QuestionWithBar onOtherAnswer={onOtherAnswer} onSubmit={onSubmit} />));
+  const buttons = () => [...host.querySelectorAll<HTMLButtonElement>("[data-will-answers] button")];
+  const somethingElse = () => buttons().find((button) => button.textContent === SOMETHING_ELSE)!;
+  const other = () => buttons().find((button) => button.textContent === "The board")!;
+
+  await act(async () => activate(somethingElse()));
+
+  const box = host.querySelector<HTMLTextAreaElement>("textarea");
+  expect(box).not.toBeNull();
+  expect(document.activeElement).toBe(box);
+  expect(box?.selectionStart).toBe(0);
+  expect(box?.selectionEnd).toBe(0);
+  expect(box?.dataset.wordsActive).toBe("");
+  expect(box?.className).toContain("border-primary");
+  expect(onOtherAnswer).not.toHaveBeenCalled();
+  expect(onSubmit).not.toHaveBeenCalled();
+  expect(other()).toBeTruthy();
+  expect(other().disabled).toBe(false);
+});
+
+it("brings the newly opened free-form box into view while keeping the caret in it", async () => {
+  const scrollIntoView = vi.fn();
+  const previous = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "scrollIntoView");
+  Object.defineProperty(HTMLTextAreaElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scrollIntoView,
+  });
+  try {
+    act(() => root.render(<QuestionWithBar />));
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>(`[data-will-answers] button`)?.click();
+    });
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+    expect(document.activeElement).toBe(host.querySelector("textarea"));
+  } finally {
+    if (previous) Object.defineProperty(HTMLTextAreaElement.prototype, "scrollIntoView", previous);
+    else Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollIntoView");
+  }
 });

@@ -1,4 +1,5 @@
-import { PRICES, SEND, W } from "./hostSetupCopy";
+import { PRICES, W } from "./hostSetupCopy";
+import { startersFor, voiceJob } from "./jobQuestions";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
 import type { TalkPlugin, TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
@@ -8,7 +9,7 @@ export const WALKS = ["best", "fix", "words"] as const;
 export const COACH_HELLO = "Hi. Record a short talk, and I'll tell you what worked.";
 export const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
-export type Phase = "brief" | "send" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
+export type Phase = "brief" | "send" | "kinds" | "for" | "give" | "starters" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
 export type Snap = TalkSnap & { label: string };
 export type Line = {
   who: "will" | "me";
@@ -52,20 +53,15 @@ function plan(t: Turn, next: Snap, label: string, said: Line[] = t.said) {
 }
 
 function afterSend(t: Turn) {
-  const kind = SENDS[t.i];
-  let send = t.snap.send.filter((k) => k !== kind);
-  if (t.yes) send = [...send, kind];
-  if (t.i + 1 >= SENDS.length && !send.length) send = [kind];
-  const next = { ...t.snap, send };
-  const n = t.i + 1;
-  if (n < SENDS.length) {
-    t.write({ snap: next, phase: "send", i: n, add: [...t.said, { who: "will", text: W.sendOne(SEND[SENDS[n]][0]) }], label: `Send ${t.step}` });
+  if (t.yes) {
+    t.write({
+      snap: { ...t.snap, send: ["text"] }, phase: "kinds", i: 0,
+      add: [...t.said, { who: "will", text: W.sendKinds }], label: `Send ${t.step}`,
+    });
     return;
   }
-  const ask = next.send.includes("rec")
-    ? { phase: "walk" as const, text: W.walkOne("best") }
-    : { phase: "who" as const, text: W.talkCheck };
-  t.write({ snap: next, phase: ask.phase, i: 0, add: [...t.said, { who: "will", text: ask.text }], label: `Steps ${t.step}` });
+  const next = { ...t.snap, send: ["text"] as SendKind[] };
+  t.write({ snap: next, phase: "who", i: 0, add: [...t.said, { who: "will", text: W.talkCheck }], label: `Steps ${t.step}` });
 }
 
 function afterWalk(t: Turn) {
@@ -88,7 +84,18 @@ function afterWho(t: Turn) {
     return;
   }
   const who: Who = t.i === 0 ? "shadow" : t.yes ? "you" : "assistant";
-  t.write({ snap: { ...t.snap, who }, phase: "pay", add: [...t.said, { who: "will", text: W.talkPay }], label: `Coach ${t.step}` });
+  const next = { ...t.snap, who };
+  if (voiceJob(next.spec) && next.send.includes("rec")) {
+    t.write({ snap: next, phase: "pay", add: [...t.said, { who: "will", text: W.talkPay }], label: `Coach ${t.step}` });
+    return;
+  }
+  const starters = startersFor(next.spec);
+  t.write({
+    snap: { ...next, starters },
+    phase: "starters",
+    add: [...t.said, { who: "will", text: `Are these the right first questions?\n${starters.join("\n")}` }],
+    label: `Who ${t.step}`,
+  });
 }
 
 function afterPay(t: Turn) {
@@ -301,11 +308,8 @@ function editJob(line: Line, trimmed: string, snap: Snap, answer: string): Edite
 }
 
 function editSend(line: Line, yes: boolean, snap: Snap, answer: string): Edited {
-  const kind = SENDS[line.at ?? 0];
-  if (!kind || sameAnswer(line, yes)) return { snap, irrelevant: false, answer };
-  if (kind === "rec") return { snap, irrelevant: true, answer };
-  const send = yes ? [...snap.send, kind] : snap.send.filter((k) => k !== kind);
-  return { snap: { ...snap, send: send.length ? send : snap.send }, irrelevant: false, answer };
+  if (sameAnswer(line, yes)) return { snap, irrelevant: false, answer };
+  return { snap, irrelevant: true, answer };
 }
 
 function editWalk(line: Line, yes: boolean, snap: Snap, answer: string): Edited {

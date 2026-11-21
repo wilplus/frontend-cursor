@@ -32,7 +32,7 @@ export function useOneBar(): boolean {
  *  under it, so every bar in the app lines up (N639). */
 export const ONE_BAR_ROW = `flex h-[60px] shrink-0 items-center ${TOP_NAV_SEPARATOR_CLASS} px-2.5`;
 /** A walk screen's own top row, as it was. */
-const WALK_ROW = "flex min-h-[44px] items-center justify-between px-2.5 pt-2";
+const WALK_ROW = `flex min-h-[44px] items-center justify-between ${TOP_NAV_SEPARATOR_CLASS} px-2.5 pt-2`;
 
 /** A walk screen's bar controls: as given, or, opened from Will's lines,
  *  the back arrow as the only control (a screen with only a close goes back

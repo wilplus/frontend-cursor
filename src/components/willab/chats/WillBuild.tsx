@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Boxes, Check, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Boxes, Check, ChevronDown, ChevronRight, Link as LinkIcon, List, MessageSquare, Play } from "lucide-react";
 import { useBackDismiss } from "../useBackDismiss";
 import { useUserProfile } from "../useUserProfile";
 import { LetterCircle } from "./ChatList";
 import { OwnAvatar } from "./hostsetup/ChatIconPicker";
 import { copyText, publicChatHref, readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { useLocalSetup } from "@/lib/willab/chatBuilder/localSetup";
-import { readTalkDefinition, saveTalkCode } from "@/lib/willab/chatBuilder/talkDraft";
-import { useTileSteps, type TileId } from "@/lib/willab/chatBuilder/tileSteps";
+import { readTalkDefinition, saveTalkCode, saveTalkStarters } from "@/lib/willab/chatBuilder/talkDraft";
+import { markTileStep, useTileSteps, type TileId } from "@/lib/willab/chatBuilder/tileSteps";
 import { LiveBuildSwitch, TopBar, BUILD_MODE_EVENT } from "./TopBar";
 import type { HostRecipe, OwnChat, SetupPart } from "@/services/api/hostSetup";
 import HostOwnChat from "./hostsetup/HostOwnChat";
@@ -55,11 +55,13 @@ function live(recipe: HostRecipe, own: OwnChat | null): HostRecipe {
   return { ...recipe, hello: own?.hello || recipe.hello, taps };
 }
 
-const TILES: { id: TileId; n: string; word: string; Icon: typeof MessageSquare }[] = [
-  { id: "build", n: "1", word: W.tileBuild, Icon: MessageSquare },
-  { id: "settings", n: "2", word: W.tileSettings, Icon: List },
-  { id: "test", n: "3", word: W.tileTest, Icon: Play },
-  { id: "ai", n: "4", word: W.tileAi, Icon: Boxes },
+const TILE_ORDER: TileId[] = ["build", "settings", "test", "ai"];
+
+const TILES: { id: TileId; word: string; Icon: typeof MessageSquare }[] = [
+  { id: "build", word: W.tileBuild, Icon: MessageSquare },
+  { id: "settings", word: W.tileSettings, Icon: List },
+  { id: "test", word: W.tileTest, Icon: Play },
+  { id: "ai", word: W.tileAi, Icon: Boxes },
 ];
 
 /** A soft ring on Build until the talk is finished. The other tiles stay plain. */
@@ -68,18 +70,25 @@ const NEXT_RING = "shadow-[inset_0_0_0_2px_rgba(255,106,20,0.45),0_0_18px_rgba(2
 function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
   const steps = useTileSteps();
   return (
-    <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 py-6">
-      <div className="grid aspect-square w-full max-w-[min(100%,28rem)] grid-cols-2 gap-3">
-        {TILES.map(({ id, n, word, Icon }) => {
-          const next = id === "build" && !steps.build;
+    <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-4 py-4">
+      <div className="flex h-full w-full flex-col items-stretch gap-1 md:h-auto md:w-[70%] md:flex-row md:items-center md:gap-2">
+        {TILES.map(({ id, word, Icon }, index) => {
+          const nextId = TILE_ORDER.find((tile) => !steps[tile]);
+          const next = id === nextId;
           return (
+            <Fragment key={id}>
+            {index > 0 ? (
+              <span data-tile-chevron="" className="flex shrink-0 items-center justify-center text-muted-foreground">
+                <ChevronDown className="h-4 w-4 md:hidden" aria-hidden />
+                <ChevronRight className="hidden h-4 w-4 md:block" aria-hidden />
+              </span>
+            ) : null}
             <button
-              key={id}
               type="button"
               data-build-tile={id}
               data-tile-highlight={next ? "" : undefined}
               onClick={() => onOpen(id)}
-              className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground ${next ? NEXT_RING : ""}`}
+              className={`relative flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground md:aspect-square ${next ? NEXT_RING : ""}`}
             >
               {steps[id] ? (
                 <span data-tile-tick={id} className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center text-foreground">
@@ -87,11 +96,9 @@ function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
                 </span>
               ) : null}
               <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[12px] font-medium text-muted-foreground">{n}</span>
-                <span className="text-[16px] font-medium">{word}</span>
-              </span>
+              <span className="text-[16px] font-medium">{word}</span>
             </button>
+            </Fragment>
           );
         })}
       </div>
@@ -284,7 +291,19 @@ function BuildScreen(p: {
     />
   );
   if (p.tab === "models") return <Cover>{top}<Experiments onBindBack={p.onBindBack} /></Cover>;
-  if (p.visitor && doc) return <Cover><VisitorTry name={p.name} doc={doc} sends={doc.chat.send} onBack={() => p.setVisitor(false)} /></Cover>;
+  if (p.visitor && doc) {
+    return (
+      <Cover>
+        <VisitorTry
+          name={p.name}
+          doc={doc}
+          sends={doc.chat.send}
+          onBack={() => p.setVisitor(false)}
+          onWorks={() => { markTileStep("test", true); p.setVisitor(false); p.setTab("models"); }}
+        />
+      </Cover>
+    );
+  }
   if (p.visitor && p.recipe) {
     return (
       <Cover>
@@ -314,19 +333,46 @@ function BuildScreen(p: {
       </Cover>
     );
   }
+  return <BuildDesk p={p} top={top} doc={doc} />;
+}
+
+function BuildDesk({ p, top, doc }: {
+  p: Parameters<typeof BuildScreen>[0];
+  top: ReactNode;
+  doc: import("@/lib/willab/chatBuilder/types").CoachDefinition | null;
+}) {
   return (
     <Cover>
       {p.rowOpen ? null : top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
       <div className={p.active ? "hidden" : `no-scrollbar flex min-h-0 flex-1 flex-col ${p.talk ? "overflow-hidden" : "overflow-y-auto"}`}>
-        {p.talk ? <TalkBuild onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }} /> : (
-          <WillNeedsYou
-            page
-            source={p.table && !p.setup?.recipe ? p.local : null}
-            onPart={(part) => p.openPart(part.part)}
+        {p.talk ? (
+          <TalkBuild
+            onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }}
+            onTry={() => p.setVisitor(true)}
+            onReady={() => { p.setTalk(false); p.setTable(true); }}
           />
+        ) : (
+          <>
+            <WillNeedsYou
+              page
+              source={p.table && !p.setup?.recipe ? p.local : null}
+              onPart={(part) => p.openPart(part.part)}
+            />
+            {p.table ? (
+              <button type="button" data-looks-right="" className="mx-4 mb-4 min-h-11 rounded-full bg-primary px-4 text-[16px] font-medium text-primary-foreground" onClick={() => { markTileStep("settings", true); p.setTable(false); p.setVisitor(true); }}>Looks right</button>
+            ) : null}
+          </>
         )}
       </div>
+      {p.active === "starters" ? (
+        <StartersStep
+          place={W.placeInList(Math.max(1, p.order.findIndex((part) => part.part === "starters") + 1), Math.max(1, p.order.length))}
+          starters={(p.local?.recipe?.starters ?? p.setup?.recipe?.starters ?? doc?.chat.taps ?? []).slice(0, 3)}
+          onBack={p.closePart}
+          onSave={(lines) => { saveTalkStarters(lines); p.closePart(); }}
+        />
+      ) : null}
       {p.active === "code" ? (
         <CodeStep
           place={W.placeInList(Math.max(1, p.order.findIndex((part) => part.part === "code") + 1), Math.max(1, p.order.length))}
@@ -396,7 +442,7 @@ function PartChats({ p }: { p: {
       {p.seen.map((id) => {
         const index = p.order.findIndex((part) => part.part === id);
         const part = p.order[index];
-        if (!part || !p.recipe || part.part === "code") return null;
+        if (!part || !p.recipe || part.part === "code" || part.part === "starters") return null;
         const last = index === p.order.length - 1;
         const parts = (p.setup?.parts?.length ? p.setup.parts : p.local?.parts) ?? [];
         return (
@@ -418,6 +464,50 @@ function PartChats({ p }: { p: {
         );
       })}
     </>
+  );
+}
+
+function StartersStep({ starters, place, onBack, onSave }: {
+  starters: string[];
+  place: string;
+  onBack: () => void;
+  onSave: (lines: string[]) => void;
+}) {
+  const [lines, setLines] = useState(starters.length ? starters : [""]);
+  const [edit, setEdit] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const save = (next: string[]) => {
+    const clean = next.map((line) => line.trim()).filter(Boolean).slice(0, 3);
+    setLines(clean);
+    onSave(clean);
+  };
+  return (
+    <div data-part-chat="starters" data-starters="" className="flex min-h-0 flex-1 flex-col">
+      <TopBar circle={<LetterCircle id="part-starters" name="Questions people tap first" size={36} />} title="Questions people tap first" subtitle={place} onBack={onBack} />
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-4">
+        {lines.map((line, index) => (
+          <div key={`${line}-${index}`} className="flex items-center gap-2">
+            <button type="button" data-starter={index} className="min-h-11 flex-1 rounded-2xl border border-border px-3 text-left text-[16px]" onClick={() => { setEdit(index); setDraft(line); }}>{line}</button>
+            <button type="button" aria-label="Remove" className="min-h-11 px-2 text-[15px]" onClick={() => save(lines.filter((_, at) => at !== index))}>Remove</button>
+          </div>
+        ))}
+        {lines.length < 3 ? (
+          <button type="button" data-starter-add="" className="min-h-11 text-left text-[16px] font-medium text-primary" onClick={() => { setEdit(lines.length); setDraft(""); }}>Add one</button>
+        ) : null}
+        {edit !== null ? (
+          <form className="flex gap-2" onSubmit={(event) => {
+            event.preventDefault();
+            const next = [...lines];
+            next[edit] = draft;
+            save(next);
+            setEdit(null);
+          }}>
+            <input aria-label="Question" value={draft} onChange={(event) => setDraft(event.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-border px-3 text-[16px]" />
+            <button type="submit" className="min-h-11 px-3 text-[15px] font-semibold">Save</button>
+          </form>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

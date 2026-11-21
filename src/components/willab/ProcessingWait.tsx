@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import RecordingAnalysisPresentation from "./RecordingAnalysisPresentation";
 import { nextWaitPercent, waitPercent } from "@/lib/willab/waitProgress";
 import { DOCUMENT_SETTLE_CAP_MS } from "@/lib/willab/documentSettle";
@@ -78,14 +78,8 @@ export interface ProcessingWaitProps {
   /** Epoch shared by every view of one job: a new one starts the label's
    *  "never goes backwards" memory afresh. */
   readonly cycleStartedAt?: number | null;
-  /** When the CURRENT phase began, from the job marker. The document tail is
-   *  measured from it against that phase's own deadline.
-   *
-   *  Omitted, this screen's own mount stands in — the honest answer for the
-   *  two document-only surfaces, which have no marker in hand and whose wait
-   *  genuinely begins when they appear. It is NOT the job's start epoch:
-   *  seeding the tail from there would have it saturated before the document
-   *  phase began, which says "nearly there" without having watched anything. */
+  /** When the CURRENT phase began, from the job marker. Retained for the
+   *  document-settle contract; it is not converted into visible progress. */
   readonly phaseStartedAt?: number | null;
   /** The wait's labels, in order. Absent: the five the screen already uses. */
   readonly labels?: readonly string[] | null;
@@ -131,38 +125,23 @@ export default function ProcessingWait({
   reachedRef.current = Math.max(reachedRef.current, floored);
   const current = reachedRef.current;
 
-  /* ONE BAR ACROSS THE WHOLE WAIT (founder 2026-09-19: "there is no
-     continuity there and it feels like it's stale"; 2026-09-22: "ensure that
-     the progress bar ends when the full processing AND the text building is
-     done so that 100% means instant switch to the ideal text").
-
-     `held` is the analysis phase's own percent — real while reported, held
-     afterwards, never falling. `waitPercent` then maps it into the lower nine
-     tenths of the bar and gives the document phase the slice above, easing
-     toward 99 against that phase's real deadline. The last point belongs to
-     settlement, so a full bar is never something the speaker waits behind.
-     The rule and the reversal it represents live in `waitProgress.ts`. */
+  /* ONE BAR ACROSS THE WHOLE WAIT. `held` is the analysis phase's own percent
+     — real while reported, held afterwards, never falling. `waitPercent`
+     keeps that value honest during document assembly and only uses a new
+     document value when the backend provides one. It never advances merely
+     because time has passed. */
   const held = useRef<number | null>(null);
   held.current = nextWaitPercent(held.current, progress?.percent ?? null);
   const shown = useRef<number | null>(null);
-
-  // THE TAIL NEEDS A CLOCK. Nothing else re-renders this screen during the
-  // document phase: the marker stops changing at the handover, so without a
-  // tick the bar would be as motionless as the label was.
-  const mountedAt = useRef(Date.now());
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (phase !== "document") return;
-    const id = setInterval(() => tick((n) => n + 1), 1_000);
-    return () => clearInterval(id);
-  }, [phase]);
 
   shown.current = waitPercent({
     previous: shown.current,
     held: held.current,
     reported: phase === "document" ? (progress?.percent ?? null) : null,
     phase,
-    phaseElapsedMs: Date.now() - (phaseStartedAt ?? mountedAt.current),
+    // Compatibility fields for the document-settle contract. The wait bar
+    // deliberately ignores elapsed time and never invents a percentage from it.
+    phaseElapsedMs: 0,
     capMs: DOCUMENT_SETTLE_CAP_MS,
   });
 

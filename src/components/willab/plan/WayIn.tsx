@@ -160,7 +160,7 @@ export function WayInTop({
 }: {
   /** The plan says Take 1 of the way in, its walk not yet done. */
   on: boolean;
-  resume: { status: string } | null;
+  resume: { status: string; serverState?: "processing" | null } | null;
   /** Take 1's project, once its feedback was seen ready here. */
   readyArc: string | null;
   /** The plan says the walk is ready. */
@@ -170,7 +170,10 @@ export function WayInTop({
 }) {
   if (!on) return null;
   const ready = readyArc !== null || walkReady;
-  if (!ready && resume?.status !== "analyzing") return null;
+  if (
+    !ready &&
+    (resume?.status !== "analyzing" || resume.serverState !== "processing")
+  ) return null;
   return <WayInProcessingRow label={label} ready={ready} onOpen={onOpen} />;
 }
 

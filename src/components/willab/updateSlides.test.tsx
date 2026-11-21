@@ -104,12 +104,32 @@ function IdealTextHeader({ hasDeck }: { hasDeck: boolean }) {
   );
 }
 
+function IdealTextEditHeader({ onEdit }: { onEdit: () => void }) {
+  return createElement(IdealTextMenu, {
+    arcId: "arc-1",
+    saved: null,
+    onSaved: () => undefined,
+    onEdit,
+    onCopy: () => undefined,
+    copied: false,
+  });
+}
+
 async function openMenu(hasDeck: boolean) {
   act(() => root.render(createElement(IdealTextHeader, { hasDeck })));
   await act(async () => document.body.querySelector<HTMLButtonElement>('[aria-label="More"]')?.click());
 }
 
 describe("Update slides on the Ideal Text page", () => {
+  it("opens the editable Ideal Text route from the overflow menu", async () => {
+    const onEdit = vi.fn();
+    act(() => root.render(createElement(IdealTextEditHeader, { onEdit })));
+    await act(async () => document.body.querySelector<HTMLButtonElement>('[aria-label="More"]')?.click());
+    expect(button("Edit ideal text")).toBeDefined();
+    await act(async () => button("Edit ideal text")?.click());
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
   it("the ⋯ item says Add slides without a deck and Update slides with one", async () => {
     await openMenu(false);
     expect(button("Add slides")).toBeDefined();

@@ -1,13 +1,6 @@
-import { Suspense } from "react";
-import LoadingState from "@/components/willab/LoadingState";
-import AuditsPageClient from "./page.client";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function AuditsPage() {
-  return (
-    <Suspense fallback={<LoadingState placement="viewport" />}>
-      <AuditsPageClient />
-    </Suspense>
-  );
+/** The old audit/transcript list is now the project conversation. */
+export default function AuditsPage(): never {
+  redirect("/chat");
 }

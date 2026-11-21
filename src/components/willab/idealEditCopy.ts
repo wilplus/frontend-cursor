@@ -27,6 +27,12 @@ export const IDEAL_EDIT_COPY = {
      so any specific line here would be a guess presented as fact. */
   recordUnavailable: "Recording another take is not available right now.",
 
+  /* Project practice's two scopes (founder-approved continuation handoff,
+     2026-11-18). Keep these here so the paired CTA cannot introduce a second
+     copy path or drift from the app's localized-copy boundary. */
+  practiceRepeatFragment: "Repeat this fragment",
+  practiceWholePresentation: "Rehearse whole presentation",
+
   /* --- failures ---------------------------------------------------------- */
   /* --- V3 could not make the Feedback (Phase 2; signed off 2026-10-04) --- */
   feedbackFailed:
@@ -35,6 +41,15 @@ export const IDEAL_EDIT_COPY = {
 
   tooLong:
     "That is longer than this text can hold. Nothing was lost, trim it a little and it saves.",
+
+  /* The editor keeps its draft mounted on every recoverable write failure.
+     These are deliberately short, localizable states rather than transport
+     errors leaking into the screen. */
+  editorSaved: "Saved.",
+  editorSaveFailed:
+    "Couldn't save your edit just now. Your edits are still here. Try Save again.",
+  editorSaveAuthority:
+    "Your access needs to be refreshed before this can be saved. Your edits are still here.",
 
   /* --- MATERIAL RECOVERY (founder-approved 2026-08-07) -------------------- */
   /* Words the speaker SAID, on a slide their script has no block for. Not a
@@ -885,3 +900,5 @@ export const PAST_TAKE_COPY = {
   notSaved: (take: number, latest: number): string =>
     `Take ${take}'s words weren't saved. This is Take ${latest}.`,
 } as const;
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; project practice scope labels are centralized with the Ideal Text copy.

@@ -41,6 +41,8 @@ export type HostRecipe = {
   hello: string;
   questions: { q: string }[];
   taps: string[];
+  /** The up to three first questions people tap. */
+  starters?: string[];
   smart: boolean;
   way: "use" | "own";
   models: RecipeModel[];
@@ -240,6 +242,15 @@ export type AskReply = {
 };
 
 /** The host's chat, answered from their setup. Null or preview: use today's lines. */
+/** A Test answer the host keeps, for Training. The reply route stores it. */
+export async function keepReplyExample(chatId: string, ask: string, answer: string): Promise<boolean> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, {
+    method: "POST",
+    json: { keep: true, ask, answer },
+  });
+  return body !== null;
+}
+
 export async function askReply(chatId: string, json: Record<string, unknown>): Promise<AskReply | null> {
   return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, { method: "POST", json })) as AskReply | null;
 }

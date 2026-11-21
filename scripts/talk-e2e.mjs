@@ -107,13 +107,16 @@ try {
       return send(text);
     };
     await give("Speaking coach");
-    await page.waitForSelector("text=Can they send a recording?");
+    await page.waitForSelector("text=Can people send you more than a typed message?");
     await page.locator("[data-my-answer]").first().click();
     await click("ML specialist");
-    check(`${mode} an earlier answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can they send a recording?").count()) > 0);
+    check(`${mode} an earlier answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can people send you more than a typed message?").count()) > 0);
     await page.locator("[data-my-answer]").first().click();
     await click("Speaking coach");
-    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await give(answer);
+    await give("Yes");
+    await give("A recording");
+    await give("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await give(answer);
     check(`${mode} plan before build`, (await page.locator("text=Say go?").count()) > 0);
     check(`${mode} not saved as the live coach yet`, (await page.locator("[data-talk-greeting]").count()) === 0);
     await give("Yes");
@@ -133,17 +136,17 @@ try {
       if (await button.count()) return button.first().click();
       return send(text);
     };
-    for (const answer of ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "No", "No", "Yes", "No", "Yes", "Yes", "Yes"]) await give(answer);
-    await give("Did they hedge?");
     await give("Yes");
-    await give("A second one");
+    await give("A recording");
+    await give("Done");
+    const asked = await page.locator("[data-talk-build]").innerText();
+    check(`${mode} a shop skips the speaking walk`, !asked.includes("best moment") && asked.includes("What do people ask you?"));
+    await give("A question");
+    await give("An answer");
     await give("Yes");
-    await give("Paste my code");
-    await give("Write this for me");
-    await give("Keep");
+    check(`${mode} a shop is asked about its first questions`, (await page.locator("text=Are these the right first questions?").count()) > 0);
     await give("Yes");
-    const saved = await snap();
-    check(`${mode} shop fields`, saved.spec === "A shop" && saved.price === 1 && saved.model === "hedge" && saved.paste.includes("id: hedge") && saved.otherModels[0] === "A second one" && saved.who === "assistant");
+    check(`${mode} a shop reaches say go`, (await page.locator("text=Say go?").count()) > 0);
   }
 
   for (const mode of ["tap", "type"]) {
@@ -159,7 +162,8 @@ try {
   await page.getByRole("button", { name: "Someone else", exact: true }).click();
   check("someone else focuses the box", await page.evaluate(() => document.activeElement?.tagName === "TEXTAREA"));
   await page.getByRole("button", { name: "Speaking coach", exact: true }).click();
-  check("a job asks the next question", (await page.locator("text=Can they send a recording?").count()) > 0 && (await page.locator("text=Say go?").count()) === 0);
+  check("a job asks the next question", (await page.locator("text=Can people send you more than a typed message?").count()) > 0 && (await page.locator("text=Say go?").count()) === 0);
+  check("one tap row", (await page.locator("[data-tap-row]").count()) === 1);
   const boxes = await page.$$eval("[data-talk-screen] button", (els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { text: (el.textContent || "").trim().slice(0, 24), w: Math.round(r.width), h: Math.round(r.height) };

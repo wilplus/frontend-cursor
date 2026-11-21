@@ -4,6 +4,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
+import { TOP_NAV_CONTENT_CLASS, TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /**
  * Shared sticky header for the public marketing pages (About, Journal/blog —
@@ -24,24 +25,26 @@ export default function SiteHeader() {
   const menu = useAppMenuData();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur">
-      <Link href="/" className="no-underline" aria-label="WillpowerLab — home">
-        <Logo />
-      </Link>
+    <header className={`sticky top-0 z-30 ${TOP_NAV_SEPARATOR_CLASS} bg-background/85 backdrop-blur`}>
+      <div className={`${TOP_NAV_CONTENT_CLASS} flex h-14 items-center justify-between`}>
+        <Link href="/" className="no-underline" aria-label="WillpowerLab — home">
+          <Logo />
+        </Link>
 
-      <AppMenu
-        authState={menu.authState}
-        userEmail={menu.userEmail}
-        tokensLabel={menu.tokensLabel}
-        lifeMenu={menu.lifeMenu}
-        productMenu={menu.productMenu}
-        onLogout={menu.logout}
-        loggingOut={menu.loggingOut}
-        labHref="/chat"
-        // Every signed-in person (founder 2026-09-25, E4 = A); the
-        // menu already hides it from anyone signed out.
-        dataConsentHref="/account/data-consent"
-      />
+        <AppMenu
+          authState={menu.authState}
+          userEmail={menu.userEmail}
+          tokensLabel={menu.tokensLabel}
+          lifeMenu={menu.lifeMenu}
+          productMenu={menu.productMenu}
+          onLogout={menu.logout}
+          loggingOut={menu.loggingOut}
+          labHref="/chat"
+          // Every signed-in person (founder 2026-09-25, E4 = A); the
+          // menu already hides it from anyone signed out.
+          dataConsentHref="/account/data-consent"
+        />
+      </div>
     </header>
   );
 }

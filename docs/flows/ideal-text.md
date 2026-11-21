@@ -14,9 +14,40 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 
 Much of this lock was superseded for the walk on 2026-10-06: the walk through the text, praise, practise and the helper words inside the walk are on the walk's page ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md), C and F), and **where the walk's page covers the same thing, the walk's page wins**. What stays here is the Ideal Text page's own lock.
 
+### The loading frame
+
+When a Take's document is still assembling, the Ideal Text page uses the same
+full-surface frame as the recording screen: one centered circular three-dot
+loading bubble, one stable content footprint, and no second loader introduced
+while the phase changes. Ordinary page reads, route openings and overlays use
+the same frame. Typing bubbles remain only as inline feedback for an actual
+in-chat response and are not page loaders.
+
+### The shared authenticated page header
+
+**Locked by founder visual feedback, 2026-11-17.** Ideal Text uses the
+cross-app `PageHeader` primitive: its title, menu and small outlined circular
+X share one safe content rail, while the full-width divider remains at the
+viewport edge. The same primitive is used by project chat and feedback
+overlays; mobile margins and safe-area spacing stay intact, and the existing
+overlay close plus browser-back behavior is unchanged. Onboarding progress is
+left-aligned within that safe rail rather than globally centered.
+
+The 2026-11-18 screenshot correction keeps that divider anchored to the
+header's bottom edge and centered to `100vw`, so it remains edge-to-edge when
+the surface is mounted inside the desktop canvas.
+
 ---
 
 ## 1. The rules
+
+The whole-document editor mounts in RootLayout's content slot above the
+global footer, outside the project canvas. Its shared header lays out Back,
+the complete title/subtitle and the canonical X in one row. Save, Back, X,
+Cancel and browser Back share one in-flight guard: a dirty exit saves first,
+and a failed save leaves the draft open. The delivered document and parts
+change only after the versioned CAS confirms persistence. The editor's
+original draft stays fixed even if a newer Take refreshes the parent.
 
 `LOCKED 2026-09-30 · B1 yes · B2 yes · B3 yes · B4 yes · B5 yes · B6 yes · B7 yes · B8 yes · B9 yes · B10 yes · D1 yes · D2 yes · D3 yes · D4 yes · D5 yes · D6 yes · D7 yes · D8 yes · D9 yes · D10 yes · Q1 yes · Q2 yes · Q3 no · Q4 no · Q5 no · closed 2026-09-30: Q1 B · Q2 A · Q3 A · Q4 A · Q5 A`
 
@@ -458,11 +489,14 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
+- `src/components/willab/PageHeader.tsx` — the locked cross-app header/divider primitive used by this page and its authenticated overlays.
 - `src/components/willab/IdealTextOverlay.tsx`
+- `src/components/TopNavbar.tsx` — shared full-bleed separator and safe-width Back control used by the Ideal Text page and its editor.
 - `src/components/willab/IdealTextPastVersion.tsx` — an older Take's card: its own words read only, which Take it is, the way to the latest and the helper words of its time (N375, N380).
 - `src/lib/willab/pastIdealText.ts` — which version an older card opens, read before the page is drawn, and its slides (N376).
 - `src/components/willab/IdealTextHeading.tsx`
 - `src/components/willab/IdealTextMenu.tsx`
+- `src/components/willab/IdealTextEditor.tsx`
 - `src/components/willab/IdealTextActions.tsx`
 - `src/components/willab/IdealTextReadout.tsx`
 - `src/components/willab/TranscriptReviewDeck.tsx`
@@ -491,13 +525,39 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-18 · On a paragraph opened for its saved helper words, “Edit the helper words” opens the helper-word editor with the saved cue selected on the Take that contains it. A replacement from an earlier Take is saved with its source Take and handed to the next recording.
+- 2026-11-18 · History protection · the retired strengths client stays removed. App Model SET-07's stable `src/services/api/strengths.test.ts` story now exercises the surviving authenticated Take-deletion BFF and proves that its 409 `TAKE_HAS_LINEAGE` explanation reaches the caller unchanged.
+- 2026-11-18 · Save recovery · only a confirmed write updates the displayed document. A rejected stale-version/CAS write refreshes the server head and leaves the editor open with its draft; the speaker explicitly retries. Save, Back, X, Cancel and browser Back all use the same in-flight guard. Success is shown once by the host after the editor closes.
+
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-18 · N663 · the project-practice footer is one side-by-side choice:
+  white **Rehearse this again** with the chunk's red/yellow/green readiness dot,
+  and black **Continue practice**. The whole-document editor has a Back control;
+  visible Back and device/browser Back save a changed draft through the same
+  versioned user-edit contract and stay on the draft when the save fails. The
+  delivered document keeps its last server-saved words on every failed save; a
+  successful save returns to it with the newly saved words. The duplicate
+  project-card slide heading is removed and the card is proportionally
+  tightened · BE, FE (this PR)
+- 2026-11-16 · N461 · the project-practice Ideal Text footer has only the two
+  recording actions: "Continue practice" advances to the next fragment (or
+  reopens the final fragment) and "Repeat this fragment" keeps the current
+  fragment; both write the scoped recording resume before opening the real
+  recorder. The small delivery-status line is not part of this action area.
+  The ⋯ menu also opens "Edit ideal text", whose valid whole-document changes
+  use the existing versioned `user-edit` contract and remain in the document's
+  history · FE (this PR)
 - 2026-11-16 · An Ideal Text with no project name uses the coach document's empty name when one is published, and otherwise "Your ideal text". · FE (this PR)
-
 - 2026-11-16 · project fragment-decision repair · every route to a current project's source Ideal Text (the result card, Feedback walk, or Continue recording) keeps the project decision footer: Continue to next fragment / Finish presentation and Repeat this fragment. The generic Record Take N footer remains for non-project Ideal Text entry, never as a fallback that loses a project fragment choice (`ProjectChat.tsx`). Was: only Continue recording carried the decision, while the same text opened from its card or walk fell back to Record Take N · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · Ideal Text, history, presentation/export, editor states and bottom actions align with the locked 1080px app canvas used by the global logo/hamburger shell; full-page layers and thin separators remain viewport-wide; native scrollbars are hidden without disabling scrolling; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N461 · a project's Continue recording path uses the source Ideal Text as the fragment decision: Continue to next fragment or Repeat this fragment. The durable Ideal Text result is unchanged · FE (this PR)
+- 2026-11-16 · loader contract · the document-assembly wait keeps the canonical centered frame and one indicator while the Ideal Text readout settles; it does not add a page-specific loader during the processing hand-off · FE (this PR)
+- 2026-11-17 · founder-approved loader correction · the Ideal Text page and its processing hand-off use one stable full-surface shell with one centered circular three-dot bubble; no progress, ring or bottom-corner variant is introduced, and inline dots remain only for a real in-chat response · FE (this PR)
+- 2026-11-18 · Ideal Text editor save hardening · the editor sends the current user-edit CAS v2 state (document revision/hash, part lineage and idempotency key); Save, Back, X, Cancel and browser Back share one save-safe exit path, with failed or authority-refused writes keeping the draft mounted and showing localized status copy; the shared navbar wraps the full title/subtitle instead of clipping them · FE (this task)
+
+- 2026-11-18 · N461 · a project's Continue recording path uses the source Ideal Text as the practice decision: Repeat this fragment or Rehearse whole presentation. The fragment keeps the latest Feedback Walk span; the whole choice starts the complete text. The durable Ideal Text result and Feedback Walk semantics are unchanged · FE (this PR)
+- 2026-11-18 · N461 · when a project Feedback Walk is closed, its final handoff reveals the completed Take's Ideal Text in the same overlay; closing that page still returns to the project conversation (`IdealTextOverlay.tsx`, `ProjectChat.tsx`) · FE (source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e)
 
 - 2026-11-10 · N626 · §1, "Record Take N and sharing": "Record Take N" (`IdealTextActions.tsx`) records at once with nothing sent or shared and no earlier choice reused, and posts the line "Only me" for the new Take; the sharing screen no longer opens from this page. The button and its words are unchanged. The rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) G0 · BE #1907, FE (this PR)
 - 2026-11-09 · N565 · `ONE_THING_COPY` in `idealEditCopy.ts`: their best's line becomes "To our ears, this one sounded really sure." or "To us, this one sounded really sure." (`best`, `bestToUs`); nothing on the Ideal Text page itself changes. The walk's rules: [`feedback-walk-and-chat.md`](feedback-walk-and-chat.md) C2, K · BE N565, FE (this PR)
@@ -544,4 +604,5 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-10-21 · N111 · the page also guards Presentation Mode, the export and the two sheets over the text (§4); no rule changes · BE, FE
 - 2026-10-21 · the walk's line over a corrected top moment is one of the confident moment's own lines (`TOP_MOMENT_LINES`) (`idealEditCopy.ts`; the walk's rules are on the Feedback walk page, C2) · FE
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-helper-words-2026-09-30.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
-- 2026-11-16 · Project practice decision: when Ideal Text is opened as the decision point before the next practice chunk, its footer shows the latest chunk’s delivery label directly above “Continue to next fragment” / “Finish presentation”. The label is passed from the project’s Feedback Walk summary and is not recalculated on the Ideal Text page (`IdealTextActions.tsx`, `IdealTextOverlay.tsx`, `ProjectChat.tsx`). Founder-approved Feedback Walk handoff, 2026-11-16.
+- 2026-11-16 · Project practice decision: when Ideal Text is opened as the decision point before the next practice chunk, its footer offers “Continue practice” and “Repeat this fragment”; it does not show a delivery-status line. Both actions open the scoped recorder, including from the final fragment (`IdealTextActions.tsx`, `IdealTextOverlay.tsx`, `ProjectChat.tsx`). Founder-approved Feedback Walk handoff, 2026-11-16.
+- 2026-11-18 · N663 · the project-card black Feedback CTA remains in the selected Feedback Walk, including after its moments are complete; the selected Take/range is preserved and this route does not reveal the Ideal Text fallback. The white Ideal text CTA and ordinary Ideal Text review paths are unchanged (`IdealTextOverlay.tsx`, `TranscriptReviewDeck.tsx`, `ProjectChat.tsx`). Founder-Approved: N663, source thread `01a1d59c-9be3-7640-b932-b4cbf92ab66e`, 2026-11-18.

@@ -175,8 +175,8 @@ describe("Start your own chat", () => {
     act(() => root.render(createElement(WillBuild, { onBack: () => undefined })));
     await flush();
     expect(host.querySelectorAll("[data-build-tile]")).toHaveLength(4);
-    expect([...host.querySelectorAll("[data-build-tile]")].map((tile) => (tile.textContent ?? "").replace(/\s+/g, ""))).toEqual(["1Build", "2Settings", "3Test", "4AI"]);
-    expect(host.querySelector("[data-tile-highlight]")).toBeNull();
+    expect([...host.querySelectorAll("[data-build-tile]")].map((tile) => (tile.textContent ?? "").replace(/\s+/g, ""))).toEqual(["Build", "Settings", "Test", "AI"]);
+    expect(host.querySelector("[data-tile-highlight]")).toBe(host.querySelector("[data-build-tile='settings']"));
     expect(host.querySelector("[data-tile-tick='build']")).not.toBeNull();
     expect(host.querySelector("[data-tile-tick='settings']")).toBeNull();
     expect(host.querySelector("[data-build-tab]")).toBeNull();
@@ -196,7 +196,7 @@ describe("Start your own chat", () => {
     await flush();
     await click("[data-build-bar] button[aria-label='Back']");
     expect(host.querySelector("[data-tile-tick='settings']")).not.toBeNull();
-    expect(host.querySelector("[data-tile-highlight]")).toBeNull();
+    expect(host.querySelector("[data-tile-highlight]")).toBe(host.querySelector("[data-build-tile='test']"));
     await click("[data-build-tile='test']");
     expect(host.querySelector("[data-visitor-try]")).not.toBeNull();
     expect(host.textContent).toContain("Hi. Record a short talk");

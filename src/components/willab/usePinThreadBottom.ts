@@ -126,10 +126,13 @@ export function followNewest(): void {
  *  comes, the thread lands on it (`follow`). Founder 2026-11-09: closing the
  *  wait left it below the screen. */
 export function useLandOnProcessing(
-  resume: { status: string; sessionId: string } | null,
+  resume: { status: string; serverState: "processing" | null; sessionId: string } | null,
   follow: () => void,
 ): void {
-  const analysing = resume?.status === "analyzing" ? resume.sessionId : null;
+  const analysing =
+    resume?.status === "analyzing" && resume.serverState === "processing"
+      ? resume.sessionId
+      : null;
   useEffect(() => {
     if (analysing) follow();
   }, [analysing, follow]);

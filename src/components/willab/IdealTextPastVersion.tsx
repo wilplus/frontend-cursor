@@ -14,6 +14,7 @@ import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookm
 import { helperHeadlineOf, slideGroupsOf, type IdealTextPast } from "@/lib/willab/pastIdealText";
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "./PageHeader";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextPastVersion — an older Take's Ideal Text card, opened (founder    */
@@ -49,8 +50,7 @@ export default function IdealTextPastVersion({
       {...aiGeneratedAttrs("ideal-text")}
       className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
     >
-      <div className="shrink-0 border-b border-border bg-background">
-        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
+      <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
           <div className="flex min-w-0 flex-col">
             <IdealTextHeading title={past.title} status={null} />
             <AiGeneratedNote
@@ -60,8 +60,7 @@ export default function IdealTextPastVersion({
             />
           </div>
           <OverlayCloseButton onClick={onClose} />
-        </div>
-      </div>
+      </PageHeader>
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         {/* Which Take this is, and the way to the latest (N380, signed). */}
         {take !== null ? (

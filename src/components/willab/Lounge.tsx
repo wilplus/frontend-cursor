@@ -10,7 +10,6 @@ import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   ChatQueryRequestError,
-  postChatQuery,
   type ChatHistoryEntry,
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
@@ -31,7 +30,6 @@ import {
   type FailedTakeVerdict,
 } from "./useFailedTakeRecheck";
 import { useUserId } from "./useUserId";
-import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import {
   readProcessingTake,
   clearProcessingTake,
@@ -41,6 +39,8 @@ import {
   updateProcessingTakeProgress,
   writeProcessingTake,
   type ProcessingPhase,
+  type ProcessingTake,
+  type ProcessingTakeProgress,
 } from "@/lib/willab/processingTake";
 import {
   retryIdealTextGeneration,
@@ -61,6 +61,7 @@ import { newCoachFeedbackFor, openedNewCoachFeedback } from "@/lib/willab/newCoa
 import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import { PROCESSING_STAGES } from "./ProcessingWait";
+import LoadingState from "./LoadingState";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
@@ -103,12 +104,6 @@ import {
 import { postAfterTake } from "@/services/api/afterTake";
 import OfferBubble from "./OfferBubble";
 import { NotebookIntro, PrivacyLine, isNotebookAsk, isPrivacyLineRow, isSpotted } from "./NotebookPrivacy";
-import {
-  PolicyUpdateBubble,
-  PolicyUpdateComposer,
-  PolicyUpdateSlot,
-  usePresentPolicyUpdate,
-} from "./PolicyUpdate";
 import {
   offerDraft,
   readOfferType,
@@ -155,13 +150,18 @@ import {
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion } from "@/services/api/willQuestion";
 import {
+  CHAT_FAILURE_BODY,
+  isPersistedTerminalReplay,
   isProjectMessage,
+  isReplayedTerminalReply,
   openProjectQuestion,
   projectConversationHistory,
   projectMessageStaysInLounge,
+  typedProjectErrorMetadata,
   typedProjectTurnMetadata,
 } from "@/lib/willab/projectChat";
-import { withOwnBubble, type RecoverableAppend } from "./useLoungeThread";
+import { useChatTurnOutbox, type PendingChatTurn } from "./useChatTurnOutbox";
+import { ChatTurnRetry } from "./ChatTurnRetry";
 import WillQuestionBubble, {
   AnswerPair,
   ChatLink,
@@ -204,13 +204,17 @@ import { afterChatBoot } from "@/lib/chatBoot";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 import { useTakeResend } from "./useTakeResend";
+import {
+  isActiveProcessingState,
+  isTerminalProcessingState,
+  processingBubbleVisible,
+} from "@/lib/willab/processingBubble";
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillBuild = dynamic(() => import("./chats/WillBuild"), { ssr: false, loading: () => null });
-const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), { ssr: false });
 // A host's chat's own messages, among its Takes (N648 item 8): off the boot bundle.
 const HostChatRow = dynamic(() => import("./chats/HostChatRow"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
@@ -223,6 +227,13 @@ const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: fals
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
 // An older Take's card (N375); a press on one warms it (pastIdealText).
 const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
+
+const LOUNGE_THREAD_CLASS = "scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain";
+
+function loungeThreadClass(loading: boolean): string {
+  if (loading) return LOUNGE_THREAD_CLASS;
+  return `${LOUNGE_THREAD_CLASS} [&>:first-child]:mt-auto`;
+}
 
 function barContents(
   mode: LoungeBarMode,
@@ -291,6 +302,55 @@ type ThreadItem = {
   message: LoungeMessage;
 };
 
+type ProcessingResume = {
+  sessionId: string;
+  arcId: string | null;
+  serverState: "processing" | null;
+  takeIndex: number | null;
+  status: "analyzing" | "failed";
+  startedAt: number;
+  progress: ProcessingTakeProgress | null;
+  phase: ProcessingPhase;
+  phaseStartedAt: number;
+};
+
+function readoutProgress(
+  userId: string | null,
+  sessionId: string,
+  progress: ProcessingTakeProgress | null,
+): ProcessingTakeProgress | null {
+  return progress
+    ? updateProcessingTakeProgress(userId, sessionId, progress)
+    : null;
+}
+
+function resumeForActiveReadout(
+  current: ProcessingResume | null,
+  marker: ProcessingTake,
+  state: string | null,
+  progress: ProcessingTakeProgress | null,
+): ProcessingResume | null {
+  if (!isActiveProcessingState(state)) return current;
+  if (current?.sessionId === marker.sessionId) {
+    return {
+      ...current,
+      serverState: "processing",
+      progress: progress ?? current.progress,
+    };
+  }
+  return {
+    sessionId: marker.sessionId,
+    arcId: marker.arcId,
+    serverState: "processing",
+    takeIndex: marker.takeIndex,
+    status: "analyzing",
+    startedAt: marker.startedAt,
+    progress: progress ?? marker.progress,
+    phase: marker.phase,
+    phaseStartedAt: marker.phaseStartedAt,
+  };
+}
+
 /** Which take's failed note is on screen, if any. Under the Lab the Lab owns
  *  the wait, so no recheck runs there. Pure, so the sheet's own function does
  *  not grow a branch for it (complexity ratchet). */
@@ -303,8 +363,18 @@ function failedNoteSession(
 }
 
 /** A Take is being worked: the analysis phase or the document phase. */
-function takeAnalysing(resume: { status: "analyzing" | "failed" } | null, settling: boolean): boolean {
-  return resume?.status === "analyzing" || settling;
+function takeAnalysing(
+  resume: {
+    status: "analyzing" | "failed";
+    serverState: "processing" | null;
+    phase: ProcessingPhase;
+  } | null,
+  settling: boolean,
+): boolean {
+  return (
+    resume?.status === "analyzing" &&
+    (resume.serverState === "processing" || resume.phase === "document")
+  ) || settling;
 }
 
 /** The in-flight wait covers only its own project's text (founder
@@ -330,11 +400,14 @@ function wordsWaitFor(missing: unknown, setupWaits: { words: boolean } | null, w
   return missing !== null || setupWaits?.words === true || wayInWords;
 }
 
-/** The processing bubble at the bottom of the thread: any Take but the way
- *  in's Take 1, whose wait is the thin row on top (N453 item 1), and a Take
- *  still going up after its screens closed (founder 2026-11-10). */
-function bottomProcessing(resume: { status: string } | null, firstTakeWayIn: boolean, uploading: boolean): boolean {
-  return uploading || (resume?.status === "analyzing" && !firstTakeWayIn);
+/** The processing bubble at the bottom of the thread: only an accepted Take
+ *  whose server readout still says processing, except the way in's Take 1,
+ *  whose wait is the thin row on top (N453 item 1). */
+function bottomProcessing(
+  resume: Parameters<typeof processingBubbleVisible>[0],
+  firstTakeWayIn: boolean,
+): boolean {
+  return processingBubbleVisible(resume, { firstTakeWayIn });
 }
 
 /** The bar's middle: the way in's "Send" while its choice has picks, else
@@ -366,7 +439,7 @@ export function chatFailureReply(err: unknown, signedIn: boolean, hasProject: bo
   return {
     role: "bot" as const,
     kind: "text" as const,
-    body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
+    body: CHAT_FAILURE_BODY,
   };
 }
 
@@ -374,15 +447,6 @@ type ProjectQuestionTurn = {
   row: LoungeMessage;
   arcId: string;
   takeSessionId: string;
-};
-
-type FailedTypedTurn = {
-  body: string;
-  draft: string;
-  questionId: string | null;
-  question: LoungeMessage | null;
-  user: RecoverableAppend;
-  reply?: RecoverableAppend;
 };
 
 function projectQuestionTurn(question: LoungeMessage | null): ProjectQuestionTurn | null {
@@ -459,6 +523,7 @@ export default function Lounge({
   onStart,
   onStartNewProject,
   onStartInProject,
+  onOpenProject,
   onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
@@ -481,6 +546,8 @@ export default function Lounge({
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
+  /** Open one project conversation from a durable project card/deep link. */
+  onOpenProject?: (arcId: string | null) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
    *  with the topic filled in from the voice message, no feelings check; or,
    *  on a first-Take plan, the five questions at once (backend N401), and
@@ -511,7 +578,11 @@ export default function Lounge({
   const uiLocale = useUiLocale();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
-  const { messages, reload } = thread;
+  const place = useOpenPlace();
+  const openChat = useOpenChat();
+  const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
+  const { messages } = outbox;
+  const { reload } = thread;
   const [draftText, setDraftText] = useState("");
   // R4-12 — the composer is an auto-grow textarea (multi-line). Re-fit its
   // height to the content on every change, capped so it never eats the thread.
@@ -540,16 +611,13 @@ export default function Lounge({
   // Sending is untouched either way: routing happens on the backend, and the
   // composer still posts the same /v2/chat/query.
   useEffect(() => afterChatBoot(warmOverlays), []);
-  const [botThinking, setBotThinking] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [thinkingHere, setBotThinking] = useState(false);
+  const botThinking = outbox.busy(thinkingHere);
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
-  // While the Lounge is on screen it presents the policy update prompt
-  // itself; elsewhere the prompt is one screen (PolicyUpdate.tsx).
-  usePresentPolicyUpdate();
   // The out-of-tokens ask: Will's message in the thread, the plans in the
   // footer (LoungeTopUpCard.tsx).
   const topUp = useTopUpOffer({ state, threadLoading: thread.loading });
@@ -582,9 +650,7 @@ export default function Lounge({
 
   // Which of the three chats the Lounge is drawn as, for the chat builder's
   // ring (N635, N636 items 1 to 5); null for everyone else: as it was.
-  const place = useOpenPlace();
   // A host's chat that takes Takes: the speaking chat's rows for it (N648 item 8).
-  const openChat = useOpenChat();
   const openChatName = useOpenChatName();
   // Its own messages, drawn among its Takes by time (N648 item 8).
   const hostMessages = useHostMessages(openChat);
@@ -596,6 +662,7 @@ export default function Lounge({
     const items: ThreadItem[] = [];
     for (const m of messages) {
       if (isRetiredLoungeMessage(m)) continue;
+      if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
       if (isProjectMessage(m) && !projectMessageStaysInLounge(m)) continue;
@@ -748,7 +815,8 @@ export default function Lounge({
       if (target) void answerFeedbackCheck(target, "skip");
       return;
     }
-    setLibraryOpen(true);
+    if (onOpenProject) onOpenProject(null);
+    else onStart();
   }
 
   /** An older Ideal Text card: its own version, read only (founder
@@ -897,20 +965,8 @@ export default function Lounge({
   // always-mounted, so a marker written mid-session must be picked up the
   // moment the user comes back from the Lab). While the Lab is open it owns
   // the live subscription, so this stands down.
-  const [processingResume, setProcessingResume] = useState<{
-    sessionId: string;
-    takeIndex: number | null;
-    status: "analyzing" | "failed";
-    startedAt: number;
-    progress: { stage: string; percent: number | null } | null;
-    /* Carried so the resumed view can say WHICH wait it is. The marker has
-       always known; this state used to drop it on the way to the screen. */
-    phase: ProcessingPhase;
-    /* And WHEN that wait began, for the same reason. The bar's document tail
-       is measured from it; without it the screen can only time itself from
-       its own mount, which restarts the tail on every remount. */
-    phaseStartedAt: number;
-  } | null>(null);
+  const [processingResume, setProcessingResume] =
+    useState<ProcessingResume | null>(null);
   // A presentation key, not a second lifecycle owner. The job observer below
   // stays mounted in the Lounge while this exact session is shown full-screen.
   const [openedProcessingSessionId, setOpenedProcessingSessionId] = useState<
@@ -1067,8 +1123,21 @@ export default function Lounge({
       }
       const status = marker.status === "failed" ? "failed" : "analyzing";
       setProcessingResume((previous) => {
+        // A marker found on navigation or reload is only a durable pointer to
+        // an accepted Take. It is not, by itself, proof that the job is still
+        // active: a completed/failed/cancelled job can leave that pointer
+        // behind until the readout observer reconciles it. Keep an already
+        // displayed session optimistic, but never create a fresh bubble from
+        // stale localStorage before the server has answered for this session.
+        if (
+          status === "analyzing" &&
+          previous?.sessionId !== marker.sessionId
+        ) {
+          return null;
+        }
         const unchanged =
           previous?.sessionId === marker.sessionId &&
+          previous.arcId === marker.arcId &&
           previous.takeIndex === marker.takeIndex &&
           previous.status === status &&
           previous.startedAt === marker.startedAt &&
@@ -1083,6 +1152,12 @@ export default function Lounge({
           ? previous
           : {
               sessionId: marker.sessionId,
+              arcId: marker.arcId,
+              serverState:
+                marker.phase === "analysis" &&
+                previous?.sessionId === marker.sessionId
+                  ? previous.serverState
+                  : null,
               takeIndex: marker.takeIndex,
               status,
               startedAt: marker.startedAt,
@@ -1139,20 +1214,19 @@ export default function Lounge({
       ) {
         return;
       }
-      if (r.processing) {
-        const latestProgress = updateProcessingTakeProgress(
-          userId,
-          resumeWatch.sessionId,
-          r.processing,
-        );
-        setProcessingResume((current) =>
-          current?.sessionId === resumeWatch.sessionId &&
-          current.status === "analyzing" &&
-          latestProgress
-            ? { ...current, progress: latestProgress }
-            : current,
-        );
-      }
+      const latestProgress = readoutProgress(
+        userId,
+        resumeWatch.sessionId,
+        r.processing,
+      );
+      setProcessingResume((current) =>
+        resumeForActiveReadout(
+          current,
+          currentMarker,
+          r.state,
+          latestProgress,
+        ),
+      );
       const hasContent =
         r.readout.snippets.length > 0 ||
         r.readout.instantChunks.length > 0 ||
@@ -1172,6 +1246,11 @@ export default function Lounge({
         const failedMarker = readProcessingTake(userId);
         setProcessingResume({
           sessionId: resumeWatch.sessionId,
+          arcId:
+            failedMarker?.sessionId === resumeWatch.sessionId
+              ? failedMarker.arcId
+              : null,
+          serverState: null,
           takeIndex: resumeWatch.takeIndex,
           status: "failed",
           startedAt: resumeWatch.startedAt,
@@ -1198,13 +1277,18 @@ export default function Lounge({
         // and a fresh analysing marker replaces it. Same copy, longer life.
         return;
       }
-      if (
-        r.state === "ready" ||
-        r.state === "readout_ready" ||
-        (r.state !== "processing" && hasContent)
-      ) {
+      if (isTerminalProcessingState(r.state)) {
+        // The readout is the server's terminal truth. A stale local marker
+        // must not survive a ready, cancelled, abandoned, or other terminal
+        // response merely because that response carries no readout content.
+        // `ready`/`readout_ready` still enter the existing document-settle
+        // phase when the project has a canonical text to confirm.
+        const keepsDocumentWait =
+          r.state === "ready" ||
+          r.state === "readout_ready" ||
+          hasContent;
         const marker = readProcessingTake(userId);
-        if (marker?.sessionId === resumeWatch.sessionId && marker.arcId) {
+        if (keepsDocumentWait && marker?.sessionId === resumeWatch.sessionId && marker.arcId) {
           const cached = readExploreArc(userId);
           writeExploreArc(
             userId,
@@ -1214,7 +1298,7 @@ export default function Lounge({
             marker.sessionId,
           );
         }
-        if (marker?.arcId) {
+        if (keepsDocumentWait && marker?.arcId) {
           // Every spoken Take owns a durable review version. Hold until the
           // served Ideal Text proves that exact 1.0/2.0/3.0 state landed.
           transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
@@ -1223,6 +1307,7 @@ export default function Lounge({
             current.status === "analyzing"
               ? {
                   ...current,
+                  serverState: null,
                   progress: { stage: "document_assembly", percent: null },
                 }
               : current,
@@ -1316,11 +1401,7 @@ export default function Lounge({
   // (backend N553 item 2, N556): while it does, Record waits with its signed
   // line, as for any Take still landing.
   const resending = useTakeResend({ userId, labOpen: isLabOverlay(state), busy: analysing, thread });
-  // A Take still going up after its screens closed: its bubble and the held
-  // record button at once, before the server has answered (founder
-  // 2026-11-10).
-  const uploadingUnwatched = useTakeUploadingUnwatched();
-  const takeInFlight = [analysing, resending, uploadingUnwatched].some(Boolean);
+  const takeInFlight = [analysing, resending].some(Boolean);
 
   // One's own chat (backend N582, the chat builder's ring): Will's offer,
   // the builder's way in, and whether "Set up my chat ›" can begin it.
@@ -1462,6 +1543,8 @@ export default function Lounge({
     });
     setProcessingResume({
       sessionId: marker.sessionId,
+      arcId: marker.arcId,
+      serverState: "processing",
       takeIndex: marker.takeIndex,
       status: "analyzing",
       startedAt: now,
@@ -1498,6 +1581,8 @@ export default function Lounge({
     });
     setProcessingResume({
       sessionId: target.takeSessionId,
+      arcId: target.arcId,
+      serverState: "processing",
       takeIndex: 1,
       status: "analyzing",
       startedAt: now,
@@ -1572,7 +1657,7 @@ export default function Lounge({
   // FE-4 fix — a synchronous in-flight guard for runSend. React state alone
   // leaves a window where a fast double-tap re-enters and double-sends.
   const sendingRef = useRef(false);
-  const failedTypedTurnRef = useRef<FailedTypedTurn | null>(null);
+
   useEffect(() => {
     if (thread.loading) return;
     if (settleTimeRef.current === null) {
@@ -1676,10 +1761,6 @@ export default function Lounge({
   // comes, and when the wait's ✕ shows the chat, the thread lands on it
   // (founder 2026-11-09: closing the wait left it below the screen).
   useLandOnProcessing(processingResume, followAnswer);
-  // The bubble of a Take still going up lands in view too.
-  useEffect(() => {
-    if (uploadingUnwatched) followAnswer();
-  }, [uploadingUnwatched, followAnswer]);
   /** The bubble's tap: the full wait, once the Take has a session (until the
    *  upload answers there is nothing to open yet). */
   function openProcessing(resume: { sessionId: string; status: string } | null): void {
@@ -1721,7 +1802,7 @@ export default function Lounge({
   const barHear = firstHear(plan.hear, keyLine.hear);
   const barMode = barModeIn(
     place,
-    words.show || openProjectQuestion(messages) !== null,
+    words.show || openProjectQuestion(shownMessages) !== null,
     plan.barMiddle,
     barHear,
     plan.typingOff,
@@ -1774,16 +1855,19 @@ export default function Lounge({
     const q = submittedDraft.trim();
     // Guard BEFORE clearing the input so a send while the bot is busy keeps the
     // user's text rather than silently dropping it.
-    if (!q || botThinking) return;
+    if (!q || botThinking || sendingRef.current || !outbox.ready) return;
     setDraftText("");
     words.close();
     // Free words under a Take's open Will question are a real chat turn. The
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
-    const failedQuestion = failedTypedTurnRef.current;
-    const typedQuestion = openProjectQuestion(messages) ?? (
-      failedQuestion?.body === q ? failedQuestion.question : null
-    );
+    const typedQuestion = openProjectQuestion(shownMessages);
+    const retry = outbox.turns.findLast((turn) =>
+      turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
+    if (retry) {
+      await sendTypedTurn(retry);
+      return;
+    }
     // The way in waits for these words: "Something else", or Will's last
     // question after the walk (backend N573, N592 item 2).
     if (!typedQuestion && plan.say(q)) {
@@ -1799,7 +1883,11 @@ export default function Lounge({
     // A host who set up their chat asks to change it: its parts open again
     // (backend N618 item 8). No call for anyone without a set-up chat.
     if (!typedQuestion && await sayToWill(q)) return;
-    await runSend(q, typedQuestion, submittedDraft);
+    if (sendingRef.current) {
+      setDraftText(submittedDraft);
+      return;
+    }
+    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft));
   }
 
   // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
@@ -1835,17 +1923,44 @@ export default function Lounge({
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
     // "Something else", the first of his answers, opens the box (N483 item 2).
     if (choice === SOMETHING_ELSE) return words.start();
+    if (botThinking || sendingRef.current) return;
+    sendingRef.current = true;
+    const optimistic = thread.own(choice);
     setBotThinking(true);
     try {
-      const accepted = await withOwnBubble(
-        thread.own,
-        choice,
-        () => postWillQuestion(target.arcId, target.takeSessionId, choice),
-        Boolean,
-      );
-      if (accepted) await reload();
+      const accepted = await postWillQuestion(target.arcId, target.takeSessionId, choice);
+      if (!accepted) throw new Error("Will question was not accepted");
+      optimistic.settle();
+      await reload();
+    } catch (err) {
+      // The choice endpoint owns successful rows but cannot take an idempotency
+      // key. If it did not accept the turn, replace the transient row with one
+      // frontend-owned recoverable row and keep the question open.
+      optimistic.drop();
+      const hint = typedHint(place, target.arcId, openChat);
+      thread.appendRecoverable(withHint({
+        role: "user",
+        kind: "text",
+        body: choice,
+        metadata: {
+          take_session_id: target.takeSessionId,
+          will_question_step: "answer",
+        },
+      } as LoungeMessageDraft, hint));
+      thread.appendRecoverable(withHint(
+        {
+          ...chatFailureReply(err, thread.signedIn, true),
+          metadata: typedProjectErrorMetadata({
+            arcId: target.arcId,
+            takeSessionId: target.takeSessionId,
+            place,
+          }),
+        },
+        hint,
+      ));
     } finally {
       setBotThinking(false);
+      sendingRef.current = false;
     }
     followAnswer();
   }
@@ -1886,11 +2001,6 @@ export default function Lounge({
     }
   }
 
-  function failedTypedTurn(body: string, questionId: string | null): FailedTypedTurn | null {
-    const failed = failedTypedTurnRef.current;
-    return failed?.body === body && failed.questionId === questionId ? failed : null;
-  }
-
   function currentPresentationContext() {
     const activeProject = readExploreArc(userId);
     return {
@@ -1900,60 +2010,8 @@ export default function Lounge({
     };
   }
 
-  async function queryTypedTurn({
-    q,
-    history,
-    user,
-    stored,
-    project,
-  }: {
-    q: string;
-    history: ChatHistoryEntry[];
-    user: LoungeMessage;
-    stored: Promise<boolean>;
-    project: ProjectQuestionTurn | null;
-  }): Promise<[ChatQueryResponse, boolean]> {
-    return Promise.all([
-      postChatQuery({
-        question: q,
-        history,
-        historySource: thread.signedIn ? "screen" : undefined,
-        sessionId: project?.takeSessionId,
-        place,
-        // Signed-in turns are backend-owned. For a project question this is
-        // what runs finish_chat_turn, retains will_question.row_metadata and
-        // releases the held after-Take row.
-        persist: thread.signedIn,
-        clientId: user.client_id,
-        clientCreatedAt: user.client_created_at,
-        presentationContext: currentPresentationContext(),
-      }),
-      stored,
-    ]);
-  }
-
-  async function retryStoredTypedTurn(failed: FailedTypedTurn & { reply: RecoverableAppend }): Promise<boolean> {
-    setBotThinking(true);
-    try {
-      const [userStored, replyStored] = await Promise.all([failed.user.retry(), failed.reply.retry()]);
-      if (!userStored || !replyStored) {
-        setDraftText(failed.draft);
-        return false;
-      }
-      failedTypedTurnRef.current = null;
-      await reload();
-      return true;
-    } catch {
-      setDraftText(failed.draft);
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
-  }
-
   function regularScreenHistory(screen: LoungeMessage[]): ChatHistoryEntry[] {
-    if (!thread.signedIn) return loungeToHistory(messages);
+    if (!thread.signedIn) return loungeToHistory(screen);
     return screenHistory(screen, {
       walkOf: (message) => {
         const walk = walkAt.get(message.client_id);
@@ -1966,20 +2024,7 @@ export default function Lounge({
     });
   }
 
-  async function appendRegularReply(
-    response: ChatQueryResponse,
-    q: string,
-    screen: LoungeMessage[],
-    draft: LoungeMessageDraft,
-  ): Promise<void> {
-    if (!thread.signedIn) {
-      await thread.append(draft);
-      return;
-    }
-    const botMessage = thread.appendLocalOnly(draft);
-    rememberPlace(botMessage.client_id, place);
-    if (response.persisted) announceDiscoveriesFromPersistedMessages([botMessage]);
-
+  function openReplyActions(response: ChatQueryResponse, q: string, screen: LoungeMessage[]) {
     const chatOffer = readOfferType({ offer: response.offer });
     settleAsks(response, q);
     if (chatOffer) {
@@ -1996,188 +2041,74 @@ export default function Lounge({
     }
   }
 
-  async function runRegularTypedTurn(q: string, submittedDraft: string): Promise<boolean> {
-    const screen = shownItems.map((item) => item.message);
-    const history = regularScreenHistory(screen);
-    const hint = typedHint(place, readExploreArc(userId)?.arcId, openChat);
-    const userDraft = withHint({ role: "user", kind: "text", body: q } as LoungeMessageDraft, hint);
-    const retrying = failedTypedTurn(q, null);
-    const recoverableDraft = retrying?.draft ?? submittedDraft;
-    const userTurn = retrying?.user ?? thread.appendRecoverable(userDraft);
-    rememberPlace(userTurn.message.client_id, place);
-    const stored = retrying ? userTurn.retry() : userTurn.stored;
-
-    setBotThinking(true);
-    try {
-      const [response] = await queryTypedTurn({ q, history, user: userTurn.message, stored, project: null });
-      const body = chatReplyBody(response, "I know nothing about that, at least yet 😏")!;
-      await appendRegularReply(response, q, screen, {
-        role: "bot",
-        kind: "text",
-        body,
-        metadata: chatReplyMetadata(response),
-      });
-      failedTypedTurnRef.current = null;
-      return true;
-    } catch (err) {
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId: null,
-        question: null,
-        user: userTurn,
-      };
-      setDraftText(recoverableDraft);
-      await thread.append(withHint(
-        chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null),
-        hint,
-      ));
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
-  }
-
-  async function runProjectTypedTurn(
-    q: string,
-    project: ProjectQuestionTurn,
-    submittedDraft: string,
-  ): Promise<boolean> {
-    const questionId = project.row.client_id;
-    const failed = failedTypedTurn(q, questionId);
-    if (failed?.reply) return retryStoredTypedTurn({ ...failed, reply: failed.reply });
-
-    const recoverableDraft = failed?.draft ?? submittedDraft;
-    const metadata = {
-      ...(typedHint(place, project.arcId, openChat) ?? {}),
+  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string) {
+    const project = projectQuestionTurn(question);
+    const hint = typedHint(place, project?.arcId, openChat);
+    const metadata = project ? {
+      ...hint,
       ...typedProjectTurnMetadata({
-        arcId: project.arcId,
-        takeSessionId: project.takeSessionId,
-        questionClientId: questionId,
-        role: "answer",
-        place,
+        arcId: project.arcId, takeSessionId: project.takeSessionId,
+        questionClientId: project.row.client_id, role: "answer", place,
       }),
-    };
-    const userDraft: LoungeMessageDraft = {
-      role: "user",
-      kind: "text",
-      body: q,
-      metadata,
-    };
-    // One idempotent outbox row gives the speaker an immediate bubble and a
-    // durable retry key. The backend's persist:true write uses this same id,
-    // so its upsert and this write reconcile to one user row.
-    const userTurn = failed?.user ?? thread.appendRecoverable(userDraft);
-    rememberPlace(userTurn.message.client_id, place);
-    const stored = failed ? userTurn.retry() : userTurn.stored;
-
-    setBotThinking(true);
-    try {
-      const [response, userStored] = await queryTypedTurn({
-        q,
-        history: projectConversationHistory(
-          messages.filter((message) => message.client_id !== userTurn.message.client_id),
-          project.arcId,
-        ),
-        user: userTurn.message,
-        stored,
-        project,
-      });
-      if (thread.signedIn && response.persisted !== true) {
-        // The model can answer even when finish_chat_turn did not durably own
-        // the rows. Keep the exact outbox bubble and draft; retry with its same
-        // client id so the question can close and after_take can release.
-        failedTypedTurnRef.current = {
-          body: q,
-          draft: recoverableDraft,
-          questionId,
-          question: project.row,
-          user: userTurn,
-        };
-        setDraftText(recoverableDraft);
-        return false;
-      }
-      const body = chatReplyBody(response, null);
-      if (!body) throw new Error("Typed chat returned no reply");
-      const replyDraft: LoungeMessageDraft = {
-        role: "bot",
-        kind: "text",
-        body,
-        metadata: {
-          ...chatReplyMetadata(response),
-          ...typedProjectTurnMetadata({
-            arcId: project.arcId,
-            takeSessionId: project.takeSessionId,
-            questionClientId: questionId,
-            role: "reply",
-            place,
-          }),
-          ...(response.row_metadata ?? {}),
-        },
-      };
-      if (thread.signedIn) {
-        const reply = thread.appendLocalOnly(replyDraft);
-        rememberPlace(reply.client_id, place);
-        failedTypedTurnRef.current = null;
-        // Reload is authoritative for both rows and, when after_take is true,
-        // for the closing/next ask that finish_chat_turn just released.
-        await reload();
-        return true;
-      }
-
-      const reply = thread.appendRecoverable(replyDraft);
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId,
-        question: project.row,
-        user: userTurn,
-        reply,
-      };
-      const replyStored = await reply.stored;
-      if (!userStored || !replyStored) {
-        setDraftText(recoverableDraft);
-        return false;
-      }
-      failedTypedTurnRef.current = null;
-      await reload();
-      return true;
-    } catch {
-      failedTypedTurnRef.current = {
-        body: q,
-        draft: recoverableDraft,
-        questionId,
-        question: project.row,
-        user: userTurn,
-      };
-      setDraftText(recoverableDraft);
-      return false;
-    } finally {
-      setBotThinking(false);
-      followAnswer();
-    }
+    } : hint;
+    const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
+    const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
+    const history = project
+      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), project.arcId)
+      : regularScreenHistory(screen);
+    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, question, {
+      question: q, history, historySource: thread.signedIn ? "screen" : undefined,
+      projectId: project?.arcId, sessionId: project?.takeSessionId, place, persist: thread.signedIn,
+      presentationContext: currentPresentationContext(),
+    });
+    rememberPlace(turn.user.client_id, place);
+    return turn;
   }
 
-  // The shared send core dispatches the ordinary Lounge path or the project
-  // content path. Both put the own bubble on screen before model work begins.
-  async function runSend(
-    q: string,
-    question: LoungeMessage | null = null,
-    submittedDraft: string = q,
-  ): Promise<boolean> {
-    if (!q || botThinking || sendingRef.current) return false;
+  async function sendTypedTurn(turn: PendingChatTurn) {
+    if (sendingRef.current || outbox.isSending(turn)) return;
     sendingRef.current = true;
+    setDraftText((draft) => draft === turn.draft ? "" : draft);
+    setBotThinking(true);
+    setUploadAskActive(isUploadAsk(turn.user.body));
+    setActiveOffer((open) => open === "feedback_check" ? null : open);
+    atBottomRef.current = true;
+    const project = projectQuestionTurn(turn.question);
     try {
-      setUploadAskActive(isUploadAsk(q));
-      setActiveOffer((open) => (open === "feedback_check" ? null : open));
-      atBottomRef.current = true;
-      const project = projectQuestionTurn(question);
-      return project
-        ? await runProjectTypedTurn(q, project, submittedDraft)
-        : await runRegularTypedTurn(q, submittedDraft);
+      const result = await outbox.deliver(turn, (response) => {
+        const body = chatReplyBody(response, project ? null : "I know nothing about that, at least yet 😏");
+        if (!body || isReplayedTerminalReply(body, messages)) throw new Error("Missing contextual reply");
+        const projectMeta = project ? typedProjectTurnMetadata({
+          arcId: project.arcId, takeSessionId: project.takeSessionId,
+          questionClientId: project.row.client_id, role: "reply", place,
+        }) : null;
+        return {
+          role: "bot", kind: "text", body,
+          metadata: { ...typedHint(place, project?.arcId, openChat), ...chatReplyMetadata(response),
+            ...projectMeta, ...response.row_metadata },
+        };
+      });
+      if (!result || !outbox.isCurrent()) return;
+      setDraftText((draft) => draft === turn.draft ? "" : draft);
+      rememberPlace(result.reply.client_id, place);
+      if (thread.signedIn) {
+        announceDiscoveriesFromPersistedMessages([result.reply]);
+        if (project) await reload();
+        else openReplyActions(result.response, turn.user.body, shownMessages);
+      }
+    } catch (err) {
+      if (!outbox.isPending(turn)) return;
+      const failure = chatFailureReply(err, thread.signedIn, readExploreArc(userId) !== null);
+      if (failure.metadata?.suggested_action === "start_first_recording") {
+        await thread.append(withHint(failure, typedHint(place, null, openChat)));
+        outbox.forget(turn);
+      } else {
+        setDraftText((draft) => draft || turn.draft);
+      }
     } finally {
       sendingRef.current = false;
+      setBotThinking(false);
+      followAnswer();
     }
   }
 
@@ -2207,6 +2138,13 @@ export default function Lounge({
     />
   );
   const drawItem = (item: ThreadItem, i: number) => {
+    const failed = outbox.turns.find((turn) => turn.user.client_id === item.message.client_id && !outbox.isSending(turn));
+    if (failed) return (
+      <Fragment key={item.reactKey}>
+        {drawThreadItem(item, i)}
+        <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} />
+      </Fragment>
+    );
     const setup = joinSetupOf(item.message);
     if (setup) return drawSetup(item, i, setup);
     // The earlier builder's rows, once the new setup took over, are Will's
@@ -2291,7 +2229,10 @@ export default function Lounge({
         onOpenBestPresentation={(arcId) =>
           openIdealText(arcId)
         }
-        onOpenTranscripts={() => setLibraryOpen(true)}
+        onOpenTranscripts={(arcId) => {
+          if (onOpenProject) onOpenProject(arcId ?? null);
+          else onStart();
+        }}
         // A GUEST'S WAY BACK TO THE TEXT (founder live test
         // 2026-10-05): the coach's feedback page needs an account, and
         // a guest gets no "your text is ready" bubble, so a guest's
@@ -2312,6 +2253,7 @@ export default function Lounge({
         activeOffer={activeOffer}
         onOpenOffer={setActiveOffer}
         willOpen={i === shownItems.length - 1}
+        willBusy={botThinking}
         onWillAnswer={answerWillQuestion}
         onOpenLifeGoal={(goalId) => lifeGoals.openLens({ mode: "see", goalId })}
         onOpenSunday={openSunday}
@@ -2386,7 +2328,7 @@ export default function Lounge({
            bar, as the chats with people do (N321 item 3, N467 item 1).
            `data-rhythm`: the rows' spacing, close within a side and wider
            where the side changes (globals.css, N469). */
-        className="scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [&>:first-child]:mt-auto"
+        className={loungeThreadClass(thread.loading)}
       >
         {thread.hasMore && (
           <button
@@ -2400,12 +2342,12 @@ export default function Lounge({
           </button>
         )}
 
-        {/* The Lounge's one wait is the typing dots, as the lens's
-            (founder 2026-10-20: "typing dots in the lounge too"). */}
+        {/* Page boot uses the shared centered loader. TypingDots remains for
+            actual in-conversation replies below. */}
         {/* Principles opens with its own line, above everything (N640). */}
         <PlaceOpening place={place} />
-        {thread.loading ? (
-          <TypingDots label="Loading" />
+        {outbox.waitingForHistory ? (
+          <LoadingState placement="surface" />
         ) : emptyHelloIn(place, threadItems.length === 0) ? (
           <LoungeEmptyState hidden={plan.holdsEmpty} />
         ) : (
@@ -2448,7 +2390,7 @@ export default function Lounge({
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
-        {bottomProcessing(processingResume, plan.firstTakeWayIn, uploadingUnwatched) ? (
+        {bottomProcessing(processingResume, plan.firstTakeWayIn) ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <button
               ref={processingTriggerRef}
@@ -2471,10 +2413,6 @@ export default function Lounge({
             for two cards they render as two bubbles, each with its own gate,
             neither knowing the other exists. */}
         <TopUpBubble offer={topUp} />
-
-        {/* The policy update prompt (founder 2026-10-15): Will's message;
-            its controls replace the record button below. */}
-        <PolicyUpdateBubble />
 
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
@@ -2530,7 +2468,6 @@ export default function Lounge({
           offer's prompt + outcome live in the thread as durable bubbles. */}
       <NewProjectAskSlot ask={newProjectAsk}>
       <SlidesAskSlot ask={slidesAsk} onReady={(line) => void thread.append(slidesReadyDraft(line, readExploreArc(userId)?.arcId))}>
-      <PolicyUpdateSlot>
       <TopUpSlot offer={topUp}>
       {activeOffer ? (
         <OfferActions
@@ -2610,7 +2547,6 @@ export default function Lounge({
       // the user has asked to upload.
       null}
       </TopUpSlot>
-      </PolicyUpdateSlot>
       </SlidesAskSlot>
       </NewProjectAskSlot>
 
@@ -2630,11 +2566,11 @@ export default function Lounge({
       <div className={barDisplay("contents")}>
       <NewProjectAskComposer ask={newProjectAsk}>
       <SlidesAskComposer ask={slidesAsk}>
-      <PolicyUpdateComposer>
       <VoiceNoteBar notebook={notebook} />
       <VoiceNoteFixBar notebook={notebook} />
       <form
         onSubmit={handleSend}
+        aria-busy={botThinking}
         // 8px from the sides (N505): out of the shell's 16px.
         className={`${barDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
       >
@@ -2665,6 +2601,7 @@ export default function Lounge({
             ref={composerRef}
             rows={1}
             value={draftText}
+            disabled={botThinking}
             onChange={(e) => setDraftText(e.target.value)}
             onKeyDown={(e) => {
               // R4-12 — Enter sends; Shift+Enter inserts a newline.
@@ -2695,10 +2632,11 @@ export default function Lounge({
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
                sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${
+            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary data-[words-active=true]:border-primary ${
               draftText.trim() ? "pr-11" : "pr-4"
             }`}
             aria-label="Message Will"
+            data-words-active={String(words.active)}
           />
           {/* Only once there is text: an always-present grey Send is a button
               that cannot be pressed, and it costs the field 32px to say so. */}
@@ -2729,7 +2667,6 @@ export default function Lounge({
           ),
         )}
       </form>
-      </PolicyUpdateComposer>
       </SlidesAskComposer>
       </NewProjectAskComposer>
       </div>
@@ -2826,39 +2763,6 @@ export default function Lounge({
           onClose={() => setConfidencePracticeId(null)}
         />
       )}
-      {libraryOpen && (
-        <LibraryOverlay
-          onClose={() => setLibraryOpen(false)}
-          onOpenBestPresentation={(arcId) => openIdealText(arcId)}
-          onRecordAnother={(arc) => {
-            // Continue this deck's arc: seed the explore-arc (id + next index +
-            // deck) so the Lab carries arc_id and pre-fills the deck, then open
-            // the Lab. The BE appends the take to the same arc. The session id
-            // (FE-1) lets the Lab re-fetch the deck from the server if the
-            // cached one is stale/incomplete; trainings-mode arcs pass their
-            // own (latest take's) id, else derive from the thread. A deckless
-            // seed (trainings mode carries no slide bodies) must not WIPE a
-            // deck already cached for this same arc — keep it.
-            const cached = readExploreArc(userId);
-            const deck =
-              arc.deck ??
-              (cached?.arcId === arc.arcId ? cached.deck : undefined);
-            writeExploreArc(
-              userId,
-              arc.arcId,
-              arc.nextTakeIndex,
-              deck,
-              arc.sessionId ?? latestArcSessionId(arc.arcId),
-            );
-            setLibraryOpen(false);
-            // The arc is seeded immediately above — never ask WHICH project
-            // (the picker's new-topic exit would clear it, and the take would
-            // mint a new project instead of joining this one — review R-pp0).
-            (onStartInProject ?? onStart)();
-          }}
-        />
-      )}
-
       {waitScreen.view ? (
         <ProcessingResumeOverlay
           progress={waitScreen.view.progress}
@@ -3170,6 +3074,7 @@ function askBubble(
     activeOffer,
     onOpenOffer,
     willOpen,
+    willBusy,
     onWillAnswer,
     onOpenLifeGoal,
     onOpenSunday,
@@ -3181,6 +3086,7 @@ function askBubble(
     activeOffer?: OfferType | null;
     onOpenOffer?: (type: OfferType) => void;
     willOpen: boolean;
+    willBusy: boolean;
     onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
     onOpenLifeGoal?: (goalId: string) => void;
     onOpenSunday?: (noteId: string) => void;
@@ -3212,6 +3118,7 @@ function askBubble(
         body={message.body}
         chips={will.chips}
         open={willOpen}
+        disabled={willBusy}
         onAnswer={(choice) => onWillAnswer?.(will, choice)}
       />
     );
@@ -3267,6 +3174,7 @@ function BubbleBody({
   activeOffer,
   onOpenOffer,
   willOpen = false,
+  willBusy = false,
   onWillAnswer,
   onOpenLifeGoal,
   onOpenSunday,
@@ -3292,8 +3200,8 @@ function BubbleBody({
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
-  /** transcript_ready card — opens the Trainings library. */
-  onOpenTranscripts?: () => void;
+  /** transcript_ready card — opens the owning project conversation. */
+  onOpenTranscripts?: (arcId?: string) => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — every ideal-text bubble opens the live notebook. */
@@ -3310,6 +3218,7 @@ function BubbleBody({
   onOpenOffer?: (type: OfferType) => void;
   /** N82 — the newest bubble: Will's question shows its answers to tap. */
   willOpen?: boolean;
+  willBusy?: boolean;
   onWillAnswer?: (target: WillQuestionTarget, choice: string) => Promise<void>;
   /** A set life goal's ladder: its › opens the lens on it (N172 M10). */
   onOpenLifeGoal?: (goalId: string) => void;
@@ -3327,7 +3236,7 @@ function BubbleBody({
   animate?: boolean;
 }) {
   const ask = askBubble(message, {
-    activeOffer, onOpenOffer, willOpen, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
+    activeOffer, onOpenOffer, willOpen, willBusy, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
   });
   if (ask) return ask;
   if (

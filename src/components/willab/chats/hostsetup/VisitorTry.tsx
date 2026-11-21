@@ -1,14 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
+import { TapRow } from "@/components/willab/WillQuestion";
 import { BarBox, ChatBarRow, useFilePicker, usePhotoPicker } from "@/components/willab/chats/ChatBar";
 import { OwnAvatar } from "./ChatIconPicker";
 import { TopBar } from "../TopBar";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
-import { askReply } from "@/services/api/hostSetup";
+import { askReply, keepReplyExample } from "@/services/api/hostSetup";
 import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
@@ -43,16 +44,27 @@ function localReply(doc: CoachDefinition, kind: "text" | "rec"): string[] {
   return [line, extra].filter((item): item is string => Boolean(item && item.trim()));
 }
 
-export default function VisitorTry({ name, doc, sends, onBack }: {
+export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
   name: string;
   doc: CoachDefinition;
   sends: SendKind[];
   onBack: () => void;
+  /** The host says the test is done. */
+  onWorks?: () => void;
 }) {
   const hello = doc.chat.hello;
   const taps = doc.chat.taps;
   const [lines, setLines] = useState<Bubble[]>(hello ? [{ who: "them", text: hello }] : []);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [pair, setPair] = useState<{ ask: string; answer: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void askReply(readOwnChat().id || "your-chat", { text: "hello", kind: "text" }).then((remote) => {
+      if (live && !remote) setNote(W.voiceOff);
+    });
+    return () => { live = false; };
+  }, []);
   const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>): Promise<Bubble[]> => {
     const remote = await askReply(readOwnChat().id || "your-chat", { text: words, kind, ...extra });
     const seen = visitorKind(remote);
@@ -78,6 +90,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
     setBusy(true);
     const reply = await replyLines(words, kind);
     setLines((was) => [...was, ...reply]);
+    setPair({ ask: words, answer: reply.map((line) => line.text).join(" ") });
     setBusy(false);
   };
   const sendFile = async (file: File, fileKind: "photo" | "file") => {
@@ -161,13 +174,7 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
     <div data-visitor-try="" className="flex min-h-0 flex-1 flex-col bg-background">
       <TopBar circle={<OwnAvatar id={`visit-${name}`} name={name} size={36} />} title={name} onBack={onBack} />
       <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
-        {taps.length ? (
-          <div className="flex flex-wrap gap-2">
-            {taps.map((tap) => (
-              <button key={tap} type="button" data-visitor-tap="" className="inline-flex min-h-11 items-center rounded-full bg-[#fff1e8] px-3 text-[15px] font-semibold text-[#c84d06]" onClick={() => void say(tap, "text")}>{tap}</button>
-            ))}
-          </div>
-        ) : null}
+        {note ? <p data-voice-note="" className="m-0 text-[15px] text-muted-foreground">{note}</p> : null}
         {lines.map((line, n) => (
           line.at != null ? (
             <button key={n} type="button" data-visitor-line={line.who} data-walk-at={line.at} className="max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[16px]" onClick={() => replay(line.at ?? 0)}>{line.text}</button>
@@ -176,6 +183,23 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
           )
         ))}
       </div>
+      {taps.length || onWorks ? (
+        <div className="px-3 pb-1">
+          <TapRow
+            even
+            labels={pair ? ["Keep this answer", ...(onWorks ? ["This works"] : [])] : [...taps, ...(onWorks ? ["This works"] : [])]}
+            dataAttr={{ "data-visitor-taps": "", "data-tap-row": "" }}
+            onTap={(label) => {
+              if (label === "This works") onWorks?.();
+              else if (label === "Keep this answer" && pair) {
+                void keepReplyExample(readOwnChat().id || "your-chat", pair.ask, pair.answer);
+                setLines((was) => [...was, { who: "them", text: "Kept." }]);
+                setPair(null);
+              } else void say(label, "text");
+            }}
+          />
+        </div>
+      ) : null}
       <ChatBarRow>
         {sends.includes("rec") ? (
           <button type="button" aria-label="Send a recording" data-visitor-rec="" data-recording={live ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void onRec()}>
