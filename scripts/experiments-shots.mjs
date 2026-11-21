@@ -72,7 +72,7 @@ async function shot(name) {
 
 try {
   await waitForServer();
-  await page.goto(`${base}/dev/own-chat`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${base}/dev/own-chat`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.waitForFunction(() => {
     const el = document.querySelector("[data-own-chat-screen]");
     return !!el && Object.keys(el).some((key) => key.startsWith("__react"));
@@ -111,8 +111,10 @@ try {
   await page.locator("[data-pair='feeling'] [data-choice='tense']").click();
   await shot("exp-take-rating");
   await page.locator("[data-pair='save'] [data-choice='yes']").click();
-  await page.waitForSelector("[data-exp-screen='analysis']");
-  await shot("exp-analysis");
+  await page.waitForSelector("[data-exp-screen='reading']");
+  await shot("exp-reading");
+  await page.waitForSelector("[data-exp-screen='analysis']", { timeout: 5000 });
+  await shot("exp-analysis-gate");
   await page.locator("[data-pair='next'] [data-choice='yes']").click();
   await page.waitForSelector("[data-exp-screen='pick']");
   await shot("exp-pick");
@@ -125,6 +127,13 @@ try {
     await back();
     await page.waitForTimeout(100);
   }
+  await page.locator("[data-pair='pages'] [data-choice='yes']").click();
+  await page.locator("[data-exp-go='sample']").click();
+  await page.waitForSelector("[data-exp-screen='analysis']");
+  await shot("exp-analysis-open");
+  await page.locator("[data-build-bar] button[aria-label='Back']").click();
+  await page.waitForSelector("[data-exp-screen='menu']");
+  await page.locator("[data-pair='pages'] [data-choice='no']").click();
   await page.locator("[data-exp-go='library']").click();
   await page.waitForSelector("[data-exp-screen='library']");
   await shot("exp-library");

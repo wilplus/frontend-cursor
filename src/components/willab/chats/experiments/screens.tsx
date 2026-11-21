@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { pickInterventions } from "@/lib/willab/experiments/overlap";
-import { sampleAnalysis } from "@/lib/willab/experiments/sample";
+import { readingFor } from "@/lib/willab/experiments/sample";
 import {
   deletePrompt,
   downloadExport,
@@ -13,9 +13,8 @@ import {
   saveIntervention,
   savePrompt,
 } from "@/services/api/experiments";
-import { axisTitle, axisWords, comparisonWords, formatCue, isOpeningPrompt, optionLabel, referenceLine, reportLabel, tagWords } from "@/lib/willab/experiments/words";
-import { stepSummary, CONFIDENCE_FLOOR } from "@/lib/willab/experiments/grid";
-import type { Channel, MomentAnalysis, Prompt, PromptFile } from "@/lib/willab/experiments/types";
+import type { AnalyzeStep, AnalyzeTake, Prompt, PromptFile, StepSummary } from "@/lib/willab/experiments/types";
+import { axisTitle, axisWords, comparisonWords, cueWords, formatCue, gateSentence, isOpeningPrompt, optionLabel, referenceLine, reportLabel, tagWords } from "@/lib/willab/experiments/words";
 import { ActionPair, ChoicePair, Frame, Note } from "./bits";
 
 export type Rating = { energy?: string; feeling?: string };
@@ -25,8 +24,9 @@ export type View =
   | { name: "consent" }
   | { name: "upload"; sessionId: string }
   | { name: "prompt"; sessionId: string; index: number; said: boolean; rating: Rating }
-  | { name: "analysis"; sessionId: string; index: number; takeId: string; moment: number; sample: boolean; rating: Rating }
-  | { name: "pick"; sessionId: string | null; index: number; takeId: string; moment: number; sample: boolean; rules: boolean; slot: number; cell: number }
+  | { name: "reading"; sessionId: string; index: number; takeId: string; rating: Rating }
+  | { name: "analysis"; sessionId: string; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rating: Rating }
+  | { name: "pick"; sessionId: string | null; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rules: boolean; slot: number; cell: number }
   | { name: "library"; index: number; editing: boolean; adding: boolean }
   | { name: "export" }
   | { name: "delete"; step: "ask" | "sure" | "gone" };
@@ -146,78 +146,90 @@ function RatingFields({ file, rating, onRate, ready }: { file: PromptFile; ratin
   );
 }
 
-export function Analysis({ file, view, onMoment, onTry, onNext }: {
-  file: PromptFile;
+export function Reading() {
+  return (
+    <Frame screen="reading" title="Reading your take...">
+      <p data-ai-disclosure="" className="m-0 text-[16px] leading-snug">An AI is reading how you spoke. Only you will see it.</p>
+      <p data-research-note="" className="m-0 text-[14px] text-muted-foreground">This is an early research version.</p>
+    </Frame>
+  );
+}
+
+function loadTake(source: "saved" | "open" | "gate", takeId: string): AnalyzeTake | null {
+  if (source === "open") return readingFor("open");
+  if (source === "gate") return readingFor("gate");
+  return readTakes().find((take) => take.id === takeId)?.analysis ?? null;
+}
+
+export function Analysis({ view, onMoment, onTry, onNext }: {
   view: Extract<View, { name: "analysis" }>;
   onMoment: (moment: number) => void;
   onTry: () => void;
   onNext: () => void;
 }) {
-  const analysis = view.takeId === "sample" ? sampleAnalysis("sample", file) : readTakes().find((take) => take.id === view.takeId)?.analysis;
+  const analysis = loadTake(view.source, view.takeId);
   const moment = analysis?.moments[view.moment];
   if (!analysis || !moment) return <Frame screen="analysis" title="No reading yet"><Note>Save a take first.</Note></Frame>;
-  const gate = analysis.summary.gate;
+  const order = analysis.order;
   return (
     <Frame
       screen="analysis"
-      kicker={view.sample ? "Sample numbers" : "This take"}
+      wide
+      kicker={view.source === "saved" ? "This take" : "A saved example"}
       title="The reading"
-      foot={<ActionPair name="next" no={view.sample ? "Done" : "Next prompt"} yes="What to try" onNo={onNext} onYes={onTry} />}
+      foot={<ActionPair name="next" no={view.source === "saved" ? "Next prompt" : "Done"} yes="What to try" onNo={onNext} onYes={onTry} />}
     >
-      <p data-ai-disclosure="" className="m-0 text-[14px] leading-snug">An AI made this reading. Only you can see it. These numbers are a sample.</p>
+      <p data-ai-disclosure="" className="m-0 text-[13px] leading-snug">An AI made this reading. Only you can see it.</p>
+      <p data-research-note="" className="m-0 text-[13px] text-muted-foreground">This is an early research version.</p>
       <div className="flex items-center justify-between gap-3">
-        <p className="m-0 text-[13px] text-muted-foreground">{moment.start} s to {moment.end} s · {view.moment + 1} of {analysis.moments.length}</p>
+        <p className="m-0 text-[13px] text-muted-foreground">{moment.t_start} s to {moment.t_end} s · {view.moment + 1} of {analysis.moments.length}</p>
         <div className="flex gap-2">
-          <button type="button" data-moment="prev" onClick={() => onMoment(Math.max(0, view.moment - 1))} className="min-h-11 rounded-full border border-border px-3 text-[14px] font-semibold">Earlier</button>
-          <button type="button" data-moment="next" onClick={() => onMoment(Math.min(analysis.moments.length - 1, view.moment + 1))} className="min-h-11 rounded-full border border-border px-3 text-[14px] font-semibold">Later</button>
+          <button type="button" data-moment="prev" onClick={() => onMoment(Math.max(0, view.moment - 1))} className="min-h-10 rounded-full border border-border px-3 text-[14px] font-semibold">Earlier</button>
+          <button type="button" data-moment="next" onClick={() => onMoment(Math.min(analysis.moments.length - 1, view.moment + 1))} className="min-h-10 rounded-full border border-border px-3 text-[14px] font-semibold">Later</button>
         </div>
       </div>
-      <Grid file={file} moment={moment} />
-      <div data-summary="" className="grid grid-cols-4 gap-2">
-        {file.order.map((axis) => {
-          const row = stepSummary(analysis.summary, axis);
-          if (!row) return null;
-          return (
-            <div key={axis} data-axis={axis} className="rounded-xl border border-border px-2 py-1.5">
-              <span className="block text-[12px] leading-tight text-muted-foreground">{axisTitle(axis)}</span>
-              <b className="text-[15px]">{formatCue(row.score)}</b>
-              <span className="block text-[12px] leading-tight text-muted-foreground">{row.confidence >= CONFIDENCE_FLOOR ? "Clear enough" : "Not clear enough"}</span>
-            </div>
-          );
-        })}
+      <div data-analysis-grid="" className="flex flex-col gap-1">
+        {order.map((step) => (
+          <StepRow key={step} step={step} cells={moment.grid.filter((cell) => cell.step === step)} />
+        ))}
       </div>
-      <p data-gate={typeof gate === "string" ? gate : ""} className="m-0 text-[14px] leading-snug">{typeof gate === "string" ? `The first step that is not clear enough is ${axisWords(gate)}.` : "Every step is clear enough."}</p>
+      <div data-summary="" className="grid grid-cols-4 gap-1.5">
+        {order.map((step) => <SummaryCell key={step} step={step} row={analysis.summary[step]} />)}
+      </div>
+      <p data-gate={analysis.gate?.step ?? ""} className="m-0 text-[14px] leading-snug">{gateSentence(analysis.gate)}</p>
     </Frame>
   );
 }
 
-function Grid({ file, moment }: { file: PromptFile; moment: MomentAnalysis }) {
+function StepRow({ step, cells }: { step: AnalyzeStep; cells: AnalyzeTake["moments"][number]["grid"] }) {
   return (
-    <div data-analysis-grid="" className="grid grid-cols-[4.5rem_repeat(4,minmax(0,1fr))] gap-1.5">
-      <span />
-      {file.order.map((axis) => <span key={axis} className="text-[12px] font-medium leading-tight">{axisTitle(axis)}</span>)}
-      {(["verbal", "vocal"] as const).map((row) => (
-        <Row key={row} order={file.order} row={row} moment={moment} label={row === "verbal" ? "Words" : "Voice"} />
-      ))}
+    <div data-step={step} className="grid grid-cols-[6.2rem_1fr] items-stretch gap-1.5">
+      <span className="self-center text-[12px] font-medium leading-tight">{axisTitle(step)}</span>
+      <div className="grid grid-cols-4 gap-1">
+        {cells.map((cell) => (
+          <span key={cell.cue} data-cue={cell.cue} data-vs={cell.vs} className="rounded-lg border border-border px-1.5 py-1">
+            <small className="block truncate text-[10px] leading-tight text-muted-foreground">{cueWords(cell.cue)}</small>
+            <b className="block text-[13px] leading-tight">{cell.value === null ? "not measured" : formatCue(cell.value)}</b>
+            <small className="block truncate text-[10px] leading-tight text-muted-foreground">{comparisonWords(cell.vs)}</small>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-function Row({ order, row, moment, label }: { order: string[]; row: Channel; moment: MomentAnalysis; label: string }) {
+function SummaryCell({ step, row }: { step: AnalyzeStep; row: StepSummary }) {
+  const locked = !row.unlocked;
   return (
-    <>
-      <span className="self-center text-[13px] font-medium">{label}</span>
-      {order.map((axis) => {
-        const cell = moment.grid[axis]?.[row];
-        if (!cell) return <span key={axis} />;
-        return (
-          <span key={axis} data-cell={`${row}:${axis}`} data-comparison={cell.reference} className="rounded-xl border border-border px-2 py-1.5">
-            <b className="block text-[15px]">{formatCue(cell.value)}</b>
-            <small className="block text-[11px] leading-tight text-muted-foreground">{comparisonWords(cell.reference)}</small>
-          </span>
-        );
-      })}
-    </>
+    <div data-summary-step={step} data-locked={locked ? "" : undefined} className="rounded-xl border border-border px-2 py-1">
+      <span className="block text-[11px] leading-tight text-muted-foreground">{axisTitle(step)}</span>
+      {locked ? <b className="text-[14px]">Locked</b> : (
+        <>
+          <b className="text-[14px]">{row.score === null ? "not measured" : formatCue(row.score)}</b>
+          <span className="block text-[11px] leading-tight text-muted-foreground">{row.confidence >= 0.5 ? "Sure enough" : "Not sure yet"}</span>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -228,15 +240,15 @@ export function Pick({ file, view, onRules, onChoose, onEdit }: {
   onChoose: (id: string | null) => void;
   onEdit: (slot: number, cell: number) => void;
 }) {
-  const analysis = view.takeId === "sample" ? sampleAnalysis("sample", file) : readTakes().find((take) => take.id === view.takeId)?.analysis;
+  const analysis = loadTake(view.source, view.takeId);
   const moment = analysis?.moments[view.moment];
-  const pick = moment ? pickInterventions(moment, readInterventions(), file.order, view.takeId) : null;
+  const pick = analysis && moment ? pickInterventions(moment, readInterventions(), analysis.order, view.takeId, analysis.gate) : null;
   const shown = pick?.shown ?? [];
   return (
     <Frame
       screen={view.rules ? "rules" : "pick"}
       title={view.rules ? "The rules" : "What to try next"}
-      foot={view.rules ? <RulesFoot file={file} view={view} onEdit={onEdit} /> : <PickFoot shown={shown} onChoose={onChoose} />}
+      foot={view.rules ? <RulesFoot view={view} onEdit={onEdit} /> : <PickFoot shown={shown} onChoose={onChoose} />}
     >
       <ChoicePair
         name="mode"
@@ -244,7 +256,7 @@ export function Pick({ file, view, onRules, onChoose, onEdit }: {
         options={[{ value: "pick", label: "The pick" }, { value: "rules", label: "The rules" }]}
         onPick={(value) => onRules(value === "rules")}
       />
-      {view.rules ? <RuleEditor file={file} view={view} /> : <PickList shown={shown} />}
+      {view.rules ? <RuleEditor view={view} /> : <PickList shown={shown} />}
     </Frame>
   );
 }
@@ -270,50 +282,37 @@ function PickFoot({ shown, onChoose }: { shown: { id: string; name: string }[]; 
   return <ActionPair name="use" no="Not this time" yes="Keep looking" onNo={() => onChoose(null)} onYes={() => undefined} />;
 }
 
-function RuleEditor({ file, view }: { file: PromptFile; view: Extract<View, { name: "pick" }> }) {
+function RuleEditor({ view }: { view: Extract<View, { name: "pick" }> }) {
   const items = readInterventions();
   const item = items[view.slot] ?? items[0];
-  const slots = patternSlots(file.order);
-  const slot = slots[view.cell] ?? slots[0];
-  if (!item || !slot) return null;
-  const value = item.grid[slot.axis]?.[slot.row] ?? 0;
+  const cell = item?.grid[view.cell];
+  if (!item || !cell) return null;
   const move = (delta: number) => void saveIntervention({ ...item, threshold: Math.max(0, Math.min(2, Math.round((item.threshold + delta) * 10) / 10)) });
   return (
     <div className="flex flex-col gap-2">
       <input data-rule-name="" value={item.name} onChange={(event) => void saveIntervention({ ...item, name: event.target.value })} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-[16px]" />
       <p className="m-0 text-[14px]">Fire when the match is at least {item.threshold.toFixed(1)}.</p>
       <ActionPair name="threshold" no="Looser" yes="Stricter" onNo={() => move(-0.1)} onYes={() => move(0.1)} />
-      <p data-rule-cell="" className="m-0 text-[14px]">{slot.row === "vocal" ? "Voice" : "Words"} · {axisTitle(slot.axis)} · {formatCue(value)}</p>
+      <p data-rule-cell="" className="m-0 text-[14px]">{axisTitle(cell.step)} · {cueWords(cell.cue)} · {formatCue(cell.value)}</p>
     </div>
   );
 }
 
-function RulesFoot({ file, view, onEdit }: { file: PromptFile; view: Extract<View, { name: "pick" }>; onEdit: (slot: number, cell: number) => void }) {
+function RulesFoot({ view, onEdit }: { view: Extract<View, { name: "pick" }>; onEdit: (slot: number, cell: number) => void }) {
   const items = readInterventions();
   const item = items[view.slot] ?? items[0];
-  const slots = patternSlots(file.order);
-  const slot = slots[view.cell] ?? slots[0];
   const nudge = (by: number) => {
-    if (!item || !slot) return;
-    const side = { ...item.grid[slot.axis], [slot.row]: clamp((item.grid[slot.axis]?.[slot.row] ?? 0) + by) };
-    void saveIntervention({ ...item, grid: { ...item.grid, [slot.axis]: side }, rule: { step: slot.axis } });
+    if (!item) return;
+    const grid = item.grid.map((cell, index) => index === view.cell ? { ...cell, value: clamp(cell.value + by) } : cell);
+    void saveIntervention({ ...item, grid });
   };
   return (
     <div className="flex flex-col gap-2">
       <ActionPair name="cell-value" no="Lower" yes="Higher" onNo={() => nudge(-0.2)} onYes={() => nudge(0.2)} />
-      <ActionPair name="cell-step" no="Previous cell" yes="Next cell" onNo={() => onEdit(view.slot, Math.max(0, view.cell - 1))} onYes={() => onEdit(view.slot, Math.min(slots.length - 1, view.cell + 1))} />
-      <ActionPair name="rule-step" no="Previous rule" yes="Next rule" onNo={() => onEdit(Math.max(0, view.slot - 1), view.cell)} onYes={() => onEdit(Math.min(items.length - 1, view.slot + 1), view.cell)} />
+      <ActionPair name="cell-step" no="Previous cell" yes="Next cell" onNo={() => onEdit(view.slot, Math.max(0, view.cell - 1))} onYes={() => onEdit(view.slot, Math.min((item?.grid.length ?? 1) - 1, view.cell + 1))} />
+      <ActionPair name="rule-step" no="Previous rule" yes="Next rule" onNo={() => onEdit(Math.max(0, view.slot - 1), 0)} onYes={() => onEdit(Math.min(items.length - 1, view.slot + 1), 0)} />
     </div>
   );
-}
-
-function patternSlots(order: readonly string[]): { row: Channel; axis: string }[] {
-  const slots: { row: Channel; axis: string }[] = [];
-  for (const axis of order) {
-    slots.push({ row: "verbal", axis });
-    slots.push({ row: "vocal", axis });
-  }
-  return slots;
 }
 
 function clamp(value: number): number {

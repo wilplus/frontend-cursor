@@ -1,50 +1,61 @@
-import { cellFor, gateOf } from "./grid";
-import type { AnalyzeTakeResponse, Intervention, MomentAnalysis, PromptFile } from "./types";
+import example from "./example_analyze_take_v0.1.json";
+import type { AnalyzeDocument, AnalyzeStep, AnalyzeTake, Intervention } from "./types";
 
-/* Placeholder grids in the analyze-take shape. The first step in the
-   file's order is the one that is not clear enough (confidence 0.2). */
+/* The shipped example is the mock. Screens never invent a second shape.
+   score_if_unlocked stays in the file and is not read here. */
 
-export function sampleAnalysis(takeId: string, file: PromptFile): AnalyzeTakeResponse {
-  const confidence: Record<string, number> = {};
-  const summary: AnalyzeTakeResponse["summary"] = { gate: null };
-  file.order.forEach((axis, index) => {
-    const first = index === 0;
-    confidence[axis] = first ? 0.2 : 0.8;
-    summary[axis] = { score: first ? 0.2 : 0.6, confidence: confidence[axis] };
-  });
-  summary.gate = gateOf(file.order, confidence);
-  return {
-    take_id: takeId,
-    model: "placeholder-v1",
-    moments: [moment(file, 0, 8, 0.8), moment(file, 8, 16, 0.35)],
-    summary,
-  };
+export const EXAMPLE_ANALYSIS = example as unknown as AnalyzeDocument;
+
+export function exampleTakes(): AnalyzeTake[] {
+  return EXAMPLE_ANALYSIS.takes;
 }
 
-function moment(file: PromptFile, start: number, end: number, vocalLead: number): MomentAnalysis {
-  const grid: MomentAnalysis["grid"] = {};
-  file.order.forEach((axis, index) => {
-    const lead = index === 0 ? vocalLead : index === 1 ? vocalLead - 0.2 : -0.3;
-    grid[axis] = {
-      vocal: cellFor(axis, "vocal", lead, file),
-      verbal: cellFor(axis, "verbal", index === 0 ? 0.25 : -0.2, file),
-    };
-  });
-  return { start, end, grid };
+/** The take whose gate is this step. The shipped file gates one take on engagement. */
+export function takeWithGate(step: AnalyzeStep): AnalyzeTake {
+  const found = EXAMPLE_ANALYSIS.takes.find((take) => take.gate?.step === step);
+  if (!found) throw new Error(`No example take is gated on ${step}.`);
+  return found;
 }
 
-/** Starter rules the host can change. Not part of the prompt file. */
-export function seedInterventions(file: PromptFile): Intervention[] {
-  const first = file.order[0] ?? "engagement";
-  const second = file.order[1] ?? first;
-  const last = file.order[file.order.length - 1] ?? first;
+/** Every step in this take has unlocked: true. */
+export function takeAllUnlocked(): AnalyzeTake {
+  const found = EXAMPLE_ANALYSIS.takes.find((take) => (
+    take.order.every((step) => take.summary[step].unlocked)
+  ));
+  if (!found) throw new Error("No example take has every step unlocked.");
+  return found;
+}
+
+export function readingFor(kind: "gate" | "open"): AnalyzeTake {
+  return kind === "open" ? takeAllUnlocked() : takeWithGate("engagement");
+}
+
+/** Starter rules the host can change. They name cues on the real grid. */
+export function seedInterventions(): Intervention[] {
   return [
-    item("slow-open", "Slow the first line", { [first]: { verbal: 0.3, vocal: 0.9 }, [second]: { vocal: 0.8 } }, first),
-    item("short-pause", "Leave a short pause", { [first]: { vocal: 0.7 } }, first),
-    item("point-page", "Point at the page", { [last]: { verbal: -0.9 } }, last),
+    {
+      id: "slow-open",
+      name: "Slow the first line",
+      threshold: 1,
+      rule: { step: "engagement" },
+      grid: [
+        { step: "engagement", cue: "loudness", value: -0.9 },
+        { step: "engagement", cue: "voiced_ratio", value: -0.8 },
+      ],
+    },
+    {
+      id: "short-pause",
+      name: "Leave a short pause",
+      threshold: 1,
+      rule: { step: "engagement" },
+      grid: [{ step: "engagement", cue: "speech_activity_rate", value: -0.7 }],
+    },
+    {
+      id: "point-page",
+      name: "Point at the page",
+      threshold: 1,
+      rule: { step: "clarity" },
+      grid: [{ step: "clarity", cue: "semantic_similarity", value: 0.9 }],
+    },
   ];
-}
-
-function item(id: string, name: string, grid: Intervention["grid"], step: string): Intervention {
-  return { id, name, grid, threshold: 1, rule: { step } };
 }

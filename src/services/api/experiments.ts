@@ -2,8 +2,8 @@ import { bffFetch } from "@/lib/api/bffFetch";
 import { clearExperimentContext } from "@/lib/willab/experiments/contextStore";
 import { loadPromptFile, PromptFileError } from "@/lib/willab/experiments/promptsYaml";
 import promptText from "@/lib/willab/experiments/prompts_v1.yaml?raw";
-import { sampleAnalysis, seedInterventions } from "@/lib/willab/experiments/sample";
-import type { ExperimentSession, ExperimentTake, Intervention, Prompt, PromptFile, SelfRating } from "@/lib/willab/experiments/types";
+import { readingFor, seedInterventions } from "@/lib/willab/experiments/sample";
+import type { AnalyzeTake, ExperimentSession, ExperimentTake, Intervention, Prompt, PromptFile, SelfRating } from "@/lib/willab/experiments/types";
 import { CONSENT_VERSION } from "@/lib/willab/experiments/types";
 
 /* -------------------------------------------------------------------------- */
@@ -21,7 +21,8 @@ import { CONSENT_VERSION } from "@/lib/willab/experiments/types";
 /*                                         with business_case                 */
 /*  POST   /v2/experiments/sessions/:id/takes   multipart audio, prompt_id,    */
 /*                                              tag, self_rating               */
-/*  POST   /v2/experiments/analyze-take         { take_id }                    */
+/*  POST   /v2/experiments/analyze-take         202 { take_id, status }        */
+/*  GET    /v2/experiments/takes/:id/analysis   the analyze-take/v0.1 take     */
 /*  GET|POST /v2/experiments/prompts                                           */
 /*  PUT|DELETE /v2/experiments/prompts/:id                                     */
 /*  POST   /v2/experiments/prompts/import                                      */
@@ -55,7 +56,7 @@ function fresh(): Store {
     file: BUNDLED,
     sessions: [],
     takes: [],
-    interventions: seedInterventions(BUNDLED),
+    interventions: seedInterventions(),
     researcher: false,
     seq: 1,
   };
@@ -171,19 +172,42 @@ export async function saveTake(input: { sessionId: string; prompt: Prompt; selfR
     self_rating: input.selfRating,
     audio_name: input.audioName ?? null,
     transcript: "",
-    analysis: sampleAnalysis(id, store.file),
+    analysis: null,
   };
   store.takes.push(take);
   touch();
   return take;
 }
 
-export async function analyzeTake(takeId: string): Promise<ExperimentTake["analysis"] | null> {
+const pendingUntil = new Map<string, number>();
+
+/** POST /v2/experiments/analyze-take. The model runs in the background, so this returns at once. */
+export async function beginAnalysis(takeId: string): Promise<{ status: "reading" } | null> {
   if (!EXPERIMENTS_USE_MOCKS) {
     const body = await live("POST", "/api/v2/experiments/analyze-take", { take_id: takeId });
-    return body && typeof body === "object" ? (body as ExperimentTake["analysis"]) : null;
+    return body ? { status: "reading" } : null;
   }
-  return store.takes.find((take) => take.id === takeId && take.volunteer_id === anonymousVolunteerId())?.analysis ?? null;
+  pendingUntil.set(takeId, Date.now() + 700);
+  return { status: "reading" };
+}
+
+/** GET /v2/experiments/takes/<id>/analysis. Null while the job is still reading. */
+export async function readAnalysis(takeId: string): Promise<AnalyzeTake | null> {
+  if (!EXPERIMENTS_USE_MOCKS) {
+    const body = await live("GET", `/api/v2/experiments/takes/${encodeURIComponent(takeId)}/analysis`);
+    return isAnalyzeTake(body) ? body : null;
+  }
+  const until = pendingUntil.get(takeId);
+  if (until !== undefined && Date.now() < until) return null;
+  pendingUntil.delete(takeId);
+  const reading = { ...readingFor("gate"), take_id: takeId };
+  const take = store.takes.find((item) => item.id === takeId);
+  if (take) take.analysis = reading;
+  return reading;
+}
+
+function isAnalyzeTake(body: unknown): body is AnalyzeTake {
+  return Boolean(body && typeof body === "object" && Array.isArray((body as AnalyzeTake).moments) && (body as AnalyzeTake).summary);
 }
 
 export async function savePrompt(prompt: Prompt): Promise<PromptFile | null> {
@@ -320,7 +344,7 @@ function jsonExport(volunteer_id: string, audience: "self" | "researcher", takes
       audio_name: take.audio_name,
       transcript: take.transcript,
       page: pageName(take.session_id),
-      gate: take.analysis.summary.gate,
+      gate: take.analysis?.gate?.step ?? "",
     })),
   }, null, 2);
 }
@@ -339,7 +363,7 @@ function csvExport(volunteer_id: string, audience: "self" | "researcher", takes:
     take.self_rating.feeling,
     take.audio_name ?? "",
     pageName(take.session_id),
-    take.analysis.summary.gate ?? "",
+    take.analysis?.gate?.step ?? "",
   ].map(csvCell).join(","));
   return [head.join(","), ...lines].join("\n");
 }

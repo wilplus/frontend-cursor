@@ -8,11 +8,13 @@ PROVES   O1 -> "the experiment store"
 */
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  beginAnalysis,
   deleteMine,
   EXPERIMENTS_USE_MOCKS,
   exportMine,
   openSession,
   promptSchema,
+  readAnalysis,
   readTakes,
   resetExperimentStore,
   saveTake,
@@ -36,7 +38,14 @@ describe("the experiment store", () => {
     });
     expect(take?.volunteer_id.startsWith("vol_")).toBe(true);
     expect(take?.tag).toBe("challenging");
-    expect(take?.analysis.summary.gate).toBe(promptSchema().order[0]);
+    expect(take?.analysis).toBeNull();
+    await beginAnalysis(take!.id);
+    expect(await readAnalysis(take!.id)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const reading = await readAnalysis(take!.id);
+    expect(reading?.gate?.step).toBe("engagement");
+    expect(reading?.summary.arousal.unlocked).toBe(false);
+    expect(reading && "score_if_unlocked" in reading.summary.arousal).toBe(true);
     expect(readTakes().map((item) => item.id)).toEqual([take!.id]);
     const csv = await exportMine("csv", "self");
     expect(csv.ok).toBe(true);
