@@ -20,14 +20,14 @@ The talk asks one question at a time, in the same bubbles as every other chat. W
 
 | Score | Result | Where it was printed |
 | --- | --- | --- |
-| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 86/86` at 390×844 and at 1024×768. |
+| Usability | 270/270 = 100% | Rubric in `usability-audit.md`. `scripts/own-chat-e2e.mjs` printed `OWN CHAT 112/112` at 390×844 and at 1024×768. |
 | Technical | 33/33 = 100% | 29/29 from `talkAudit.test.tsx`, plus `OWN CHAT 4/4` from `ownChatHome.test.tsx`. |
 
 Both are above 95%. The hand-scored 9.6 and 96% from the earlier draft stay withdrawn.
 
 ## Scripts
 
-- Fourteen taps, then the screens read the fixture: "fourteen taps build the Speaking Coach".
+- Thirteen taps, then the screens read the fixture: "thirteen taps build the Speaking Coach".
 - Shop, including the mic: "the shop chat sets price, model and paste, and the mic transcribes".
 - An earlier answer, one question at a time, a targeted edit, chips, publish: "an earlier answer changes, then a targeted edit, chips, and publish stay on this device".
 - Phone: `node scripts/talk-e2e.mjs` runs tap, type and voice for both scripts.

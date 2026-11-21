@@ -78,6 +78,10 @@ export const W = {
   sendSay: "What do people send you? Tick all that apply.",
   /** One kind at a time (the host's words, 16 November 2026). */
   sendOne: (name: string) => `Can they send ${name.charAt(0).toLowerCase()}${name.slice(1)}?`,
+  /** A typed message is always on. This asks whether people can send anything else. */
+  sendMore: "Can people send you more than a typed message?",
+  sendKinds: "What can they send?",
+  sendDone: "Done",
   outSay: "They get back:",
   // The feedback walk, kept and not run yet (N641).
   walkSay: ["After a recording, people get a feedback walk.", "What should yours hold? Tick all that apply."],

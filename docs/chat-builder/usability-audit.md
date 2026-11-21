@@ -32,7 +32,7 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | # | Criterion | Points | Evidence |
 | --- | --- | --- | --- |
 | 1 | Success rate | 10 | `scripts/talk-e2e.mjs`: tap and type each finished the Speaking Coach and the shop. |
-| 2 | Taps against the minimum | 10 | `talkAudit.test.tsx` "fourteen taps build the Speaking Coach" asserts 14, one per answer. A job tap sends. |
+| 2 | Taps against the minimum | 10 | `talkAudit.test.tsx` "thirteen taps build the Speaking Coach" asserts 13, one per answer. A job tap sends. |
 | 3 | Reading level at most grade 6 | 10 | The e2e measured the screen at grade 6 or under. |
 | 4 | Few choices | 10 | What do you do? offers Speaking coach, ML specialist, Neurobiologist, and Someone else. Later questions are Yes and No. |
 | 5 | Tap and text do the same thing | 10 | The e2e snap matched for tap and type on both scripts. |
@@ -47,7 +47,7 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 14 | The greeting, then Keep | 10 | The greeting is a normal bubble. Keep sits above the box. The list of answers is Settings, not this screen. |
 | 15 | Targeted edits | 10 | Changing the price and the greeting left They send as it was. |
 | 16 | Write this for me, then keep or rewrite | 10 | The button fills the field. Rewrite clears it. Keep stores it. |
-| 17 | Capability chips | 10 | Record, Type, Photo, File and Train. Tapping Photo adds a photo and leaves the name. |
+| 17 | What they can send | 10 | A typed message is always on. Yes opens one list: a recording, a photo, a file. Ticking a photo and Done adds it. Train is not on this screen. |
 | 18 | A first-line greeting | 10 | The preview's first line is the greeting. |
 | 19 | Auto-save, and Publish to go live | 10 | A draft is stored after the first answer. Publish sets the flag and the test saw no fetch. |
 | 20 | Start your own chat is a row at the bottom | 10 | `ownChatHome.test.tsx`: the row is last, and it sits above Start a new project. |
@@ -59,6 +59,6 @@ Each row is 10 points. The score is the points earned divided by 190. A row earn
 | 26 | Your own code is one tap | 10 | The row opens on its own. After Yes, the host describes what it should do or pastes code. A description becomes one line, with Keep and Change. |
 | 27 | Test the chat as a visitor | 10 | The Test tile opens the chat as a visitor. A send gets the chat's own reply. Back returns to the four tiles. |
 
-**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. A settings row replaces the chat bar, so the screen has one top bar. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 86/86` at 390×844 and at 1024×768.
+**270 / 270 = 100%.** That is above 95%. The home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. A new chat highlights only Build. A tick marks a finished step. A settings row replaces the chat bar, so the screen has one top bar. `node scripts/own-chat-e2e.mjs` printed `OWN CHAT 112/112` at 390×844 and at 1024×768.
 
 The 30/30 run only opened the talk (`/dev/talk`). It never opened a row of Your chat, so a Yes on the last They send question could do nothing and the score still passed. Row chats are part of the audit now: `needsYou.test.tsx` "Yes and No on a row's last step show the answer, save, and open the next row", and `node scripts/row-yes-e2e.mjs`.

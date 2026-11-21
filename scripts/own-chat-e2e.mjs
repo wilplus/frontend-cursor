@@ -88,19 +88,32 @@ async function run(width, height) {
   const replyBox = await page.locator("[data-talk-replies]").boundingBox();
   const composerBox = await page.locator("[data-talk-composer]").boundingBox();
   check(`${tag} taps sit above the input`, !!replyBox && !!composerBox && replyBox.y + replyBox.height <= composerBox.y + 2);
+  const oneRow = async (where) => {
+    check(`${tag} ${where} has one tap row`, await page.locator("[data-tap-row]").count() === 1);
+  };
   const job = (name) => page.locator("[data-talk-replies]").getByRole("button", { name, exact: true });
+  await oneRow("the jobs");
   await job("Speaking coach").click();
-  await page.waitForSelector("text=Can they send a recording?");
+  await page.waitForSelector("text=Can people send you more than a typed message?");
+  await oneRow("the send question");
   await page.locator("[data-my-answer]").first().click();
   check(`${tag} an earlier answer opens its taps`, (await page.locator("[data-talk-replies] button").allInnerTexts()).map((t) => t.trim()).join(",") === "Speaking coach,ML specialist,Neurobiologist,Someone else");
+  await oneRow("an edited answer");
   await job("ML specialist").click();
-  check(`${tag} the answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can they send a recording?").count()) > 0);
+  check(`${tag} the answer changes and the next question stays`, (await page.locator("[data-my-answer]").first().innerText()).trim() === "ML specialist" && (await page.locator("text=Can people send you more than a typed message?").count()) > 0);
   await page.locator("[data-my-answer]").first().click();
   await job("Speaking coach").click();
-  await page.waitForSelector("text=Can they send a recording?");
+  await page.waitForSelector("text=Can people send you more than a typed message?");
   check(`${tag} the next question is one question`, (await page.locator("text=Say go?").count()) === 0);
-  for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.waitForSelector("text=What can they send?");
+  await oneRow("what they can send");
+  await page.locator("[data-kind='rec']").click();
+  await page.locator("[data-kinds-done]").click();
+  await oneRow("the question after send");
+  for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
     await page.getByRole("button", { name: answer, exact: true }).click();
+    await oneRow(answer);
   }
   await page.getByRole("button", { name: "Yes", exact: true }).click();
   await page.locator("[data-build-bar] button[aria-label='Back']").click();

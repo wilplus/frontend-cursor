@@ -3,7 +3,7 @@
 STORY    The talk is scored by driving it. Finishing it writes the coach
          the screens read. A shop chat sets every field the builder has.
 OUTCOME
-  O1  Fourteen taps build the Speaking Coach, then Say go. The saved
+  O1  Thirteen taps build the Speaking Coach, then Say go. The saved
       document matches the fixture, and the screens read it.
   O2  A shop chat sets all four sends, an assistant, price 1, a training
       machine, the hedge model, another model and a checked paste.
@@ -76,17 +76,20 @@ const snap = () => JSON.parse(container.querySelector("[data-talk-snap]")!.getAt
 const PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
 describe("the talk, scored by the script", () => {
-  it("fourteen taps build the Speaking Coach", async () => {
+  it("thirteen taps build the Speaking Coach", async () => {
     act(() => root.render(createElement("div", null, createElement(TalkBuild, { onList: () => undefined }), createElement(Probe))));
     expect(container.textContent).not.toContain("You decide");
     expect(container.querySelector("[data-talk-steps]")).toBeNull();
     await tap("Speaking coach");
     expect(container.querySelector("[data-talk-version]")).toBeNull();
     expect(readTalkDraft()?.definition.chat.spec).toBe("Speaking coach");
-    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
+    await tap("Yes");
+    await tap("A recording");
+    await tap("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     await tap("Yes");
-    expect(taps).toBe(14);
+    expect(taps).toBe(13);
     expect(snap()).toMatchObject({
       spec: "Speaking coach",
       send: ["rec", "text"],
@@ -123,7 +126,12 @@ describe("the talk, scored by the script", () => {
     await type("A shop");
     await tap("Send");
     expect(snap().spec).toBe("A shop");
-    for (const answer of ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "No", "No"]) await tap(answer);
+    await tap("Yes");
+    await tap("A recording");
+    await tap("A photo");
+    await tap("A file (a PDF or document)");
+    await tap("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "No", "No"]) await tap(answer);
     await tap("Yes");
     await tap("No");
     await tap("Yes");
@@ -138,7 +146,7 @@ describe("the talk, scored by the script", () => {
     await tap("Write this for me");
     await tap("Keep");
     await tap("Yes");
-    expect(taps).toBe(23);
+    expect(taps).toBe(24);
     for (let n = 0; n < 10 && !snap().paste; n += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     const saved = snap();
     expect(saved.send).toEqual(["rec", "text", "photo", "file"]);
@@ -178,9 +186,12 @@ describe("the talk, scored by the script", () => {
     await tap("Speaking coach");
     expect(snap().spec).toBe("Speaking coach");
     expect(container.querySelector("[data-talk-phase]")?.getAttribute("data-talk-phase")).toBe("send");
-    expect(container.textContent).toContain("Can they send a recording?");
+    expect(container.textContent).toContain("Can people send you more than a typed message?");
     expect(container.textContent).not.toContain("Say go?");
-    for (const answer of ["Yes", "Yes", "No", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
+    await tap("Yes");
+    await tap("A recording");
+    await tap("Done");
+    for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     expect(container.querySelector("[data-quote]")).toBeNull();
     await tap("No");
@@ -200,8 +211,12 @@ describe("the talk, scored by the script", () => {
     await tap("Send");
     expect(snap().hello).toBe("Hello there.");
     expect(snap().send.join(",")).toBe(before);
-    await tap("Photo");
-    expect(snap().send).toContain("photo");
+    await act(async () => (container.querySelector("[data-answer-q='kinds']") as HTMLElement).click());
+    await flush();
+    expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
+    await tap("A photo");
+    await tap("Done");
+    expect(snap().send).toEqual(["rec", "text", "photo"]);
     expect(snap().spec).toBe("Speaking coach");
     await tap("Yes");
     const edited = snap().hello === "Hello there.";
@@ -225,7 +240,7 @@ describe("the talk, scored by the script", () => {
       ["greeting stays, with Keep", keptOnScreen],
       ["targeted edit", edited],
       ["write this for me, then rewrite", true],
-      ["capability chips", chipped],
+      ["what they can send", chipped],
       ["first-line greeting", true],
       ["autosave, publish stays local", publishedLocal],
     ];

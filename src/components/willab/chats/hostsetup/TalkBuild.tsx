@@ -3,16 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
-import { SEND, W } from "./hostSetupCopy";
+import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
-import { COACH_HELLO, editEffect, SENDS, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
+import { COACH_HELLO, editEffect, speakTurn, WALKS, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 
 /* The chat, built by talking. One question at a time, in the same bubbles as
    every other chat. Taps sit above the box. A tap on an earlier answer opens
    that question again. The list of answers is Settings, not this screen. */
 
 const JOBS = ["Speaking coach", "ML specialist", "Neurobiologist", "Someone else"];
+const KIND_ORDER = ["rec", "photo", "file"] as const;
+const KIND_LABEL: Record<(typeof KIND_ORDER)[number], string> = {
+  rec: "A recording",
+  photo: "A photo",
+  file: "A file (a PDF or document)",
+};
+const PILL = "min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-[9px] text-left text-[15px] font-semibold leading-snug";
 const OPENING: Line[] = [{ who: "will", text: "What do you do?" }];
 const YESNO = new Set<Phase>(["send", "walk", "who", "pay", "price", "machine", "connect", "code", "other", "plan"]);
 
@@ -43,7 +50,13 @@ function generatedDraft(phase: string, spec: string): string {
   return spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.";
 }
 
+function kindNames(chosen: readonly SendKind[]): string {
+  const names = KIND_ORDER.filter((id) => chosen.includes(id)).map((id) => KIND_LABEL[id]);
+  return names.length ? names.join(" and ") : "Just a typed message";
+}
+
 function replyLabels(phase: string, models: { q: string }[], draft: string): string[] {
+  if (phase === "kinds") return [];
   if (phase === "brief") return JOBS;
   if (phase === "codeWay") return [W.codeTell, W.codeOwn];
   if (phase === "codeKeep") return [W.codeChange, W.codeKeep];
@@ -73,6 +86,8 @@ export default function TalkBuild({ onList, models = [] }: {
   const [, setI] = useState(0);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<number | null>(null);
+  const [picked, setPicked] = useState<SendKind[]>([]);
+  const pickedRef = useRef<SendKind[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<Line[]>(OPENING);
   const snapRef = useRef<Snap>(blank());
@@ -106,6 +121,10 @@ export default function TalkBuild({ onList, models = [] }: {
     setPhase(phaseRef.current);
     setI(iRef.current);
     setPriceAt(priceRef.current);
+    if (next.phase === "kinds") {
+      pickedRef.current = [];
+      setPicked([]);
+    }
     if (snapRef.current.spec) saveTalkDraft(talkBuilt(copySnap(snapRef.current)));
   };
 
@@ -126,7 +145,7 @@ export default function TalkBuild({ onList, models = [] }: {
     const next = { ...snapRef.current, spec };
     write({
       snap: next, phase: "send", i: 0,
-      add: [{ who: "me", text: spec, q: "brief" }, { who: "will", text: W.sendOne(SEND[SENDS[0]][0]) }],
+      add: [{ who: "me", text: spec, q: "brief" }, { who: "will", text: W.sendMore }],
     });
   };
 
@@ -139,7 +158,55 @@ export default function TalkBuild({ onList, models = [] }: {
     });
   };
 
+  const setKinds = (next: SendKind[]) => {
+    pickedRef.current = next;
+    setPicked(next);
+  };
+
+  const commitKinds = (chosen: SendKind[]) => {
+    const send: SendKind[] = (["rec", "text", "photo", "file"] as SendKind[]).filter((id) => id === "text" || chosen.includes(id));
+    const text = kindNames(chosen);
+    const editAt = editingRef.current;
+    const hadRec = snapRef.current.send.includes("rec");
+    const hasRec = send.includes("rec");
+    if (editAt !== null && hadRec === hasRec) {
+      const nextLines = linesRef.current.map((row, n) => (n === editAt ? { ...row, text } : row));
+      const next = { ...snapRef.current, send };
+      linesRef.current = nextLines;
+      snapRef.current = next;
+      setLines(nextLines);
+      setSnap(next);
+      editingRef.current = null;
+      setEditing(null);
+      setKinds([]);
+      if (next.spec) saveTalkDraft(talkBuilt(copySnap(next)));
+      return;
+    }
+    if (editAt !== null) {
+      const line = linesRef.current[editAt];
+      linesRef.current = linesRef.current.slice(0, editAt);
+      if (line?.before) snapRef.current = copySnap(line.before);
+      editingRef.current = null;
+      setEditing(null);
+    }
+    const ask = hasRec
+      ? { phase: "walk" as Phase, text: W.walkOne("best") }
+      : { phase: "who" as Phase, text: W.talkCheck };
+    write({ snap: { ...snapRef.current, send }, phase: ask.phase, i: 0, add: [{ who: "me", text, q: "kinds" }, { who: "will", text: ask.text }] });
+    setKinds([]);
+  };
+
   const take = (text: string) => {
+    const editingKinds = editingRef.current !== null && linesRef.current[editingRef.current]?.q === "kinds";
+    if (phaseRef.current === "kinds" || editingKinds) {
+      const said = text.trim().toLowerCase();
+      if (said === "done") commitKinds(pickedRef.current);
+      else {
+        const id = KIND_ORDER.find((kind) => KIND_LABEL[kind].toLowerCase() === said);
+        if (id) setKinds(pickedRef.current.includes(id) ? pickedRef.current.filter((kind) => kind !== id) : [...pickedRef.current, id]);
+      }
+      return;
+    }
     if (phaseRef.current === "brief") onBrief(text);
     else void onSend(text);
   };
@@ -238,22 +305,12 @@ export default function TalkBuild({ onList, models = [] }: {
     setSnap(next);
   };
 
-  const onChip = (id: string) => {
-    const cur = snapRef.current;
-    if (id === "machine") {
-      write({ snap: { ...cur, machine: !cur.machine } });
-      return;
-    }
-    const kind = id as SendKind;
-    const has = cur.send.includes(kind);
-    const send = has ? cur.send.filter((k) => k !== kind) : [...cur.send, kind];
-    write({ snap: { ...cur, send: send.length ? send : cur.send } });
-  };
-
   const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
   const openEdit = (index: number) => {
     editingRef.current = index;
     setEditing(index);
+    const line = linesRef.current[index];
+    if (line?.q === "kinds") setKinds(KIND_ORDER.filter((id) => snapRef.current.send.includes(id)));
   };
 
   return (
@@ -301,19 +358,21 @@ export default function TalkBuild({ onList, models = [] }: {
         {kept ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-kept="" className={WILL}>Kept.</div></div> : null}
         {liveDraft ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-live="" className={WILL}>Live on this device.</div></div> : null}
       </div>
-      {phase !== "brief" && editing === null ? (
-        <div data-talk-chips="" className="flex flex-wrap justify-end gap-2 px-3 pb-1">
-          {[["rec", "Record"], ["text", "Type"], ["photo", "Photo"], ["file", "File"], ["machine", "Train"]].map(([id, label]) => {
-            const on = id === "machine" ? snap.machine : snap.send.includes(id as SendKind);
+      {asking === "kinds" ? (
+        <div data-talk-replies="" data-tap-row="" className="ml-auto flex w-full max-w-[86%] flex-col items-end gap-2 px-3 pb-1">
+          {KIND_ORDER.map((id) => {
+            const on = picked.includes(id);
             return (
-              <button key={id} type="button" data-chip={id} aria-pressed={on} className={`inline-flex min-h-11 min-w-11 items-center rounded-full border px-3 text-[15px] font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`} onClick={() => onChip(id)}>{label}</button>
+              <button key={id} type="button" data-kind={id} aria-pressed={on} className={`${PILL} ${on ? "bg-primary text-primary-foreground" : "bg-background text-primary"}`} onClick={() => setKinds(on ? picked.filter((kind) => kind !== id) : [...picked, id])}>
+                {on ? `✓ ${KIND_LABEL[id]}` : KIND_LABEL[id]}
+              </button>
             );
           })}
+          <button type="button" data-kinds-done="" className={`${PILL} bg-primary text-primary-foreground`} onClick={() => commitKinds(pickedRef.current)}>{W.sendDone}</button>
         </div>
-      ) : null}
-      {labels.length ? (
+      ) : labels.length ? (
         <div className="px-3 pb-1">
-          <TapRow labels={labels} even={labels.length !== 2} onTap={onReply} dataAttr={{ "data-talk-replies": "" }} />
+          <TapRow labels={labels} even={labels.length !== 2} onTap={onReply} dataAttr={{ "data-talk-replies": "", "data-tap-row": "" }} />
         </div>
       ) : null}
       <ChatBarRow data-talk-composer="">
