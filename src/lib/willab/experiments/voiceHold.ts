@@ -13,6 +13,7 @@ export type VoiceHold = {
 const EMPTY: VoiceHold = { model: null, prompts: [], caseName: null, agreed: false };
 const listeners = new Set<() => void>();
 let hold: VoiceHold = EMPTY;
+let caseFile: File | null = null;
 
 export function readHold(): VoiceHold {
   return hold;
@@ -24,7 +25,17 @@ export function writeHold(next: Partial<VoiceHold>): VoiceHold {
   return hold;
 }
 
+export function readCaseFile(): File | null {
+  return caseFile;
+}
+
+export function setCaseFile(file: File | null): void {
+  caseFile = file;
+  writeHold({ caseName: file?.name ?? null });
+}
+
 export function clearHold(): void {
+  caseFile = null;
   hold = EMPTY;
   listeners.forEach((fn) => fn());
 }

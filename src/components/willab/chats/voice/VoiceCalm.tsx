@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CALM_MAX, CALM_MIN, HOST_ONLY, NOT_ON_YET, calmFromFile, type BaselinePrompt } from "@/lib/willab/experiments/voiceCatalog";
-import { readHold, writeHold } from "@/lib/willab/experiments/voiceHold";
+import { readHold, setCaseFile, writeHold } from "@/lib/willab/experiments/voiceHold";
 import { saveExperimentConfig } from "@/services/api/voiceCatalog";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 
@@ -50,6 +50,10 @@ export function VoiceCalmEditor({ onDone }: { onDone: () => void }) {
         <CalmRow key={row.id} row={row} on={ids.includes(row.id)} onToggle={() => toggle(row.id)} onEarlier={() => move(row.id, -1)} onLater={() => move(row.id, 1)} />
       ))}
       {note ? <p data-voice-save="" className="m-0 text-[14px] text-muted-foreground">{note}</p> : null}
+      <label className="text-[15px]">
+        A one-page case or slides, if you have them
+        <input data-voice-case="" type="file" accept=".pdf,.ppt,.pptx,.odp,.key,application/pdf" className="mt-1 block text-[14px]" onChange={(event) => setCaseFile(event.target.files?.[0] ?? null)} />
+      </label>
       <button type="button" data-calm-save="" className="min-h-11 rounded-full bg-primary px-4 text-[16px] font-medium text-primary-foreground" onClick={save}>Save</button>
     </div>
   );

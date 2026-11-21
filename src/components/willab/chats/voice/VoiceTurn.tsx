@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { CALM_LINE, NOT_ON_YET, type BaselinePrompt, type VoiceModel } from "@/lib/willab/experiments/voiceCatalog";
-import { readHold, writeHold } from "@/lib/willab/experiments/voiceHold";
+import { readCaseFile, readHold, writeHold } from "@/lib/willab/experiments/voiceHold";
 import type { AnalyzeTake, SelfRating } from "@/lib/willab/experiments/types";
 import type { VoiceTip } from "@/lib/willab/experiments/voiceCatalog";
 import { openVoiceSession, pollAnalysis, postVoiceTake, queueAnalysis } from "@/services/api/voiceCatalog";
@@ -44,7 +44,7 @@ export function VoiceTurn({ model, prompts, onReply }: {
     setPhase("reading");
     setReading("wait");
     if (!session.current) {
-      const opened = await openVoiceSession(null);
+      const opened = await openVoiceSession(readCaseFile());
       session.current = opened === "not-on-yet" ? null : opened.id;
     }
     if (!session.current || !audio) {
