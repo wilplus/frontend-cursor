@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { getAuthToken } from "@/lib/api/auth-client";
 import { mapProjectDeletion, type ProjectDeletion } from "./projectDeletion";
 
 /* -------------------------------------------------------------------------- */
@@ -158,10 +159,49 @@ function mapArc(raw: unknown): TrainingArc | null {
   };
 }
 
-/** Fetch the arc-grouped trainings. null = endpoint missing / error → the
- *  caller falls back to the legacy strengths-fed view. */
+type TrainingsCacheEntry = { value: TrainingArc[]; cachedAt: number };
+
+const TRAININGS_CACHE_MAX_AGE_MS = 15_000;
+const cachedTrainings = new Map<string, TrainingsCacheEntry>();
+const inFlightTrainings = new Map<string, Promise<TrainingArc[] | null>>();
+
+function trainingsCacheKey(token: string, includeArchived: boolean): string {
+  // The bearer token is an in-memory identity boundary. A new account, or a
+  // refreshed token, can never read another account's project list.
+  return `${token}\u0000${includeArchived ? "archived" : "active"}`;
+}
+
+/** Fetch the arc-grouped trainings. Concurrent and recent callers share the
+ * authenticated result; failures are never cached. `force` is for live
+ * processing/recovery reads that must see a newly completed Take. */
 export async function fetchTrainings(
-  { includeArchived = false }: { includeArchived?: boolean } = {},
+  {
+    includeArchived = false,
+    force = false,
+  }: { includeArchived?: boolean; force?: boolean } = {},
+): Promise<TrainingArc[] | null> {
+  const token = await getAuthToken();
+  if (!token) return null;
+  const key = trainingsCacheKey(token, includeArchived);
+  const cached = cachedTrainings.get(key);
+  if (!force && cached && Date.now() - cached.cachedAt <= TRAININGS_CACHE_MAX_AGE_MS) {
+    return cached.value;
+  }
+  const existing = inFlightTrainings.get(key);
+  if (existing) return existing;
+
+  const read = requestTrainings(includeArchived, key);
+  inFlightTrainings.set(key, read);
+  const clearInFlight = () => {
+    if (inFlightTrainings.get(key) === read) inFlightTrainings.delete(key);
+  };
+  read.then(clearInFlight, clearInFlight);
+  return read;
+}
+
+async function requestTrainings(
+  includeArchived: boolean,
+  cacheKey: string,
 ): Promise<TrainingArc[] | null> {
   const res = await bffFetch(
     includeArchived ? "/api/v2/user/trainings?include_archived=1" : "/api/v2/user/trainings",
@@ -176,5 +216,13 @@ export async function fetchTrainings(
       ? body.arcs
       : null;
   if (!list) return null;
-  return list.map(mapArc).filter((a): a is TrainingArc => !!a);
+  const value = list.map(mapArc).filter((a): a is TrainingArc => !!a);
+  cachedTrainings.set(cacheKey, { value, cachedAt: Date.now() });
+  return value;
+}
+
+/** Test-only reset for the page-scoped read cache. */
+export function __resetTrainingsCacheForTests(): void {
+  cachedTrainings.clear();
+  inFlightTrainings.clear();
 }

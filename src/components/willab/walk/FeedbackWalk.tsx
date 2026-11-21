@@ -171,6 +171,8 @@ type Props<R> = {
   /** Opens the sign-up dialog for a guest known to the caller. */
   onGuest?: () => void;
   onSaveHelperWords: (save: FeedbackWalkHelperWords) => void;
+  /** The standalone paragraph's editor also offers words from earlier Takes. */
+  editSavedHelpers?: (partId: string) => void;
   /** "Accept and practise" (or "Accept", or the One thing walk's "Try it")
    *  on a clearer version: the host writes the speaker's decision through
    *  the accept lane. The walk moves on at once; it never waits on the
@@ -376,6 +378,7 @@ export default function FeedbackWalk<R = unknown>({
   guest = false,
   onGuest,
   onSaveHelperWords,
+  editSavedHelpers,
   onAcceptClearer,
   onKeepWords,
   practise: practiseIO = null,
@@ -913,6 +916,18 @@ export default function FeedbackWalk<R = unknown>({
       go(here);
       return true;
     },
+    editorFor: (s, moment) => {
+      if (!editSavedHelpers || !helperWordsOf?.(moment.partId)) return null;
+      const key = pickKey(s);
+      return {
+        changed: picks[key]?.join() !== saved[key]?.join(),
+        open: () => {
+          if (blocked(s)) return;
+          go(0, undefined);
+          editSavedHelpers(moment.partId);
+        },
+      };
+    },
     save: (s, moment) => {
       if (blocked(s)) return;
       answer(s, "use");
@@ -1139,6 +1154,7 @@ type ScreenCtx<R = unknown> = {
    *  walk stands there, their buttons in the dock. False where it may not
    *  (a guest, the recorder in the dock). */
   standOn: (step: WalkStep) => boolean;
+  editorFor: (step: WalkStep, moment: FeedbackWalkMoment) => { changed: boolean; open: () => void } | null;
   save: (step: WalkStep, moment: FeedbackWalkMoment) => void;
   accept(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
   keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
@@ -1607,7 +1623,9 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
   const live = ctx.at(step) === ctx.head;
   const words = moment.paragraphText;
-  const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
+  const editor = ctx.editorFor(step, moment);
+  const openEditor = editor && !editor.changed ? editor.open : null;
+  const given = editor !== null || ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
     // In a scroll, Skip only ends the edit (N259).
     if (!ctx.walk.scroll) ctx.answer(step, "skip");
@@ -1623,9 +1641,9 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
           pill={{
             // Words already given: the pill edits them (founder, signed
             // 2026-10-21: "edit the helper words instead of save").
-            label: given ? WALK_COPY.editHelperWords : COPY.pillEmphasise,
-            onClick: () => ctx.save(step, moment),
-            disabled: picked === null,
+            label: given && !editor?.changed ? WALK_COPY.editHelperWords : COPY.pillEmphasise,
+            onClick: openEditor ?? (() => ctx.save(step, moment)),
+            disabled: !openEditor && picked === null,
             testId: "walk-forward",
           }}
           links={[

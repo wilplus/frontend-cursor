@@ -6,71 +6,99 @@ import { uiText } from "@/lib/uiLocale";
 /* -------------------------------------------------------------------------- */
 /*  LoadingState — the one generic full-surface waiting composition            */
 /*                                                                            */
-/*  Generic waits know only that work is happening. They therefore render the  */
-/*  canonical 64px voice mark and an assistive label—no stage, fake percentage, */
-/*  progress rail, or recommendation. Post-recording analysis owns those richer */
-/*  elements exclusively in RecordingAnalysisPresentation.                     */
+/*  Every page wait uses the same circular three-dot bubble. The shell owns    */
+/*  the footprint and centering; the bubble never changes size or position     */
+/*  when a route, phase or data source changes. In-conversation response dots  */
+/*  intentionally remain in TypingDots.                                      */
 /* -------------------------------------------------------------------------- */
 
-/** The breathing voice mark. LoadingState fixes it at 64px; this primitive is
- *  exported only for deliberately compact, in-control status treatments. */
-export function VoiceMark({ size, className }: { size: number; className?: string }) {
+export type LoadingPlacement = "viewport" | "surface";
+export type LoadingSurfaceKind = "generic" | "processing";
+
+/**
+ * Every full-surface wait goes through this frame. The outer surface owns the
+ * lifecycle's footprint; the inner frame owns centering. Keeping those two
+ * boxes present across label, phase and progress changes prevents the mark
+ * from inheriting a screen-specific flex alignment or a changing content
+ * height. Inline chat/lens waits intentionally do not use this component.
+ */
+export function LoadingSurface({
+  placement,
+  kind = "generic",
+  className,
+  children,
+}: {
+  readonly placement: LoadingPlacement;
+  readonly kind?: LoadingSurfaceKind;
+  readonly className?: string;
+  readonly children: React.ReactNode;
+}) {
+  const rootClass =
+    placement === "viewport"
+      ? "fixed inset-0 z-40 flex bg-background px-6"
+      : "flex min-h-0 min-h-full w-full flex-1 self-stretch bg-background px-6";
+
+  return (
+    <div
+      data-loading-surface={kind}
+      data-loading-placement={placement}
+      data-viewport-wait={placement === "viewport" ? "" : undefined}
+      className={`${rootClass}${className ? ` ${className}` : ""}`}
+    >
+      <div
+        data-loading-frame
+        className="flex min-h-0 min-h-full w-full flex-1 items-center justify-center"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** The shared circular three-dot loader. Opacity changes only; the dots never
+ *  jump, so the footprint stays calm at every size. */
+export function LoadingBubble({ size = 64, className }: { size?: number; className?: string }) {
+  const dotSize = Math.max(2, Math.round(size * 0.1));
+  const gap = Math.max(2, Math.round(size * 0.06));
   return (
     <span
-      className={`relative flex items-center justify-center${className ? ` ${className}` : ""}`}
-      style={{ height: size, width: size }}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-muted${className ? ` ${className}` : ""}`}
+      style={{ height: size, width: size, gap }}
       aria-hidden="true"
-      data-voice-mark=""
+      data-loading-bubble=""
     >
-      <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
-      <span
-        className="breath-ring absolute rounded-full border border-foreground/15"
-        style={{ inset: Math.max(1, Math.round(size * 0.094)), animationDelay: "0.6s" }}
-      />
-      <span
-        className="breath-ring absolute rounded-full border border-primary/30"
-        style={{ inset: Math.max(2, Math.round(size * 0.1875)), animationDelay: "1.2s" }}
-      />
-      <svg
-        width={Math.round(size * 0.42)}
-        height={Math.round(size * 0.42)}
-        viewBox="0 0 56 56"
-        aria-hidden="true"
-      >
-        <circle
-          className="welcome-voice-dot"
-          cx="12"
-          cy="28"
-          r="4"
-          fill="hsl(var(--foreground))"
+      {["-0.24s", "-0.12s", "0s"].map((delay) => (
+        <span
+          key={delay}
+          className="loading-dot rounded-full bg-muted-foreground/60"
+          style={{ height: dotSize, width: dotSize, animationDelay: delay }}
+          data-loading-dot=""
         />
-        <circle
-          className="welcome-voice-dot"
-          cx="28"
-          cy="28"
-          r="6"
-          fill="hsl(var(--foreground))"
-        />
-        <circle
-          className="welcome-voice-dot"
-          cx="44"
-          cy="28"
-          r="4"
-          fill="hsl(var(--foreground))"
-        />
-      </svg>
+      ))}
+    </span>
+  );
+}
+
+/** Compatibility name for compact action states. It uses the same bubble as
+ *  every full-surface wait, only scaled to the control that owns it. */
+export function VoiceMark({ size, className }: { size: number; className?: string }) {
+  return (
+    <span data-voice-mark="" className="inline-flex">
+      <LoadingBubble size={size} className={className} />
     </span>
   );
 }
 
 export default function LoadingState({
   placement,
+  kind = "generic",
   label,
   labelVisible = false,
   note = null,
 }: {
   /** Viewport owns the screen; surface fills its already-mounted parent. */
   readonly placement: "viewport" | "surface";
+  readonly kind?: LoadingSurfaceKind;
   readonly label?: string;
   /** The label as small grey text 16px under the mark, as the recording
    *  prototype's renderMic draws "Getting your mic ready" (founder lock
@@ -86,8 +114,13 @@ export default function LoadingState({
   const locale = useUiLocale();
   const resolvedLabel = label ?? uiText(locale, "loading");
   const presentation = (
-    <div className="flex min-h-full w-full flex-1 flex-col items-center justify-center">
-      <VoiceMark size={64} />
+    <div
+      data-loading-content
+      className="flex w-full flex-col items-center justify-center"
+    >
+      <div data-loading-indicator>
+        <LoadingBubble />
+      </div>
       {labelVisible ? (
         <>
           <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
@@ -107,18 +140,10 @@ export default function LoadingState({
     </div>
   );
 
-  if (placement === "viewport") {
-    return (
-      <div className="fixed inset-0 z-40 flex justify-center bg-background px-6">
-        {presentation}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-full w-full flex-1 self-stretch justify-center bg-background px-6">
+    <LoadingSurface placement={placement} kind={kind}>
       {presentation}
-    </div>
+    </LoadingSurface>
   );
 }
 
@@ -127,11 +152,15 @@ export function SectionLoadingState({ label }: { label?: string }) {
   const locale = useUiLocale();
   const resolvedLabel = label ?? uiText(locale, "loading");
   return (
-    <div className="flex min-h-[140px] flex-1 items-center justify-center">
-      <VoiceMark size={64} />
-      <span className="sr-only" role="status">
-        {resolvedLabel}
-      </span>
-    </div>
+    <LoadingSurface placement="surface" className="min-h-[140px]">
+      <div data-loading-content className="flex flex-col items-center justify-center">
+        <div data-loading-indicator>
+          <LoadingBubble />
+        </div>
+        <span className="sr-only" role="status">
+          {resolvedLabel}
+        </span>
+      </div>
+    </LoadingSurface>
   );
 }

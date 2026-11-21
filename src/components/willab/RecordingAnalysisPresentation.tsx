@@ -1,6 +1,7 @@
 "use client";
 
 import { VoiceMark } from "./LoadingState";
+import { processingWaitCopy } from "./processingCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingAnalysisPresentation — post-recording analysis, and only that.   */
@@ -38,7 +39,10 @@ export default function RecordingAnalysisPresentation({
       : null;
 
   return (
-    <div className="flex w-full max-w-[19rem] flex-1 flex-col justify-center pb-[9vh] text-left">
+    <div
+      data-processing-wait=""
+      className="flex w-full max-w-[19rem] flex-1 flex-col justify-center pb-[9vh] text-left"
+    >
       <div className="mb-11 flex justify-center">
         <VoiceMark size={88} />
       </div>
@@ -68,7 +72,7 @@ export default function RecordingAnalysisPresentation({
           />
         </div>
         <p className="mt-3.5 text-sm leading-normal text-muted-foreground">
-          {WAIT_EXPECTATION}
+          {processingWaitCopy()}
         </p>
       </div>
     </div>

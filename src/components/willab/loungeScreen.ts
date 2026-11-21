@@ -1,5 +1,6 @@
 import type { ChatHistoryEntry } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { projectIdOf } from "@/lib/willab/projectChat";
 import { readOfferType } from "./loungeOffers";
 
 /* -------------------------------------------------------------------------- */
@@ -95,7 +96,11 @@ export function screenHistory(messages: readonly LoungeMessage[], facts: ScreenF
   const lines: ChatHistoryEntry[] = [];
   for (const message of messages) {
     const line = lineOf(message, facts);
-    if (line) lines.push(line);
+    if (!line) continue;
+    const arc = projectIdOf(message);
+    const marker = message.metadata?.project_chat === true;
+    if (arc || marker) line.metadata = { ...(arc && { arc_id: arc }), ...(marker && { project_chat: true }) };
+    lines.push(line);
   }
   return lines.slice(-SCREEN_TURNS);
 }

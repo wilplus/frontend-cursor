@@ -38,6 +38,8 @@ export type UiCopyKey =
   | "projectDeletionPending"
   | "projectArchive"
   | "projectArchiveFailed"
+  | "projectEdit"
+  | "projectEditFailed"
   | "projectMoreOptions"
   | "projectDeleteDraftTitle"
   | "projectDeleteDraftBody"
@@ -112,6 +114,8 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     projectDeletionPending: "Deletion pending",
     projectArchive: "Archive",
     projectArchiveFailed: "Couldn't archive. Try again.",
+    projectEdit: "Edit",
+    projectEditFailed: "Couldn't edit. Try again.",
     projectMoreOptions: "More options for {name}",
     projectDeleteDraftTitle: "Delete this draft?",
     projectDeleteDraftBody: "Your unfinished setup answers will be removed.",

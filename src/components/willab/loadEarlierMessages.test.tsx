@@ -80,18 +80,18 @@ it("older messages come in above what is read; a new one lands at the bottom", (
 
 it("a Take's processing bubble is landed on once", () => {
   const follow = vi.fn();
-  function Chat({ resume }: { resume: { status: string; sessionId: string } | null }) {
+  function Chat({ resume }: { resume: { status: string; serverState: "processing" | null; sessionId: string } | null }) {
     useLandOnProcessing(resume, follow);
     return null;
   }
-  const render = (resume: { status: string; sessionId: string } | null) =>
+  const render = (resume: { status: string; serverState: "processing" | null; sessionId: string } | null) =>
     act(() => root.render(createElement(Chat, { resume })));
   render(null);
   expect(follow).not.toHaveBeenCalled();
-  render({ status: "analyzing", sessionId: "take-2" });
-  render({ status: "analyzing", sessionId: "take-2" }); // its progress moves
+  render({ status: "analyzing", serverState: "processing", sessionId: "take-2" });
+  render({ status: "analyzing", serverState: "processing", sessionId: "take-2" }); // its progress moves
   expect(follow).toHaveBeenCalledTimes(1);
-  render({ status: "failed", sessionId: "take-2" }); // the failure note is its own
-  render({ status: "analyzing", sessionId: "take-3" });
+  render({ status: "failed", serverState: null, sessionId: "take-2" }); // the failure note is its own
+  render({ status: "analyzing", serverState: "processing", sessionId: "take-3" });
   expect(follow).toHaveBeenCalledTimes(2);
 });

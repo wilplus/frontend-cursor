@@ -27,6 +27,8 @@ import { guestOwnerHeaders } from "./projects";
 export interface ChatHistoryEntry {
   role: "user" | "assistant";
   content: string;
+  /** Only the project identity travels with the rendered words. */
+  metadata?: { arc_id?: string; project_chat?: true };
 }
 
 export interface ChatQueryArgs {
@@ -47,6 +49,8 @@ export interface ChatQueryArgs {
    * optional because anonymous-funnel callers don't have one.
    */
   sessionId?: string | null;
+  /** Explicit project for an answer under that project's open Take question. */
+  projectId?: string | null;
   /**
    * #2 — server-owned persistence. When true the BACKEND writes this turn
    * (user + bot) into the signed-in lounge thread; the FE then shows the bot
@@ -76,6 +80,10 @@ export interface ChatQueryArgs {
  * shape forward-compatible by only typing what we actively read.
  */
 export interface ChatQueryResponse {
+  terminal?: boolean;
+  outcome?: "reply" | "structured" | "recoverable_error";
+  retryable?: boolean;
+  failure?: { code: string; retryable: boolean; timeout?: boolean } | null;
   answer?: string;
   /** RULE F (server-side split) — the answer pre-split into render-ready bubbles.
    *  Authoritative over `answer`; render each 1:1. Absent → split `answer`. */
@@ -107,6 +115,7 @@ export interface ChatQueryResponse {
   take_card?: { arc_id: string; version?: number | null; topic?: string | null } | null;
   /** True only when the backend durably stored the signed-in bot turn. */
   persisted?: boolean;
+  persisted_client_id?: string;
   /** What the backend stored on its reply row; `whatsapp: "check"` with the
    *  `phone` when a full number was typed under the WhatsApp ask (backend
    *  N235: its code comes next), "invalid" without its country code. */
@@ -138,6 +147,7 @@ export interface ChatQueryContrastDelta {
 }
 
 const ENDPOINT = "/api/v2/chat/query";
+export const CHAT_QUERY_TIMEOUT_MS = 45_000;
 
 /** Who is asking: the guest owner token as always, and, signed in, the
  *  session's Bearer, so the BFF need not ask Supabase Auth who this is
@@ -173,66 +183,83 @@ export async function postChatQuery(
   args: ChatQueryArgs,
 ): Promise<ChatQueryResponse> {
   let res: Response;
+  let data: (ChatQueryResponse & { code?: string }) | Record<string, never>;
   const asker = await askerHeaders();
-  if (args.audioBlob) {
-    const form = new FormData();
-    form.append("question", args.question);
-    if (args.history) form.append("history", JSON.stringify(args.history));
-    if (args.presentationContext) {
-      form.append(
-        "presentation_context",
-        JSON.stringify(args.presentationContext),
-      );
-    }
-    if (args.sessionId) form.append("session_id", args.sessionId);
-    if (args.place) form.append("place", args.place);
-    form.append("audio_file", args.audioBlob, "casual.webm");
-    form.append("transcript_source", "web_speech");
-    if (args.durationSec != null) {
-      form.append("audio_duration_sec", String(args.durationSec));
-    }
-    if (args.persist) {
-      form.append("persist", "true");
-      if (args.clientId) form.append("client_id", args.clientId);
-      if (args.clientCreatedAt) {
-        form.append("client_created_at", args.clientCreatedAt);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CHAT_QUERY_TIMEOUT_MS);
+  try {
+    if (args.audioBlob) {
+      const form = new FormData();
+      form.append("question", args.question);
+      if (args.history) form.append("history", JSON.stringify(args.history));
+      if (args.historySource) form.append("history_source", args.historySource);
+      if (args.presentationContext) {
+        form.append(
+          "presentation_context",
+          JSON.stringify(args.presentationContext),
+        );
       }
+      if (args.sessionId) form.append("session_id", args.sessionId);
+      if (args.projectId) form.append("arc_id", args.projectId);
+      if (args.place) form.append("place", args.place);
+      form.append("audio_file", args.audioBlob, "casual.webm");
+      form.append("transcript_source", "web_speech");
+      if (args.durationSec != null) {
+        form.append("audio_duration_sec", String(args.durationSec));
+      }
+      if (args.persist) {
+        form.append("persist", "true");
+        if (args.clientId) form.append("client_id", args.clientId);
+        if (args.clientCreatedAt) {
+          form.append("client_created_at", args.clientCreatedAt);
+        }
+      }
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        body: form,
+        headers: asker,
+        credentials: "include",
+        signal: controller.signal,
+      });
+    } else {
+      // No audio → existing JSON path, unchanged from today.
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        // A guest's acceptance lives on their guest identity until they sign
+        // up (projects.ts); without it the processing gate refuses the turn.
+        headers: { "Content-Type": "application/json", ...asker },
+        body: JSON.stringify({
+          question: args.question,
+          history: args.history,
+          history_source: args.historySource,
+          session_id: args.sessionId,
+          arc_id: args.projectId,
+          presentation_context: args.presentationContext,
+          place: args.place || undefined,
+          // #2 — server-owned persistence (signed-in only). The BE dedups the
+          // user turn on client_id; absent → BE does not persist this turn.
+          persist: args.persist ? true : undefined,
+          client_id: args.persist ? (args.clientId ?? undefined) : undefined,
+          client_created_at: args.persist
+            ? (args.clientCreatedAt ?? undefined)
+            : undefined,
+        }),
+        credentials: "include",
+        signal: controller.signal,
+      });
     }
-    res = await fetch(ENDPOINT, {
-      method: "POST",
-      body: form,
-      headers: asker,
-      credentials: "include",
-    });
-  } else {
-    // No audio → existing JSON path, unchanged from today.
-    res = await fetch(ENDPOINT, {
-      method: "POST",
-      // A guest's acceptance lives on their guest identity until they sign
-      // up (projects.ts); without it the processing gate refuses the turn.
-      headers: { "Content-Type": "application/json", ...asker },
-      body: JSON.stringify({
-        question: args.question,
-        history: args.history,
-        history_source: args.historySource,
-        session_id: args.sessionId,
-        presentation_context: args.presentationContext,
-        place: args.place || undefined,
-        // #2 — server-owned persistence (signed-in only). The BE dedups the
-        // user turn on client_id; absent → BE does not persist this turn.
-        persist: args.persist ? true : undefined,
-        client_id: args.persist ? (args.clientId ?? undefined) : undefined,
-        client_created_at: args.persist
-          ? (args.clientCreatedAt ?? undefined)
-          : undefined,
-      }),
-      credentials: "include",
-    });
-  }
 
-  const data = (await res.json().catch(() => ({}))) as
-    | (ChatQueryResponse & { code?: string })
-    | Record<string, never>;
+    data = (await res.json().catch(() => ({}))) as
+      | (ChatQueryResponse & { code?: string })
+      | Record<string, never>;
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new ChatQueryRequestError(408, "CHAT_TIMEOUT", "Chat reply timed out");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   // Anything non-2xx is a transport / auth / server failure — let the
   // caller's catch block decide how to surface it (typically a

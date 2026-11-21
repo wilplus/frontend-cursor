@@ -64,6 +64,9 @@ built and what is still to come.
    asked for a speaker who already has Takes (A2, A3). The plan says so
    (`onboarding`), and nothing of the voice notebook, the Sunday note or life
    goals shows meanwhile ([principles](principles.md) A6; N243).
+6. The plan's first-Take processing row appears only while the server says
+   that Take is processing. Opening Ideal Text or revisiting a Feedback walk
+   cannot create a processing row; once processing ends, the row stays gone.
 
 ### B · The questions, in the Lounge
 

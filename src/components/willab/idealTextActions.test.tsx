@@ -99,16 +99,17 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses the chunk delivery status at the practice decision", () => {
+  it("offers rehearse and continue side by side with the fragment readiness", () => {
     render({
       practiceDecision: {
-        deliveryLabel: "Good",
-        onContinue: vi.fn(),
-        onRepeat: vi.fn(),
+        deliveryLabel: "Almost",
+        onFragment: vi.fn(),
+        onWholePresentation: vi.fn(),
       },
     });
-    expect(host.querySelector("[data-practice-status]")?.textContent).toContain("Good");
-    expect(labels()).toEqual(["Continue to next fragment", "Repeat this fragment"]);
+    const decision = host.querySelector("[data-practice-decision]")!;
+    expect(labels()).toEqual(["Repeat this fragment", "Rehearse whole presentation"]);
+    expect(decision.querySelector("[data-practice-status]")?.textContent).toContain("Almost");
   });
 });
 

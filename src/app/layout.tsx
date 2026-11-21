@@ -11,6 +11,7 @@ import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
 import NativeAppMarker from "@/components/pwa/NativeAppMarker";
 import NativePush from "@/components/pwa/NativePush";
 import NativeLinks from "@/components/pwa/NativeLinks";
+import NativeLaunchScreen from "@/components/pwa/NativeLaunchScreen";
 import NativeKeyboard from "@/components/pwa/NativeKeyboard";
 import BookingReturn from "@/components/booking/BookingReturn";
 import {
@@ -116,7 +117,9 @@ export default function RootLayout({
       */}
       <body className="flex h-[100dvh] flex-col font-sans antialiased">
         <UiLocaleProvider initialLocale={uiLocale}>
-          <div className="flex-1 overflow-y-auto">{children}</div>
+          <div data-app-content className="relative min-h-0 flex-1">
+            <div className="h-full overflow-y-auto">{children}</div>
+          </div>
           <Footer />
           <Toaster position="top-center" />
           <ServiceWorkerRegistrar />
@@ -124,6 +127,7 @@ export default function RootLayout({
           <NativeAppMarker />
           <NativePush />
           <NativeLinks />
+          <NativeLaunchScreen />
           <NativeKeyboard />
           {/* Side-effect-only: claim the guest graph, then send the exact parked
               Project Take after OAuth. Renders nothing. */}

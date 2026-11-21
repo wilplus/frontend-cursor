@@ -1,5 +1,6 @@
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ChatHistoryEntry } from "@/services/api/chatQuery";
+import { speakingCoachMessages } from "@/lib/willab/projectChat";
 
 /* -------------------------------------------------------------------------- */
 /*  willabHelpers — pure functions shared by the willab surfaces              */
@@ -48,7 +49,7 @@ export function isRetiredLoungeMessage(
  * with `bot` → `assistant`. System/status/insight rows are not conversation.
  */
 export function loungeToHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
-  return msgs
+  return speakingCoachMessages(msgs)
     .filter(
       (m) =>
         !isRetiredLoungeMessage(m) &&

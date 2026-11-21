@@ -23,9 +23,8 @@ WHY      Founder 2026-11-09, backend N560 items 1 and 2 ("Ask, like the ✕";
          "Yes, fix it"): Back threw the Take away without asking, and the
          retry could restart the old Take (Never 3, Never 5). O3: founder
          2026-11-10, "the takes are not being displayed on the chat and when
-         I click to close the processing screen it doesn't show me the
-         loading progress bubble"; "if I close the processing earlier there
-         is no indication that it is processing" (Never 3).
+         I click to close the processing screen it must not invent a
+         processing bubble before the upload is accepted (Never 3).
 */
 import { act, createElement, useCallback, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -110,14 +109,6 @@ import LabOverlay from "./LabOverlay";
 import { transition, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import { readProcessingTake } from "@/lib/willab/processingTake";
-import { useTakeUploadingUnwatched } from "@/lib/willab/takeUploading";
-
-/** What the chat reads: a Take still going up after its screens closed. */
-let uploadingNow = false;
-function UploadingProbe() {
-  uploadingNow = useTakeUploadingUnwatched();
-  return null;
-}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -157,7 +148,7 @@ async function openLaterTake() {
     slides: [],
     targetLengthSeconds: null,
   });
-  act(() => root.render(createElement("div", null, createElement(Lab), createElement(UploadingProbe))));
+  act(() => root.render(createElement("div", null, createElement(Lab))));
   await settle();
   expect(recording()).toBe(true);
 }
@@ -270,16 +261,18 @@ describe("the recording screens never lose a Take by mistake (backend N560)", ()
     await act(async () => void mic.finish());
     await settle();
     expect(api.submitLabRecording).toHaveBeenCalledTimes(1);
+    mic.cancel.mockClear();
     await act(async () => document.body.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
     await settle();
     expect(closed).toHaveBeenCalledTimes(1);
-    expect(uploadingNow).toBe(true);
+    expect(mic.cancel).not.toHaveBeenCalled();
+    // Closing before the upload response is not a processing job.
+    expect(readProcessingTake(null)).toBeNull();
 
     // The server answers after the screens are gone.
     await act(async () => answer({ kind: "processing", sessionId: "take-2", arcId: "arc-1", takeIndex: 2, takeCount: 2 }));
     await settle();
 
-    expect(uploadingNow).toBe(false);
     expect(readProcessingTake(null)).toMatchObject({ sessionId: "take-2", arcId: "arc-1", takeIndex: 2, status: "processing" });
     const lines = thread.append.mock.calls.map(([draft]) => draft as { kind: string; metadata?: Record<string, unknown> });
     expect(lines.some((d) => d.kind === "recording_summary")).toBe(true);

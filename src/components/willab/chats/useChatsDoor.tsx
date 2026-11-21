@@ -78,8 +78,15 @@ export function useChatsDoor(
   return {
     back: speakingOpen ? <WillTopBar onBack={() => setSpeakingOpen(false)} place="speaking" /> : null,
     navbar: !speakingOpen && !ownOpen && !barCovered,
-    front: speakingOpen ? null : (
-      <div data-chats-front className="absolute inset-0 z-20 overflow-hidden bg-background">
+    // Keep the project index mounted behind Speaking coach. Returning is a
+    // local reveal, not a second network-backed boot of the same list.
+    // The host's own chat stays in this same front, so it is not hidden then.
+    front: (
+      <div
+        data-chats-front
+        aria-hidden={speakingOpen || undefined}
+        className={`${speakingOpen ? "hidden" : ""} absolute inset-0 z-20 overflow-hidden bg-background`}
+      >
         <ProductHome
           onOpenSpeaking={() => setSpeakingOpen(true)}
           onOpenProject={(project) => options?.onOpenProject?.(project)}

@@ -16,13 +16,7 @@ import {
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
 import type { PracticeDeliveryLabel } from "@/services/api/trainings";
-
-const PRACTICE_STATUS_COLOR: Record<PracticeDeliveryLabel, string> = {
-  "Not yet there": "#b66d4c",
-  Almost: "#d6a048",
-  Good: "#6e9c6c",
-  "Strong delivery": "#3f7fbd",
-};
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -90,9 +84,8 @@ export default function IdealTextActions({
   /** Project practice: the text is the decision point before recording. */
   practiceDecision?: {
     deliveryLabel?: PracticeDeliveryLabel;
-    continueLabel?: string;
-    onContinue: () => void;
-    onRepeat: () => void;
+    onFragment: () => void;
+    onWholePresentation: () => void;
   } | null;
 }) {
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
@@ -130,28 +123,39 @@ export default function IdealTextActions({
   };
 
   if (practiceDecision) {
+    const readinessTone = practiceDecision.deliveryLabel
+      ? PRACTICE_READINESS_TONE[practiceDecision.deliveryLabel]
+      : "#a3a3a3";
     return (
       <div data-practice-decision className="flex flex-col gap-2">
         {practiceDecision.deliveryLabel ? (
           <div data-practice-status className="mb-0.5 flex min-h-6 items-center justify-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: PRACTICE_STATUS_COLOR[practiceDecision.deliveryLabel] }} />
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: readinessTone }}
+            />
             {practiceDecision.deliveryLabel}
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={practiceDecision.onContinue}
-          className="h-[56px] w-full rounded-full bg-foreground text-[16px] font-semibold text-background"
-        >
-          {practiceDecision.continueLabel ?? "Continue to next fragment"}
-        </button>
-        <button
-          type="button"
-          onClick={practiceDecision.onRepeat}
-          className="h-[48px] w-full rounded-full text-[16px] text-muted-foreground"
-        >
-          Repeat this fragment
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            data-practice-choice="fragment"
+            onClick={practiceDecision.onFragment}
+            className="min-h-[56px] rounded-full border border-border bg-background px-3 text-[15px] font-semibold text-foreground"
+          >
+            {IDEAL_EDIT_COPY.practiceRepeatFragment}
+          </button>
+          <button
+            type="button"
+            data-practice-choice="whole"
+            onClick={practiceDecision.onWholePresentation}
+            className="min-h-[56px] rounded-full bg-foreground px-3 text-[15px] font-semibold text-background"
+          >
+            {IDEAL_EDIT_COPY.practiceWholePresentation}
+          </button>
+        </div>
       </div>
     );
   }
@@ -207,3 +211,5 @@ function useRecordAlone(asksShare: boolean, arcId: string | null, record: () => 
     });
   };
 }
+
+// Founder-Approved: side-by-side practice choices with readiness status, 2026-11-18.

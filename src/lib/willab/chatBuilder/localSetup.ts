@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { OUT, SEND, W, WHO_LINE } from "@/components/willab/chats/hostsetup/hostSetupCopy";
-import type { HostRecipe, SetupPart, SetupRead } from "@/services/api/hostSetup";
+import type { HostRecipe, SendKind, SetupPart, SetupRead } from "@/services/api/hostSetup";
 import { OWN_CHAT_EVENT, readOwnChat } from "./ownChat";
 import { markTileStep } from "./tileSteps";
 import { readTalkDraft, TALK_DRAFT_EVENT, type TalkBuilt } from "./talkDraft";
@@ -16,7 +16,7 @@ export function setupFromTalk(built: TalkBuilt | null): SetupRead | null {
   if (!chat?.spec) return null;
   const name = readOwnChat().name || chat.name || chat.spec;
   const hello = chat.hello || "Hi.";
-  const send = chat.send.length ? chat.send : ["rec", "text"];
+  const send: SendKind[] = chat.send.length ? [...chat.send] : ["rec", "text"];
   const questions = chat.questions.length ? chat.questions : [{ q: "What do you want to know?" }];
   const taps = chat.taps.length ? chat.taps : ["Ask"];
   const walk = send.includes("rec") ? (["best", "fix", "words"] as const) : [];

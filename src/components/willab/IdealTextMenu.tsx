@@ -8,6 +8,7 @@ import {
   FileUp,
   History,
   MoreHorizontal,
+  PencilLine,
   Presentation,
   Save,
 } from "lucide-react";
@@ -26,6 +27,9 @@ import { useSaveIdealText } from "./useSaveIdealText";
 /*  live here now, with "Save the ideal text", which moved off the bottom so  */
 /*  the bottom holds exactly one next step.                                   */
 /*                                                                            */
+/*  The notebook's whole-document editor is also here: it uses the same       */
+/*  compare-and-set user-edit lane as the deck's paragraph editor.             */
+/*                                                                            */
 /*  Every label is copy the product already shipped. AC-9: nothing numeric.   */
 /*                                                                            */
 /*  2026-10-29 (founder, backend N257): one row under History, "Add slides"   */
@@ -41,6 +45,7 @@ export default function IdealTextMenu({
   saved,
   onSaved,
   onBeforeSave,
+  onEdit = null,
   onPresent = null,
   onExport = null,
   onHistory = null,
@@ -54,6 +59,8 @@ export default function IdealTextMenu({
   onSaved: () => void;
   /** Drain a pending local edit before the freeze (R-md1). */
   onBeforeSave?: () => Promise<boolean>;
+  /** Open the whole-document Ideal Text editor; null = unavailable. */
+  onEdit?: (() => void) | null;
   /** null = this mount has no Presentation Mode (the post-take readout). */
   onPresent?: (() => void) | null;
   /** null = this mount has no export. */
@@ -108,6 +115,12 @@ export default function IdealTextMenu({
             role="menu"
             className="absolute right-0 top-11 z-50 w-60 overflow-hidden rounded-2xl border border-border bg-background py-1.5 shadow-xl"
           >
+            {onEdit ? (
+              <button type="button" role="menuitem" aria-label="Edit ideal text" onClick={run(onEdit)} className={ITEM}>
+                <PencilLine className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Edit ideal text
+              </button>
+            ) : null}
             {onPresent ? (
               <button type="button" role="menuitem" aria-label="Use Presentation Mode" onClick={run(onPresent)} className={ITEM}>
                 <Presentation className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -213,3 +226,5 @@ export function FeedbackLoadingLine({ active }: { active: boolean }) {
     </div>
   );
 }
+
+// Founder-Approved: task delegation, 2026-11-16.

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import type { UiLocale } from "@/lib/uiLocale";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useTakeMic } from "@/hooks/useTakeMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
@@ -47,7 +48,7 @@ import type { ReadoutPayload } from "./readout";
 import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
-import LoadingState, { VoiceMark } from "./LoadingState";
+import LoadingState, { LoadingSurface, VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import DiscardTakeDialog from "./DiscardTakeDialog";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
@@ -87,7 +88,6 @@ import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
 import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
-import { takeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import {
   clearPracticeResume,
   PRACTICE_CHUNK_SECONDS,
@@ -203,7 +203,8 @@ export default function LabOverlay({
   // transcript, so skip Web Speech: its per-result events would re-render the
   // whole recording overlay many times a second (worse the longer the take),
   // which is what made the screen go stale / the slide Next feel unresponsive.
-  const mic = useDualCaptureMic({ transcript: false });
+  // In the iPhone app with the switch on, the phone records (N655, N662).
+  const mic = useTakeMic();
   const { getPausedMs } = mic;
   const { cancel: cancelMic } = mic;
   // From what this tab already knows, so "How do you feel?" draws on the
@@ -345,15 +346,11 @@ export default function LabOverlay({
     result: Awaited<ReturnType<typeof uploadForProcessing>>,
     run: {
       discarded: boolean;
-      /** The chat's "Processing your recording" while it went up (null when
-       *  the screens were still open as it was sent). */
-      uploading: (() => void) | null;
       projectId: string | null;
       waitStartedAt: number;
       carried: (arc: string | null, take: number | null) => { returnedArcId: string; nextIdx: number; deck: ExploreArcDeck | undefined } | undefined;
     },
   ): void {
-    run.uploading?.();
     if (run.discarded || answer) return;
     if (result.kind !== "ok" && result.kind !== "processing" && result.kind !== "ideal_text_unconfirmed") return;
     const sessionId = result.sessionId;
@@ -548,7 +545,7 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
-  // The policy update prompt (PolicyUpdate.tsx); refs, so the upload effect
+  // The current-policy consent gate (PolicyUpdate.tsx); refs, so the upload effect
   // reads the current ones without re-running.
   const policyUpdate = usePolicyUpdate();
   const policyUpdateRef = useRef(policyUpdate);
@@ -792,9 +789,7 @@ export default function LabOverlay({
     // Only a discard throws the answer away; a run that merely lost interest
     // (the ✕, an unmount) still lands it (`landUnwatched`).
     let discarded = false;
-    // The upload has answered; until then, a ✕ leaves the chat a bubble.
     let answered = false;
-    let uploading: (() => void) | null = null;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
     // a result it has nothing to do with. Cleared alongside `active` below so
@@ -949,7 +944,7 @@ export default function LabOverlay({
       // deliberate: it is deterministic (not "the dispatch probably re-ran the
       // effect first"), and it keeps this already-grandfathered function from
       // growing — the ratchet's own instruction.
-      if (!active) return landUnwatched(result, { discarded, uploading, projectId, waitStartedAt, carried: carryArc });
+      if (!active) return landUnwatched(result, { discarded, projectId, waitStartedAt, carried: carryArc });
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take
@@ -1061,8 +1056,6 @@ export default function LabOverlay({
     })();
     return () => {
       active = false;
-      // Closed while the Take goes up: the chat shows it is on its way.
-      if (!answered && !discarded && !answer && uploadAbortRef.current) uploading = takeUploadingUnwatched();
       // NOT an abort. An unmount or a dependency change must never throw a
       // take away — the upload keeps going and the server keeps it; only this
       // run's interest in the answer ends. Dropping the canceller with it
@@ -1572,6 +1565,13 @@ export default function LabOverlay({
       parkReadout();
       return;
     }
+    // The processing screen has already handed the Take to the upload or
+    // background worker. Closing is only a view change: do not invoke the mic
+    // teardown path here, which must never be mistaken for cancelling the job.
+    if (state === "lab_processing") {
+      onClose();
+      return;
+    }
     mic.cancel();
     onClose();
   }
@@ -1590,7 +1590,7 @@ export default function LabOverlay({
     return asksBeforeClosing();
   }
 
-  // Try processing again. Also run once a policy update is accepted after
+  // Try processing again. Also run once the current policy is accepted after
   // the upload was refused for an out-of-date acceptance (PolicyUpdate.tsx).
   const retryProcessing = async () => {
     if (labSessionId) {
@@ -2452,27 +2452,34 @@ export function Processing({
   // is defined (founder 2026-08-11).
   if (!error && slow) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={64} />
-        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-          This is taking longer than usual. Your recording is safe and the
-          analysis keeps running on our side, even if you close this.
-        </p>
-        <div className="flex gap-2">
-          {onReRecord ? (
-            <Button onClick={onReRecord} className="rounded-full px-6">
-              Record again
+      <LoadingSurface placement="surface" kind="processing">
+        <div
+          data-loading-content
+          className="flex w-full max-w-sm flex-col items-center justify-center gap-4 text-center"
+        >
+          <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+            <VoiceMark size={64} />
+          </div>
+          <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+            This is taking longer than usual. Your recording is safe and the
+            analysis keeps running on our side, even if you close this.
+          </p>
+          <div className="flex gap-2">
+            {onReRecord ? (
+              <Button onClick={onReRecord} className="rounded-full px-6">
+                Record again
+              </Button>
+            ) : null}
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="rounded-full px-6"
+            >
+              Back to Lounge
             </Button>
-          ) : null}
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            Back to Lounge
-          </Button>
+          </div>
         </div>
-      </div>
+      </LoadingSurface>
     );
   }
 
@@ -2481,19 +2488,26 @@ export function Processing({
     // back shortly"). The take keeps processing server-side and lands in the
     // library when done — the only honest action here is to head back.
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={64} />
-        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-          {error}
-        </p>
-        <Button
-          onClick={onClose}
-          variant="outline"
-          className="rounded-full px-6"
+      <LoadingSurface placement="surface" kind="processing">
+        <div
+          data-loading-content
+          className="flex w-full max-w-sm flex-col items-center justify-center gap-4 text-center"
         >
-          Back to Lounge
-        </Button>
-      </div>
+          <div data-loading-indicator className="flex h-16 w-16 shrink-0 items-center justify-center">
+            <VoiceMark size={64} />
+          </div>
+          <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+            {error}
+          </p>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            Back to Lounge
+          </Button>
+        </div>
+      </LoadingSurface>
     );
   }
   if (error) {
@@ -2525,7 +2539,7 @@ export function Processing({
   // it is the way OUT, which that decision never removed (the same reasoning
   // the document phase's OverlayCloseButton is held to).
   return (
-    <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
+    <div data-processing-lifecycle className="flex min-h-0 flex-1 flex-col text-center">
       <ProcessingWait progress={progress} cycleStartedAt={cycleStartedAt} />
       {canDiscard && onDiscard ? (
         <button

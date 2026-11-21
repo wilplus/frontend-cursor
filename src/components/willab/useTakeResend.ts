@@ -15,7 +15,7 @@ import type { UseLoungeThreadReturn } from "./useLoungeThread";
 /*  a time; the pass itself is in lib/willab/takeResend.ts. True while one is */
 /*  going up: the record button waits with its signed line, "One moment —    */
 /*  finishing your last take." (flowCopy.ts), as for any Take still landing. */
-/*  An out-of-date acceptance goes through the policy update prompt, and the  */
+/*  An out-of-date acceptance goes through the current-policy consent gate;   */
 /*  Take goes again once it is accepted.                                       */
 /* -------------------------------------------------------------------------- */
 

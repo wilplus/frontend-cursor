@@ -51,6 +51,17 @@ import {
 import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 import ProjectChat from "./ProjectChat";
 import type { TrainingArc } from "@/services/api/trainings";
+import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
+
+/** A project recording has not begun in these screens. Closing one cancels
+ *  the pending bridge back to ProjectChat instead of inventing processing. */
+export function cancelsPendingProjectRecording(state: WillabState | null): boolean {
+  return (
+    state === "lab_feelings" ||
+    state === "lab_session_context" ||
+    state === "lab_prerecord"
+  );
+}
 
 // The recording screens are not on first paint: they load after it (warmed
 // below), so a tap on Record finds them ready.
@@ -112,6 +123,7 @@ export default function WillabSurface({
   // after the Lab's source Feedback walk and Ideal Text sequence closes. Will
   // is the cross-project coach, never the destination for a project Take.
   const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
+  const [recordingInProgress, setRecordingInProgress] = useState(false);
   const labWasOpenRef = useRef(false);
   useEffect(() => {
     if (flow.labOverlayOpen) {
@@ -120,8 +132,16 @@ export default function WillabSurface({
     }
     if (!labWasOpenRef.current || !returnProject) return;
     labWasOpenRef.current = false;
-    setPickedProject(returnProject);
-    setReturnProject(null);
+    const returning = returnProject;
+    let active = true;
+    void refreshProjectTrainings().then((projects) => {
+      if (!active) return;
+      setPickedProject(projects?.find((project) => project.arcId === returning.arcId) ?? returning);
+      setReturnProject(null);
+    });
+    return () => {
+      active = false;
+    };
   }, [flow.labOverlayOpen, returnProject]);
   // The Take whose wait the Lab just handed to the Lounge, until the Lounge
   // shows it (founder 2026-10-21: "make it stay"; useWaitScreen).
@@ -176,6 +196,21 @@ export default function WillabSurface({
     [],
   );
   const userId = useUserId();
+  const openProject = useCallback((arcId: string | null) => {
+    if (!arcId) {
+      flow.startRecording();
+      return;
+    }
+    void refreshProjectTrainings().then((projects) => {
+      const project = projects?.find((candidate) => candidate.arcId === arcId);
+      if (!project) {
+        flow.startRecording();
+        return;
+      }
+      setPickedProject(project);
+      flow.closeLab();
+    });
+  }, [flow]);
   // The coach's link (?lens= / ?idealArc=): the Ideal Text page's code and
   // its opening read start now, beside the boot reads, not once the Lounge
   // has mounted and the code has loaded. The same page opens on the same
@@ -196,7 +231,7 @@ export default function WillabSurface({
       : signedIn === true && userEmail === MLC2_FOUNDER_CANARY_EMAIL;
   // Reconcile the at-home status (review_pending / insights) with server truth
   // once on load…
-  useStatusHydration(signedIn, flow.state, flow.settleHomeStatus);
+  useStatusHydration(signedIn, userId, flow.state, flow.settleHomeStatus);
   // …and live: while awaiting a coach, flip review_pending → insights_ready the
   // instant the coach publishes (realtime sub + 20s poll fallback), reusing the
   // same reconcile so the publish event is the single source of truth (no 2nd write).
@@ -211,12 +246,31 @@ export default function WillabSurface({
   // sub keeps firing, so it still lands the moment they return to the Lounge.
   const stateRef = useRef(flow.state);
   stateRef.current = flow.state;
+  const publishRefreshRef = useRef<string | null>(null);
   const onPublish = useCallback(() => {
-    if (getReviewPending() == null) return; // only relevant while awaiting a coach
+    const pendingSessionId = getReviewPending();
+    if (pendingSessionId == null || !userId) return; // only relevant while awaiting a coach
     const st = stateRef.current;
     if (st !== null && isLabOverlay(st)) return; // never interrupt the readout
-    void reconcileWillabStatus(settleHomeStatus);
-  }, [settleHomeStatus]);
+    const refreshKey = `${userId}:${pendingSessionId}`;
+    if (publishRefreshRef.current === refreshKey) return;
+    publishRefreshRef.current = refreshKey;
+    afterChatBoot(() => {
+      const current = stateRef.current;
+      if (current !== null && isLabOverlay(current)) {
+        publishRefreshRef.current = null;
+        return;
+      }
+      void reconcileWillabStatus(userId, settleHomeStatus, { refresh: true }).then((ok) => {
+        if (!ok && publishRefreshRef.current === refreshKey) {
+          // A transient failure may retry on the next publish signal. A
+          // successful check is intentionally not repeated for duplicate
+          // realtime events in the same pending state.
+          publishRefreshRef.current = null;
+        }
+      });
+    });
+  }, [settleHomeStatus, userId]);
   usePublishLiveSubscription(userId, onPublish);
   useFirstVisitSteps(flow.state, signedIn);
   // The list of chats in front of the Lounge, ring 6 only (feature `chats`;
@@ -280,7 +334,7 @@ export default function WillabSurface({
         className={`willab-canvas flex flex-1 flex-col overflow-hidden ${shellPadding(
           flush,
           bare,
-        )}${flush && chats.front ? " relative" : ""}`}
+        )}${(flush && chats.front) || pickedProject ? " relative" : ""}`}
       >
         {children}
       </div>
@@ -351,6 +405,7 @@ export default function WillabSurface({
           clearActiveSetupDraft(userId);
           flow.startRecordingSetup();
         }}
+        onOpenProject={openProject}
         onStartPlanRecording={(topic, start) => {
           // After the first Take, the real talk is that project's Take 2
           // (backend N449 item 1): "How do you feel?" with its Skip, then
@@ -462,12 +517,39 @@ export default function WillabSurface({
         <ProjectChat
           project={pickedProject}
           analysisPending={pickerSettle.pending}
-          onBack={() => setPickedProject(null)}
-          onRecord={() => {
+          recordingInProgress={recordingInProgress}
+          onBack={() => {
+            setRecordingInProgress(false);
+            setPickedProject(null);
+          }}
+          onRecord={(arcId) => {
+            // Repeat/continue is allowed to arrive here from a remounted
+            // project chat. Seed the selected arc again at the recorder
+            // boundary so the Take cannot silently become a new project.
+            const cached = readExploreArc(userId);
+            const latest = [...(pickedProject.takes ?? [])]
+              .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
+              .pop();
+            const nextTakeIndex = (latest?.takeIndex ?? pickedProject.takeCount ?? 0) + 1;
+            if (
+              cached?.arcId !== arcId ||
+              (cached?.nextTakeIndex ?? 0) < nextTakeIndex ||
+              cached?.sessionId !== latest?.sessionId
+            ) {
+              writeExploreArc(
+                userId,
+                arcId,
+                Math.max(cached?.nextTakeIndex ?? 0, nextTakeIndex),
+                cached?.arcId === arcId ? cached.deck : undefined,
+                latest?.sessionId ?? cached?.sessionId,
+              );
+            }
+            setRecordingInProgress(true);
             setReturnProject(pickedProject);
             setPickedProject(null);
             flow.startRecordingSetup();
           }}
+          onRecordingSettled={() => setRecordingInProgress(false)}
         />
       )}
       {flow.labOverlayOpen && (
@@ -476,6 +558,9 @@ export default function WillabSurface({
           sessionId={sessionId}
           dispatch={flow.dispatch}
           onClose={() => {
+            if (cancelsPendingProjectRecording(flow.state)) {
+              setRecordingInProgress(false);
+            }
             flow.closeLab();
             // An answer's project was never the speaker's current one.
             endAnswer();
@@ -518,4 +603,4 @@ function shellPadding(flush: boolean, bare: boolean): string {
   return `px-4 pb-2 ${flush ? "pt-0" : "pt-2"}`;
 }
 
-// Founder-Approved: a project conversation replaces the site bar with its single locked chat top bar, 2026-11-16.
+// Founder-Approved: contact-point chat, 2026-11-18; keep the project Feedback actions inside the canvas above the global footer.

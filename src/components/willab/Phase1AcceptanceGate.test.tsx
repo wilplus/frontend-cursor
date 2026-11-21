@@ -10,7 +10,8 @@ OUTCOME
   O2  With it off, a block does what it did before: the acceptance flow when
       a policy came with it, otherwise the Lounge.
   O3  A cancelled deletion reads the status again and lets the person in.
-  O4  A re-acceptance hands the flow the country given last time.
+  O4  A newer policy blocks the app in the ordinary acceptance flow and hands
+      it the country given last time.
   O5  A signed-up guest is not asked to accept again: the claim comes first.
   O6  A refused identity blocks with Try again, which reads again; no active
       policy still passes (the gate fails open).
@@ -18,7 +19,7 @@ OUTCOME
 PROVES   O1 -> "shows the ended state for a block, never the acceptance flow or the Lounge"
          O2 -> "switched off, a block does what it did before"
          O3 -> "a cancelled deletion reads the status again, and lets the person back in"
-         O4 -> "a re-acceptance hands the flow the country given last time"
+         O4 -> "a newer policy blocks the app and hands the flow the country given last time"
          O5 -> "a signed-up guest is not asked to accept again: the claim comes before the read"
          O6 -> "a refused identity blocks, and Try again reads the status again"
          O7 -> "a rejected startup read opens the Lounge"
@@ -152,11 +153,12 @@ describe("<Phase1AcceptanceGate>", () => {
     expect(host.querySelector('[data-testid="account-ended-state"]')).toBeNull();
   });
 
-  it("a re-acceptance hands the flow the country given last time", async () => {
+  it("a newer policy blocks the app and hands the flow the country given last time", async () => {
     await mount({
       kind: "acceptance_required",
       code: "PROCESSING_AUTHORIZATION_REQUIRED",
       policy: POLICY,
+      acceptedEarlierVersion: true,
       priorCountry: "pl",
     });
     expect(host.querySelector('[data-testid="acceptance-flow"]')?.textContent).toBe("prior:pl");

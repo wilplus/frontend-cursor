@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const api = vi.hoisted(() => ({ getSundayNote: vi.fn(), answerSundayNote: vi.fn() }));
 vi.mock("@/services/api/voiceNotebook", () => api);
 
-import SundayLens from "./SundayLens";
+import SundayLens, { SundayHeadBubble } from "./SundayLens";
 import { sundayAskOf, sundayWaiting } from "@/lib/willab/sundayNote";
 
 const CASE = "Twice this week you put off calling the client because you did not feel like it.";
@@ -132,6 +132,35 @@ describe("the Sunday note lens", () => {
     expect(api.answerSundayNote).toHaveBeenCalledWith("s1", "bug", "follow_up");
   });
 
+  it("shows the shared loader immediately and keeps the bottom interaction bar mounted", async () => {
+    let resolve!: (value: ReturnType<typeof note> | null) => void;
+    api.getSundayNote.mockReturnValue(new Promise<ReturnType<typeof note> | null>((r) => { resolve = r; }));
+    await act(async () => root.render(createElement(SundayLens, { noteId: "s1", nonce: 1, onClose })));
+
+    expect(container.querySelector("[data-loading-surface]")).not.toBeNull();
+    expect(container.querySelector("[data-walk-dock]")).not.toBeNull();
+    expect(container.querySelector("[data-walk-dock] [data-walk-pill]")?.textContent).toContain("Close");
+
+    resolve(note("bug", []));
+    await settle();
+    expect(container.querySelector("[data-loading-surface]")).toBeNull();
+    expect(container.querySelector("[data-walk-dock]")).not.toBeNull();
+  });
+
+  it("keeps the last option in the one scrollable pattern lens dock", async () => {
+    const opened = { role: "bot", body: "Which step was it?", step: "open" } as const;
+    api.getSundayNote.mockResolvedValue({ ...note("bug", []), kind: "sales" });
+    api.answerSundayNote.mockResolvedValue({ ...note("bug", [opened]), kind: "sales" });
+    await open();
+
+    const lens = container.querySelector("[data-life-goals-lens]");
+    const body = container.querySelector("[data-walk-thread-body]");
+    const dock = container.querySelector("[data-walk-dock]");
+    expect(lens?.className).toContain("overflow-y-auto");
+    expect(body?.className).not.toContain("overflow-y-auto");
+    expect(dock?.querySelector("button:last-of-type")?.textContent).toContain("Add a new step");
+  });
+
   it("knows which case waits", () => {
     const thread = [
       { role: "bot", metadata: { sunday_note_id: "s0", sunday_step: "case", offer: "sunday_note" }, body: "An older case." },
@@ -141,5 +170,16 @@ describe("the Sunday note lens", () => {
     expect(sundayAskOf(thread)).toBe("s1");
     expect(sundayWaiting(thread, "s0")).toBe(false);
     expect(sundayWaiting(thread, "s1")).toBe(true);
+  });
+
+  it("keeps the waiting outline inside a separated pattern bubble", () => {
+    act(() => root.render(createElement(SundayHeadBubble, {
+      body: "We spotted a pattern!",
+      waiting: true,
+      onOpen: vi.fn(),
+    })));
+    const bubble = container.querySelector("[data-sunday-head]");
+    expect(bubble?.classList.contains("mt-2")).toBe(true);
+    expect(bubble?.classList.contains("ring-inset")).toBe(true);
   });
 });

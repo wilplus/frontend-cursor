@@ -88,7 +88,7 @@ export default function ProcessingResumeOverlay({
       <div
         className={`scrollbar-none ${WILLAB_CONTENT_RAIL} flex flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
       >
-        <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
+        <div className="flex min-h-0 flex-1 flex-col text-center">
           <ProcessingWait
             progress={progress}
             phase={phase}

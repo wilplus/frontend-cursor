@@ -2751,14 +2751,212 @@ const DOCUMENT_MOVED_CODES = new Set([
 ]);
 
 export type UserEditSaveResult =
-  | { ok: true; version: number | null }
+  | {
+      ok: true;
+      version: number | null;
+      /** The CAS head to use for the next edit in this open page. */
+      ownerEdit?: ConfidentMomentOwnerEdit | null;
+    }
   /** A newer version assembled while the student was typing. */
   | { ok: false; reason: "superseded"; currentVersion: number | null }
   /** Nothing is assembled yet — there is no document to edit. */
   | { ok: false; reason: "nothingToEdit" }
   /** Past the 20000-char ceiling, or a version the BE refused. */
   | { ok: false; reason: "invalid" }
+  /** The account's current membership/processing authority refused the write. */
+  | { ok: false; reason: "authority" }
   | { ok: false; reason: "error" };
+
+type CurrentUserEditState = {
+  ownerEdit: ConfidentMomentOwnerEdit | null;
+  desiredParts: readonly Part[];
+};
+
+type CurrentUserEditBody = {
+  expected_user_text_revision: string | null;
+  expected_user_text_sha256: string | null;
+  idempotency_key: string;
+  parts: {
+    expected_parts: Array<{
+      position: number;
+      part_id: string;
+      text_sha256: string;
+      locked: boolean;
+      current_part_revision_id: string | null;
+    }>;
+    desired_parts: Array<{ position: number; part_id: string; text: string }>;
+  };
+};
+
+const AUTHORITY_CODES = new Set([
+  "INVITE_ONLY",
+  "WAITLIST",
+  "OWNER_REQUIRED",
+  "PROCESSING_AUTHORIZATION_REQUIRED",
+  "PROCESSING_AUTHORITY_REQUIRED",
+  "PROCESSING_AUTHORITY_UNAVAILABLE",
+]);
+
+function responseCode(body: Record<string, unknown> | null): string {
+  return typeof body?.code === "string" ? body.code : "";
+}
+
+function randomIdempotencyKey(): string {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+    return cryptoApi.randomUUID();
+  }
+  return `ideal-edit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+function nextOwnerEdit(
+  current: CurrentUserEditState,
+  text: string,
+  version: number,
+  body: Record<string, unknown>,
+): ConfidentMomentOwnerEdit | null {
+  const revision = body.result_user_text_revision;
+  const textSha256 = body.result_user_text_sha256;
+  if (
+    typeof revision !== "string" ||
+    !/^[1-9][0-9]*$/.test(revision) ||
+    typeof textSha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(textSha256)
+  ) {
+    return null;
+  }
+  const previous = new Map(
+    (current.ownerEdit?.parts ?? []).map((part) => [part.id, part]),
+  );
+  const returned = new Map<string, string>();
+  if (Array.isArray(body.part_revisions)) {
+    for (const raw of body.part_revisions) {
+      if (!raw || typeof raw !== "object") continue;
+      const row = raw as Record<string, unknown>;
+      if (
+        typeof row.part_id === "string" &&
+        typeof row.revision_id === "string" &&
+        /^[1-9][0-9]*$/.test(row.revision_id)
+      ) {
+        returned.set(row.part_id, row.revision_id);
+      }
+    }
+  }
+  return {
+    text,
+    sourceDocumentVersion: version,
+    userTextRevision: revision,
+    userTextSha256: textSha256,
+    parts: current.desiredParts.map((part, position) => ({
+      id: part.id,
+      position,
+      text: part.text,
+      locked: part.locked === true,
+      currentPartRevisionId:
+        returned.get(part.id) ?? previous.get(part.id)?.currentPartRevisionId ?? null,
+    })),
+    currentBundleTextUpdateBinding: null,
+  };
+}
+
+async function buildCurrentUserEditBody(
+  current: CurrentUserEditState | null,
+  version: number | null,
+): Promise<CurrentUserEditBody | null> {
+  if (!current || typeof version !== "number") return null;
+  return {
+    expected_user_text_revision:
+      current.ownerEdit?.userTextRevision ?? null,
+    expected_user_text_sha256: current.ownerEdit?.userTextSha256 ?? null,
+    idempotency_key: randomIdempotencyKey(),
+    parts: {
+      expected_parts: await Promise.all(
+        (current.ownerEdit?.parts ?? []).map(async (part, position) => ({
+          position,
+          part_id: part.id,
+          text_sha256: await sha256Hex(part.text),
+          locked: part.locked,
+          current_part_revision_id: part.currentPartRevisionId,
+        })),
+      ),
+      desired_parts: current.desiredParts.map((part, position) => ({
+        position,
+        part_id: part.id,
+        text: part.text,
+      })),
+    },
+  };
+}
+
+function userEditRequestBody(
+  text: string,
+  version: number | null,
+  opts: { reapplied?: boolean; parts?: readonly Part[] | null } | undefined,
+  currentBody: CurrentUserEditBody | null,
+): Record<string, unknown> {
+  return {
+    text,
+    version,
+    ...(currentBody ?? {}),
+    ...(opts?.reapplied ? { reapplied: true } : {}),
+    ...(!currentBody && opts?.parts && opts.parts.length > 0
+      ? {
+          parts: opts.parts.map((p) => ({
+            id: p.id,
+            text: p.text,
+            locked: p.locked === true,
+          })),
+        }
+      : {}),
+  };
+}
+
+function mapUserEditResponse(
+  status: number,
+  ok: boolean,
+  body: Record<string, unknown> | null,
+  current: CurrentUserEditState | null,
+  currentBody: CurrentUserEditBody | null,
+  text: string,
+  version: number | null,
+): UserEditSaveResult {
+  if (status === 409) {
+    if (body?.code === "NOTHING_TO_EDIT" || body?.error === "NOTHING_TO_EDIT") {
+      return { ok: false, reason: "nothingToEdit" };
+    }
+    const code = typeof body?.code === "string" ? body.code : "";
+    if (code.startsWith("IDEAL_TEXT_") && !DOCUMENT_MOVED_CODES.has(code)) {
+      return { ok: false, reason: "error" };
+    }
+    return {
+      ok: false,
+      reason: "superseded",
+      currentVersion:
+        typeof body?.current_version === "number" ? body.current_version : null,
+    };
+  }
+  const code = responseCode(body);
+  if (status === 401 || status === 403 || AUTHORITY_CODES.has(code)) {
+    return { ok: false, reason: "authority" };
+  }
+  if (status === 400) return { ok: false, reason: "invalid" };
+  if (!ok) return { ok: false, reason: "error" };
+  return {
+    ok: true,
+    version: typeof body?.version === "number" ? body.version : null,
+    ...(current && currentBody && typeof version === "number"
+      ? { ownerEdit: nextOwnerEdit(current, text, version, body ?? {}) }
+      : {}),
+  };
+}
 
 /**
  * #214 / T1 · 1.2 — persist the student's edit of their ideal text: the FULL
@@ -2778,7 +2976,12 @@ export async function saveIdealUserEdit(
   arcId: string,
   text: string,
   version: number | null,
-  opts?: { reapplied?: boolean; parts?: readonly Part[] | null },
+  opts?: {
+    reapplied?: boolean;
+    parts?: readonly Part[] | null;
+    /** The current CAS/enrollment-era contract. Omitted only for old callers. */
+    current?: CurrentUserEditState | null;
+  },
 ): Promise<UserEditSaveResult> {
   // Refuse a doomed PUT locally: the BE rejects past its ceiling with 400,
   // and the student's words must survive either way.
@@ -2790,6 +2993,13 @@ export async function saveIdealUserEdit(
     "Content-Type": "application/json",
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  const current = opts?.current ?? null;
+  let currentBody: CurrentUserEditBody | null = null;
+  try {
+    currentBody = await buildCurrentUserEditBody(current, version);
+  } catch {
+    return { ok: false, reason: "error" };
+  }
   let res: Response;
   try {
     res = await fetch(
@@ -2798,31 +3008,7 @@ export async function saveIdealUserEdit(
         method: "PUT",
         headers,
         credentials: "include",
-        body: JSON.stringify({
-          text,
-          version,
-          ...(opts?.reapplied ? { reapplied: true } : {}),
-          // PARTS (SPEC §3.1, Step 0) — the document's identity, sent only
-          // when the caller has it. The key must be ABSENT otherwise: the BE
-          // treats present-and-empty as "this document is empty" and would
-          // wipe the stored ids. It also refuses a list that does not join
-          // back to `text`, so the two are always written together or not at
-          // all.
-          //
-          // `locked` rides for every Paragraph. Explicit false is load-bearing:
-          // editing committed words reopens that same identity for a new
-          // commit. The version gate protects this full-state write from a
-          // stale client.
-          ...(opts?.parts && opts.parts.length > 0
-            ? {
-                parts: opts.parts.map((p) => ({
-                  id: p.id,
-                  text: p.text,
-                  locked: p.locked === true,
-                })),
-              }
-            : {}),
-        }),
+        body: JSON.stringify(userEditRequestBody(text, version, opts, currentBody)),
       },
     );
   } catch {
@@ -2832,30 +3018,13 @@ export async function saveIdealUserEdit(
     string,
     unknown
   > | null;
-  if (res.status === 409) {
-    // Two different 409s share the status; the code discriminates them.
-    if (body?.code === "NOTHING_TO_EDIT" || body?.error === "NOTHING_TO_EDIT") {
-      return { ok: false, reason: "nothingToEdit" };
-    }
-    // The server refused these words for good (founder 2026-10-12, option
-    // 1): only a "document moved" refusal is a supersede — refetch and adopt
-    // the new text. Any other IDEAL_TEXT_* refusal is a failed save, exactly
-    // like a 500: the typed words stay on screen.
-    const code = typeof body?.code === "string" ? body.code : "";
-    if (code.startsWith("IDEAL_TEXT_") && !DOCUMENT_MOVED_CODES.has(code)) {
-      return { ok: false, reason: "error" };
-    }
-    return {
-      ok: false,
-      reason: "superseded",
-      currentVersion:
-        typeof body?.current_version === "number" ? body.current_version : null,
-    };
-  }
-  if (res.status === 400) return { ok: false, reason: "invalid" };
-  if (!res.ok) return { ok: false, reason: "error" };
-  return {
-    ok: true,
-    version: typeof body?.version === "number" ? body.version : null,
-  };
+  return mapUserEditResponse(
+    res.status,
+    res.ok,
+    body,
+    current,
+    currentBody,
+    text,
+    version,
+  );
 }

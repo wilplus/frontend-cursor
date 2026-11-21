@@ -15,6 +15,7 @@
 # CLAUDE.md section that locks them.
 
 # ── Ideal Text (founder, 2026-09-28; amended by the locks of 09-30, 10-05, 10-06)
+src/components/willab/PageHeader.tsx
 src/components/willab/IdealTextOverlay.tsx
 src/components/willab/IdealTextHeading.tsx
 src/components/willab/IdealTextMenu.tsx

@@ -54,21 +54,22 @@ describe("the chat as Will reads it", () => {
     expect(screenHistory([card, summary, ask, helpers, clip, typed], facts)).toEqual([
       {
         role: "assistant",
+        metadata: { arc_id: "arc-1" },
         content:
           '[On screen: the Ideal Text card of "ted", Take 1. It wears the orange stroke and dot: ' +
           "the coach's feedback is in and not opened yet; a tap opens it.]",
       },
-      { role: "assistant", content: `[The app's fixed message after Take 1; the written summary failed]\n${summary.body}` },
+      { role: "assistant", metadata: { arc_id: "arc-1" }, content: `[The app's fixed message after Take 1; the written summary failed]\n${summary.body}` },
       { role: "assistant", content: OFFER_PROMPT.whatsapp },
       { role: "assistant", content: "Choose your helper words" },
       { role: "user", content: "07700 900461" },
     ]);
     const written = { ...summary, metadata: { ...summary.metadata, written: true }, body: "Look at you, Take 1!" };
-    expect(screenHistory([written], facts)).toEqual([{ role: "assistant", content: "Look at you, Take 1!" }]);
+    expect(screenHistory([written], facts)).toEqual([{ role: "assistant", metadata: { arc_id: "arc-1" }, content: "Look at you, Take 1!" }]);
     // WILL-07: written at once, GPT-4o's words later in place; while writing, "not yet", never failed.
     const writing = { ...summary, metadata: { ...summary.metadata, writing: true } };
     expect(screenHistory([writing], facts)).toEqual([
-      { role: "assistant", content: `[The app's fixed message after Take 1; the written summary is not in yet]\n${summary.body}` },
+      { role: "assistant", metadata: { arc_id: "arc-1" }, content: `[The app's fixed message after Take 1; the written summary is not in yet]\n${summary.body}` },
     ]);
     const plain = { ...facts, coachWaits: () => false };
     expect(screenHistory([card], plain)[0].content).toBe('[On screen: the Ideal Text card of "ted", Take 1. A tap opens the text.]');

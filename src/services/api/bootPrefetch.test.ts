@@ -36,12 +36,14 @@ import {
   takeAuthorization,
   takeLoungeHistory,
   takeSessionState,
+  takeTrainings,
 } from "./bootPrefetch";
 
 const ACCESS = "GET /api/v2/me/access";
 const THREAD = "GET /api/v2/user/lounge/messages";
 const AGREEMENT = "GET /api/v2/processing-authorization";
 const SESSION_STATE = "GET /api/v2/chat/session-state";
+const TRAININGS = "GET /api/v2/user/trainings";
 const GUEST_MINT = "POST /api/v2/processing-authorization/principal";
 
 const fetchMock = vi.fn();
@@ -122,7 +124,8 @@ describe("/chat's open: the boot reads start with the members check", () => {
     expect(await takeSessionState()).toBe("PENDING_COACH");
     expect((await takeAuthorization()).kind).toBe("unavailable");
     expect((await takeLoungeHistory()).messages).toEqual([]);
-    expect(requests().sort()).toEqual([ACCESS, AGREEMENT, SESSION_STATE, THREAD].sort());
+    expect(await takeTrainings()).toBeNull();
+    expect(requests().sort()).toEqual([ACCESS, AGREEMENT, SESSION_STATE, THREAD, TRAININGS].sort());
     expect(requests()).not.toContain(GUEST_MINT);
   });
 

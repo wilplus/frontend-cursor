@@ -1030,6 +1030,7 @@ One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-16 · N461 · the fixed early speaking-coach URL opens a WillpowerLab admission page; personal chat links retain their newer host-specific invitation pages · FE (this PR)
 - 2026-11-16 · the legacy personal-chat control leaves the shared menu; the list's chat-builder sharing sheet remains product sharing, not app admission · FE (this task)
+- 2026-11-16 · the people-chat list reuses an in-flight refresh when its timer, visibility return and list navigation overlap, so the same current read is not queued twice; freshness and the 20-second cadence stay unchanged · FE (this task)
 
 - 2026-11-11 · N647 item 9 · C1, B11: the bar's box has the send icon on its right once there are words in every chat, the website chat's included (`BarBox` in `ChatBar.tsx`). Was: the chat builder's ring and a ring host's chat only, Enter for everyone else. The box stays one line; the setup's box, the same bar box, grows to seven lines (N618 item 4). Nothing else in the bar changes · FE (this PR)
 - 2026-11-10 · N628 · C1: on a computer, the list of chats and a person's chat fill the column Will's chat and its bar fill (`useChatsDoor.tsx`), as the AI models overlay does since N618 item 10. On a phone nothing changes. Sheets from the bottom (Add someone) keep their width. No new words. Was: a 480 px column in the middle (N321, N322) · BE #1909, FE (this PR)

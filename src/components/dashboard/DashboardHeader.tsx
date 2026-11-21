@@ -4,7 +4,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
-import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "@/components/willab/PageHeader";
 
 /* -------------------------------------------------------------------------- */
 /*  DashboardHeader — the lab's chrome.                                        */
@@ -22,9 +22,11 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 export default function DashboardHeader() {
   const menu = useAppMenuData();
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4`}>
-        <div className="flex shrink-0 items-center gap-2">
+    <PageHeader
+      className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      contentClassName="min-w-0 justify-between gap-2 px-[15px] py-4 sm:gap-4"
+    >
+      <div className="flex shrink-0 items-center gap-2">
           {/* prefetch={false}, as the footer's links (loading audit,
               2026-11-02): this bar is drawn on every open of /chat, and the
               viewport prefetch fetched "/" (before the session is read)
@@ -40,7 +42,7 @@ export default function DashboardHeader() {
           >
             <Logo size="md" />
           </Link>
-        </div>
+      </div>
 
         {/* The balance lives INSIDE the menu; the right side is just the
             hamburger. While auth is "unknown" AppMenu renders an invisible
@@ -54,7 +56,7 @@ export default function DashboardHeader() {
             themselves, which is what "price before the action" actually
             needed; the running total did not have to be permanently on screen
             for that to work. */}
-        <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+      <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
           <AppMenu
             authState={menu.authState}
             userEmail={menu.userEmail}
@@ -70,8 +72,7 @@ export default function DashboardHeader() {
             // menu already hides it from anyone signed out.
             dataConsentHref="/account/data-consent"
           />
-        </div>
       </div>
-    </header>
+    </PageHeader>
   );
 }

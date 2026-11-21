@@ -41,6 +41,9 @@ import {
 /** One job's wait as the Lounge shows it. */
 export interface WaitView {
   sessionId: string;
+  arcId: string | null;
+  /** The upload response/readout has explicitly said this job is processing. */
+  serverState: "processing" | null;
   takeIndex: number | null;
   status: "analyzing" | "failed";
   startedAt: number;
@@ -89,6 +92,8 @@ export function useWaitScreen({
     if (marker?.sessionId !== handedOver || marker.status !== "processing") return;
     latest.current.show({
       sessionId: marker.sessionId,
+      arcId: marker.arcId,
+      serverState: marker.phase === "analysis" ? "processing" : null,
       takeIndex: marker.takeIndex,
       status: "analyzing",
       startedAt: marker.startedAt,
@@ -135,6 +140,8 @@ export function useWaitScreen({
 export function waitViewOf(take: ProcessingTake): WaitView {
   return {
     sessionId: take.sessionId,
+    arcId: take.arcId,
+    serverState: take.phase === "analysis" ? "processing" : null,
     takeIndex: take.takeIndex,
     status: take.status === "processing" ? "analyzing" : "failed",
     startedAt: take.startedAt,

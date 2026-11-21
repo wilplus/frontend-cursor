@@ -8,11 +8,22 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O3  The project uses one chat top bar and the standard answer controls.
          O4  Every route to the current Ideal Text preserves the decision to
              continue to the next fragment or repeat this fragment.
+         O5  The project-card CTAs keep the selected Take and route distinct:
+             Feedback opens its exact Feedback Walk range; Ideal Text stays
+             on Ideal Text.
+         O6  An accepted typed answer, its one pending state, and its matched
+             reply or recoverable error are always brought into view.
+         O7  A refused quick choice remains one durable user turn with one
+             recoverable error instead of disappearing.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "keeps the fragment decision when Ideal Text opens from the card"
-WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills.
+         O5 -> "keeps the selected Take and range on Feedback while Ideal Text remains separate"
+         O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
+         O7 -> "keeps a refused quick choice once with one recoverable error"
+WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
+         release-blocking chat audit, 2026-11-17.
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -33,6 +44,10 @@ const state = vi.hoisted(() => ({
   chatQuery: vi.fn(),
   willQuestion: vi.fn(),
 }));
+const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
+const arcSetup = vi.hoisted(() => ({
+  fetch: vi.fn(async () => ({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] })),
+}));
 vi.mock("./LoungeThreadContext", () => ({
   useLoungeThreadCtx: () => ({
     messages: state.messages,
@@ -51,25 +66,65 @@ vi.mock("@/services/api/willQuestion", () => ({
 vi.mock("./useBackDismiss", () => ({ useBackDismiss: () => undefined }));
 vi.mock("./useUserId", () => ({ useUserId: () => "user-a" }));
 vi.mock("@/services/api/arcSetup", () => ({
-  fetchArcSetup: () => new Promise(() => undefined),
+  fetchArcSetup: arcSetup.fetch,
 }));
+vi.mock("@/services/api/trainings", () => ({
+  fetchTrainings: trainingApi.fetchTrainings,
+}));
+const fetchTakeTranscript = vi.hoisted(() => vi.fn(async (sessionId: string) => `raw transcript for ${sessionId}`));
+vi.mock("@/services/api/takeTranscript", () => ({ fetchTakeTranscript }));
 vi.mock("./IdealTextCard", () => ({
   default: ({ onOpen }: { onOpen: () => void }) =>
     createElement("button", { "data-testid": "ideal", onClick: onOpen }, "Ideal Text"),
 }));
 vi.mock("./IdealTextOverlay", () => ({
-  default: ({ practiceDecision }: { practiceDecision?: { onContinue: () => void; onRepeat: () => void } }) =>
+  default: ({
+    practiceDecision,
+    initialMode,
+    coachTake,
+    reviewTake,
+    reviewSlideRange,
+    requireFeedbackWalk,
+    projectFlow,
+    onClose,
+  }: {
+    practiceDecision?: { deliveryLabel?: string; onFragment: () => void; onWholePresentation: () => void };
+    initialMode?: string;
+    coachTake?: string | null;
+    reviewTake?: string | null;
+    reviewSlideRange?: { startSlide: number; endSlide: number } | null;
+    requireFeedbackWalk?: boolean;
+    projectFlow?: boolean;
+    onClose?: () => void;
+  }) =>
     createElement(
       "div",
-      { "data-testid": practiceDecision ? "decision" : "result" },
+      {
+        "data-testid": practiceDecision ? "decision" : "result",
+        "data-overlay-mode": initialMode ?? "notebook",
+        "data-coach-take": coachTake ?? "",
+        "data-review-take": reviewTake ?? "",
+        "data-review-range": reviewSlideRange
+          ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
+          : "",
+        "data-require-feedback-walk": requireFeedbackWalk ? "true" : "false",
+        "data-project-flow": projectFlow ? "true" : "false",
+      },
       practiceDecision
         ? createElement(
             "div",
             null,
-            createElement("button", { onClick: practiceDecision.onContinue }, "Continue to next fragment"),
-            createElement("button", { onClick: practiceDecision.onRepeat }, "Repeat this fragment"),
+            createElement("i", { "data-readiness": practiceDecision.deliveryLabel }),
+            createElement("button", { "data-choice": "fragment", onClick: practiceDecision.onFragment }, "Repeat this fragment"),
+            createElement("button", { "data-choice": "whole", onClick: practiceDecision.onWholePresentation }, "Rehearse whole presentation"),
+            createElement("button", { onClick: onClose }, "Close"),
           )
-        : "Result",
+        : createElement(
+            "div",
+            null,
+            projectFlow ? createElement("i", { "data-project-flow": "true" }) : null,
+            createElement("button", { onClick: onClose }, "Close"),
+          ),
     ),
 }));
 import ProjectChat from "./ProjectChat";
@@ -104,7 +159,7 @@ const project: TrainingArc = {
 
 let root: Root;
 let host: HTMLDivElement;
-let onRecord = vi.fn<() => void>();
+let onRecord = vi.fn<(arcId: string) => void>();
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -123,11 +178,14 @@ beforeEach(() => {
     state.messages = [...state.messages, stamped];
     return stamped;
   });
+  arcSetup.fetch.mockClear().mockResolvedValue({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] });
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  onRecord = vi.fn<() => void>();
+  onRecord = vi.fn<(arcId: string) => void>();
   localStorage.clear();
+  sessionStorage.clear();
+  trainingApi.fetchTrainings.mockReset();
 });
 
 afterEach(() => {
@@ -135,11 +193,12 @@ afterEach(() => {
   host.remove();
 });
 
-function render(currentProject: TrainingArc = project): void {
+function render(currentProject: TrainingArc = project, recordingInProgress = false): void {
   act(() => root.render(createElement(ProjectChat, {
     project: currentProject,
     onBack: vi.fn(),
     onRecord,
+    recordingInProgress,
   })));
 }
 
@@ -194,7 +253,31 @@ function submitAnswer(): void {
   });
 }
 
+function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next: number) => void } {
+  let scrollHeight = height;
+  Object.defineProperty(element, "scrollHeight", { configurable: true, get: () => scrollHeight });
+  Object.defineProperty(element, "clientHeight", { configurable: true, get: () => 320 });
+  return { setHeight: (next) => { scrollHeight = next; } };
+}
+
 describe("project conversation", () => {
+  it("keeps contextual follow-ups available after the setup questions finish", async () => {
+    state.chatQuery.mockResolvedValue({
+      answer: "Try returning to the decision from your opening.",
+      persisted: true, persisted_client_id: "reply-follow-up",
+      row_metadata: { arc_id: "arc-a", take_session_id: "take-a", project_chat: true },
+    });
+    render();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    enterAnswer("How should I finish this talk?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery).toHaveBeenCalledWith(expect.objectContaining({
+      question: "How should I finish this talk?", projectId: "arc-a", sessionId: "take-a",
+    }));
+    expect(host.textContent).toContain("Try returning to the decision from your opening.");
+    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+  });
   it("shows the neutral result card as soon as the accepted Take reaches the thread", () => {
     const accepted: LoungeMessage = {
       client_id: "accepted-take",
@@ -220,7 +303,7 @@ describe("project conversation", () => {
 
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Take 1");
-    expect(host.textContent).toContain("Processing");
+    expect(host.querySelector("[data-practice-status]")).toBeNull();
     expect(host.textContent).not.toContain("Not yet there");
     expect(host.querySelector('[data-project-message="accepted-take"]')).toBeNull();
   });
@@ -230,7 +313,7 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Progress");
     expect(host.textContent).toContain("Slides 1-2");
-    expect(host.textContent).toContain("Almost");
+    expect(host.textContent).not.toContain("Almost");
     expect(host.textContent).toContain("Feedback");
     expect(host.textContent).toContain("Ideal text");
     expect(host.textContent).toContain("Continue recording");
@@ -238,10 +321,48 @@ describe("project conversation", () => {
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue to next fragment")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
     expect(onRecord).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"durationSeconds":300');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      durationSeconds: 300,
+      slideIndex: 0,
+      scope: "whole",
+      startSlide: 1,
+    });
+  });
+
+  it("opens the raw transcript for the exact project Take", async () => {
+    render();
+    act(() => (host.querySelector("[data-project-recording='take-a'] button") as HTMLButtonElement).click());
+    expect(fetchTakeTranscript).toHaveBeenCalledWith("take-a");
+    await act(async () => undefined);
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(host.textContent).toContain("Board meeting · Take 1");
+    expect(host.textContent).toContain("raw transcript for take-a");
+  });
+
+  it("repeats the exact latest practiced fragment", () => {
+    render({
+      ...project,
+      practiceChunks: [{
+        startSlide: 3,
+        endSlide: 5,
+        attempts: 2,
+        deliveryLabel: "Almost",
+        latestSessionId: "take-a",
+      }],
+    });
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
+    expect(onRecord).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      durationSeconds: 300,
+      slideIndex: 2,
+      scope: "fragment",
+      startSlide: 3,
+      endSlide: 5,
+    });
   });
 
   it("keeps the fragment decision when Ideal Text opens from the card", () => {
@@ -253,15 +374,166 @@ describe("project conversation", () => {
     act(() => idealText.click());
 
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    expect(host.textContent).toContain("Continue to next fragment");
+    expect(host.textContent).toContain("Rehearse whole presentation");
     expect(host.textContent).toContain("Repeat this fragment");
+    expect(host.querySelector("[data-readiness]")?.getAttribute("data-readiness")).toBe("Almost");
     expect(host.querySelector('[data-testid="result"]')).toBeNull();
 
     act(() => [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Repeat this fragment",
     )!.click());
+    expect(onRecord).toHaveBeenCalledWith("arc-a");
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("keeps the selected Take and range on Feedback while Ideal Text remains separate", () => {
+    const twoTakes: TrainingArc = {
+      ...project,
+      takeCount: 2,
+      takes: [
+        ...project.takes,
+        {
+          sessionId: "take-b",
+          takeIndex: 2,
+          createdAt: null,
+          hasSlides: true,
+          feedbackAvailable: true,
+        },
+      ],
+      practiceChunks: [
+        project.practiceChunks[0],
+        {
+          startSlide: 3,
+          endSlide: 4,
+          attempts: 1,
+          deliveryLabel: "Good",
+          latestSessionId: "take-b",
+        },
+      ],
+    };
+    render(twoTakes);
+
+    act(() => (host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click());
+    act(() => (host.querySelectorAll("[data-practice-chunk]")[0] as HTMLElement).click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback"))!.click());
+
+    const feedbackOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(feedbackOverlay.getAttribute("data-overlay-mode")).toBe("review");
+    expect(feedbackOverlay.getAttribute("data-review-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-review-range")).toBe("1-2");
+    expect(feedbackOverlay.getAttribute("data-coach-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-require-feedback-walk")).toBe("true");
+
+    act(() => [...feedbackOverlay.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Ideal text"))!.click());
+
+    const idealOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(idealOverlay.getAttribute("data-overlay-mode")).toBe("notebook");
+    expect(idealOverlay.getAttribute("data-review-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-review-range")).toBe("");
+    expect(idealOverlay.getAttribute("data-coach-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-require-feedback-walk")).toBe("false");
+  });
+
+  it("opens the scoped recording for whole-presentation and fragment practice", async () => {
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
+    render();
+    await act(async () => { await Promise.resolve(); });
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
+    expect(onRecord).toHaveBeenNthCalledWith(1, "arc-a");
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      slideIndex: 0,
+      scope: "whole",
+      startSlide: 1,
+    });
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Repeat this fragment")!.click());
+    expect(onRecord).toHaveBeenNthCalledWith(2, "arc-a");
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      slideIndex: 0,
+      scope: "fragment",
+      startSlide: 1,
+      endSlide: 2,
+    });
+  });
+
+  it("still records the whole presentation when the current fragment is final", async () => {
+    arcSetup.fetch.mockResolvedValueOnce({ slides: [{ title: "Only", body: "" }] });
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
+    render();
+    await act(async () => { await Promise.resolve(); });
+
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.textContent).toContain("Rehearse whole presentation");
+    expect(host.textContent).not.toContain("Finish presentation");
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+  });
+
+  it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {
+    const refreshed: TrainingArc = {
+      ...project,
+      takeCount: 2,
+      takes: [
+        ...project.takes,
+        {
+          sessionId: "take-b",
+          takeIndex: 2,
+          createdAt: null,
+          hasSlides: true,
+          feedbackAvailable: true,
+        },
+      ],
+      practiceChunks: [{
+        startSlide: 1,
+        endSlide: 2,
+        attempts: 2,
+        deliveryLabel: "Good",
+        latestSessionId: "take-b",
+      }],
+      practiceProgress: 72,
+    };
+    trainingApi.fetchTrainings.mockResolvedValue([refreshed]);
+
+    render(project, true);
+    expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
+
+    render(project, true);
+    expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(host.querySelector("[data-processing-bubble]")).toBeNull();
+    expect(host.textContent).toContain("2 attempts");
+    expect(host.textContent).not.toContain("Good");
+  });
+
+  it("restores a durable failure as an actionable project-chat state", () => {
+    localStorage.setItem(
+      "willab_processing_take:user-a",
+      JSON.stringify({
+        sessionId: "take-failed",
+        arcId: "arc-a",
+        takeIndex: 2,
+        startedAt: Date.now(),
+        phase: "analysis",
+        phaseStartedAt: Date.now(),
+        status: "failed",
+        progress: null,
+      }),
+    );
+
+    render();
+
+    expect(host.querySelector("[data-processing-error]")).not.toBeNull();
+    expect(host.textContent).toContain("Try processing again");
   });
 
   it("puts the result first and keeps the contextual exchange in human order", async () => {
@@ -405,7 +677,7 @@ describe("project conversation", () => {
       persist: true,
       clientId: optimistic.client_id,
       clientCreatedAt: optimistic.client_created_at,
-      history: [{ role: "assistant", content: "Who were you talking to?" }],
+      history: [{ role: "assistant", metadata: { arc_id: "arc-a" }, content: "Who were you talking to?" }],
     }));
 
     await act(async () => request.resolve({
@@ -454,6 +726,143 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-project-pending-answer]")).toBeNull();
     expect(host.textContent).toContain("Now I can tailor the opening to both groups.");
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
+  });
+
+  it("shows one pending turn, disables the composer, and scrolls the accepted send and reply into view", async () => {
+    const request = deferred<{ answer: string; persisted: boolean; row_metadata: Record<string, unknown> }>();
+    const reloaded = deferred<void>();
+    state.chatQuery.mockReturnValue(request.promise);
+    state.reload.mockReturnValue(reloaded.promise);
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+    ];
+    render();
+    const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
+    const metrics = scrollMetrics(scroller);
+    scroller.scrollTop = 0;
+    const field = enterAnswer("Keep the owner explicit.");
+    submitAnswer();
+    await flush();
+
+    expect(field.disabled).toBe(true);
+    expect(state.chatQuery).toHaveBeenCalledTimes(1);
+    expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Keep the owner explicit.",
+    )).toHaveLength(1);
+    expect(scroller.scrollTop).toBe(1_200);
+
+    scroller.scrollTop = 0;
+    metrics.setHeight(1_600);
+    await act(async () => request.resolve({
+      answer: "Then land that owner in the final sentence.",
+      persisted: true,
+      row_metadata: { will_question_step: "thanks" },
+    }));
+    await flush();
+    expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
+
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+      state.appendRecoverable.mock.results[0]!.value.message as LoungeMessage,
+      message("reply", "Then land that owner in the final sentence.", "bot", {
+        will_question_step: "thanks",
+      }),
+    ];
+    await act(async () => reloaded.resolve());
+    await flush();
+    expect(scroller.scrollTop).toBe(1_600);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
+    expect(host.textContent).toContain("Then land that owner in the final sentence.");
+  });
+
+  it("keeps the accepted bubble and exact draft with one explicit recoverable error", async () => {
+    const request = deferred<{ answer: string; persisted: boolean }>();
+    state.chatQuery.mockReturnValue(request.promise);
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+    ];
+    render();
+    const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
+    scrollMetrics(scroller, 1_400);
+    const exact = "  Keep the decision simple.  ";
+    enterAnswer(exact);
+    submitAnswer();
+    await flush();
+    scroller.scrollTop = 0;
+
+    await act(async () => request.reject(new Error("offline")));
+    await flush();
+
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
+    expect(host.textContent).toContain("I'm having trouble reaching the lab right now.");
+    expect((host.querySelector('textarea[aria-label="Answer about this take"]') as HTMLTextAreaElement).value)
+      .toBe(exact);
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Keep the decision simple.",
+    )).toHaveLength(1);
+    expect(scroller.scrollTop).toBe(1_400);
+  });
+
+  it("keeps a refused quick choice once with one recoverable error", async () => {
+    state.messages = [
+      message("question", "Who were you talking to?", "bot", {
+        offer: "will_question",
+        will_question_step: "ask",
+        chips: ["Leadership", "My team"],
+      }),
+    ];
+    state.willQuestion.mockResolvedValue(false);
+    render();
+    const leadership = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Leadership",
+    )!;
+    await act(async () => leadership.click());
+    await flush();
+
+    expect([...host.querySelectorAll("[data-project-message]")].filter(
+      (node) => node.textContent === "Leadership",
+    )).toHaveLength(1);
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
+    expect(state.appendRecoverable).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses stale terminal walk copy returned for a fresh project question", async () => {
+    state.messages = [
+      message("question", "What should they remember?", "bot", {
+        offer: "will_question",
+        will_question_step: "follow",
+        chips: [],
+      }),
+      message("closing", "Good job. See you next time.", "bot", {
+        next_take: true,
+        held_for: "will_question",
+      }),
+    ];
+    state.chatQuery.mockResolvedValue({
+      answer: "Good job. See you next time.",
+      persisted: true,
+      row_metadata: { will_question_step: "thanks" },
+    });
+    render();
+    enterAnswer("What should I practise next?");
+    submitAnswer();
+    await flush();
+
+    expect(host.textContent).not.toContain("Good job. See you next time.");
+    expect(host.querySelectorAll("[data-project-chat-error]")).toHaveLength(1);
   });
 
   it("restores and retries the exact draft with the same client identity after a request failure", async () => {
@@ -522,6 +931,35 @@ describe("project conversation", () => {
     )).toHaveLength(1);
   });
 
+  it("restores an interrupted project request only in its project and retries its original Take", async () => {
+    const question = message("ask", "Who needs to act?", "bot", {
+      offer: "will_question", will_question_step: "ask", chips: [],
+    });
+    state.messages = [question];
+    state.chatQuery.mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ answer: "Name the decision.", persisted: true, persisted_client_id: "saved" });
+    render();
+    enterAnswer("  The board  ");
+    submitAnswer();
+    await flush();
+    const first = state.chatQuery.mock.calls[0]![0];
+    act(() => root.unmount());
+    root = createRoot(host);
+    state.messages = [question];
+    render({ ...project, arcId: "arc-b" });
+    expect(host.textContent).not.toContain("The board");
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    render();
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    act(() => { retry.click(); retry.click(); });
+    await flush();
+    expect(state.chatQuery.mock.calls.map(([args]) => args)).toEqual([first, first]);
+    expect(first).toMatchObject({ projectId: "arc-a", sessionId: "take-a" });
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+  });
+
   it("keeps the exact optimistic turn retryable when a 200 is not persisted", async () => {
     state.chatQuery.mockResolvedValue({
       answer: "I answered, but storage failed.",
@@ -556,5 +994,16 @@ describe("project conversation", () => {
     expect(secondQuery.clientId).toBe(firstQuery.clientId);
     expect(secondQuery.clientCreatedAt).toBe(firstQuery.clientCreatedAt);
     expect(state.appendRecoverable).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the post-walk close inside the project conversation", () => {
+    render();
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback"))!.click());
+    const result = host.querySelector('[data-testid="decision"]') as HTMLElement;
+    expect(result.getAttribute("data-project-flow")).toBe("true");
+
+    act(() => result.querySelector("button")!.click());
+    expect(host.querySelector('[data-testid="decision"]')).toBeNull();
+    expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
   });
 });

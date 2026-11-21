@@ -1098,33 +1098,6 @@
       }
     }
   },
-  "fetchStrengths": {
-    "signedIn": {
-      "requests": [
-        {
-          "url": "/api/v2/user/strengths",
-          "method": "GET",
-          "headers": {
-            "authorization": "Bearer tok"
-          },
-          "body": null,
-          "credentials": null,
-          "cache": "no-store"
-        }
-      ],
-      "result": {
-        "general": [],
-        "presentations": []
-      }
-    },
-    "signedOut": {
-      "requests": [],
-      "result": {
-        "general": [],
-        "presentations": []
-      }
-    }
-  },
   "fetchVoiceAlbum": {
     "signedIn": {
       "requests": [

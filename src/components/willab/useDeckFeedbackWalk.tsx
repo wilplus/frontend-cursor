@@ -78,6 +78,19 @@ import { postTempoGame } from "@/services/api/reviewTempo";
 import { askWalkQuote, replayWalkQuote, setWalkQuote, walkQuoteShown } from "@/services/api/walkQuote";
 import type { WalkQuoteIO } from "./walk/useWalkQuote";
 import { TEMPO_COPY, afterTry, oneThingTempoLines, stretchWordsIn, tempoOpening, type TempoEvent, type TempoStretch } from "@/lib/willab/tempoStep";
+import {
+  feedbackWalkEntryFor,
+  feedbackWalkStateFromMessages,
+  feedbackWalkStateMetadata,
+  reduceFeedbackWalkState,
+  type FeedbackWalkState,
+  type FeedbackWalkTransition,
+} from "@/lib/willab/feedbackWalkState";
+
+export type FeedbackWalkSlideRange = Readonly<{
+  startSlide: number;
+  endSlide: number;
+}>;
 
 /* -------------------------------------------------------------------------- */
 /*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
@@ -347,6 +360,50 @@ function postLevel(
   post({ key: `level:${step.key}`, ...at, author: "app", body: PLAN_COPY.levelHere(moment.planLevel) });
 }
 
+type PreparedWalkEntry = {
+  entry: Omit<WalkThreadEntry, "take" | "arcId">;
+  state: FeedbackWalkState;
+  skip: boolean;
+};
+
+/** Add the one state snapshot to an existing Lounge event. */
+function prepareWalkEntry(
+  entry: Omit<WalkThreadEntry, "take" | "arcId">,
+  state: FeedbackWalkState,
+): PreparedWalkEntry {
+  const transition = typeof entry.extra?.walk_transition === "string"
+    ? entry.extra.walk_transition as FeedbackWalkTransition["action"]
+    : null;
+  if (!transition) {
+    return {
+      entry,
+      state,
+      skip: entry.key !== "end" && !entry.extra?.clip && !entry.body.trim(),
+    };
+  }
+  const nextState = reduceFeedbackWalkState(state, {
+    action: transition,
+    key: entry.key,
+    moment: entry.moment,
+    attempt: entry.attempt,
+    value: typeof entry.extra?.walk_value === "string" ? entry.extra.walk_value : null,
+    replay: entry.extra?.walk_replay === true,
+  });
+  const stateOnly = !entry.body.trim() && !entry.extra?.clip;
+  return {
+    state: nextState,
+    skip: false,
+    entry: {
+      ...entry,
+      extra: {
+        ...entry.extra,
+        ...feedbackWalkStateMetadata(nextState),
+        ...(stateOnly ? { walk_state_only: true } : {}),
+      },
+    },
+  };
+}
+
 /** The machine's answers on a try, posted as the try is made. */
 const TRY_ANSWER_STEPS: ReadonlySet<string> = new Set(["improved", "encourage", "thanks"]);
 
@@ -433,6 +490,22 @@ function standAtOf<R>(done: FeedbackWalkModel<R> | null, at: number | null, fini
   if (!done || !finished || !lens) return at;
   const newest = walkLastStep(done) ?? walkStart(done);
   return newest !== null && (at === null || at > newest) ? newest : at;
+}
+
+function canonicalWalkOpening(input: {
+  target?: WalkStepTarget | null;
+  coachDoor: boolean;
+  replayReady: boolean;
+  completed: boolean;
+  answers: readonly OwnerAnswer[];
+  buildReplay: (answers: readonly OwnerAnswer[]) => FeedbackWalkModel<DocumentSuggestion>;
+  buildWhole: (answers: readonly OwnerAnswer[]) => FeedbackWalkModel<DocumentSuggestion>;
+  liveAll: FeedbackWalkModel<DocumentSuggestion> | null;
+}): { model: FeedbackWalkModel<DocumentSuggestion>; at: number } | null {
+  if (input.target || input.coachDoor || !input.replayReady) return null;
+  const model = input.completed ? input.buildReplay(input.answers) : input.liveAll ?? input.buildWhole(input.answers);
+  const at = walkStart(model);
+  return at === null ? null : { model, at };
 }
 
 /** One served item as the walk reads it. Pure. */
@@ -632,6 +705,15 @@ export function reviewedTake(
     if (take) return take;
   }
   return pageTake;
+}
+
+function selectedTakeForReview(
+  items: readonly FeedbackWalkItem<DocumentSuggestion>[],
+  pageTake: string | null,
+  reviewSlideRange: FeedbackWalkSlideRange | null,
+): string | null {
+  if (reviewSlideRange !== null && pageTake !== null) return pageTake;
+  return reviewedTake(items, pageTake);
 }
 
 
@@ -867,6 +949,37 @@ export function paragraphHelpers(args: {
   };
 }
 
+/** Select the whole plan for a named door without changing its live/replay policy. */
+function planForReview(
+  target: WalkStepTarget | null | undefined,
+  coachDoor: boolean,
+  ready: boolean,
+  asScroll: boolean,
+  replay: () => FeedbackWalkModel<DocumentSuggestion>,
+  whole: () => FeedbackWalkModel<DocumentSuggestion>,
+): FeedbackWalkModel<DocumentSuggestion> | null {
+  if ((!target && !coachDoor) || !ready) return null;
+  return asScroll ? replay() : whole();
+}
+
+function tempoProject(arcId: string | null | undefined, coachOnly: boolean): string | null {
+  return coachOnly ? null : arcId ?? null;
+}
+
+/** Replayed tries were already said; the coach's note is posted once per Take. */
+function messageForShownStep(
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  coach: CoachMessage | null,
+  say: (bank: WalkBankKey) => string,
+  ai: WalkAiShown | null | undefined,
+  line: string | null | undefined,
+) {
+  const plain = shownStep(step, moment, coach?.text ?? null, say, line ?? null);
+  if (step.replay === true && TRY_ANSWER_STEPS.has(step.key)) return null;
+  return ai ? aiVoiceChat(ai, plain?.body ?? null) ?? plain : plain;
+}
+
 export function useDeckFeedbackWalk(args: {
   chunks: readonly DeckChunk[];
   groups: readonly SlideGroup[];
@@ -889,6 +1002,9 @@ export function useDeckFeedbackWalk(args: {
   /** The Take's project: the Lounge's walk steps name it, so a tap turns
    *  the lens back on there (lock 2026-10-12, section 1). */
   arcId?: string | null;
+  /** Project-card range: keep the walk on the exact 1-based slide range that
+   *  the selected Take practiced. */
+  reviewSlideRange?: FeedbackWalkSlideRange | null;
   setRootPhrase: (chunk: DeckChunk, phrase: RootPhraseSpan | null) => Promise<boolean>;
   /** The deck's decision on a clearer version: the Feedback sheet's own. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
@@ -917,6 +1033,7 @@ export function useDeckFeedbackWalk(args: {
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
   /** The helper words saved on a paragraph, drawn pressed in the replay. */
   helperWordsOf?: (partId: string) => string | null;
+  editSavedHelpers?: (partId: string) => void;
   /** Nothing of this Take waits on the speaker: the walk is finished, and
    *  "Review feedback" under "Record Take N" plays it again. */
   finished?: boolean;
@@ -939,6 +1056,7 @@ export function useDeckFeedbackWalk(args: {
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
    *  when the paragraph has none. */
   openHelpers: (partId: string) => boolean;
+  noteHelperWords: (partId: string, text: string) => void;
   /** The paragraph has a moment of this Take to open. */
   hasMoment: (partId: string) => boolean;
   /** The paragraph still has a step to answer: it wears the black line
@@ -961,24 +1079,40 @@ export function useDeckFeedbackWalk(args: {
   walkReady: boolean;
   element: ReactNode;
 } {
-  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake } = args;
+  const { chunks, groups, waiting, pendingOf, slideLabel, slideTitle, coachMessage, coachSeen, firstTake, reviewSlideRange = null } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
   const coachOnly = args.coachOnly === true;
   const practiceOn = usePracticeOn();
   const journal = useWalkJournalPost(true);
   const pageTake = args.takeSessionId ?? null;
 
-  const items = useMemo(
-    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
-    [chunks, groups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
+  const canScopeReview = reviewSlideRange !== null && groups.some((group) => group.slideIndex !== null);
+  const reviewGroups = useMemo(
+    () => canScopeReview
+      ? groups.filter((group) => group.slideIndex !== null && group.slideIndex + 1 >= reviewSlideRange!.startSlide && group.slideIndex + 1 <= reviewSlideRange!.endSlide)
+      : groups,
+    [canScopeReview, groups, reviewSlideRange],
   );
-  const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
+  const reviewPartIds = useMemo(
+    () => new Set(reviewGroups.flatMap((group) => group.chunks.map((chunk) => chunk.part.id))),
+    [reviewGroups],
+  );
+  const reviewChunks = useMemo(
+    () => canScopeReview ? chunks.filter((chunk) => reviewPartIds.has(chunk.part.id)) : chunks,
+    [canScopeReview, chunks, reviewPartIds],
+  );
+
+  const items = useMemo(
+    () => deckWalkItems(reviewChunks, reviewGroups, waiting, pendingOf, slideLabel, slideTitle, answeredOf),
+    [reviewChunks, reviewGroups, waiting, pendingOf, slideLabel, slideTitle, answeredOf],
+  );
+  const take = useMemo(() => selectedTakeForReview(items, pageTake, reviewSlideRange), [items, pageTake, reviewSlideRange]);
   /* THE TEMPO STEP (backend N162, N166): on the Take's own stretch from the
      backend (step 3), only when one left the green, and only for whoever the
      rings panel's `tempo_step` row reaches (step 6), the founder too: the
      backend answers the step only to them, so it is asked as soon as the
      Take is known, never after the rings are read. Undefined while asked. */
-  const tempo = useReviewTempo(!coachOnly ? (args.arcId ?? null) : null, take);
+  const tempo = useReviewTempo(tempoProject(args.arcId, coachOnly), take);
   /* THE WALK QUOTES YOUR NOTEBOOK (backend N268): the speaker's own walk
      only, never a coach's view of it. */
   const quotes = useMemo<WalkQuoteIO | null>(
@@ -1001,7 +1135,7 @@ export function useDeckFeedbackWalk(args: {
   /* The Sniper's helper words (N309 item 3): its stretch's words, on the
      paragraph that says them, within the cap of eight; read once here for
      the walk's helper words and the pace game's tip (N347 item 3). */
-  const tempoAt = useMemo(() => stretchParagraph(tempo, chunks, groups), [tempo, chunks, groups]);
+  const tempoAt = useMemo(() => stretchParagraph(tempo, reviewChunks, reviewGroups), [tempo, reviewChunks, reviewGroups]);
   const tempoWords = useMemo<FeedbackWalkTempoWords | null>(() => {
     const words = tempoAt?.words ? sniperWords(tempoAt.chunk.part.text, tempoAt.words) : null;
     return tempoAt && words ? { partId: tempoAt.chunk.part.id, paragraphText: tempoAt.chunk.part.text, text: words.text, span: words.span } : null;
@@ -1032,14 +1166,33 @@ export function useDeckFeedbackWalk(args: {
   live.current = args;
   const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
   threadRef.current = { thread, take, arcId: args.arcId ?? null };
+  const persistedWalkState = useMemo(
+    () => feedbackWalkStateFromMessages(thread?.messages ?? [], pageTake),
+    [thread?.messages, pageTake],
+  );
+  const walkStateRef = useRef<FeedbackWalkState>(persistedWalkState);
+  const persistedEntry = feedbackWalkEntryFor(persistedWalkState);
+  useEffect(() => {
+    walkStateRef.current = persistedWalkState;
+  }, [persistedWalkState]);
   // What the closing summary hears (lock 2026-10-12, section 3).
   const heardRef = useRef<WalkHeard>({ practice: null, words: [] });
   const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
     hear(heardRef.current, entry.key, entry.author, entry.body);
     const { thread: to, take: on, arcId } = threadRef.current;
-    if (!to || !on || (entry.key !== "end" && !entry.extra?.clip && !entry.body.trim())) return;
+    if (!to || !on) return;
+    const prepared = prepareWalkEntry(entry, walkStateRef.current);
+    if (prepared.skip) return;
+    walkStateRef.current = prepared.state;
     const takeIndex = live.current.takeIndex ?? null;
-    void to.append(walkStepDraft({ ...entry, take: on, arcId, takeIndex })).catch(() => undefined);
+    void to.append(
+      walkStepDraft({
+        ...prepared.entry,
+        take: on,
+        arcId,
+        takeIndex,
+      }),
+    ).catch(() => undefined);
   }, []);
   const publishedCoach = usePublishedCoach();
   /* The tempo step in the chat and for Will (N166 step 4): its opening
@@ -1114,7 +1267,12 @@ export function useDeckFeedbackWalk(args: {
   // A paragraph is played again from its own moment at any time (founder
   // 2026-10-10); the whole walk, from "Review feedback", once it is finished.
   const replayReady = answeredOf !== undefined;
-  const replayable = replayReady && finished;
+  const practiceWasDeferred = persistedEntry.mode === "resume" && persistedWalkState.status === "practice_pending";
+  // `finished` only says that no document mark is waiting. It does not say
+  // that the speaker walked the feedback. Completion belongs to the
+  // persisted walk state (legacy `end` rows are reduced into the same state).
+  const walkCompleted = persistedEntry.mode === "review";
+  const replayable = replayReady && walkCompleted;
   const [ownAnswers, setOwnAnswers] = useState<readonly OwnerAnswer[]>([]);
   const [answersRead, setAnswersRead] = useState(false);
   useEffect(() => {
@@ -1135,9 +1293,9 @@ export function useDeckFeedbackWalk(args: {
   const replayItems = useMemo(
     () =>
       replayReady && answeredOf
-        ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
+        ? deckReplayItems(reviewChunks, reviewGroups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel, slideTitle)
         : [],
-    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, slideTitle],
+    [replayReady, answeredOf, reviewChunks, reviewGroups, pendingOf, slideLabel, slideTitle],
   );
   /* THE TRIES ALREADY HAD (walk first, 2026-10-14): read from the Take's
      thread (each "Practise N" and the answer it got); where the thread has
@@ -1339,11 +1497,11 @@ export function useDeckFeedbackWalk(args: {
   // standing on the first thing left, everything before it as given. False
   // when the Take is finished or nothing is left.
   const openLeftToDo = useCallback((): boolean => {
-    const whole = !finished && replayReady ? buildWhole(ownAnswers) : null;
+    const whole = !walkCompleted && replayReady ? buildWhole(ownAnswers) : null;
     if (!whole || whole.waitsAt == null) return false;
     setReplaying(whole);
     return openAt(whole.waitsAt, false, true, undefined, answeredRun(whole, whole.waitsAt, waitsOn));
-  }, [finished, replayReady, buildWhole, ownAnswers, openAt, waitsOn]);
+  }, [walkCompleted, replayReady, buildWhole, ownAnswers, openAt, waitsOn]);
   const review = useCallback((target?: WalkStepTarget | null, from: "chat" | "page" = "chat"): boolean => {
     if (otherTake(target)) return true;
     setReplaying(null);
@@ -1356,7 +1514,7 @@ export function useDeckFeedbackWalk(args: {
     const reopened = reopenedFromChat({ lens, target, coachOnly, coachUnseen: live.current.coachUnseen === true });
     if (reopened && openLeftToDo()) return true;
     // Finished, or opened again with nothing left: a scroll (N259, N539).
-    const asScroll = finished || reopened;
+    const asScroll = walkCompleted || (reopened && !practiceWasDeferred);
     // A finished Take (nothing waits, the coach's word seen) is walked as
     // given: its live model holds only the tail (others, the summary), never
     // the step asked for (founder 2026-10-21).
@@ -1364,7 +1522,8 @@ export function useDeckFeedbackWalk(args: {
     // The whole Take's walk, standing on the step asked for: as given once
     // answered (prototype v31), live while it waits, its buttons in the dock
     // either way, the parts before it there to scroll (founder 2026-10-21).
-    const done = (target || coachDoor) && replayReady ? (asScroll ? buildReplay(ownAnswers) : buildWhole(ownAnswers)) : null;
+    const done = planForReview(target, coachDoor, replayReady, asScroll,
+      () => buildReplay(ownAnswers), () => buildWhole(ownAnswers));
     const doneAt = done ? (coachDoor ? walkStart(done) : walkStepAt(done, target)) : null;
     // A door from the chat never shows the text in the walk's place.
     const standAt = standAtOf(done, doneAt, asScroll, lens);
@@ -1376,6 +1535,23 @@ export function useDeckFeedbackWalk(args: {
       // word, so its Continue still marks the word seen.
       return openAt(standAt, false, lens, undefined, asScroll ? threadEnd(done) : coachDoor ? null : answeredRun(done, standAt, waitsOn));
     }
+    // Processing and the project-card CTA have no target. They use the same
+    // whole canonical plan as every later door, but the first opening remains
+    // step-by-step even when the deck has no unanswered mark.
+    const canonical = canonicalWalkOpening({
+      target,
+      coachDoor,
+      replayReady,
+      completed: walkCompleted,
+      answers: ownAnswers,
+      buildReplay,
+      buildWhole,
+      liveAll,
+    });
+    if (canonical) {
+      setReplaying(canonical.model);
+      return openAt(canonical.at, false, lens, undefined, walkCompleted ? threadEnd(canonical.model) : undefined);
+    }
     if (target?.part && liveAt === null && !lens) return false;
     // Opening marks nothing: only Continue on the coach's word does (N80).
     // A finished walk with no such step still opens, at its start, never
@@ -1386,7 +1562,7 @@ export function useDeckFeedbackWalk(args: {
     }
     setReplaying(model);
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, finished, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, waitsOn, ownAnswers, threadEnd, openLeftToDo]);
+  }, [model, walkCompleted, practiceWasDeferred, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, liveAll, waitsOn, ownAnswers, threadEnd, openLeftToDo]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
@@ -1433,7 +1609,7 @@ export function useDeckFeedbackWalk(args: {
         // 2026-10-21: "not scrollable to the next step of the walk"). A scroll
         // once the Take is done (N259); while a moment still waits, its
         // buttons, so Next goes on to what waits.
-        setReplaying(finished ? now : { ...now, scroll: false });
+        setReplaying(walkCompleted ? now : { ...now, scroll: false });
         return openAt(at, false, false, undefined, threadEnd(now));
       }
       // No step for it in this Take's walk: the helper words on their own.
@@ -1449,7 +1625,7 @@ export function useDeckFeedbackWalk(args: {
       );
       return openAt(1, true);
     },
-    [model, replayReady, buildReplay, ownAnswers, openAt, threadEnd, finished],
+    [model, replayReady, buildReplay, ownAnswers, openAt, threadEnd, walkCompleted],
   );
 
   const practisePart = useCallback(
@@ -1470,19 +1646,21 @@ export function useDeckFeedbackWalk(args: {
     [openAt],
   );
 
+  const noteHelperWords = useCallback((partId: string, text: string, auto = false) => {
+    const words = helperWordsSaid(stripRichMarkers(text));
+    post({
+      key: `words:${partId}:${words}`,
+      moment: null,
+      attempt: null,
+      author: auto ? "app" : "speaker",
+      body: auto ? `${ONE_THING_COPY.helperWords}\n${words}` : words,
+      extra: { words_of: partId },
+    });
+    wordsSavedRef.current.add(partId);
+  }, [post]);
+
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
-    // Each new pick is its own bubble; the chat strikes the ones it replaces.
-    // The speaker's bubble says the words without the sentence's punctuation
-    // at either end, as the walk shows them (founder 2026-10-21, B7). The One
-    // thing walk's come on their own: the walk says them, with its line
-    // (N309 item 3).
-    const words = helperWordsSaid(stripRichMarkers(save.span.text));
-    post(
-      save.auto
-        ? { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "app", body: `${ONE_THING_COPY.helperWords}\n${words}`, extra: { words_of: save.partId } }
-        : { key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } },
-    );
-    wordsSavedRef.current.add(save.partId);
+    noteHelperWords(save.partId, save.span.text, save.auto);
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -1506,7 +1684,7 @@ export function useDeckFeedbackWalk(args: {
       async () => (span ? helperWordsBehind(setRootPhrase, lockPart, chunk, span) : "final"),
       CHUNK_SHEET_COPY.failWordsBehind,
     );
-  }, [post]);
+  }, [noteHelperWords]);
   const acceptClearer = useCallback((item: DocumentSuggestion, label?: string | null) => {
     // The One thing walk's "Try it" and "Keep mine" post nothing (N452 item 1).
     if (label !== null) post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: label ?? CHUNK_SHEET_COPY.pillAcceptPractise });
@@ -1655,7 +1833,7 @@ export function useDeckFeedbackWalk(args: {
     const written = to?.messages.some(
       (m) => m.kind === "walk_step" && m.metadata?.step === "end" && m.metadata?.take_session_id === on,
     );
-    if (!written) post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
+    if (!written) post({ key: "end", moment: null, attempt: null, author: "app", body: "", extra: { walk_transition: "completed" } });
   }, [post]);
   /* THE CHAT AFTER THE WALK, HOWEVER IT ENDS (C9, D4, B11): the summary is
      asked once per Take as the review's end is written, by the Close pill,
@@ -1676,7 +1854,7 @@ export function useDeckFeedbackWalk(args: {
     const { thread: to, take: on } = threadRef.current;
     if (on && !recordedSince(to?.messages ?? [], on)) askSummary();
   }, [askSummary]);
-  const ended = finished && !args.feedbackPending && thread !== null && !thread.loading;
+  const ended = (walkCompleted || (finished && !practiceWasDeferred)) && !args.feedbackPending && thread !== null && !thread.loading;
   useEffect(() => {
     if (!ended || request !== null) return;
     postEnd();
@@ -1693,15 +1871,15 @@ export function useDeckFeedbackWalk(args: {
     // ✕ on a finished walk ends the review as Close does (B11, C9). The
     // coach-only walk is not the review: it ends nothing.
     // So do ✕ and Close on a walk opened again as a scroll (2026-11-06).
-    const { finished, feedbackPending, coachOnly: coachDoor } = live.current;
-    const done = finished || scrollingRef.current;
+    const { feedbackPending, coachOnly: coachDoor } = live.current;
+    const done = walkCompleted || (finished && !practiceWasDeferred) || scrollingRef.current;
     if (!practisingRef.current && !coachDoor && done && !feedbackPending) {
       postEnd();
       askSummaryAsNewest();
     }
     if (lensRef.current) live.current.onLensClose?.();
     live.current.onWalkClose?.();
-  }, [postEnd, askSummaryAsNewest]);
+  }, [postEnd, askSummaryAsNewest, walkCompleted, finished, practiceWasDeferred]);
   /* "LESSON DONE." AND CLOSE (founder 2026-10-31, N309 item 4): the review's
      end is written, so the review is over and the Take's card lands
      under its Feedback walk; the walk closes back to the chat. The summary
@@ -1754,13 +1932,10 @@ export function useDeckFeedbackWalk(args: {
       // The AI bubble in the locked one's place (N71) says what the screen
       // says once its clip is in; it keeps the plain words for a clip that
       // never comes (founder 2026-10-20).
-      const plain = ai ? shownStep(step, moment, coach?.text ?? null, say, line ?? null) : null;
-      const aiSaid = ai ? aiVoiceChat(ai, plain?.body ?? null) : null;
       // Its clip is asked now, so the chat's bubble is drawn whole.
       if (ai) void readAiVoiceOnce(ai.practiceId);
       // A try's answer played again was said once, as the try was made.
-      const replayedTry = step.replay === true && TRY_ANSWER_STEPS.has(step.key);
-      let said = replayedTry ? null : (aiSaid ?? shownStep(step, moment, coach?.text ?? null, say, line ?? null));
+      let said = messageForShownStep(step, moment, coach, say, ai, line);
       // The coach's word reaches the chat once per Take (founder 2026-10-19,
       // N80, D4): never a second copy under "Later · from your coach", never
       // re-stamped to the bottom. Its video as a thumb in the bubble
@@ -1773,7 +1948,18 @@ export function useDeckFeedbackWalk(args: {
       const part = chatPartOf(step, moment, ai, fixTip ?? null);
       postLevel(post, step, moment, Boolean(said), { ...at, extra: { ...part } });
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip, ...part } });
-      if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra, ...part } });
+      post({
+        key: step.key,
+        ...at,
+        ...(said ?? { author: "app", body: "" }),
+        extra: {
+          ...(chat?.clip ? {} : chat?.label),
+          ...(said?.extra ?? {}),
+          ...part,
+          walk_transition: "shown",
+          walk_replay: step.replay === true,
+        },
+      });
       // The coach's answer on the moment: their bubble in the chat too.
       const answer = moment?.coachAnswer;
       if (answer && COACH_ANSWER_STEPS.has(step.key)) {
@@ -1814,11 +2000,20 @@ export function useDeckFeedbackWalk(args: {
     (step: WalkStep, value: string) => {
       const body = answerBody(step, value);
       const part_id = step.moment != null ? (walkModel.moments[step.moment]?.partId ?? null) : null;
-      if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body, extra: { part_id } });
+      if (body || value !== "skip") {
+        post({
+          key: `answer:${step.key}`,
+          moment: step.moment ?? null,
+          attempt: step.attempt ?? null,
+          author: "speaker",
+          body: body ?? "",
+          extra: { part_id, walk_transition: value === "skip" ? "skipped" : "answered", walk_value: value },
+        });
+      }
       // The walk's answer to Skip on the One thing walk's fix (N405), with
       // no "Skip" of the speaker's above it (N452 item 1).
       const reply = skipReply(step, value);
-      if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply });
+      if (reply) post({ key: `skipped:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "app", body: reply, extra: { walk_transition: "skipped", walk_value: value } });
       // Continue on the coach's word: the one "watched" (N80, D4), in the
       // live walk, the coach-only walk (WhatsApp, email, the dot card) and
       // a replay alike (the replay leaves this step live).
@@ -1879,6 +2074,7 @@ export function useDeckFeedbackWalk(args: {
           takeId={take}
           walkVoiceOn={walkVoiceOn}
           onSaveHelperWords={saveHelperWords}
+          editSavedHelpers={practisingRef.current ? args.editSavedHelpers : undefined}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
           practise={practise}
@@ -1925,6 +2121,7 @@ export function useDeckFeedbackWalk(args: {
       storedSummary,
       editedWords,
       saveHelperWords,
+      args.editSavedHelpers,
       acceptClearer,
       keepWords,
       practise,
@@ -1955,8 +2152,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element }),
-    [review, openPart, openHelpers, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element],
+    () => ({ review, openPart, openHelpers, noteHelperWords, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element }),
+    [review, openPart, openHelpers, noteHelperWords, hasMoment, waits, replay, canReplay, replaySettled, walkReady, practisePart, element],
   );
 }
 
@@ -2021,3 +2218,5 @@ export function useWalkReplayRequest(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, replay, replaySettled]);
 }
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-17; project-card review is scoped to the selected Take and exact slide range without changing walk side effects.
