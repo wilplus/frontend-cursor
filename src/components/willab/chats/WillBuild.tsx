@@ -22,6 +22,9 @@ import { openOverList, useKnownSetup } from "./hostsetup/hostSetupDoor";
 import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
 import TalkBuild from "./hostsetup/TalkBuild";
 import VisitorTry from "./hostsetup/VisitorTry";
+import MomentSetup from "./hostsetup/MomentSetup";
+import MomentVisit from "./hostsetup/MomentVisit";
+import { readMomentConfig } from "@/lib/willab/chatBuilder/momentFlow";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
 import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
@@ -141,6 +144,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const [talk, setTalk] = useState(false);
   const [table, setTable] = useState(false);
   const [visitor, setVisitor] = useState(false);
+  const [momentScreen, setMomentScreen] = useState<null | "setup" | "try">(null);
   const [iconOpen, setIconOpen] = useState(false);
   const [seen, setSeen] = useState<string[]>([]);
   const { profile } = useUserProfile();
@@ -169,6 +173,8 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   const swap = canTry ? <LiveBuildSwitch mode={mode} onMode={setMode} /> : null;
   const tools = <span className="flex items-center"><ShareOwnChat serverPath={own?.link?.path} />{swap}</span>;
   useBackDismiss(onBack, () => {
+    if (momentScreen === "try") { setMomentScreen("setup"); return true; }
+    if (momentScreen) { setMomentScreen(null); return true; }
     if (visitor) { setVisitor(false); return true; }
     if (talk) { setTalk(false); return true; }
     if (active !== null && tab === "chat") { setActive(null); return true; }
@@ -185,7 +191,22 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
   // The header arrow leaves Build only from the list. A row's chat goes back
   // to that list, and so does the browser's Back (PartHistory).
   const rowOpen = active !== null && tab === "chat";
-  const headerBack = () => leaveBuild({ visitor, talk, rowOpen, table, models: tab === "models", hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, closeModels: () => setTab("chat"), onBack });
+  const headerBack = () => {
+    if (momentScreen === "try") return setMomentScreen("setup");
+    if (momentScreen) return setMomentScreen(null);
+    return leaveBuild({ visitor, talk, rowOpen, table, models: tab === "models", hasRecipe: Boolean(setup?.recipe), setVisitor, setTalk, closePart, setTable, closeModels: () => setTab("chat"), onBack });
+  };
+  if (momentScreen) {
+    return (
+      <Cover>
+        {momentScreen === "setup" ? (
+          <MomentSetup name={name} onBack={headerBack} onTry={() => setMomentScreen("try")} />
+        ) : (
+          <MomentVisit name={name} onBack={headerBack} />
+        )}
+      </Cover>
+    );
+  }
   return (
     <BuildScreen
       mode={mode}
@@ -216,6 +237,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       profileName={profile?.first_name ?? ""}
       iconOpen={iconOpen}
       setIconOpen={setIconOpen}
+      onMoments={() => setMomentScreen("setup")}
     />
   );
 }
@@ -271,6 +293,7 @@ function BuildScreen(p: {
   profileName: string;
   iconOpen: boolean;
   setIconOpen: (open: boolean) => void;
+  onMoments: () => void;
 }) {
   if (p.mode === "live" && p.canTry && p.recipe) return <LiveCover name={p.name} tools={p.tools} onBack={p.onBack} doc={p.coachDoc} recipe={p.recipe} own={p.own} />;
   const doc = readTalkDefinition();
@@ -285,6 +308,7 @@ function BuildScreen(p: {
     />
   );
   if (p.tab === "models") return <Cover>{top}<BuildModels /></Cover>;
+  if (p.visitor && doc && readMomentConfig().meetVisitors) return <Cover><MomentVisit name={p.name} onBack={() => p.setVisitor(false)} /></Cover>;
   if (p.visitor && doc) return <Cover><VisitorTry name={p.name} doc={doc} sends={doc.chat.send} onBack={() => p.setVisitor(false)} /></Cover>;
   if (home) {
     return (
@@ -311,6 +335,7 @@ function BuildScreen(p: {
             page
             source={p.table && !p.setup?.recipe ? p.local : null}
             onPart={(part) => p.openPart(part.part)}
+            onMoments={p.onMoments}
           />
         )}
       </div>
