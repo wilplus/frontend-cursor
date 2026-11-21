@@ -73,15 +73,21 @@ function SlideThumbnail({ compact, onOpen }: { compact: boolean; onOpen: () => v
 }
 
 export default function FeedbackWalkCard({
+  title,
   progress,
   chunks,
   onFeedback,
   onIdealText,
+  showProgress = true,
 }: {
+  /** The builder's preview names the chat. The project card leaves this off. */
+  title?: string;
   progress: number;
   chunks: FeedbackWalkChunk[];
   onFeedback: (chunk: FeedbackWalkChunk) => void;
   onIdealText: (chunk: FeedbackWalkChunk) => void;
+  /** The founder may hide the bar. It stays on the card and off the walk. */
+  showProgress?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [rangeLabels, setRangeLabels] = useState<Record<string, string>>({});
@@ -101,13 +107,16 @@ export default function FeedbackWalkCard({
       data-feedback-walk-card
       className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-3.5" : "p-4"}`}
     >
+      {title ? <p className="mb-2 text-[15px] font-semibold">{title}</p> : null}
       <div className="mb-2">
         <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373]">
           <span>Progress</span><b className="text-[14px] text-[#121212]">{safeProgress}%</b>
         </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
-          <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
-        </div>
+        {showProgress ? (
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
+            <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
+          </div>
+        ) : null}
       </div>
 
       {hidden > 0 ? (

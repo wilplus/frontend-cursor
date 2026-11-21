@@ -41,6 +41,7 @@ export default function ModelBlocks({ onBack, onDone }: {
   const [toStack, setToStack] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modelId, setModelId] = useState<string | null>(null);
+  const [taughtOpen, setTaughtOpen] = useState(false);
 
   const go = (to: At) => {
     setTrail((t) => [...t, at]);
@@ -133,7 +134,11 @@ export default function ModelBlocks({ onBack, onDone }: {
             setOwn(null);
             setSetI((n) => n + 1);
           }}
-          onType={() => setTyping("answers")}
+          onOwn={(v) => {
+            const mine = answersOf(v);
+            if (!mine.length) return false;
+            setOwn(mine);
+          }}
         />
       );
     case "stack":
@@ -142,7 +147,10 @@ export default function ModelBlocks({ onBack, onDone }: {
           onBack={back}
           q={q ?? ""}
           gives={gives}
+          answers={answers()}
           busy={busy}
+          taughtOpen={taughtOpen}
+          onTaught={() => setTaughtOpen((open) => !open)}
           onOpen={(block: BlockKey) => {
             setToStack(block !== "model");
             go(block);

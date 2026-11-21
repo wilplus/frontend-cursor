@@ -180,7 +180,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, askForChatThread, barModeIn, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungeBarMode } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, askForChatThread, barModeIn, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungeBarMode } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -214,7 +214,7 @@ import {
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
-const WillNeedsYou = dynamic(() => import("./chats/hostsetup/WillNeedsYou"), { ssr: false, loading: () => null });
+const WillBuild = dynamic(() => import("./chats/WillBuild"), { ssr: false, loading: () => null });
 // A host's chat's own messages, among its Takes (N648 item 8): off the boot bundle.
 const HostChatRow = dynamic(() => import("./chats/HostChatRow"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
@@ -2377,7 +2377,7 @@ export default function Lounge({
 
         {/* What needs you, for the chat builder's ring (backend N629 item 1);
             nothing without it, where the setup's read is 404. */}
-        <PlaceOnly place={place} in={["will"]}>{thread.signedIn ? <WillNeedsYou /> : null}</PlaceOnly>
+        <PlaceOnly place={place} in={["will"]}>{thread.signedIn ? <WillBuild onBack={() => setOpenPlace("speaking")} /> : null}</PlaceOnly>
         <OwnChatLinks place={place} messages={messages} onJoinQuestions={() => void joinSetup.again().then(followAnswer)} />
 
         {/* The plan's answers under Will's question, the after-walk way

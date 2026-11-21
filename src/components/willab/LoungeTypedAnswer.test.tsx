@@ -49,6 +49,12 @@ vi.mock("@/services/api/willQuestion", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   postWillQuestion: (...args: unknown[]) => harness.willQuestion(...args),
 }));
+// The lounge warms these after boot. Left real, the Ideal Text walk is still
+// loading when this file's environment is torn down, and Vitest fails the run
+// even though every test passed.
+vi.mock("./IdealTextOverlay", () => ({ default: () => null }));
+vi.mock("./walk/WalkOverlay", () => ({ default: () => null }));
+vi.mock("@/components/life/LifeChatLayer", () => ({ LifeChatCard: () => null }));
 
 import Lounge from "./Lounge";
 import { LoungeThreadProvider, useLoungeThreadCtx } from "./LoungeThreadContext";

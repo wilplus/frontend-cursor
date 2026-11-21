@@ -1,6 +1,6 @@
 "use client";
 
-import { Image as ImageIcon, Keyboard } from "lucide-react";
+import { FileText, Image as ImageIcon, Keyboard } from "lucide-react";
 import { TYPE_YOUR_ANSWER } from "@/components/willab/WillQuestion";
 import { CANCEL } from "./joinCopy";
 
@@ -26,6 +26,7 @@ export const askName = (name: string) => `Ask ${name}`;
 export const answerName = (name: string) => `Answer ${name}`;
 export const RECORD_YOUR_QUESTION = "Record your question";
 export const SEND_A_PHOTO = "Send a photo";
+export const SEND_A_FILE = "Send a file";
 export const askSteps = (name: string): readonly (readonly [string, string])[] => [
   ["1. Ask one thing", "A clear question gets a clear answer"],
   [`2. ${name} answers`, "Out loud, when they have a moment"],
@@ -41,6 +42,7 @@ export default function AskSheet({
   onRecord,
   onType,
   onPhoto,
+  onFile,
   onClose,
 }: {
   name: string;
@@ -52,7 +54,10 @@ export default function AskSheet({
   onRecord?: () => void;
   /** "Type your answer"; absent unless typing is on beside recording. */
   onType?: () => void;
-  onPhoto: () => void;
+  /** "Send a photo"; absent unless They send includes a photo. */
+  onPhoto?: () => void;
+  /** "Send a file"; absent unless They send includes a file. */
+  onFile?: () => void;
   onClose: () => void;
 }) {
   const title = answers ? answerName(name) : askName(name);
@@ -83,10 +88,18 @@ export default function AskSheet({
             {TYPE_YOUR_ANSWER}
           </button>
         ) : null}
-        <button type="button" data-send-photo="" onClick={onPhoto} className={ROW}>
-          <ImageIcon className="h-[18px] w-[18px]" aria-hidden />
-          {SEND_A_PHOTO}
-        </button>
+        {onPhoto ? (
+          <button type="button" data-send-photo="" onClick={onPhoto} className={ROW}>
+            <ImageIcon className="h-[18px] w-[18px]" aria-hidden />
+            {SEND_A_PHOTO}
+          </button>
+        ) : null}
+        {onFile ? (
+          <button type="button" data-send-file="" onClick={onFile} className={ROW}>
+            <FileText className="h-[18px] w-[18px]" aria-hidden />
+            {SEND_A_FILE}
+          </button>
+        ) : null}
         {!answers && onRecord && firstTime ? (
           <div data-ask-steps className="mt-1 grid grid-cols-3 gap-2">
             {askSteps(name).map(([head, rest]) => (

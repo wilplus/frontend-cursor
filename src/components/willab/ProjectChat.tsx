@@ -40,6 +40,8 @@ import WillQuestionBubble, { SOMETHING_ELSE, TYPE_YOUR_ANSWER } from "./WillQues
 import { LetterCircle } from "./chats/ChatList";
 import { TopBar } from "./chats/TopBar";
 import { useBackDismiss } from "./useBackDismiss";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { recordLabel } from "@/lib/willab/chatBuilder/screenCopy";
 import { useUserId } from "./useUserId";
 import { refreshLiveIdealDoc } from "./ReportCard";
 import {
@@ -451,6 +453,7 @@ export default function ProjectChat({
   onRecordingSettled?: () => void;
 }) {
   useBackDismiss(onBack);
+  const coach = usePublishedCoach();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const {
@@ -775,7 +778,7 @@ export default function ProjectChat({
             }
           }} className={`${WILLAB_CONTENT_RAIL} flex h-[58px] items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background`}>
             <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
-            {hasPractice ? "Continue recording" : "Start recording"}
+            {recordLabel(coach, Boolean(hasPractice))}
           </button>
         </div>
       ) : null}

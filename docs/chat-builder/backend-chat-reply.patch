@@ -1,0 +1,236 @@
+# Add routes/v2/chat_reply.py and register it. Not applied to production.
+# The rules match src/lib/willab/chatBuilder/replyPrompt.ts.
+diff --git a/routes/v2/__init__.py b/routes/v2/__init__.py
+--- a/routes/v2/__init__.py
++++ b/routes/v2/__init__.py
+@@
+-    "silent_tries",
++    "silent_tries",
++    "chat_reply",
+diff --git a/routes/v2/chat_reply.py b/routes/v2/chat_reply.py
+new file mode 100644
+--- /dev/null
++++ b/routes/v2/chat_reply.py
+@@
++"""A visitor's reply, in the host's words. OpenAI stays on the server.
++
++OPENAI_API_KEY is required. OPENAI_MODEL defaults to gpt-4o-mini.
++No key is ever returned to the browser.
++"""
++from __future__ import annotations
++
++import json
++import os
++import re
++import urllib.request
++
++from flask import jsonify, request
++
++from auth import require_auth
++from routes.v2.blueprint import v2_bp
++from services.db import db
++
++ASSISTANT_READY = 20
++PHOTO_MAX = 4 * 1024 * 1024
++FILE_MAX = 8 * 1024 * 1024
++OUT_LINE = {
++    "answer": "Answer in the host's own words. One short message.",
++    "words": "Tidy what the person said. Keep their meaning.",
++    "todo": "Give a short list of next steps.",
++    "mark": "Point at the spot in words.",
++}
++
++
++def reply_act(who: str, care: bool, host_answers: int) -> str:
++    if who == "you":
++        return "none"
++    if care or who == "shadow":
++        return "draft"
++    if host_answers < ASSISTANT_READY:
++        return "wait"
++    return "send"
++
++
++def build_prompt(setup: dict, message: str, extra: dict | None = None) -> str:
++    extra = extra or {}
++    parts = [
++        f"You write for the host, who does this: {setup.get('spec') or 'help people'}.",
++        f"Their first line to a visitor is: {setup.get('hello') or 'Hello.'}",
++        OUT_LINE.get(setup.get("out") or "answer", OUT_LINE["answer"]),
++        "Never give a score, a mark out of ten, or any number about the person.",
++        "Write the way a careful person speaks. Short sentences. No jargon.",
++    ]
++    for label, key in (("Questions the host asks:", "questions"), ("Taps a visitor can choose:", "taps")):
++        items = [str(item).strip() for item in (setup.get(key) or []) if str(item).strip()]
++        if items:
++            parts.append(label)
++            parts.extend(f"- {item}" for item in items)
++    examples = setup.get("examples") or []
++    if examples:
++        parts.append("Examples of how the host answered:")
++        for example in examples:
++            parts.append(f"Person: {example.get('ask', '').strip()}")
++            parts.append(f"Host: {example.get('answer', '').strip()}")
++    for pick in extra.get("picks") or []:
++        opts = ", ".join(pick.get("opts") or [])
++        parts.append(f"{pick.get('q')} Options: {opts}.")
++    if extra.get("has_image"):
++        parts.append("A photo is attached. Look at it before you answer.")
++    if (extra.get("file_text") or "").strip():
++        parts.append("Text from the file they sent:")
++        parts.append(extra["file_text"].strip())
++    parts.append(f"The person sent: {message.strip()}")
++    return "\n".join(part for part in parts if part)
++
++
++def strip_person_scores(text: str) -> str:
++    text = re.sub(r"\b\d{1,3}\s*/\s*10\b", "", text)
++    text = re.sub(r"\b\d{1,3}\s*%", "", text)
++    text = re.sub(r"\bscore\s*(of|is|:)?\s*\d+(\.\d+)?\b", "", text, flags=re.I)
++    text = re.sub(r"[ \t]{2,}", " ", text)
++    text = re.sub(r"\s+([.!?])", r"\1", text)
++    return re.sub(r"\.{2,}", ".", text).strip()
++
++
++def _setup(chat_id: str) -> dict:
++    """Read the host's saved chat. Shape this to the recipes table."""
++    row = db.table("chat_recipes").select("*").eq("chat_id", chat_id).maybe_single().execute()
++    data = getattr(row, "data", None) or {}
++    examples = (
++        db.table("chat_reply_examples")
++        .select("ask, answer")
++        .eq("chat_id", chat_id)
++        .limit(20)
++        .execute()
++    )
++    sent = (
++        db.table("chat_reply_examples")
++        .select("id", count="exact")
++        .eq("chat_id", chat_id)
++        .execute()
++    )
++    return {
++        "spec": data.get("spec") or "",
++        "hello": data.get("hello") or "",
++        "questions": [item.get("q") for item in (data.get("questions") or []) if isinstance(item, dict)],
++        "taps": data.get("taps") or [],
++        "out": data.get("out") or "answer",
++        "who": data.get("who") or "shadow",
++        "care": bool(data.get("care")),
++        "examples": [{"ask": item.get("ask") or "", "answer": item.get("answer") or ""} for item in (getattr(examples, "data", None) or [])],
++        "host_answers": getattr(sent, "count", None) or 0,
++        "picks": [
++            {"q": item.get("q") or "", "opts": item.get("opts") or []}
++            for item in (data.get("models") or [])
++            if isinstance(item, dict) and item.get("gives") in (None, "pick")
++        ],
++    }
++
++
++def _pdf_text(raw: bytes) -> str:
++    from io import BytesIO
++    from pypdf import PdfReader
++    reader = PdfReader(BytesIO(raw))
++    return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
++
++
++def _openai(prompt: str, image: str | None = None, mime: str = "image/jpeg") -> str:
++    key = os.environ.get("OPENAI_API_KEY", "").strip()
++    if not key:
++        return ""
++    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
++    content: list = [{"type": "text", "text": prompt}]
++    if image:
++        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image}"}})
++    payload = json.dumps({
++        "model": model,
++        "messages": [{"role": "user", "content": content}],
++    }).encode()
++    req = urllib.request.Request(
++        "https://api.openai.com/v1/chat/completions",
++        data=payload,
++        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
++    )
++    with urllib.request.urlopen(req, timeout=30) as res:
++        body = json.loads(res.read().decode())
++    return strip_person_scores(body["choices"][0]["message"]["content"])
++
++
++def _save_draft(chat_id: str, said: str, answer: str) -> None:
++    db.table("chat_reply_drafts").insert({
++        "chat_id": chat_id, "said": said, "answer": answer, "status": "draft",
++    }).execute()
++
++
++@v2_bp.route("/chats/<chat_id>/reply", methods=["POST"])
++@require_auth
++def chat_reply(chat_id: str):
++    import base64
++    payload = request.get_json(silent=True) or {}
++    if payload.get("keep"):
++        ask = str(payload.get("ask") or "").strip()
++        answer = str(payload.get("answer") or "").strip()
++        if ask and answer:
++            db.table("chat_reply_examples").insert({
++                "chat_id": chat_id, "ask": ask, "answer": answer,
++            }).execute()
++        return jsonify({"kept": True})
++    message = str(payload.get("text") or "").strip()
++    kind = str(payload.get("kind") or "text")
++    data = str(payload.get("data") or "")
++    extra = {"picks": None}
++    image = None
++    mime = str(payload.get("mime") or "image/jpeg")
++    if kind in ("photo", "file"):
++        try:
++            raw = base64.b64decode(data)
++        except Exception:
++            return jsonify({"error": "unreadable"})
++        limit = PHOTO_MAX if kind == "photo" else FILE_MAX
++        if len(raw) > limit:
++            return jsonify({"error": "too-big"})
++        if kind == "photo":
++            image = data
++            extra["has_image"] = True
++        else:
++            name = str(payload.get("name") or "").lower()
++            try:
++                extra["file_text"] = _pdf_text(raw) if name.endswith(".pdf") else raw.decode("utf-8")
++            except Exception:
++                return jsonify({"error": "unreadable"})
++            if not extra["file_text"].strip():
++                return jsonify({"error": "unreadable"})
++    if not message and not data:
++        return jsonify({"error": "empty"}), 400
++    setup = _setup(chat_id)
++    extra["picks"] = setup["picks"]
++    act = reply_act(setup["who"], setup["care"], setup["host_answers"])
++    if act == "none":
++        return jsonify({"shown": False, "quiet": True, "reply": None})
++    if act == "wait":
++        return jsonify({"shown": False, "wait": True, "reply": None})
++    prompt = build_prompt(setup, message or "They sent a file.", extra)
++    reply = _openai(prompt, image, mime)
++    if act == "draft":
++        _save_draft(chat_id, message, reply)
++        return jsonify({"shown": False, "held": True, "reply": None})
++    return jsonify({"shown": True, "reply": reply})
++
++
++@v2_bp.route("/chats/setup/drafts/<message_id>/send", methods=["POST"])
++@require_auth
++def send_draft_teaches(message_id: str):
++    """When the host changes the words, keep the pair as a teaching example."""
++    payload = request.get_json(silent=True) or {}
++    own = str(payload.get("body") or "").strip()
++    row = db.table("chat_reply_drafts").select("*").eq("id", message_id).maybe_single().execute()
++    draft = getattr(row, "data", None) or {}
++    answer = own or draft.get("answer") or ""
++    if own and draft.get("said"):
++        db.table("chat_reply_examples").insert({
++            "chat_id": draft.get("chat_id"),
++            "ask": draft.get("said"),
++            "answer": answer,
++        }).execute()
++    db.table("chat_reply_drafts").update({"status": "sent", "answer": answer}).eq("id", message_id).execute()
++    return jsonify({"message": {"id": message_id, "body": answer}})

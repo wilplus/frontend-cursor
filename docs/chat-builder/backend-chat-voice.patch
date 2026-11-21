@@ -1,0 +1,132 @@
+# Apply after docs/chat-builder/backend-chat-reply.patch.
+# Adds services/chat_voice.py and calls it from chat_reply when kind is rec.
+diff --git a/services/chat_voice.py b/services/chat_voice.py
+new file mode 100644
+--- /dev/null
++++ b/services/chat_voice.py
+@@
++"""A recording's transcript and plain facts. No score and no feeling.
++
++Needs ffmpeg on the host for webm and m4a. A wav is read by soundfile.
++OPENAI_API_KEY is the same key as the reply. OPENAI_TRANSCRIBE_MODEL
++defaults to whisper-1.
++"""
++from __future__ import annotations
++
++import base64
++import io
++import json
++import os
++import urllib.request
++
++AUDIO_MAX = 25 * 1024 * 1024
++AUDIO_MAX_SECONDS = 5 * 60
++
++
++def too_big(raw: bytes) -> bool:
++    return len(raw) > AUDIO_MAX
++
++
++def load_audio(raw: bytes, name: str):
++    import librosa
++    audio, rate = librosa.load(io.BytesIO(raw), sr=16000, mono=True, duration=AUDIO_MAX_SECONDS + 1)
++    return audio, rate
++
++
++def transcribe(raw: bytes, name: str) -> list[dict]:
++    key = os.environ.get("OPENAI_API_KEY", "").strip()
++    if not key:
++        return []
++    model = os.environ.get("OPENAI_TRANSCRIBE_MODEL", "whisper-1")
++    boundary = "----willab"
++    body = (
++        f"--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n{model}\r\n"
++        f"--{boundary}\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nverbose_json\r\n"
++        f"--{boundary}\r\nContent-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n\r\nword\r\n"
++        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\n"
++        f"Content-Type: application/octet-stream\r\n\r\n"
++    ).encode() + raw + f"\r\n--{boundary}--\r\n".encode()
++    req = urllib.request.Request(
++        "https://api.openai.com/v1/audio/transcriptions",
++        data=body,
++        headers={"Authorization": f"Bearer {key}", "Content-Type": f"multipart/form-data; boundary={boundary}"},
++    )
++    with urllib.request.urlopen(req, timeout=60) as res:
++        payload = json.loads(res.read().decode())
++    return [{"word": item.get("word", ""), "start": item.get("start", 0), "end": item.get("end", 0)} for item in payload.get("words") or []]
++
++
++def measures(audio, rate: int, words: list[dict]) -> dict:
++    import numpy as np
++    seconds = float(len(audio) / rate) if rate else 0
++    pauses = []
++    for prev, nxt in zip(words, words[1:]):
++        gap = float(nxt.get("start", 0)) - float(prev.get("end", 0))
++        if gap >= 1:
++            pauses.append({"at": float(prev.get("end", 0)), "seconds": max(1, round(gap))})
++    width = seconds if seconds <= 15 else 10
++    segments = []
++    start = 0.0
++    while start < seconds:
++        end = min(seconds, start + width)
++        count = sum(1 for word in words if start <= float(word.get("start", 0)) < end)
++        minutes = (end - start) / 60 or 1
++        segments.append({"start": start, "end": end, "words_per_minute": round(count / minutes)})
++        start = end
++    half = len(audio) // 2
++    def rms(chunk) -> float:
++        return float(np.sqrt(np.mean(np.square(chunk)))) if len(chunk) else 0
++    left, right = rms(audio[:half]), rms(audio[half:])
++    ratio = (max(left, right) / min(left, right)) if left and right else 0
++    loudness = "unknown" if not ratio else ("moves" if ratio >= 1.4 else "steady")
++    return {"seconds": seconds, "pauses": pauses, "segments": segments, "loudness": loudness, "pitch": "unknown"}
++
++
++def facts(found: dict) -> list[str]:
++    lines = []
++    for pause in found["pauses"]:
++        n = pause["seconds"]
++        at = pause["at"]
++        whole = max(0, round(at))
++        clock = f"{whole // 60}:{whole % 60:02d}"
++        unit = "second" if n == 1 else "seconds"
++        lines.append(f"You paused for {n} {unit} at {clock}.")
++    if found["loudness"] == "steady":
++        lines.append("The loudness stayed even.")
++    if found["loudness"] == "moves":
++        lines.append("The loudness changed from one part to the next.")
++    return lines
++
++
++def accept(data_b64: str, name: str) -> dict:
++    """Return {error} or {transcript, facts, seconds}."""
++    try:
++        raw = base64.b64decode(data_b64)
++    except Exception:
++        return {"error": "unreadable"}
++    if too_big(raw):
++        return {"error": "too-big"}
++    try:
++        audio, rate = load_audio(raw, name)
++    except Exception:
++        return {"error": "unreadable"}
++    seconds = len(audio) / rate if rate else 0
++    if seconds > AUDIO_MAX_SECONDS:
++        return {"error": "too-long"}
++    words = transcribe(raw, name or "talk.webm")
++    found = measures(audio, rate, words)
++    text = " ".join(word.get("word", "") for word in words).strip()
++    return {"transcript": text, "facts": facts(found), "seconds": seconds, "words": words}
+diff --git a/routes/v2/chat_reply.py b/routes/v2/chat_reply.py
+--- a/routes/v2/chat_reply.py
++++ b/routes/v2/chat_reply.py
+@@
++from services.chat_voice import accept as accept_audio
+@@
++    if kind == "rec":
++        heard = accept_audio(data, str(payload.get("name") or "talk.webm"))
++        if heard.get("error"):
++            return jsonify({"error": heard["error"]})
++        extra["voice"] = heard["facts"]
++        extra["file_text"] = heard["transcript"]
++        message = message or heard["transcript"] or "They sent a recording."

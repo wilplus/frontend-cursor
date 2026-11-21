@@ -81,6 +81,8 @@ export interface ProcessingWaitProps {
   /** When the CURRENT phase began, from the job marker. Retained for the
    *  document-settle contract; it is not converted into visible progress. */
   readonly phaseStartedAt?: number | null;
+  /** The wait's labels, in order. Absent: the five the screen already uses. */
+  readonly labels?: readonly string[] | null;
 }
 
 export default function ProcessingWait({
@@ -88,7 +90,9 @@ export default function ProcessingWait({
   phase = "analysis",
   cycleStartedAt = null,
   phaseStartedAt = null,
+  labels = null,
 }: ProcessingWaitProps) {
+  const names = labels?.length ? labels : PROCESSING_STAGES;
   const reported = stageIndex(progress?.stage);
   // FLOOR, not override: a document phase that genuinely reaches a LATER
   // stage keeps it. Only the two audio labels below the floor are unreachable.
@@ -143,7 +147,7 @@ export default function ProcessingWait({
 
   return (
     <RecordingAnalysisPresentation
-      label={PROCESSING_STAGES[current]}
+      label={names[Math.min(current, names.length - 1)]}
       percent={shown.current}
     />
   );

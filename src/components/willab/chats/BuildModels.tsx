@@ -53,7 +53,7 @@ function ComingRow({ coming, onWant }: { coming: BuildComing; onWant: () => void
       data-build-coming={coming.kind}
       disabled={coming.wanted}
       onClick={onWant}
-      className="flex w-full items-center rounded-2xl border border-border bg-background px-3.5 py-3 text-left text-[15.5px] text-foreground"
+      className="flex min-h-12 w-full items-center rounded-2xl border border-border bg-background px-3.5 py-3 text-left text-[15px] text-foreground"
     >
       {W.coming(coming.kind, coming.wanted)}
     </button>
@@ -71,7 +71,7 @@ export default function BuildModels() {
   const examples = count("examples");
   const check = count("check");
   return (
-    <div data-build-models="" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-4">
+    <div data-build-models="" className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
       <Said>{W.yourModels}</Said>
       {(setup?.recipe?.models ?? []).map((m, k) => (
         <Row

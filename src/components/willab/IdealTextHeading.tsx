@@ -17,7 +17,11 @@
 
 /** THE WHOLE NAME (Ideal Text Final Screens: "Q3 Board pitch" in full; build
  *  plan D-IT-2). The navbar may wrap: a project name is part of the document
- *  identity, so it must not be shortened or clipped beside the controls. */
+ *  identity, so it must not be shortened or clipped beside the controls.
+ *  With no project name, a published coach document supplies its empty name. */
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { idealEmptyName } from "@/lib/willab/chatBuilder/screenCopy";
+
 const TITLE_CLS =
   "block min-w-0 whitespace-normal break-words text-[17px] font-semibold leading-tight text-foreground";
 
@@ -32,7 +36,8 @@ export default function IdealTextHeading({
    *  no served document has nothing to report the coach's position on. */
   status: "verified" | "unverified" | null;
 }) {
-  const headerTitle = title?.trim() || "Your ideal text";
+  const coach = usePublishedCoach();
+  const headerTitle = title?.trim() || idealEmptyName(coach);
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className={TITLE_CLS}>

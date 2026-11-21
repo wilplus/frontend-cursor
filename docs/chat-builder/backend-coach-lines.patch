@@ -1,0 +1,15 @@
+--- a/services/coach_definition.py
++++ b/services/coach_definition.py
+@@ -204,6 +204,10 @@ def refuse(document):
+             return "COACH_SNIPER_VOICE"
+         fixed = step.get("fixed") or ""
+         if isinstance(fixed, str) and _DIGIT.search(fixed):
+             return "COACH_NUMBER"
++        extras = list(step.get("lines") or [])
++        extras += [v.get("fixed") or "" for v in (step.get("variants") or []) if isinstance(v, dict)]
++        extras += list(step.get("choices") or [])
++        if any(isinstance(line, str) and _DIGIT.search(line) for line in extras):
++            return "COACH_NUMBER"
+     for plugin in document.get("plugins") or []:
+         if not isinstance(plugin, dict) or plugin.get("interventionType") not in PLUGIN_TYPES:
+             return "COACH_PLUGIN_TYPE"

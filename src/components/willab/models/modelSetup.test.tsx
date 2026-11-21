@@ -181,11 +181,11 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     // N646: the answers come from the question; Change shows the next set.
     expect(posted("/setup/answers")).toEqual([{ question: "Does the pitch rush?" }]);
     expectWords(["People answer with:", "Rushed · Calm · Not sure"]);
-    await tap("Change");
+    await tap("Draw new one");
     expectWords(["Too fast · Fine · Not sure"]);
     await tap("Keep");
     expect([...container.querySelectorAll("[data-model-stack] > *")].map((b) => b.textContent)).toEqual([
-      "Does the pitch rush?", "It gives back a pick from a list", "Built on GPT", "Taught by you",
+      "Does the pitch rush?", "It gives back a pick from a list", "Built on GPT", "Taught by your answers",
     ]);
     expect(posted("/setup/blocks")).toEqual([]);
     await tap("Teach it");
@@ -258,9 +258,7 @@ describe("starting a model: Describe (MOD-24 to MOD-26, MOD-54)", () => {
     await act(async () => container.querySelector("form")!.requestSubmit());
     await flush();
     // The answers route is not there: the plain set, said nothing about.
-    expectWords(["People answer with:", "Yes · No · Not sure"]);
-    await tap("Type my own");
-    expectWords(["Type two or three answers, one on each line."]);
+    expectWords(["People answer with:", "Yes · No · Not sure", "Type two or three answers, one on each line."]);
     expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
     // Enter is a new line here, not Send.
     const ta = container.querySelector("textarea")!;

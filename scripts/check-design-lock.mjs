@@ -36,9 +36,9 @@
 /* -------------------------------------------------------------------------- */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 export const TRAILER = "Founder-Approved";
 export const LIST_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "design-locked-files.txt");
@@ -160,7 +160,10 @@ export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH
     for (const f of dirty) lines.push(`          ${f}`);
   }
 
-  if (offences.length || leftBehind.length) {
+  const bars = barDivergence(cwd);
+  for (const problem of bars) lines.push(`  FAIL  ${problem}`);
+
+  if (offences.length || leftBehind.length || bars.length) {
     lines.push("");
     if (offences.length) {
       lines.push(`design-lock guard: ${offences.length} commit(s) change a locked screen without the founder's approval.`);
@@ -176,6 +179,35 @@ export function run({ cwd = process.cwd(), base = DEFAULT_BASE, list = LIST_PATH
   }
   lines.push(`design-lock guard: clean — ${commits.length} commit(s) since ${base}, ${checked} touching locked files, all approved; ${flowPages.length} flow page(s) in step.`);
   return { code: 0, lines };
+}
+
+/** Build, a row's chat and the talk must wear the locked top bar and the
+ *  locked composer. A second bar, or a restyled one, fails the guard. */
+function barDivergence(cwd) {
+  const read = (path) => {
+    const full = join(cwd, path);
+    return existsSync(full) ? readFileSync(full, "utf8") : "";
+  };
+  if (!read("src/components/willab/chats/TopBar.tsx")) return [];
+  const problems = [];
+  const top = read("src/components/willab/chats/TopBar.tsx");
+  const header = read("src/components/willab/PageHeader.tsx");
+  const thread = read("src/components/willab/chats/ChatThread.tsx");
+  const chatBar = read("src/components/willab/chats/ChatBar.tsx");
+  const build = read("src/components/willab/chats/WillBuild.tsx");
+  const talk = read("src/components/willab/chats/hostsetup/TalkBuild.tsx");
+  const code = read("src/components/willab/chats/hostsetup/CodeStep.tsx");
+  if (!header.includes("WILLAB_CONTENT_RAIL") || !header.includes("w-screen")) problems.push("the top bar is not the locked content rail");
+  if (!top.includes("PageHeader") || !top.includes("h-[60px]")) problems.push("the chat header is not the locked page header");
+  if (!chatBar.includes("export function ChatBarRow")) problems.push("the chat's bottom bar is not the locked bar");
+  if (!thread.includes("<ChatBarRow>")) problems.push("a person's chat does not use the locked bar");
+  if (!build.includes("<TopBar") || build.includes("data-part-chat-bar")) problems.push("Build or a row chat draws its own top bar");
+  if (!build.includes("rowOpen ? null : top")) problems.push("a settings row stacks a second top bar on the chat bar");
+  if (!talk.includes("BarBox") || !talk.includes("<ChatBarRow") || talk.includes("rounded-[28px]")) {
+    problems.push("the talk restyles the composer");
+  }
+  if (code && !code.includes("<ChatBarRow")) problems.push("your own code restyles the composer");
+  return problems;
 }
 
 const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

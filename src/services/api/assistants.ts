@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import type { SendKind } from "@/services/api/hostSetup";
 
 /* -------------------------------------------------------------------------- */
 /*  A host's own chat, answered by "{name}'s assistant" (backend N578 to       */
@@ -32,6 +33,9 @@ export type Host = {
   about: string[];
   questions: RecipeQuestion[];
   answerWith: AnswerWith;
+  /** They send, when the host's read includes it. Null on an older read:
+   *  the bar keeps answer_with. */
+  send: SendKind[] | null;
   /** A live v2 recipe's hello and taps ("Something else" added by the
    *  backend); empty for a chat set up before the blank setup (N616 item 4). */
   hello: string;
@@ -155,8 +159,10 @@ export async function getHost(chatId: string): Promise<Host | null> {
   // In someone's chat, typing is on only where the read says so (N610): a
   // read with no `type` is a chat that takes no typing.
   const typing = (host.answer_with as { type?: unknown } | null | undefined)?.type === true;
-  // A live v2 recipe says what people send; the bar follows it (VIS-02).
-  const send = Array.isArray(host.send) ? strings(host.send) : null;
+  // A live v2 recipe says what people send; the bar follows it. Photo and
+  // file stay on `send` so answer_with itself is unchanged.
+  const KINDS = new Set<string>(["rec", "text", "photo", "file"]);
+  const send = Array.isArray(host.send) ? strings(host.send).filter((k): k is SendKind => KINDS.has(k)) : null;
   return {
     assistant: host.assistant,
     name: typeof host.name === "string" && host.name.trim() ? host.name.trim() : null,
@@ -165,6 +171,7 @@ export async function getHost(chatId: string): Promise<Host | null> {
     answerWith: send
       ? { tap: true, type: send.includes("text"), record: send.includes("rec") }
       : { ...answerWithOf(host.answer_with), type: typing },
+    send,
     hello: typeof host.hello === "string" ? host.hello : "",
     taps: strings(host.taps),
   };

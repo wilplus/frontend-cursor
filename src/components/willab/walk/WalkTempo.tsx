@@ -18,6 +18,8 @@ import {
   type TempoStretch,
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
@@ -90,9 +92,10 @@ export default function WalkTempo({
    *  (backend N435 item 7), else "Tempo". */
   mark?: string;
 }) {
+  const copy = tryCopy(usePublishedCoach());
   const opening = tempoOpening(stretch, one);
   const most = one ? ONE_THING_TEMPO_TRIES : TEMPO_MAX_TRIES;
-  const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n) : afterTry(t.result, t.landed, n));
+  const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n, copy) : afterTry(t.result, t.landed, n));
   const past = useMountedAsPast();
   const part = useWalkPart();
   const [phase, setPhase] = useState<Phase>("idle");

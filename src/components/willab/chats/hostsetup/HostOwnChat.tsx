@@ -3,8 +3,11 @@
 import { useState, type ReactNode } from "react";
 import { TapRow } from "../../WillQuestion";
 import { LetterCircle } from "../ChatList";
+import { TopBar } from "../TopBar";
 import { HostAboutLines } from "../HostChat";
-import { tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
+import { askReply, tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
+import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
 import { W } from "./hostSetupCopy";
 import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
 
@@ -37,26 +40,37 @@ export default function HostOwnChat({ name, recipe, onBack, bar = null, about = 
     add({ me: v });
     setUseful(false);
     setWaiting(true);
-    void tryMyChat(v).then((lines) => {
+    void askReply(readOwnChat().id || "your-chat", { text: v, kind: "text" }).then(async (got) => {
+      const seen = visitorKind(got);
+      if (seen === "reply" && got?.reply) {
+        setWaiting(false);
+        add({ w: got.reply }, { w: W.useful });
+        setUseful(true);
+        return;
+      }
+      if (seen === "held" || seen === "host" || seen === "wait") {
+        setWaiting(false);
+        add({ w: seen === "held" ? W.replyHeld : seen === "wait" ? W.replyWait : W.replyHost });
+        return;
+      }
+      const lines = await tryMyChat(v);
       setWaiting(false);
       if (!lines) return;
       add(...lines.map((l) => ({ w: l.body, by: l.by })), { w: W.useful });
       setUseful(true);
     });
   };
+  const header = bar ?? (
+    <TopBar
+      circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
+      title={name}
+      subtitle={recipe.spec}
+      onBack={onBack}
+    />
+  );
   return (
     <div data-host-own-chat="" className="flex min-h-0 flex-1 flex-col">
-      <Frame
-        bar={bar}
-        onBack={onBack}
-        circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
-        title={
-          <span className="flex flex-col leading-tight">
-            {name}
-            <small className="text-[12.5px] font-normal text-muted-foreground">{recipe.spec}</small>
-          </span>
-        }
-      >
+      <Frame bar={header} onBack={onBack}>
         <HostAboutLines lines={about} />
         {log.map((m, k) => (m.me ? <Mine key={k}>{m.me}</Mine> : <Say key={k} by={m.by}>{m.w}</Say>))}
         {asking ? (

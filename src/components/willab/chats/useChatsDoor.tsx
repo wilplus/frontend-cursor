@@ -8,6 +8,7 @@ import { useBackStop } from "../useBackDismiss";
 import { useSiteBarCovered } from "./siteBarCover";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import ProductHome from "./ProductHome";
+import WillBuild from "./WillBuild";
 import { setOpenChat, setOpenPlace } from "./loungePlace";
 import { WillTopBar } from "./TopBar";
 
@@ -58,6 +59,7 @@ export function useChatsDoor(
   useForgetChatsSignedOut(decided);
 
   const [speakingOpen, setSpeakingOpen] = useState(willFirst);
+  const [ownOpen, setOwnOpen] = useState(false);
   useEffect(() => {
     setOpenPlace(speakingOpen ? "speaking" : null);
   }, [speakingOpen]);
@@ -75,9 +77,10 @@ export function useChatsDoor(
 
   return {
     back: speakingOpen ? <WillTopBar onBack={() => setSpeakingOpen(false)} place="speaking" /> : null,
-    navbar: !speakingOpen && !barCovered,
+    navbar: !speakingOpen && !ownOpen && !barCovered,
     // Keep the project index mounted behind Speaking coach. Returning is a
     // local reveal, not a second network-backed boot of the same list.
+    // The host's own chat stays in this same front, so it is not hidden then.
     front: (
       <div
         data-chats-front
@@ -88,7 +91,9 @@ export function useChatsDoor(
           onOpenSpeaking={() => setSpeakingOpen(true)}
           onOpenProject={(project) => options?.onOpenProject?.(project)}
           onStartNewProject={() => options?.onStartNewProject?.()}
+          onOpenOwnChat={() => setOwnOpen(true)}
         />
+        {ownOpen ? <WillBuild onBack={() => setOwnOpen(false)} /> : null}
       </div>
     ),
   };

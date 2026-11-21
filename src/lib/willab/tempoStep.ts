@@ -30,7 +30,8 @@ export const TEMPO_PATH_EVERY_MS = 200;
  *  always clearly better than the Take. Shorter tries cannot land: the ball
  *  needs about 10 s of talk without a pause to leave the green. */
 const LAND_MIN_POINTS = 20_000 / TEMPO_PATH_EVERY_MS;
-const LAND_GREEN_SHARE = 0.8;
+/** Four fifths of the try in the green (N245). The coach seed pins this. */
+export const LAND_GREEN_SHARE = 0.8;
 
 /** The stretch the step practises: the one the scale reads furthest from
  *  the green (N166 item 1), what it was, and what it was about. */
@@ -169,9 +170,12 @@ export function tempoOpening(stretch: Pick<TempoStretch, "reading" | "topic">, o
 }
 
 /** The Sniper's lines after a try, as the One thing walk's fix. */
-export function oneThingTempoLines(isLanded: boolean, n: number): string[] {
-  if (isLanded) return [ONE_THING_COPY.landed];
-  return [n < ONE_THING_TEMPO_TRIES ? ONE_THING_COPY.onceMore : ONE_THING_COPY.takeItWithYou];
+export function oneThingTempoLines(isLanded: boolean, n: number, copy?: { landed: string; onceMore: string; takeItWithYou: string }): string[] {
+  const landed = copy?.landed ?? ONE_THING_COPY.landed;
+  const onceMore = copy?.onceMore ?? ONE_THING_COPY.onceMore;
+  const takeItWithYou = copy?.takeItWithYou ?? ONE_THING_COPY.takeItWithYou;
+  if (isLanded) return [landed];
+  return [n < ONE_THING_TEMPO_TRIES ? onceMore : takeItWithYou];
 }
 
 /** The closing line: dynamic once a try was ok and the last one was not

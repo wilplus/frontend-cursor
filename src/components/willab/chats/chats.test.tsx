@@ -33,6 +33,7 @@ vi.mock("@/components/willab/chats/ChatList", () => ({
   ChatListRow: ({ id, title, circle, onOpen }: { id: string; title: string; circle: ReactNode; onOpen: () => void }) =>
     createElement("button", { type: "button", "data-chat-row": id, onClick: onOpen }, circle, title),
   WillMark: () => createElement("span", { "data-will-mark": "" }),
+  PersonCircle: ({ name }: { name: string }) => createElement("span", { "data-person-circle": "" }, name.slice(0, 1)),
 }));
 vi.mock("../useBackDismiss", () => ({ useBackStop: vi.fn(), useBackDismiss: vi.fn() }));
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import {
   keepPart,
   readSetup,
@@ -24,9 +24,11 @@ import {
   type TryDirection,
   setWalkItem,
   wantWalk,
+  editSaid,
 } from "@/services/api/hostSetup";
 import { OUT, PRICES, SEND, W, WHO } from "./hostSetupCopy";
-import { Box, Btn, Cap, Card, Chips, Dots, Frame, FrameHistory, FrameNote, Link, Mine, Opt, Say, Two } from "./SetupBits";
+import { BinaryRow, Cap, Card, Chips, Dots, Frame, FrameDock, FrameHistory, FrameNote, Link, Mine, Opt, Say, type SetupDockSpec } from "./SetupBits";
+import { SendTakes, takesFromSend } from "../ChatBar";
 import { SetupHistory, answerOf, willLines, type Said } from "./setupLog";
 import HostOwnChat from "./HostOwnChat";
 import HostTeach from "./HostTeach";
@@ -58,6 +60,8 @@ const ORDER: Step[] = ["what", "care", "line", "name", "send", "out", "walk", "w
 const THROUGH: Step[] = ["walk", "walkorder", "walkout", "q", "qmore", "smart", "way", "ownwhy", "gives", "base", "model", "stack", "teach", "check", "try", "live"];
 /** A part's row opens its step. */
 const PART_STEP: Record<string, Step> = { what: "what", name: "name", line: "line", send: "send", out: "out", hello: "hello", questions: "q", taps: "taps", who: "who", walk: "walk" };
+/** Parts whose composer saves the typed words on Enter. */
+const SAVED_PARTS = new Set(["what", "line", "name", "hello", "taps", "out", "price"]);
 
 /** The parts with Will's line over them; null: the line of where the chat is. */
 type Parts = { line: string | null; parts: SetupPart[] };
@@ -167,7 +171,7 @@ const start = (recipe: HostRecipe | null, parts: Parts | null, cost: ChatCost | 
   thinking: null,
   i: {},
   own: {},
-  qs: recipe ? recipe.questions.map((q) => q.q) : [],
+  qs: recipe?.questions?.map((q) => q.q) ?? [],
   sendSet: null,
   mi: 0,
   ownQ: null,
@@ -230,7 +234,7 @@ function useSetup(start: () => State) {
   return { S: s.current, paint };
 }
 
-export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose }: {
+export default function HostSetup({ name, recipe = null, parts = null, cost = null, ownChat = null, guess = null, part = null, onClose, onDone }: {
   /** The host's first name, as Will greets them. */
   name: string;
   recipe?: HostRecipe | null;
@@ -244,8 +248,19 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   /** Opened at this part from Build's "Your chat" (N642 item 3). */
   part?: string | null;
   onClose: () => void;
+  /** A row's chat: a finished step opens the next row, the same as Next. */
+  onDone?: () => void;
 }) {
-  const { S, paint } = useSetup(() => atPart(seeded({ ...fresh(recipe, parts, cost), ownChat }, name), part));
+  const { S, paint } = useSetup(() => {
+    // A row's chat: keep the recipe even when a suggestion list is empty.
+    // suggested() would drop it and every row would become the blank
+    // "What do you do?" screen, whose Enter starts a new setup.
+    if (part && recipe) {
+      const kept = start(recipe, parts ?? { line: null, parts: [] }, cost);
+      return atPart({ ...kept, ownChat: ownChat ?? null }, part);
+    }
+    return atPart(seeded({ ...fresh(recipe, parts, cost), ownChat }, name), part);
+  });
   const R = S.recipe;
   // Read at the moment of the step, after the last part kept.
   const models = (): RecipeModel[] => S.recipe?.models ?? [];
@@ -282,6 +297,8 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     S.log.push(S.pending);
     S.pending = null;
     S.at = to;
+    if (to === "send") { S.i.send = 0; S.sendSet = null; }
+    if (to === "walk") { S.i.walk = 0; S.walkTicks = null; }
     S.walkItem = null;
     S.runHelped = false;
     if ((to === "walkhome" || to === "walkwant") && !S.walkRead) {
@@ -327,7 +344,11 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   /** An edit is over: the parts again; for a chat not open yet, "Open it
    *  to people?" first, so a "Not yet" is never final (N632 item 5). */
-  const editDone = () => (S.recipe && !S.recipe.live && S.at !== "live" ? go("live") : toParts());
+  const editDone = () => {
+    // A row's chat moves on when the step is kept. Back still closes.
+    if (S.onePart && onDone) return onDone();
+    return S.recipe && !S.recipe.live && S.at !== "live" ? go("live") : toParts();
+  };
   const next = () => {
     if (S.edit) {
       // After the models, sharing them and its price, as in the first run.
@@ -399,8 +420,14 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
   };
   const begin = (v: string) => {
     const spec = capital(v);
+    // The typed words are this step's answer, the same as the old typing screen.
+    if (!S.whatEdit) S.pending = { will: [...W.hi(name), W.whatDoYouDo], me: v };
     if (S.whatEdit) {
       // An edit of this one part: every other answer stays (N649 item 2).
+      // A row's chat stays open and shows the words. The parts list goes back.
+      S.log.push({ will: [], me: v });
+      paint();
+      if (S.onePart) return keep("what", spec);
       return keep("what", spec, () => {
         S.whatEdit = false;
         toParts();
@@ -441,15 +468,21 @@ export default function HostSetup({ name, recipe = null, parts = null, cost = nu
     );
   }
   // An edit of one part stands alone; the first run reads as a chat.
-  const history = S.edit ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
+  const ctxLive: Ctx = { S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()), finish: editDone };
+  const history = S.edit && !S.onePart ? null : <SetupHistory log={[...S.seed, ...S.log]} />;
+  const sendTakes = R && Array.isArray(R.send) ? takesFromSend(R.send) : null;
   return (
+    <SendTakes.Provider value={sendTakes ? { takes: sendTakes, name } : null}>
     <FrameHistory.Provider value={history}>
       <FrameNote.Provider value={S.failed ? <div role="alert" data-setup-failed="" className="max-w-[86%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-[16px] leading-snug text-foreground">{W.notSaved}</div> : null}>
       <div className="contents" onClickCapture={heard}>
-        <SetupScreen S={S} R={R} name={name} guess={guess} back={back} typeIn={typeIn} begin={begin} ctx={{ S, R: R as HostRecipe, paint, go, next, back, keep, typeIn, name, onClose, done: () => (S.edit ? toParts() : onClose()) }} />
+        <FrameDock.Provider value={{ onSend: (text) => routeOverview(ctxLive, text), placeholder: W.typeHere }}>
+        <SetupScreen S={S} R={R} name={name} guess={guess} back={back} typeIn={typeIn} begin={begin} ctx={ctxLive} />
+        </FrameDock.Provider>
       </div>
       </FrameNote.Provider>
     </FrameHistory.Provider>
+    </SendTakes.Provider>
   );
 }
 
@@ -473,7 +506,7 @@ function SetupScreen({ S, R, name, guess, back, typeIn, begin, ctx }: {
 }) {
   if (S.thinking) {
     return (
-      <Frame>
+      <Frame dock={null}>
         <Say>{W.oneMoment(S.thinking)}</Say>
         <Dots />
       </Frame>
@@ -483,18 +516,15 @@ function SetupScreen({ S, R, name, guess, back, typeIn, begin, ctx }: {
     const t = S.typing;
     // Typing is the app's own bottom bar, its send on the right (N647 item 9).
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Frame onBack={back}>
-          {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
-        </Frame>
-        <Box key={t.ask} placeholder={t.ph} onSend={t.done} initial={t.initial} lines={t.lines} />
-      </div>
+      <Frame onBack={back} dock={{ onSend: t.done, placeholder: t.ph, initial: t.initial, lines: t.lines }}>
+        {S.thread.map((m, k) => (m.w ? <Say key={k}>{m.t}</Say> : <Mine key={k}>{m.t}</Mine>))}
+      </Frame>
     );
   }
   if (!R || S.at === "what") {
     return (
-      <Frame onBack={back} foot={<Btn label={W.answer} onClick={() => typeIn(W.whatDoYouDo, begin, W.whatPlaceholder, guess ?? undefined)} />}>
-        {W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
+      <Frame onBack={back} dock={{ onSend: (v) => { begin(v); }, placeholder: W.whatPlaceholder, initial: S.onePart ? "" : guess ?? "" }}>
+        {S.onePart || S.whatEdit ? null : W.hi(name).map((line) => <Say key={line}>{line}</Say>)}
         <Say>{W.whatDoYouDo}</Say>
       </Frame>
     );
@@ -516,10 +546,68 @@ type Ctx = {
   onClose: () => void;
   /** Where a "Not now" that ends the models, or the last step, goes. */
   done: () => void;
+  /** A row's last answer: save is done, open the next row. */
+  finish: () => void;
 };
 
-/** Keep or Change: Will's line, the thing, Change cycles his suggestions,
- *  "Type my own" asks in his chat and comes back here. */
+function picks(labels: string[], onChoice: (label: string) => void, extra: Partial<SetupDockSpec> = {}): SetupDockSpec {
+  return { choices: labels, onChoice, onSend: () => false, ...extra };
+}
+
+/** Two answers, as chat choices: the second sits nearest the thumb. */
+function yesNo(no: string, yes: string, onNo: () => void, onYes: () => void): SetupDockSpec {
+  return picks([no, yes], (label) => (label === yes ? onYes() : onNo()), {
+    onSend: (text) => {
+      const said = text.trim().toLowerCase();
+      if (said === yes.toLowerCase()) return onYes();
+      if (said === no.toLowerCase()) return onNo();
+      return false;
+    },
+  });
+}
+
+/** Plain words on the walk, or on the parts: open the part they name, or
+ *  the same edit the host already asks Will for. */
+function routeOverview(c: Ctx, text: string): boolean {
+  const said = text.trim().toLowerCase();
+  if (!said) return false;
+  if (c.S.at === "walkhome") {
+    const walk: [string, Step][] = [
+      ["its steps", "walk"],
+      ["what i notice", "walknotice"],
+      ["what i say", "walksay"],
+      ["what they get", "walkout"],
+      ["see it run", "walkrun"],
+    ];
+    const hit = walk.find(([name]) => said.includes(name));
+    if (hit) {
+      c.go(hit[1]);
+      return true;
+    }
+  }
+  if (c.S.at === "done") {
+    const part = c.S.parts.find((p) => said.includes(p.title.toLowerCase()));
+    if (part) {
+      if (part.part === "questions") c.S.qs = [];
+      c.S.whatEdit = part.part === "what";
+      c.go(stepOfPart(part.part, c.R));
+      return true;
+    }
+  }
+  if (c.S.at !== "walkhome" && c.S.at !== "done") return false;
+  void editSaid(text).then((got) => {
+    if (!got) return c.paint();
+    c.S.parts = got.parts;
+    c.S.partsLine = got.line;
+    const part = got.parts.find((p) => said.includes(p.title.toLowerCase()));
+    if (part) c.go(stepOfPart(part.part, c.R));
+    else c.go("done");
+  });
+  return true;
+}
+
+/** Keep or Draw new one: Will's line, the thing. Draw new one cycles his
+ *  suggestions. Words typed in the bar are one's own, on this same screen. */
 function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v: T) => ReactNode, onKeep: (v: T) => void, typeAsk?: string, fromTyped?: (v: string) => T) {
   const { S } = c;
   const start = Math.max(0, list.findIndex((x) => same(x, current)));
@@ -528,15 +616,27 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
   return (
     <Frame
       onBack={c.back}
-      foot={
-        <>
-          <Two
-            left={<Btn out label={W.change} onClick={() => { S.own[id] = null; S.refused = false; S.i[id] = (S.i[id] ?? start) + 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => onKeep(value)} />}
-          />
-          {typeAsk ? <Link label={W.typeOwn} onClick={() => c.typeIn(typeAsk, (v) => { S.own[id] = v; })} /> : null}
-        </>
-      }
+      dock={picks([W.drawNew, W.keep], (label) => {
+        if (label === W.keep) return onKeep(value);
+        S.own[id] = null;
+        S.refused = false;
+        S.i[id] = (S.i[id] ?? start) + 1;
+        c.paint();
+      }, {
+        placeholder: typeAsk,
+        onSend: (typed) => {
+          if (!typeAsk || !fromTyped) return false;
+          S.own[id] = typed;
+          S.refused = false;
+          if (S.onePart && SAVED_PARTS.has(id)) {
+            S.log.push({ will: [], me: typed });
+            c.paint();
+            c.keep(id, fromTyped(typed));
+            return;
+          }
+          c.paint();
+        },
+      })}
     >
       <Say>{line}</Say>
       <div data-setup-value="">{show(value)}</div>
@@ -556,13 +656,13 @@ function WordSteps(c: Ctx): ReactNode {
   const { R } = c;
   switch (c.S.at) {
     case "line":
-      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => c.keep("line", v), W.lineAsk, (v) => v);
+      return kc(c, "line", W.lineSay, R.suggest.line, R.line, (v) => <><Card b={v} /><div className="mt-2"><Cap>{W.lineCap}</Cap></div></>, (v) => commitRow(c, W.lineSay, v, "line", v), W.lineAsk, (v) => v);
     case "name": {
       const names = R.suggest.name ?? [];
-      return kc(c, "name", W.nameSay, names, R.name ?? names[0], (v) => <Card b={v} />, (v) => c.keep("name", v), W.nameAsk, (v) => v);
+      return kc(c, "name", W.nameSay, names, R.name ?? names[0], (v) => <Card b={v} />, (v) => commitRow(c, W.nameSay, v, "name", v), W.nameAsk, (v) => v);
     }
     case "hello":
-      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => c.keep("hello", v), W.helloAsk, (v) => v);
+      return kc(c, "hello", W.helloSay, R.suggest.hello, R.hello, (v) => <Card><Say>{v}</Say></Card>, (v) => commitRow(c, W.helloSay, v, "hello", v), W.helloAsk, (v) => v);
     default:
       return null;
   }
@@ -572,20 +672,17 @@ function WordSteps(c: Ctx): ReactNode {
 function YesNoStep(c: Ctx): ReactNode {
   const { S, R } = c;
   const models = R.models ?? [];
-  const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void) => (
-    <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} />} />
-  );
   switch (S.at) {
     case "care":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, () => c.keep("care", false), () => c.keep("care", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.no, W.yes, () => commitRow(c, W.careSay, W.no, "care", false), () => commitRow(c, W.careSay, W.yes, "care", true))}>
           <Say>{W.careSay}</Say>
           <Cap>{W.careCap}</Cap>
         </Frame>
       );
     case "smart":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.yes, () => c.keep("smart", false, S.edit ? c.done : () => c.go("who")), () => c.keep("smart", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.notNow, W.yes, () => commitRow(c, W.notSpecialist, W.notNow, "smart", false, S.edit ? c.done : () => c.go("who")), () => commitRow(c, W.notSpecialist, W.yes, "smart", true))}>
           <Say>{W.notSpecialist}</Say>
           <Say>{W.makeSmart(R.spec)}</Say>
           <Cap>{W.smartCap}</Cap>
@@ -593,7 +690,7 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "share":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.shareThem, () => c.keep("share", false), () => c.keep("share", true))}>
+        <Frame onBack={c.back} dock={yesNo(W.notNow, W.shareThem, () => commitRow(c, W.shareSay, W.notNow, "share", false), () => commitRow(c, W.shareSay, W.shareThem, "share", true))}>
           <Say>{W.shareSay}</Say>
           {models.filter((m) => m.own).map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
           <Say>{W.shareTwo}</Say>
@@ -604,14 +701,14 @@ function YesNoStep(c: Ctx): ReactNode {
       );
     case "try":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notNow, W.testMyChat, c.next, () => { S.testing = true; c.paint(); })}>
+        <Frame onBack={c.back} dock={yesNo(W.notNow, W.testMyChat, c.next, () => { S.testing = true; c.paint(); })}>
           <Say>{W.ready}</Say>
           <Say>{W.wantTest}</Say>
         </Frame>
       );
     case "live":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.notYet, W.yes, () => c.keep("live", false, c.done), () => c.keep("live", true, c.done))}>
+        <Frame onBack={c.back} dock={yesNo(W.notYet, W.yes, () => commitRow(c, W.openToPeople, W.notYet, "live", false, c.done), () => commitRow(c, W.openToPeople, W.yes, "live", true, c.done))}>
           <Say>{W.openToPeople}</Say>
           <Cap>{W.anyoneLink}</Cap>
           <Card b={W.chatOf(S.ownChat?.title || c.name)} s={S.ownChat?.join_line || R.line.replace(/^People come to you/, `People come to ${S.ownChat?.title || c.name}`)} />
@@ -684,6 +781,52 @@ function skipWalk(id: Step, S: State, R: HostRecipe): boolean {
   return id === "walkorder" && walkSteps(S, R).length < 2;
 }
 
+/** The tap's own words, above the next question. A row does not wait for the
+ *  save before it moves, so Yes on a value that is already kept still advances. */
+function said(c: Ctx, will: string, me: string) {
+  c.S.log.push({ will: [will], me });
+  c.S.pending = null;
+}
+
+/** Save a part. In a row's chat the answer is on screen and the row moves on
+ *  at once, including when the saved value did not change. */
+function commitRow(c: Ctx, will: string, me: string, part: string, value: unknown, done: () => void = c.next) {
+  if (!c.S.onePart) return c.keep(part, value, done);
+  said(c, will, me);
+  c.keep(part, value, () => c.paint());
+  done();
+}
+
+/** One yes or no per item. The saved list is never empty. An edit saves each
+ *  answer and always moves on; the first run saves once, on the last. */
+function yesNoEach<T extends string>(c: Ctx, key: string, list: T[], chosen: T[], ask: (item: T) => string, setChosen: (next: T[]) => void, save: (next: T[], leave: boolean) => void) {
+  const { S } = c;
+  const i = S.i[key] ?? 0;
+  const item = list[i];
+  if (!item) return null;
+  const pick = (on: boolean) => {
+    let next = on ? (chosen.includes(item) ? [...chosen] : [...chosen, item]) : chosen.filter((x) => x !== item);
+    const leave = i + 1 >= list.length;
+    if (leave && !next.length) next = [item];
+    setChosen(next);
+    if (S.onePart) said(c, ask(item), on ? W.yes : W.no);
+    if (!leave) {
+      S.i[key] = i + 1;
+      c.paint();
+      if (S.edit) save(next, false);
+      return;
+    }
+    S.i[key] = 0;
+    save(next, true);
+    if (S.edit) c.finish();
+  };
+  return (
+    <Frame onBack={() => { if (i > 0) { S.i[key] = i - 1; c.paint(); return; } c.back(); }} dock={yesNo(W.no, W.yes, () => pick(false), () => pick(true))}>
+      <Say>{ask(item)}</Say>
+    </Frame>
+  );
+}
+
 /** The feedback walk a host's chat holds (N641): what it holds, its order,
  *  what comes at the end, then the walk in blocks; the chat cannot run it
  *  yet, and "I want this" tells the founder once. */
@@ -691,25 +834,24 @@ function WalkStep(c: Ctx): ReactNode {
   const { S, R } = c;
   switch (S.at) {
     case "walk": {
-      const ticks = S.walkTicks ?? walkSteps(S, R);
-      S.walkTicks = ticks;
-      // Any number of ticks; the last one stays, as on "What do people send you?".
-      const tick = (k: WalkStepId) => {
-        if (ticks.includes(k) && ticks.length === 1) return;
-        S.walkTicks = ticks.includes(k) ? ticks.filter((y) => y !== k) : [...ticks, k];
-        c.paint();
-      };
-      return (
-        <Frame onBack={c.back} foot={<Btn label={W.done} onClick={() => { S.walk = ticks; S.walkTicks = null; c.next(); }} />}>
-          {W.walkSay.map((line) => <Say key={line}>{line}</Say>)}
-          {WALK_IDS.map((k) => <Opt key={k} title={W.walkSteps[k]} tick={ticks.includes(k)} onClick={() => tick(k)} />)}
-        </Frame>
-      );
+      const initial = walkSteps(S, R);
+      const ordered = (next: WalkStepId[]) => WALK_IDS.filter((id) => next.includes(id));
+      return yesNoEach(c, "walk", WALK_IDS, S.walkTicks ?? initial, (k) => W.walkOne(k), (next) => { S.walkTicks = next; }, (next, leave) => {
+        const steps = ordered(next);
+        if (!S.edit) {
+          if (!leave) return;
+          S.walk = steps;
+          S.walkTicks = null;
+          c.next();
+          return;
+        }
+        c.keep("walk", { steps, out: walkOut(R) }, () => c.paint());
+      });
     }
     case "walkorder": {
       const steps = walkSteps(S, R);
       return (
-        <Frame onBack={c.back} foot={<Two left={<Btn out label={W.change} onClick={() => { S.walk = [...steps.slice(1), steps[0]]; c.paint(); }} />} right={<Btn label={W.keep} onClick={c.next} />} />}>
+        <Frame onBack={c.back} dock={picks([W.change, W.keep], (label) => (label === W.keep ? c.next() : (S.walk = [...steps.slice(1), steps[0]], c.paint())))}>
           <Say>{W.walkOrderSay}</Say>
           {steps.map((k, n) => <Card key={k} b={`${n + 1}. ${W.walkSteps[k]}`} />)}
         </Frame>
@@ -738,7 +880,7 @@ function WalkStep(c: Ctx): ReactNode {
       return (
         <Frame
           onBack={c.back}
-          foot={wanted ? <Btn label={W.done} onClick={c.next} /> : <Two left={<Btn out label={W.notNow} onClick={c.next} />} right={<Btn label={W.iWantThis} onClick={want} />} />}
+          dock={wanted ? picks([W.done], c.next) : picks([W.notNow, W.iWantThis], (label) => (label === W.iWantThis ? want() : c.next()))}
         >
           <Say>{W.walkYours}</Say>
           <div data-walk-blocks="" className="flex flex-col gap-[3px]">
@@ -848,7 +990,7 @@ function FillerStep({ c, back }: { c: Ctx; back: () => void }) {
   const d = t.direction;
   if (t.state !== "ready") {
     return (
-      <Frame onBack={back} foot={<Btn label={W.tryDone} onClick={back} />}>
+      <Frame onBack={back} dock={picks([W.tryDone], back)}>
         <Say>{W.tryTold(d, t.needed)}</Say>
         <Say>{W.tryThen}</Say>
       </Frame>
@@ -857,9 +999,9 @@ function FillerStep({ c, back }: { c: Ctx; back: () => void }) {
   return (
     <Frame
       onBack={back}
-      foot={read.can_use
-        ? <Two left={<Btn out label={W.goBack} onClick={() => end("drop")} />} right={<Btn label={W.useIt} onClick={() => end("use")} />} />
-        : <Btn label={W.goBack} onClick={() => end("drop")} />}
+      dock={read.can_use
+        ? picks([W.goBack, W.useIt], (label) => end(label === W.useIt ? "use" : "drop"))
+        : picks([W.goBack], () => end("drop"))}
     >
       <Say>{W.tried(d, t.needed)}</Say>
       <Say>{d === "more" ? W.caughtMore(t.changed, t.agreed) : W.caughtFewer(t.changed, t.agreed)}</Say>
@@ -880,7 +1022,7 @@ function WalkNoticeStep({ c }: { c: Ctx }) {
     return (
       <Frame
         onBack={close}
-        foot={<Two left={<Btn out label={W.keepIt} onClick={close} />} right={<Btn label={open.on ? W.turnOff : W.turnOn} onClick={() => changeItem(c, open.model_id, { on: !open.on }, close)} />} />}
+        dock={picks([W.keepIt, open.on ? W.turnOff : W.turnOn], (label) => (label === W.keepIt ? close() : changeItem(c, open.model_id, { on: !open.on }, close)))}
       >
         <Say>{open.q}</Say>
       </Frame>
@@ -899,7 +1041,16 @@ function WalkNoticeStep({ c }: { c: Ctx }) {
     <Frame onBack={c.back}>
       <Say>{W.noticeSay}</Say>
       {notice.map((n) => (
-        <Opt key={n.model_id} title={n.q} sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning} onClick={() => { S.walkItem = n.model_id; c.paint(); }} />
+        <div key={n.model_id} data-notice={n.model_id}>
+          <BinaryRow
+            title={n.q}
+            sub={!n.on ? W.off : n.ready ? W.readyNow : W.stillLearning}
+            on={n.on}
+            onLabel={W.on}
+            offLabel={W.off}
+            onPick={(turnOn) => { if (turnOn !== n.on) changeItem(c, n.model_id, { on: turnOn }, () => undefined); }}
+          />
+        </div>
       ))}
       {S.filler ? (
         <Opt
@@ -923,20 +1074,25 @@ function WalkSayStep({ c }: { c: Ctx }) {
   const open = say.find((x) => x.model_id === S.walkItem);
   const close = () => { S.walkItem = null; c.paint(); };
   if (open) {
-    const words = () => c.typeIn(W.whatShouldISay, (v) => {
-      changeItem(c, open.model_id, { says: v }, () => { S.typing = null; S.thread.pop(); });
-      // Kept in the box until the words are taken.
-      return false;
-    }, W.writeHere);
     return (
       <Frame
         onBack={close}
-        foot={open.on ? (
-          <>
-            <Two left={<Btn out label={W.keepIt} onClick={close} />} right={<Btn label={W.changeWords} onClick={words} />} />
-            <Btn out label={W.turnOff} onClick={() => changeItem(c, open.model_id, { on: false }, () => undefined)} />
-          </>
-        ) : <Btn label={W.turnOn} onClick={() => changeItem(c, open.model_id, { on: true }, () => undefined)} />}
+        dock={open.on ? picks([W.keepIt, W.turnOff], (label) => {
+          if (label === W.keepIt) close();
+          else changeItem(c, open.model_id, { on: false }, close);
+        }, {
+          placeholder: W.whatShouldISay,
+          onSend: (v) => {
+            changeItem(c, open.model_id, { says: v }, () => undefined);
+            return false;
+          },
+        }) : picks([W.turnOn], () => changeItem(c, open.model_id, { on: true }, close), {
+          placeholder: W.whatShouldISay,
+          onSend: (v) => {
+            changeItem(c, open.model_id, { says: v }, () => undefined);
+            return false;
+          },
+        })}
       >
         <Say>{W.whenINotice(open.q)}</Say>
         <Card b={open.says} />
@@ -954,79 +1110,118 @@ function WalkSayStep({ c }: { c: Ctx }) {
   );
 }
 
+function QuestionStep(c: Ctx) {
+  const { S, R } = c;
+  if (S.edit && R.questions.length) {
+    const qs = R.questions.map((item) => item.q);
+    const save = (next: string[]) => c.keep("questions", next.map((q) => ({ q })), c.paint);
+    return (
+      <Frame onBack={c.back} dock={{
+        placeholder: W.qAsk,
+        onSend: (typed) => {
+          const q = typed.trim();
+          if (!q || qs.length >= 3 || qs.some((item) => item.toLowerCase() === q.toLowerCase())) return false;
+          save([...qs, q]);
+        },
+      }}>
+        <Say>{W.qSay}</Say>
+        {qs.map((q) => (
+          <BinaryRow key={q} title={q} on onLabel={W.keep} offLabel={W.remove} onPick={(keep) => { if (!keep && qs.length > 1) save(qs.filter((item) => item !== q)); }} />
+        ))}
+      </Frame>
+    );
+  }
+  const n = S.qs.length;
+  const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
+  return kc(c, `q${n}`, W.qSay, list, list[0], (v) => <Card b={v} />, (v) => {
+    S.qs.push(v);
+    if (S.qs.length >= 3) c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps"));
+    else c.go("qmore");
+  }, W.qAsk, (v) => v);
+}
+
+function WayStep(c: Ctx) {
+  const { S, R } = c;
+  const models = R.models ?? [];
+  const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
+  return (
+    <Frame
+      onBack={c.back}
+      dock={picks([...(others.length ? [W.wayUse] : []), W.wayOwn], (label) => {
+        if (label === W.wayOwn) c.keep("way", "own");
+        else { S.picked = null; c.keep("way", "use"); }
+      }, {
+        onSend: (text) => {
+          const said = text.trim().toLowerCase();
+          if (said.includes(W.wayOwn.toLowerCase())) return c.keep("way", "own");
+          if (others.length && said.includes("model that exists")) { S.picked = null; c.keep("way", "use"); return; }
+          return false;
+        },
+      })}
+    >
+      <Say>{W.waySay}</Say>
+      <Opt title={W.wayUse} sub={others.length ? W.wayUseYes : W.wayUseNone} disabled={!others.length} onClick={() => { S.picked = null; c.keep("way", "use"); }} />
+      <Opt title={W.wayOwn} sub={W.wayOwnSub} onClick={() => c.keep("way", "own")} />
+    </Frame>
+  );
+}
+
 function StepScreen(c: Ctx) {
   const { S, R } = c;
   const models = R.models ?? [];
-  const yesNo = (no: string, yes: string, onNo: () => void, onYes: () => void, yesOff = false) => (
-    <Two left={<Btn out label={no} onClick={onNo} />} right={<Btn label={yes} onClick={onYes} disabled={yesOff} />} />
-  );
   const asked = WordSteps(c) ?? YesNoStep(c) ?? TeachSteps(c) ?? OwnModelStep(c) ?? WalkStep(c) ?? WalkParts(c);
   if (asked) return asked;
   switch (c.S.at) {
     case "send": {
-      const set = S.sendSet ?? (R.send.length ? R.send : [R.suggest.send[0]]);
-      S.sendSet = set;
-      // Each row ticks on its own, any number of them; the last tick stays,
-      // so the screen never drops to none (FIRST-04).
-      const tick = (k: SendKind) => {
-        if (set.includes(k) && set.length === 1) return;
-        S.sendSet = set.includes(k) ? set.filter((y) => y !== k) : [...set, k];
-        c.paint();
-      };
-      return (
-        <Frame onBack={c.back} foot={<Btn label={W.done} disabled={!set.length} onClick={() => c.keep("send", R.suggest.send.filter((k) => set.includes(k)))} />}>
-          <Say>{W.sendSay}</Say>
-          {R.suggest.send.map((k) => (
-            <Opt key={k} title={SEND[k][0]} sub={SEND[k][1]} tick={set.includes(k)} onClick={() => tick(k)} />
-          ))}
-        </Frame>
-      );
+      const list = R.suggest.send;
+      const initial = R.send.length ? R.send : [list[0]];
+      const ordered = (next: SendKind[]) => list.filter((k) => next.includes(k));
+      return yesNoEach(c, "send", list, S.sendSet ?? initial, (k) => W.sendOne(SEND[k][0]), (next) => { S.sendSet = next; }, (next, leave) => {
+        const value = ordered(next);
+        if (!S.edit) {
+          if (leave) c.keep("send", value);
+          return;
+        }
+        c.keep("send", value, () => c.paint());
+      });
     }
     case "out":
-      return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => c.keep("out", v));
-    case "q": {
-      const n = S.qs.length;
-      const list = R.suggest.qs.slice(n).concat(R.suggest.qs.slice(0, n));
-      return kc(c, `q${n}`, W.qSay, list, list[0], (v) => <Card b={v} />, (v) => {
-        S.qs.push(v);
-        if (S.qs.length >= 3) c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps"));
-        else c.go("qmore");
-      }, W.qAsk, (v) => v);
-    }
+      return kc(c, "out", W.outSay, R.suggest.out, R.out, (k) => <Card b={OUT[k][0]} s={OUT[k][1]} />, (v) => commitRow(c, W.outSay, OUT[v][0], "out", v));
+    case "q":
+      return QuestionStep(c);
     case "qmore":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, () => c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps")), () => c.go("q"))}>
+        <Frame onBack={c.back} dock={yesNo(W.no, W.yes, () => c.keep("questions", S.qs.map((q) => ({ q })), () => c.go("taps")), () => c.go("q"))}>
           <Say>{W.qMore}</Say>
           <Chips items={S.qs} />
         </Frame>
       );
     case "taps":
-      return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => c.keep("taps", v), W.tapsAsk, (v) => [v]);
-    case "way": {
-      const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
-      return (
-        <Frame onBack={c.back}>
-          <Say>{W.waySay}</Say>
-          <Opt title={W.wayUse} sub={others.length ? W.wayUseYes : W.wayUseNone} disabled={!others.length} onClick={() => { S.picked = null; c.keep("way", "use"); }} />
-          <Opt title={W.wayOwn} sub={W.wayOwnSub} onClick={() => c.keep("way", "own")} />
-        </Frame>
-      );
-    }
+      return kc(c, "taps", W.tapsSay, R.suggest.taps, R.taps, (v) => <Chips items={[...v, W.somethingElse]} />, (v) => commitRow(c, W.tapsSay, v.join(" · "), "taps", v), W.tapsAsk, (v) => [v]);
+    case "way":
+      return WayStep(c);
     case "more":
       return (
-        <Frame onBack={c.back} foot={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; S.draft = null; S.savedAt = null; c.go("way"); }, models.length >= 3)}>
+        <Frame onBack={c.back} dock={yesNo(W.no, W.yes, c.next, () => { S.mi += 1; S.ownQ = null; S.draft = null; S.savedAt = null; c.go("way"); })}>
           <Say>{W.moreSay}</Say>
           {models.map((m) => <Card key={m.q} b={m.q} s={m.opts.join(" · ")} />)}
         </Frame>
       );
     case "order":
       return (
-        <Frame onBack={c.back} foot={<Two left={<Btn out label={W.change} onClick={() => c.keep("models", [...models.slice(1), models[0]], c.paint)} />} right={<Btn label={W.keep} onClick={c.next} />} />}>
+        <Frame onBack={c.back} dock={picks([W.change, W.keep], (label) => (label === W.keep ? c.next() : c.keep("models", [...models.slice(1), models[0]], c.paint)))}>
           <Say>{W.orderSay}</Say>
           {models.map((m, k) => <Card key={m.q} b={`${k + 1}. ${m.q}`} />)}
         </Frame>
       );
     case "who":
+      if (S.edit) {
+        const kinds = WHO.filter(([kind]) => !(R.care !== false && kind === "assistant")).map(([kind]) => kind);
+        return kc(c, "who", W.whoSay, kinds, R.who, (kind) => {
+          const row = WHO.find(([id]) => id === kind)!;
+          return <Card b={row[1]} s={row[2]} />;
+        }, (kind) => c.keep("who", kind));
+      }
       return (
         <Frame onBack={c.back}>
           <Say>{W.whoSay}</Say>
@@ -1091,7 +1286,7 @@ function ModelStep({ c }: { c: Ctx }) {
     return (
       <Frame
         onBack={c.back}
-        foot={<Two left={<Btn out label={W.backPlain} onClick={() => { S.picked = null; c.paint(); }} />} right={<Btn label={W.addIt} onClick={() => add({ q: m.q, opts: m.opts, says: "", own: false, model_id: m.model_id, by: m.by, price: m.learning ? 0 : m.price })} />} />}
+        dock={picks([W.backPlain, W.addIt], (label) => (label === W.addIt ? add({ q: m.q, opts: m.opts, says: "", own: false, model_id: m.model_id, by: m.by, price: m.learning ? 0 : m.price }) : (S.picked = null, c.paint())))}
       >
         <Say>{m.q}</Say>
         <Card b={m.opts.join(" · ")} s={W.madeIt(m.by)} />
@@ -1111,7 +1306,7 @@ function ModelStep({ c }: { c: Ctx }) {
   const others = (S.shared ?? []).filter((m) => !models.some((x) => x.q === m.q));
   if (R.way === "use" && others.length) {
     return (
-      <Frame onBack={c.back} foot={<Btn out label={W.wayOwn} onClick={() => c.keep("way", "own", c.paint)} />}>
+      <Frame onBack={c.back} dock={picks([W.wayOwn], () => c.keep("way", "own", c.paint))}>
         <Say>{W.usableSay}</Say>
         <Cap>{W.usableCap}</Cap>
         {others.map((m) => (
@@ -1133,15 +1328,10 @@ function ModelStep({ c }: { c: Ctx }) {
   return (
     <Frame
       onBack={c.back}
-      foot={
-        <>
-          <Two
-            left={<Btn out label={W.change} onClick={() => { S.mi += 1; c.paint(); }} />}
-            right={<Btn label={W.keep} onClick={() => askedQuestion(c, d.q, d)} />}
-          />
-          <Link label={W.typeOwn} onClick={() => c.typeIn(W.modelAsk, (v) => askedQuestion(c, /\?$/.test(v) ? v : `${v}?`), W.modelPlaceholder)} />
-        </>
-      }
+      dock={picks([W.drawNew, W.keep], (label) => (label === W.keep ? askedQuestion(c, d.q, d) : (S.mi += 1, c.paint())), {
+        placeholder: W.modelPlaceholder,
+        onSend: (v) => askedQuestion(c, /\?$/.test(v) ? v : `${v}?`),
+      })}
     >
       <Say>{models.length ? W.nextModel : W.firstModel}</Say>
       <Card b={d.q} />
@@ -1194,11 +1384,12 @@ function OwnAnswers({ c, q }: { c: Ctx; q: string }) {
         S.setI += 1;
         c.paint();
       }}
-      onType={() => c.typeIn(W.answersAsk, (v) => {
+      onOwn={(v) => {
         const own = answersOf(v);
         if (!own.length) return false;
         S.ownOpts = own;
-      }, W.writeHere, undefined, true)}
+        c.paint();
+      }}
     />
   );
 }
@@ -1216,12 +1407,16 @@ function chosen(c: Ctx) {
 function StackStep({ c }: { c: Ctx }) {
   const { S } = c;
   const d = S.draft;
+  const [taughtOpen, setTaughtOpen] = useState(false);
   if (!d) return null;
   return (
     <BlocksScreen
       onBack={c.back}
       q={d.q}
       gives={S.gives}
+      answers={d.opts}
+      taughtOpen={taughtOpen}
+      onTaught={() => setTaughtOpen((open) => !open)}
       onOpen={(to) => {
         S.toStack = to !== "model";
         // The question block opens the question, then its answers again.
@@ -1250,7 +1445,7 @@ function CostStep({ c }: { c: Ctx }) {
     c.keep("cost", { ...R.cost, [key]: n }, c.paint);
   };
   return (
-    <Frame onBack={c.back} foot={<Btn label={W.next} onClick={c.next} />}>
+    <Frame onBack={c.back} dock={picks([W.next], c.next)}>
       <Say>{per ? W.costSay : W.costNothing}</Say>
       {per ? (
         <>
@@ -1329,7 +1524,7 @@ function PartsStep({ c }: { c: Ctx }) {
     c.go(stepOfPart(part, R));
   };
   return (
-    <Frame onBack={c.onClose} foot={<Btn label={W.backToChats} onClick={c.onClose} />}>
+    <Frame onBack={c.onClose} dock={picks([W.backToChats], c.onClose)}>
       <Say>{S.partsLine ?? (R.live ? W.isOpen : W.isSaved)}</Say>
       {R.live && S.ownChat?.link ? <Card b={`${W.site}${S.ownChat.link.path}`} s={W.linkOpens} /> : null}
       {S.parts.map((p) => (
