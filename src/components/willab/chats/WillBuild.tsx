@@ -55,11 +55,11 @@ function live(recipe: HostRecipe, own: OwnChat | null): HostRecipe {
   return { ...recipe, hello: own?.hello || recipe.hello, taps };
 }
 
-const TILES: { id: TileId; n: string; word: string; Icon: typeof MessageSquare }[] = [
-  { id: "build", n: "1", word: W.tileBuild, Icon: MessageSquare },
-  { id: "settings", n: "2", word: W.tileSettings, Icon: List },
-  { id: "test", n: "3", word: W.tileTest, Icon: Play },
-  { id: "ai", n: "4", word: W.tileAi, Icon: Boxes },
+const TILES: { id: TileId; word: string; Icon: typeof MessageSquare }[] = [
+  { id: "build", word: W.tileBuild, Icon: MessageSquare },
+  { id: "settings", word: W.tileSettings, Icon: List },
+  { id: "test", word: W.tileTest, Icon: Play },
+  { id: "ai", word: W.tileAi, Icon: Boxes },
 ];
 
 /** A soft ring on Build until the talk is finished. The other tiles stay plain. */
@@ -68,9 +68,9 @@ const NEXT_RING = "shadow-[inset_0_0_0_2px_rgba(255,106,20,0.45),0_0_18px_rgba(2
 function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
   const steps = useTileSteps();
   return (
-    <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 py-6">
-      <div className="grid aspect-square w-full max-w-[min(100%,28rem)] grid-cols-2 gap-3">
-        {TILES.map(({ id, n, word, Icon }) => {
+    <div data-build-home="" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-4 py-4">
+      <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-3 md:h-auto md:w-[70%] md:grid-cols-4 md:grid-rows-1">
+        {TILES.map(({ id, word, Icon }) => {
           const next = id === "build" && !steps.build;
           return (
             <button
@@ -79,7 +79,7 @@ function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
               data-build-tile={id}
               data-tile-highlight={next ? "" : undefined}
               onClick={() => onOpen(id)}
-              className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground ${next ? NEXT_RING : ""}`}
+              className={`relative flex min-h-0 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background text-foreground md:aspect-square ${next ? NEXT_RING : ""}`}
             >
               {steps[id] ? (
                 <span data-tile-tick={id} className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center text-foreground">
@@ -87,10 +87,7 @@ function BuildHome({ onOpen }: { onOpen: (id: TileId) => void }) {
                 </span>
               ) : null}
               <Icon className="h-8 w-8" strokeWidth={1.5} aria-hidden />
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[12px] font-medium text-muted-foreground">{n}</span>
-                <span className="text-[16px] font-medium">{word}</span>
-              </span>
+              <span className="text-[16px] font-medium">{word}</span>
             </button>
           );
         })}

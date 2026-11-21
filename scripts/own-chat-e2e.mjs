@@ -59,7 +59,7 @@ async function run(width, height) {
   }).length);
   check(`${tag} the home has one top bar`, await bars() === 1);
   const labels = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => (el.textContent ?? "").replace(/\s+/g, "")));
-  check(`${tag} four equal tiles`, labels.join(",") === "1Build,2Settings,3Test,4AI");
+  check(`${tag} tiles are Build, Settings, Test, AI`, labels.join(",") === "Build,Settings,Test,AI");
   check(`${tag} Build is the only highlight`, await page.locator("[data-tile-highlight]").count() === 1 && await page.locator("[data-build-tile='build'][data-tile-highlight]").count() === 1);
   check(`${tag} a new chat has no ticks`, await page.locator("[data-tile-tick]").count() === 0);
   const deadEnd = async (where) => {
@@ -69,13 +69,32 @@ async function run(width, height) {
   };
   check(`${tag} no tabs or search on the home`, await page.locator("[data-build-tab], [data-part-search]").count() === 0);
   await deadEnd("the home");
-  const boxes = await page.locator("[data-build-tile]").evaluateAll((els) => els.map((el) => {
-    const r = el.getBoundingClientRect();
-    return { w: Math.round(r.width), h: Math.round(r.height) };
-  }));
-  const square = boxes.length === 4 && boxes.every((box) => box.w === boxes[0].w && box.h === boxes[0].h && Math.abs(box.w - box.h) <= 2);
-  const homeWide = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 && document.documentElement.scrollHeight <= document.documentElement.clientHeight + 1);
-  check(`${tag} the grid fits`, homeWide && square);
+  const layout = await page.locator("[data-build-tile]").evaluateAll((els) => {
+    const home = document.querySelector("[data-build-home]").getBoundingClientRect();
+    return {
+      homeW: home.width,
+      boxes: els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      }),
+    };
+  });
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  const equal = layout.boxes.every((box) => near(box.w, layout.boxes[0].w) && near(box.h, layout.boxes[0].h));
+  const noScroll = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 && document.documentElement.scrollHeight <= document.documentElement.clientHeight + 1);
+  if (width >= 768) {
+    const oneRow = layout.boxes.every((box) => near(box.y, layout.boxes[0].y));
+    const across = layout.boxes.every((box, i) => i === 0 || box.x > layout.boxes[i - 1].x);
+    const span = layout.boxes[3].x + layout.boxes[3].w - layout.boxes[0].x;
+    const ratio = span / layout.homeW;
+    const square = layout.boxes.every((box) => near(box.w, box.h));
+    check(`${tag} four columns at about 70% width`, oneRow && across && equal && square && ratio >= 0.65 && ratio <= 0.75 && noScroll);
+  } else {
+    const oneCol = layout.boxes.every((box) => near(box.x, layout.boxes[0].x));
+    const down = layout.boxes.every((box, i) => i === 0 || box.y > layout.boxes[i - 1].y);
+    const full = layout.boxes.every((box) => box.w >= layout.homeW - 40);
+    check(`${tag} one column, full width`, oneCol && down && equal && full && noScroll);
+  }
   await page.locator("[data-icon-open]").click();
   check(`${tag} the icon opens the picker`, await page.locator("[data-chat-icon]").count() === 1);
   await page.locator("[data-icon-open]").click();

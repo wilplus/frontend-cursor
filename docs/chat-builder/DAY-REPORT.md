@@ -8,7 +8,7 @@ The chat list leads to Build again. "Start your own chat" is the last chat row, 
 
 The circle is the locked avatar. Tapping it in the locked top bar opens the picker: an emoji, a colour, a photo, or their initial. A three-dots badge sits on the bottom-right, about 40% of the circle, with a white ring.
 
-The builder home is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Each tile is an icon, a small number and one word. Build opens the talk. Settings opens the list of questions and answers. Test opens the chat as a visitor. AI keeps the model list for a later design. Until the talk is finished, Build has a soft ring. A tick sits on a tile once that step is done, and those ticks stay on this device. The tab row and the search box are gone from this page. Search stays on the answer list.
+The builder home is four tiles: Build, Settings, Test, AI. Each tile is an icon and one word. On a wide screen they sit in one row, about 70% of the width. On a phone they stack in one column. Build opens the talk. Settings opens the list of questions and answers. Test opens the chat as a visitor. AI keeps the model list for a later design. Until the talk is finished, Build has a soft ring. A tick sits on a tile once that step is done, and those ticks stay on this device. The tab row and the search box are gone from this page. Search stays on the answer list.
 
 Share, in the locked top bar's right slot, copies the public link. That is `/c/<token>` when the host already has a join path, and the same route built from the local chat id otherwise. The button says "Link copied", and opens the phone's share sheet where the browser has one.
 

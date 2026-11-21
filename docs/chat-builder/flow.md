@@ -7,7 +7,7 @@ flowchart TD
   tiles[Four tiles]
   talk[Build: one question at a time]
   settings[Settings: the answers]
-  tiles -->|1 Build| talk
+  tiles -->|Build| talk
   talk -->|back| tiles
   tiles -->|2 Settings| settings
 ```
@@ -18,4 +18,4 @@ Will asks one question at a time, in a normal chat bubble. The taps sit just abo
 
 The walk steps, once there are two, are a list. Drag one onto another, or tap Earlier / Later.
 
-The home under the header is four equal tiles: 1 Build, 2 Settings, 3 Test, 4 AI. Settings opens the searchable list. A row replaces that bar with its own: the row's name and its place in the list. Header back from the talk returns to the tiles. Your own code, after Yes, is either a description or a paste.
+The home under the header is four tiles: Build, Settings, Test, AI. Wide screens show them in one row. A phone stacks them. Settings opens the searchable list. A row replaces that bar with its own: the row's name and its place in the list. Header back from the talk returns to the tiles. Your own code, after Yes, is either a description or a paste.
