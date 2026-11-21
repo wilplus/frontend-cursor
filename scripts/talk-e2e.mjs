@@ -116,6 +116,7 @@ try {
     await give("Yes");
     await give("A recording");
     await give("Done");
+    await give("No");
     for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await give(answer);
     check(`${mode} plan before build`, (await page.locator("text=Say go?").count()) > 0);
     check(`${mode} not saved as the live coach yet`, (await page.locator("[data-talk-greeting]").count()) === 0);
@@ -139,6 +140,7 @@ try {
     await give("Yes");
     await give("A recording");
     await give("Done");
+    await give("No");
     const asked = await page.locator("[data-talk-build]").innerText();
     check(`${mode} a shop skips the speaking walk`, !asked.includes("best moment") && asked.includes("What do people ask you?"));
     await give("A question");

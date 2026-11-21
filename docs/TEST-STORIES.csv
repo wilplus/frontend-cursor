@@ -881,14 +881,14 @@ back to Will's chat, and so does the phone's Back.
 O2  The drafted answers say ""Answers to send"" in that bar, and Back
 returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
 O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
-src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Thirteen taps build the Speaking Coach, then Say go. The saved
+src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Fourteen taps build the Speaking Coach, then Say go. The saved
 document matches the fixture, and the screens read it.
 O2  A shop chat sets all four sends, an assistant, price 1, a training
 machine, the hedge model, another model and a checked paste.
 O3  The brief offers four jobs, not You decide. The host answers
 the rest one at a time. A tap on an earlier answer changes it.
 A targeted edit, chips and Publish stay on this device.
-O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fifteen taps build the Speaking Coach""
+O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fourteen taps build the Speaking Coach""
 O2 -> ""the shop chat sets price, model and paste""
 O3 -> ""an earlier answer changes, then a targeted edit, chips, and publish stay on this device""
 O4 -> ""prints the technical score from the fixture and the shop fields""",
@@ -950,6 +950,8 @@ under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-
 O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
 src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
 becoming the primary Speaking Coach IA.",
+src/components/willab/chats/voice/voiceRead.test.tsx,Story,"A volunteer sees the model's steps, and a locked step never shows a hidden score.","O1  The reading names each step and says a locked one is not clear
+enough yet.","O1 -> ""a locked step has no score""",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
 Take's word: the page asks the server for that Take's word and the
 coach's door opens it, never another Take's.
@@ -2313,6 +2315,11 @@ not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with no
 O2 -> keeps asking to the ceiling, and stops there",
 src/lib/willab/experiments/overlap.test.ts,Story,Two interventions do not fire for the same moment when an earlier step already covers it.,"O1  At most two interventions show, and the earliest step wins.","O1 -> ""fires at most two, and the earliest step in the file's order wins""",
 src/lib/willab/experiments/promptsYaml.test.ts,Story,The experiment prompts file is the one the screens read.,"O1  The file on disk matches the parsed order, lists, and words.","O1 -> ""reads the real file""",
+src/lib/willab/experiments/voiceCatalog.test.ts,Story,The voice-model catalog is whatever the route returns. A missing route is not a made-up list.,"O1  A catalog body is accepted only when it is {models:[...]} in the
+draft shape.
+O2  Calm questions start from b1–b3 in the prompt file, and a locked
+step follows the unlocked flag, not a hidden score.","O1 -> ""rejects a catalog that is not the draft shape""
+O2 -> ""calm questions come from the prompt file""",
 src/lib/willab/exploreArc.test.ts,Story,"As a speaker on a shared device, I want my open project never shown to another account, so that my work stays private.",O1  Another account reads nothing of the project I have open.,O1 -> never exposes one account's active project to another,
 src/lib/willab/f1LoopContract.test.ts,Story,"As the founder, I want one gate that turns red when the loop's promises break (true paragraph states, no numbers to speakers, the page only shows what the server said), so that parallel work can't quietly break the loop.","O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
 reached from what the speaker and the server actually did.

@@ -19,6 +19,7 @@ import { useCoachDraft } from "@/lib/willab/chatBuilder/useCoachDraft";
 import { W } from "./hostsetup/hostSetupCopy";
 import { useKnownSetup } from "./hostsetup/hostSetupDoor";
 import WillNeedsYou, { orderedParts, PartBubble } from "./hostsetup/WillNeedsYou";
+import { VoiceSettings } from "./voice/VoiceSettings";
 import TalkBuild from "./hostsetup/TalkBuild";
 import CodeStep from "./hostsetup/CodeStep";
 import VisitorTry from "./hostsetup/VisitorTry";
@@ -359,6 +360,7 @@ function BuildDesk({ p, top, doc }: {
               source={p.table && !p.setup?.recipe ? p.local : null}
               onPart={(part) => p.openPart(part.part)}
             />
+            {p.table ? <VoiceSettings /> : null}
             {p.table ? (
               <button type="button" data-looks-right="" className="mx-4 mb-4 min-h-11 rounded-full bg-primary px-4 text-[16px] font-medium text-primary-foreground" onClick={() => { markTileStep("settings", true); p.setTable(false); p.setVisitor(true); }}>Looks right</button>
             ) : null}

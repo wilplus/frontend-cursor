@@ -130,6 +130,7 @@ async function run(width, height) {
   await oneRow("what they can send");
   await page.locator("[data-kind='rec']").click();
   await page.locator("[data-kinds-done]").click();
+  await page.getByRole("button", { name: "No", exact: true }).click();
   check(`${tag} a speaking coach with a recording is asked the walk`, (await page.locator("text=best moment").count()) > 0);
   await oneRow("the question after send");
   for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) {
@@ -216,6 +217,7 @@ async function run(width, height) {
   await page.getByRole("button", { name: "Yes", exact: true }).click();
   await page.locator("[data-kind='rec']").click();
   await page.locator("[data-kinds-done]").click();
+  await page.getByRole("button", { name: "No", exact: true }).click();
   const asked = await page.locator("[data-talk-build]").innerText();
   check(`${tag} a neurobiologist with a recording skips the walk`, !asked.includes("best moment") && !asked.includes("helper words") && asked.includes("What do people ask you?"));
   await context.close();

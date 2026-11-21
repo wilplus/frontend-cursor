@@ -62,16 +62,24 @@ function AiHome({ onPick }: { onPick: (door: Door) => void }) {
 }
 
 function Training() {
-  const [kept, setKept] = useState(0);
+  const [kept, setKept] = useState<string>("…");
+  const [count, setCount] = useState(0);
   const [brain, setBrain] = useState<"standard" | "own">("standard");
   useEffect(() => {
-    void readKeptReplies().then((rows) => setKept(rows.length));
+    void readKeptReplies().then((read) => {
+      if (read.state === "host-only") setKept("Only the host can change this.");
+      else if (read.state !== "ready") setKept("Not on yet.");
+      else {
+        setCount(read.count);
+        setKept(`${read.count} kept. ${KEPT_SEND} lets it send on its own. About ${KEPT_MODEL}, a model of your own makes sense.`);
+      }
+    });
   }, []);
-  const own = kept >= KEPT_MODEL;
+  const own = count >= KEPT_MODEL;
   return (
     <div data-exp-screen="training" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-2 px-4 pb-2 pt-3">
-        <p className="m-0 text-[15px] leading-snug">{kept} kept. {KEPT_SEND} lets it send on its own. About {KEPT_MODEL}, a model of your own makes sense.</p>
+        <p className="m-0 text-[15px] leading-snug">{kept}</p>
         <p className="m-0 text-[13px] text-muted-foreground">Which brain?</p>
         <div data-pair="brain" className="flex gap-2">
           <button type="button" data-choice="standard" aria-pressed={brain === "standard"} onClick={() => setBrain("standard")} className={`min-h-12 flex-1 rounded-full px-3 text-[16px] font-semibold ${brain === "standard" ? "bg-foreground text-background" : "border-[1.5px] border-border bg-background"}`}>Standard</button>
