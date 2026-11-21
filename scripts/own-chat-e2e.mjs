@@ -201,6 +201,8 @@ async function run(width, height) {
   await page.waitForSelector("[data-build-models]");
   check(`${tag} Training is the model list, with one top bar`, await bars() === 1);
   await page.locator("[data-chat-header] button[aria-label='Back']").click();
+  await page.waitForSelector("[data-ai-split]");
+  await page.locator("[data-chat-header] button[aria-label='Back']").click();
   await page.waitForSelector("[data-build-home]");
   const share = page.locator("[data-build-bar] [data-share-chat]");
   const box = await share.boundingBox();
