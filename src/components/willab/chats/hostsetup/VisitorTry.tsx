@@ -8,9 +8,11 @@ import { TopBar } from "../TopBar";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
-import { tryMyChat } from "@/services/api/hostSetup";
+import { askReply } from "@/services/api/hostSetup";
 import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
+import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
 
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
@@ -43,8 +45,16 @@ export default function VisitorTry({ name, doc, sends, onBack }: {
     markTileStep("test", true);
     setLines((was) => [...was, { who: "me", text: words }]);
     setBusy(true);
-    const remote = kind === "text" ? await tryMyChat(words) : null;
-    const reply = remote?.length ? remote.map((line) => line.body) : localReply(doc, kind);
+    const remote = await askReply(readOwnChat().id || "your-chat", { text: words, kind });
+    const seen = visitorKind(remote);
+    const reply = seen === "reply" && remote?.reply
+      ? [remote.reply]
+      : seen === "held" ? [W.replyHeld]
+      : seen === "host" ? [W.replyHost]
+      : seen === "wait" ? [W.replyWait]
+      : seen === "too-big" ? [W.fileTooBig]
+      : seen === "unreadable" ? [W.fileUnread]
+      : localReply(doc, kind);
     setLines((was) => [...was, ...reply.map((line) => ({ who: "them" as const, text: line }))]);
     setBusy(false);
   };

@@ -163,7 +163,7 @@ export const W = {
   gives: [
     ["pick", "A pick from a list"],
     ["score", "A score, not ready yet"],
-    ["words", "An answer in your words, not ready yet"],
+    ["words", "An answer in your words"],
   ] as const,
   /** What one's own model is built on (N634 item 1, its words N636 item 6). */
   baseSay: "What should it be built on?",
@@ -238,6 +238,11 @@ export const W = {
   tellMe: "Tell me what you'd like to do, and I'll show you where.",
   goAhead: "Go ahead. Send it to me.",
   message: (name: string) => `Message ${name}`,
+  replyHeld: "The host will read this before you see an answer.",
+  replyHost: "The host will answer this.",
+  replyWait: "The host is still teaching this chat. They will answer.",
+  fileTooBig: "That file is too big. Send a smaller one.",
+  fileUnread: "I could not read that file. Try another.",
   useful: "Was this useful?",
   /** Under a walk line (backend N647 items 1, 6 and 8). */
   didThisHelp: "Did this help?",

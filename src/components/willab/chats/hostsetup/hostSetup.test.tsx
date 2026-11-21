@@ -837,7 +837,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("What should it give back?");
     expect(button("A pick from a list").disabled).toBe(false);
     expect(button("A score, not ready yet").disabled).toBe(true);
-    expect(button("An answer in your words, not ready yet").disabled).toBe(true);
+    expect(button("An answer in your words").disabled).toBe(false);
     expect(container.querySelector("small")).toBeNull();
     await tap("A pick from a list");
     expect(text()).toContain("What should it be built on?");

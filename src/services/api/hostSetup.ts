@@ -216,6 +216,21 @@ export async function sharedModels(): Promise<SharedModel[]> {
   return list<SharedModel>(body?.models);
 }
 
+export type AskReply = {
+  preview?: boolean;
+  shown?: boolean;
+  held?: boolean;
+  quiet?: boolean;
+  wait?: boolean;
+  reply?: string | null;
+  error?: "too-big" | "unreadable" | null;
+};
+
+/** The host's chat, answered from their setup. Null or preview: use today's lines. */
+export async function askReply(chatId: string, json: Record<string, unknown>): Promise<AskReply | null> {
+  return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, { method: "POST", json })) as AskReply | null;
+}
+
 export async function tryMyChat(text: string): Promise<ReplyLine[] | null> {
   const body = await call("/api/v2/chats/setup/try", { method: "POST", json: { body: text } });
   return body ? list<ReplyLine>(body.messages) : null;
@@ -276,7 +291,8 @@ export type Draft = {
 
 export async function getDrafts(): Promise<Draft[] | null> {
   const body = await call("/api/v2/chats/setup/drafts", { method: "GET" });
-  return body ? list<Draft>(body.drafts) : null;
+  if (!body || body.drafts == null) return null;
+  return list<Draft>(body.drafts);
 }
 
 /** Send one draft: as drafted, or with the host's own words. */

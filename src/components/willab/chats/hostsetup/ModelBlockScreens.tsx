@@ -95,16 +95,18 @@ export function OwnWhyScreen({ onBack, onNo, onYes }: { onBack: () => void; onNo
   );
 }
 
-/** "What should it give back?": only a choice that is ready taps. */
+const GIVES_READY = new Set(["pick", "words"]);
+
+/** "What should it give back?": a pick, or an answer in the host's words. */
 export function GivesScreen({ onBack, on, onPick }: { onBack: () => void; on: string | null; onPick: (id: string) => void }) {
   return (
-    <Frame onBack={onBack} dock={choiceDock(W.gives.filter(([id]) => id === "pick").map(([, title]) => title), (label) => {
+    <Frame onBack={onBack} dock={choiceDock(W.gives.filter(([id]) => GIVES_READY.has(id)).map(([, title]) => title), (label) => {
       const hit = W.gives.find(([, title]) => title === label);
-      if (hit) onPick(hit[0]);
+      if (hit && GIVES_READY.has(hit[0])) onPick(hit[0]);
     })}>
       <Say>{W.givesSay}</Say>
       {W.gives.map(([id, title]) => (
-        <Opt key={id} title={title} on={on === id} disabled={id !== "pick"} onClick={() => onPick(id)} />
+        <Opt key={id} title={title} on={on === id} disabled={!GIVES_READY.has(id)} onClick={() => { if (GIVES_READY.has(id)) onPick(id); }} />
       ))}
     </Frame>
   );

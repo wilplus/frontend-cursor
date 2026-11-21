@@ -196,6 +196,7 @@ N365 item 1).
 O3  Signed out (the blog), the menu is Lab and Log in, as before.","O1 -> ""signed in, the menu is me, Settings, Tokens and Sign out""
 O2 -> ""Tokens shows the balance and opens the Tokens page""
 O3 -> ""signed out, the menu is Lab and Log in""",
+src/components/TopNavbar.test.tsx,Story,"As a speaker, I want every app navbar to share the Speaking Coach separator and safe control width, so chrome does not drift between project chat, Ideal Text, Feedback, and chat screens.",O1  The separator is full-width while controls remain safe-width.,"O1 -> ""shared navbar visual contract""","Founder screenshot visual contract, 2026-11-18."
 src/components/account/AccountSignInCard.test.tsx,Story,"As a speaker, I want to change my email and my password on Data & consent, and get a link when I forgot the password, so that I keep my account when I lose an address or a password (backend N190).","O1  Change email sends the new address and my current password; the card
 then says the link went and the email changes when I open it. A wrong
 password says ""That password isn’t right."" and keeps the form.
@@ -477,6 +478,7 @@ any other 404 still reads as pending.
 O2  ""Log in with that account"" signs out and goes to log in, which comes
 back to the same link.","O1 -> ""another account's project is said, not waited on""
 O2 -> ""the button signs out and goes to log in, back to the link""","Founder 2026-10-21 (WIL-93): the coach's link opened in the other of two signed-in accounts sat on ""Building your Ideal Text"" at 99%."
+src/components/willab/PageHeader.test.tsx,Story,"As a speaker, I want the shared app header divider to reach both viewport edges while its controls stay on the safe content rail.",O1  The divider is viewport-wide and the header content remains rail-bound.,"O1 -> ""shared authenticated page header""","Founder screenshot correction, 2026-11-18."
 src/components/willab/Phase1AcceptanceFlow.test.tsx,Story,"As a new speaker, I want the agree button to open only after I choose my country and tick the recordings consent, with the documents readable but never in the way, and ""Do not agree"" recording nothing, so that my consent is deliberate.","O1  The screen shows the agreement, the documents and the one tick, with
 the button closed; it opens only with country and tick, never by
 itself, and then saves my country.
@@ -849,11 +851,12 @@ src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is score
 document matches the fixture, and the screens read it.
 O2  A shop chat sets all four sends, an assistant, price 1, a training
 machine, the hedge model, another model and a checked paste.
-O3  You decide, Just build it, a targeted edit, chips and Publish stay
-on this device.
+O3  You decide answers only the question it is on. The host answers
+the rest one at a time. A targeted edit, chips and Publish stay
+on this device. There is no way to skip the questions.
 O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fifteen taps build the Speaking Coach""
 O2 -> ""the shop chat sets price, model and paste, and the mic transcribes""
-O3 -> ""express, you decide, a targeted edit, chips, and publish stay on this device""
+O3 -> ""you decide answers one question, then a targeted edit, chips, and publish stay on this device""
 O4 -> ""prints the technical score from the fixture and the shop fields""",
 src/components/willab/chats/hostsetup/talkBuild.test.tsx,Story,"As a host, I build my chat by talking or tapping, one step at a time, and I can undo a version and open the list of parts.","O1  Brief starts from a quoted ""Speaking coach"", saves Brief v1, and
 Undo takes that version away.
@@ -2143,6 +2146,14 @@ a walk line.
 O4  A document that moves a pinned number, the clock, or names an unknown
 screen is refused, and the seed is unchanged.
 O5  A paste that calls eval or the network is rejected, and no loader runs.",,
+src/lib/willab/chatBuilder/replyPrompt.test.ts,Story,"As a visitor, I get an answer in the host's words, or a plain line when the host must see it first. A score about me never comes back.","O1  The prompt uses what the host does, their first line, their
+questions, taps, what people get back, and their taught examples.
+O2  Shadow, and health, law or money, stay a draft. Only the host
+answers when they said so. An assistant waits for 20 answers.
+O3  A score or a number about the person is stripped. A file that is
+too big is named before it is sent.","O1 -> ""the prompt is built from the host's setup and examples""
+O2 -> ""who answers chooses draft, silence, wait, or send""
+O3 -> ""a score about the person is removed, and a huge file is refused""",
 src/lib/willab/chatBuilder/surfaceParity.test.ts,Story,"As the founder, I want Artur's chat, built from the document, to meet a speaker with the same lines, the same walk order and the same bar as the speaking coach already does.","O1  The document's lines, the practise taps and the three walks match
 the signed walk. A missing line is a gap, not a pass.
 O2  They send is a recording and typing. Nothing asked is the box. The
