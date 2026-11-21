@@ -880,22 +880,22 @@ back to Will's chat, and so does the phone's Back.
 O2  The drafted answers say ""Answers to send"" in that bar, and Back
 returns to Will's chat.","O2 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""
 O1 -> ""N639 Your chat opened from Will has the one bar, and Back returns to Will's chat""","Backend N639 items 1 and 2. Not a style check: which control there is, what it says, and where Back goes."
-src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Fifteen taps build the Speaking Coach, then Say go. The saved
+src/components/willab/chats/hostsetup/talkAudit.test.tsx,Story,The talk is scored by driving it. Finishing it writes the coach the screens read. A shop chat sets every field the builder has.,"O1  Thirteen taps build the Speaking Coach, then Say go. The saved
 document matches the fixture, and the screens read it.
 O2  A shop chat sets all four sends, an assistant, price 1, a training
 machine, the hedge model, another model and a checked paste.
-O3  You decide answers only the question it is on. The host answers
-the rest one at a time. A targeted edit, chips and Publish stay
-on this device. There is no way to skip the questions.
+O3  The brief offers four jobs, not You decide. The host answers
+the rest one at a time. A tap on an earlier answer changes it.
+A targeted edit, chips and Publish stay on this device.
 O4  The technical score is printed from the fixture and the shop fields.","O1 -> ""fifteen taps build the Speaking Coach""
-O2 -> ""the shop chat sets price, model and paste, and the mic transcribes""
-O3 -> ""you decide answers one question, then a targeted edit, chips, and publish stay on this device""
+O2 -> ""the shop chat sets price, model and paste""
+O3 -> ""an earlier answer changes, then a targeted edit, chips, and publish stay on this device""
 O4 -> ""prints the technical score from the fixture and the shop fields""",
-src/components/willab/chats/hostsetup/talkBuild.test.tsx,Story,"As a host, I build my chat by talking or tapping, one step at a time, and I can undo a version and open the list of parts.","O1  Brief starts from a quoted ""Speaking coach"", saves Brief v1, and
-Undo takes that version away.
-O2  Yes and no walk They send one kind at a time. See the list closes
-the talk.","O1 -> ""a quoted suggestion saves Brief v1 and Undo restores it""
-O2 -> ""Yes and No walk the send kinds, and See the list closes the talk""",
+src/components/willab/chats/hostsetup/talkBuild.test.tsx,Story,"As a host, I build my chat by talking or tapping, one question at a time. A tap on an earlier answer changes it.","O1  What do you do? offers four jobs above the box. A tap sends it.
+Tapping that answer opens the four jobs again.
+O2  Yes and no walk They send one kind at a time. There is no See the
+list on this screen.","O1 -> ""four jobs sit above the box, and an earlier answer opens them again""
+O2 -> ""Yes and No walk the send kinds, and this screen has no list""",
 src/components/willab/chats/hostsetup/visitor.test.tsx,Story,"As someone who opens a chat set up with the blank setup, I meet the host's hello and taps, send in the way the host takes, get back what the host chose with each model's line naming whose model it is, and may say whether it was useful without it ever standing before my next message (backend N616 items 4 to 6, N618 item 8; VIS-01 to VIS-06).","O1  What the backend's host read and reply rows carry (the recipe v2
 contract, backend #1893) is what the visitor sees, in its words.
 O2  ""Was this useful?"" never takes the bar away.","one test per story, named by its id",
