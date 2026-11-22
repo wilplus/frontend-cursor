@@ -8,17 +8,13 @@ import type { AnalyzeTake, ExperimentSession, ExperimentTake, Intervention, Prom
 import { CONSENT_VERSION } from "@/lib/willab/experiments/types";
 
 /* -------------------------------------------------------------------------- */
-/*  Private experiments. One client, mocks on, no production calls.           */
+/*  Private experiments. The real backend is the default.                      */
 /*                                                                            */
-/*  EXPERIMENTS_USE_MOCKS stays on unless NEXT_PUBLIC_EXPERIMENTS_MOCK=0.     */
-/*  While it is on, these functions never call fetch. This file has no        */
-/*  service-role key and no Supabase secret.                                  */
+/*  EXPERIMENTS_USE_MOCKS is off unless NEXT_PUBLIC_EXPERIMENTS_MOCK=1.       */
+/*  While it is on, these functions never call fetch, and the screens say     */
+/*  "Sample data". This file has no service-role key and no Supabase secret.  */
 /*                                                                            */
-/*  When the flag is off, calls go to this app's /api/v2/experiments/* BFF.     */
-/*  Sessions, takes, analyze-take and analysis have a proxy. Prompts,          */
-/*  interventions, export and delete do not, so those stay a 404 until a       */
-/*  route is added. The flag is on unless NEXT_PUBLIC_EXPERIMENTS_MOCK=0,      */
-/*  so the screens use this device and do not call the backend.                */
+/*  When the flag is off, calls go to this app's /api/v2/experiments/* BFF.   */
 /*                                                                            */
 /*  POST   /v2/experiments/sessions            JSON consent, or multipart     */
 /*                                         with business_case                 */
@@ -35,7 +31,7 @@ import { CONSENT_VERSION } from "@/lib/willab/experiments/types";
 /*  DELETE /v2/experiments/me                                                  */
 /* -------------------------------------------------------------------------- */
 
-export const EXPERIMENTS_USE_MOCKS = process.env.NEXT_PUBLIC_EXPERIMENTS_MOCK !== "0";
+export const EXPERIMENTS_USE_MOCKS = process.env.NEXT_PUBLIC_EXPERIMENTS_MOCK === "1";
 
 const VOLUNTEER_KEY = "wlp-experiment-volunteer";
 let memoryVolunteer: string | null = null;

@@ -2645,8 +2645,10 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
-src/services/api/experiments.test.ts,Story,A host's experiment session stays on this device until they export or delete it.,"O1  Opening, saving, exporting, and deleting a session keep the
-stored takes consistent.","O1 -> ""the experiment store""",
+src/services/api/experiments.test.ts,Story,"A host's experiment session stays on this device until they export or delete it, and only when sample data is turned on.","O1  With no flag, the client does not use the on-device sample.
+O2  With NEXT_PUBLIC_EXPERIMENTS_MOCK=1, opening, saving, exporting,
+and deleting a session keep the stored takes consistent.","O1 -> ""the sample flag is off unless it is set to 1""
+O2 -> ""the experiment store""",
 src/services/api/glueContracts.test.ts,Guard,"Each of 61 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.

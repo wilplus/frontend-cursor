@@ -6,6 +6,12 @@ OUTCOME
   O1  The screens follow the prompt file and stay free of hidden words.
 PROVES   O1 -> "the experiment screens"
 */
+import { vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_EXPERIMENTS_MOCK = "1";
+});
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it } from "vitest";
