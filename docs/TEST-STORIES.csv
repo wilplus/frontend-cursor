@@ -795,8 +795,7 @@ O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
 O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
 O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
 O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
-src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want the home to lead with my Speaking coach and projects, so the older people-chat list does not define my practice IA.","The door waits for auth, preserves the people-chat read, and then
-paints Speaking coach, active projects and Start a new project.",No general Will destination or floating add button is part of home.,
+src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want Speaking Coach and my chats in one sidebar that is available throughout the chat workspace.",Selecting a chat or project swaps the main pane and keeps the sidebar.,The project index is shared and the setup actions are at the bottom.,
 src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
 O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
 O2 -> keeps a paste that calls eval as not live","The Chat Builder has to edit the coach in words, and a paste must not become running code (phase 1 of the Chat Builder)."
@@ -925,15 +924,15 @@ without the ring, it only opens the sheet. (The door's side, that it
 opens the chat asked for: chats.test.tsx ""N636-1"".)
 O6  A row of a host's chat that takes Takes (place ""chat"", N648 item 8)
 shows only in that chat, never in Will, Speaking coach or Principles.","O1, O2 -> ""N636-2""; O3 -> ""N636-3""; O4 -> ""N636-4""; O5 -> ""N636-5""; O6 -> ""N648-8""",
-src/components/willab/chats/ownChatHome.test.tsx,Story,"As a host, I want to start my own chat from the list, pick its icon, and copy its link, so people I share it with can use it.","O1  Start your own chat sits at the bottom of the chat rows, above
-Start a new project. Close leaves the list as it was.
+src/components/willab/chats/ownChatHome.test.tsx,Story,"As a host, I want to start my own chat from the list, pick its icon, and copy its link, so people I share it with can use it.","O1  Start your own chat sits in the setup section below the chats.
+Close leaves the list as it was.
 O2  Yes opens Build, pins the chat at the top under its name, and
-hides the starter row. Back returns to that list.
+turns the setup action into Edit your chat.
 O3  The share control copies /c/<id>, or the host's join path when
 one already exists, and says Link copied.
 O4  The circle starts as the initial, can be an emoji, and wears the
-three-dots badge at about 40% of the avatar.","O1 -> ""the starter row sits above Start a new project, and Close changes nothing""
-O2 -> ""Yes pins the chat at the top and Back returns to the list""
+three-dots badge at about 40% of the avatar.","O1 -> ""the starter row sits in sidebar setup, and Close changes nothing""
+O2 -> ""Yes pins the chat and gives it a direct setup shortcut""
 O3 -> ""Share copies the public link""
 O4 -> ""the icon defaults to the initial and the badge is forty percent""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an

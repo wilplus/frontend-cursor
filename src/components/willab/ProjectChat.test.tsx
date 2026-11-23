@@ -1141,21 +1141,17 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-project-chat]")?.contains(review)).toBe(true);
   });
 
-  it("hides and reopens the project menu with the header arrow", async () => {
-    const other = { ...project, arcId: "arc-b", topic: "Team meeting" };
-    const navigation = { projects: [project, other], onProject: vi.fn(), onCoach: vi.fn() };
-    render(project, false, { navigation });
+  it("restores the project draft when the conversation is reopened", async () => {
+    const onDraftChange = vi.fn();
+    render(project, false, { onDraftChange });
     await flush();
-    const toggle = host.querySelector<HTMLButtonElement>("[data-chat-header] button[aria-controls]")!;
-    const menu = () => document.getElementById(toggle.getAttribute("aria-controls")!);
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(menu()).toBeNull();
-    await act(async () => toggle.click());
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    await act(async () => menu()!.querySelector<HTMLButtonElement>('button[aria-label="Team meeting"]')!.click());
-    expect(navigation.onProject).toHaveBeenCalledWith(other);
-    await act(async () => toggle.click());
-    expect(menu()).toBeNull();
-    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+    const draft = "Can we make the opening shorter?";
+    enterAnswer(draft);
+    expect(onDraftChange).toHaveBeenLastCalledWith(draft);
+
+    act(() => root.render(null));
+    render(project, false, { initialDraft: draft, onDraftChange });
+    const input = host.querySelector<HTMLTextAreaElement>('[data-project-question-composer] textarea');
+    expect(input?.value).toBe(draft);
   });
 });

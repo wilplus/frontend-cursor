@@ -38,6 +38,8 @@ import {
 import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { useChatsDoor } from "./chats/useChatsDoor";
+import ChatWorkspace from "./chats/ChatWorkspace";
+import type { ReviewExit } from "./TakeReview";
 import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
@@ -119,6 +121,8 @@ export default function WillabSurface({
   // that project, which is its ideal text. Only "Start a new project" (or
   // resuming its draft) goes into the recording onboarding.
   const [pickedProject, setPickedProject] = useState<TrainingArc | null>(null);
+  const projectExit = useRef<ReviewExit | null>(null);
+  const projectDrafts = useRef(new Map<string, string>());
   // The recorder hands the accepted Take back to its owning conversation.
   const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
   const [handoffTake, setHandoffTake] = useState<string | null>(null);
@@ -272,9 +276,6 @@ export default function WillabSurface({
   }, [settleHomeStatus, userId]);
   usePublishLiveSubscription(userId, onPublish);
   useFirstVisitSteps(flow.state, signedIn);
-  // The list of chats in front of the Lounge, ring 6 only (feature `chats`;
-  // docs/flows/customer-requests.md C1). Off, it draws nothing: the Lounge
-  // as it is. A link into the Lounge opens on Will's chat.
   // "Record an answer" in a chat (backend N363): the question's own project,
   // then the recording screens at once, no feelings check.
   const startAnswerSetup = flow.startAnswerSetup;
@@ -295,18 +296,29 @@ export default function WillabSurface({
     setRecordingInProgress(false);
     setPickedProject(arc);
   };
-  const chats = useChatsDoor(
-    idealTextArcId !== null || bestPresentationArcId !== null,
-    recordAnswer,
-    {
-      onStartNewProject: () => {
-        clearExploreArc(userId);
-        beginSetupDraft(userId);
-        flow.startNewTopicSetup();
-      },
-      onOpenProject: openProjectChat,
-    },
-  );
+  const navigate = (action: () => void) => (projectExit.current ?? ((next) => next()))(action);
+  const startNewProject = () => {
+    clearExploreArc(userId);
+    beginSetupDraft(userId);
+    flow.startNewTopicSetup();
+  };
+  const chats = useChatsDoor(recordAnswer, {
+    activeProject: pickedProject ?? returnProject,
+    navigate,
+    onLeaveProject: leaveProject,
+    onOpenProject: openProjectChat,
+    onStartNewProject: startNewProject,
+    onRemoveProject: (arcId) => { if (pickedProject?.arcId === arcId) leaveProject(); },
+  });
+  const listedProject = chats.projects.find((arc) => arc.arcId === pickedProject?.arcId);
+  useEffect(() => {
+    if (!listedProject) return;
+    setPickedProject((current) =>
+      current?.arcId === listedProject.arcId && current.topic !== listedProject.topic
+        ? { ...current, topic: listedProject.topic }
+        : current,
+    );
+  }, [listedProject]);
 
   function leaveProject() {
     projectOpenSequence.current++;
@@ -346,32 +358,31 @@ export default function WillabSurface({
   // consent screens prototype (founder 2026-10-07, N60: "just the way it is
   // on the prototype"); the menu is back in the Lounge after "Enter the lab".
   // Nor any padding: the welcome scrolls itself and owns its 24px sides.
-  const shell = (children: React.ReactNode, flush = false, bare = false) => (
+  const shell = (children: React.ReactNode, flush = false, bare = false, workspace = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
-      {bare ? null : (
-        // Hidden, not unmounted, while a person's chat draws its own top bar
-        // in its place (ring 6, backend N321 item 1).
-        <div className="shrink-0" hidden={!chats.navbar || pickedProject !== null}>
+      {bare || workspace ? null : (
+        <div className="shrink-0" hidden={pickedProject !== null}>
           {/* A pull down from the top bar opens the dump screen (N517). */}
           <DumpPullBar>
             <DashboardHeader />
           </DumpPullBar>
         </div>
       )}
-      <div
+      {workspace ? children : <div
         className={`willab-canvas flex flex-1 flex-col overflow-hidden ${shellPadding(
           flush,
           bare,
-        )}${(flush && chats.front) || pickedProject ? " relative" : ""}`}
+        )}${pickedProject ? " relative" : ""}`}
       >
         {children}
-      </div>
+      </div>}
     </main>
   );
   const consentedShell = (
     children: React.ReactNode,
     flush = false,
     bare = false,
+    workspace = false,
   ) =>
     shell(
       <Mlc2FounderConsentGate
@@ -381,6 +392,7 @@ export default function WillabSurface({
       </Mlc2FounderConsentGate>,
       flush,
       bare,
+      workspace,
     );
 
   // Phase-1 processing authorization sits BETWEEN Welcome and the Lounge, not
@@ -388,10 +400,12 @@ export default function WillabSurface({
   // the processing boundary, and the Lounge is what a receipt unlocks. Wrapping
   // `welcome_consent` too would mean the first thing a visitor ever saw was a
   // legal screen for a product they had not been shown yet.
-  const authorizedShell = (children: React.ReactNode, flush = false) =>
+  const authorizedShell = (children: React.ReactNode, flush = false, workspace = false) =>
     consentedShell(
       <Phase1AcceptanceGate>{children}</Phase1AcceptanceGate>,
       flush,
+      false,
+      workspace,
     );
 
   // Resolving the initial state post-mount (hydration-safe); and the wait
@@ -417,31 +431,28 @@ export default function WillabSurface({
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
   // Both share one thread (LoungeThreadProvider) so the Lab can persist a
   // recording's Readout into the same scrollable history.
-  return authorizedShell(
+  if (chats.waiting) return authorizedShell(<LoadingState placement="surface" />);
+  const draftKey = pickedProject ? `${userId ?? "guest"}:${pickedProject.arcId}` : "";
+  const conversation = (
     <LoungeThreadProvider signedIn={signedIn}>
-      <div className="contents" aria-hidden={Boolean(pickedProject)}
-        ref={(element) => { if (element) element.inert = Boolean(pickedProject); }}>
-      {chats.back}
-      <div className="contents" aria-hidden={chats.loungeCovered}
-        ref={(element) => { if (element) element.inert = chats.loungeCovered; }}>
+      {chats.heading}
+      {chats.pane}
+      <div className={chats.loungeCovered ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
       <Lounge
         state={flow.state}
         onRecordAnswer={recordAnswer}
         onStart={flow.startRecording}
-        onStartNewProject={() => {
-          clearExploreArc(userId);
-          beginSetupDraft(userId);
-          flow.startNewTopicSetup();
-        }}
+        onStartNewProject={startNewProject}
         onStartInProject={() => {
           clearActiveSetupDraft(userId);
           flow.startRecordingSetup();
         }}
         onOpenProject={openProject}
+        coachSetup={chats.coachSetup}
         projectChatActive={Boolean(pickedProject || returnProject)}
-        onProjectTakeReady={(arcId, sessionId, scoped) => {
+        onProjectTakeReady={chats.speakingActive ? (arcId, sessionId, scoped) => {
           if (!scoped || pendingProjectHandoff.current === sessionId) openProject(arcId, sessionId);
-        }}
+        } : undefined}
         onStartPlanRecording={(topic, start) => {
           // After the first Take, the real talk is that project's Take 2
           // (backend N449 item 1): "How do you feel?" with its Skip, then
@@ -473,8 +484,6 @@ export default function WillabSurface({
         waitHandedOver={waitHandedOver}
         onWaitHandedOverShown={() => setWaitHandedOver(null)}
       />
-      </div>
-      {chats.front}
       </div>
       {/* Context-aware setup — WHICH project, asked before the Lab opens.
           Picking a title seeds the arc so the setup form prefills from it and
@@ -558,11 +567,9 @@ export default function WillabSurface({
           key={pickedProject.arcId}
           project={pickedProject}
           handoffTake={handoffTake}
-          navigation={chats.openSpeaking ? {
-            projects: chats.projects ?? [],
-            onProject: openProjectChat,
-            onCoach: () => { leaveProject(); chats.openSpeaking?.(); },
-          } : undefined}
+          beforeLeaveRef={projectExit}
+          initialDraft={projectDrafts.current.get(draftKey) ?? ""}
+          onDraftChange={(draft) => projectDrafts.current.set(draftKey, draft)}
           analysisPending={pickerSettle.pending}
           recordingInProgress={recordingInProgress}
           onBack={leaveProject}
@@ -620,9 +627,14 @@ export default function WillabSurface({
       )}
       {/* The Lab's screens fade back out over the Lounge (Q-B14 A, D-RC-7). */}
       <LabFadeOut open={flow.labOverlayOpen} />
-    </LoungeThreadProvider>,
-    true // A2 — home/Lounge: flush the chat to the navbar (no top gap)
+    </LoungeThreadProvider>
   );
+  return authorizedShell(chats.enabled ? (
+    <ChatWorkspace key={userId} sidebar={chats.sidebar} viewKey={`${chats.activeChat}:${chats.coachSetup}`}
+      suspended={flow.labOverlayOpen || flow.state === "lab_project_pick"}>
+      {conversation}
+    </ChatWorkspace>
+  ) : conversation, true, chats.enabled);
 }
 
 /** The steps of a first visit the flow itself shows (backend N271): the

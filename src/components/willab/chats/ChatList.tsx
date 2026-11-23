@@ -161,7 +161,7 @@ export function WillBadge({ px }: { px: number }) {
 export function PersonCircle({ id, name, size, assistant = null, badge = false, mark = null }: {
   id: string;
   name: string;
-  size: 36 | 48;
+  size: 24 | 36 | 48;
   assistant?: string | null;
   badge?: boolean;
   mark?: ReactNode | null;

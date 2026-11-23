@@ -43,9 +43,9 @@ export function useOwnFace(): ChatFace {
 }
 
 /** The circle's face. The initial is the locked letter circle. */
-export function ChatFaceMark({ face, id, name, size }: { face: ChatFace; id: string; name: string; size: 36 | 48 }) {
+export function ChatFaceMark({ face, id, name, size }: { face: ChatFace; id: string; name: string; size: 24 | 36 | 48 }) {
   if (face.kind === "initial") return <LetterCircle id={id} name={name} size={size} />;
-  const box = size === 48 ? "h-12 w-12 text-[22px]" : "h-9 w-9 text-[16px]";
+  const box = size === 48 ? "h-12 w-12 text-[22px]" : size === 36 ? "h-9 w-9 text-[16px]" : "size-6 text-xs";
   if (face.kind === "emoji") {
     return <span data-chat-face="emoji" aria-hidden className={`flex shrink-0 items-center justify-center rounded-full bg-muted ${box}`}>{face.emoji}</span>;
   }
@@ -59,7 +59,7 @@ export function ChatFaceMark({ face, id, name, size }: { face: ChatFace; id: str
   );
 }
 
-export function OwnAvatar({ id, name, size }: { id: string; name: string; size: 36 | 48 }) {
+export function OwnAvatar({ id, name, size }: { id: string; name: string; size: 24 | 36 | 48 }) {
   const face = useOwnFace();
   return <PersonCircle id={id} name={name} size={size} badge mark={<ChatFaceMark face={face} id={id} name={name} size={size} />} />;
 }

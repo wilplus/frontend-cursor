@@ -26,10 +26,15 @@ export type UiCopyKey =
   | "deleteFailed"
   | "tryAgain"
   | "speakingCoach"
+  | "setUpSpeakingCoach"
+  | "openChatSidebar"
+  | "closeChatSidebar"
+  | "chatsNavigation"
   | "showProjects"
   | "hideProjects"
   | "chooseProject"
   | "startOwnChat"
+  | "editOwnChat"
   | "startNewProject"
   | "createNewProject"
   | "startFirstProject"
@@ -107,10 +112,15 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Couldn't delete. Try again.",
     tryAgain: "Try again",
     speakingCoach: "Speaking coach",
+    setUpSpeakingCoach: "Set up Speaking Coach",
+    openChatSidebar: "Show sidebar",
+    closeChatSidebar: "Hide sidebar",
+    chatsNavigation: "Chats",
     showProjects: "Show projects",
     hideProjects: "Hide projects",
     chooseProject: "Projects",
     startOwnChat: "Start your own chat",
+    editOwnChat: "Edit your chat",
     startNewProject: "Start a new project",
     createNewProject: "Create new project",
     startFirstProject: "Start your first project",
@@ -174,9 +184,15 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Nie udało się usunąć. Spróbuj ponownie.",
     tryAgain: "Spróbuj ponownie",
     speakingCoach: "Trener wystąpień",
+    setUpSpeakingCoach: "Skonfiguruj trenera wystąpień",
+    openChatSidebar: "Pokaż panel boczny",
+    closeChatSidebar: "Ukryj panel boczny",
+    chatsNavigation: "Czaty",
     showProjects: "Pokaż projekty",
     hideProjects: "Ukryj projekty",
     chooseProject: "Projekty",
+    startOwnChat: "Utwórz własny czat",
+    editOwnChat: "Edytuj swój czat",
     startNewProject: "Rozpocznij nowy projekt",
     createNewProject: "Utwórz nowy projekt",
     startFirstProject: "Rozpocznij pierwszy projekt",

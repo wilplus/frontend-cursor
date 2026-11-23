@@ -57,22 +57,19 @@ export default function DashboardHeader() {
             needed; the running total did not have to be permanently on screen
             for that to work. */}
       <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-          <AppMenu
-            authState={menu.authState}
-            userEmail={menu.userEmail}
-            userName={menu.userName}
-            tokensLabel={menu.tokensLabel}
-            lifeMenu={menu.lifeMenu}
-            productMenu={menu.productMenu}
-            onLogout={menu.logout}
-            loggingOut={menu.loggingOut}
-            // No Lab row in the lab (backend N367): the logo goes home.
-            labHref={null}
-            // Every signed-in person (founder 2026-09-25, E4 = A); the
-            // menu already hides it from anyone signed out.
-            dataConsentHref="/account/data-consent"
-          />
+          <AccountMenu menu={menu} />
       </div>
     </PageHeader>
   );
+}
+
+export function DashboardAccountMenu({ above = false }: { above?: boolean }) {
+  return <AccountMenu menu={useAppMenuData()} above={above} />;
+}
+
+function AccountMenu({ menu, above }: { menu: ReturnType<typeof useAppMenuData>; above?: boolean }) {
+  return <AppMenu authState={menu.authState} userEmail={menu.userEmail} userName={menu.userName}
+    tokensLabel={menu.tokensLabel} lifeMenu={menu.lifeMenu} productMenu={menu.productMenu}
+    onLogout={menu.logout} loggingOut={menu.loggingOut} labHref={null}
+    dataConsentHref="/account/data-consent" above={above} />;
 }

@@ -1,20 +1,17 @@
 // @vitest-environment jsdom
 /*
-STORY    As a speaker, I want the home to lead with my Speaking coach and
-         projects, so the older people-chat list does not define my practice IA.
-OUTCOME  The door waits for auth, preserves the people-chat read, and then
-         paints Speaking coach, active projects and Start a new project.
-PROVES   No general Will destination or floating add button is part of home.
+STORY    As a speaker, I want Speaking Coach and my chats in one sidebar that
+         is available throughout the chat workspace.
+OUTCOME  Selecting a chat or project swaps the main pane and keeps the sidebar.
+PROVES   The project index is shared and the setup actions are at the bottom.
 */
-import { act, createElement, useEffect, type ReactNode } from "react";
+import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { TrainingArc } from "@/services/api/trainings";
 
 const session = vi.hoisted(() => ({ signedIn: true as boolean | null }));
 const state = vi.hoisted(() => ({
-  thread: { loading: false, messages: [] as LoungeMessage[] },
   fetchTrainings: vi.fn(),
   legacyRead: vi.fn(),
 }));
@@ -24,7 +21,6 @@ vi.mock("@/services/api/chatStructure", () => ({
   fetchChatStructure: async () => ({ coach: "active", builder: "active", subchats: [] }),
   changeChatStructure: vi.fn(),
 }));
-vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => state.thread }));
 vi.mock("./useChats", () => ({
   useChatsDecided: () => session.signedIn,
   useChatList: (on: boolean) => {
@@ -34,14 +30,11 @@ vi.mock("./useChats", () => ({
   useForgetChatsSignedOut: vi.fn(),
 }));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: state.fetchTrainings }));
-vi.mock("@/components/willab/chats/ChatList", () => ({
-  ChatListRow: ({ id, title, circle, actions, onOpen }: { id: string; title: string; circle: ReactNode; actions: ReactNode; onOpen: () => void }) =>
-    createElement("div", null, createElement("button", { type: "button", "data-chat-row": id, onClick: onOpen }, circle, title), actions),
-  WillMark: () => createElement("span", { "data-will-mark": "" }),
-  PersonCircle: ({ name }: { name: string }) => createElement("span", { "data-person-circle": "" }, name.slice(0, 1)),
-}));
+vi.mock("@/components/dashboard/DashboardHeader", () => ({ DashboardAccountMenu: () => null }));
+vi.mock("./WillBuild", () => ({ default: () => createElement("div", { "data-builder-pane": "" }) }));
 vi.mock("../useBackDismiss", () => ({ useBackStop: vi.fn(), useBackDismiss: vi.fn() }));
 
+import ChatWorkspace from "./ChatWorkspace";
 import { useChatsDoor } from "./useChatsDoor";
 
 const arc = (arcId: string, topic: string, archived = false): TrainingArc => ({
@@ -64,8 +57,22 @@ let root: Root;
 let host: HTMLDivElement;
 
 function Surface({ onOpenProject, onStartNewProject }: { onOpenProject: (project: TrainingArc) => void; onStartNewProject: () => void }) {
-  const door = useChatsDoor(false, undefined, { onOpenProject, onStartNewProject });
-  return createElement("div", null, door.back, door.front);
+  const [project, setProject] = useState<TrainingArc | null>(null);
+  const door = useChatsDoor(undefined, {
+    activeProject: project,
+    onOpenProject: (arc) => { setProject(arc); onOpenProject(arc); },
+    onLeaveProject: () => setProject(null),
+    onStartNewProject,
+  });
+  if (door.waiting) return createElement("div", { "data-chats-waiting": "" });
+  return (
+    <ChatWorkspace sidebar={door.sidebar} viewKey={`${door.activeChat}:${door.coachSetup}`}>
+      {door.heading}
+      {door.pane}
+      {project ? <div data-project-pane>{project.topic}</div> : null}
+      {door.loungeCovered ? null : <div data-coach-pane={door.coachSetup} />}
+    </ChatWorkspace>
+  );
 }
 
 beforeEach(() => {
@@ -73,7 +80,8 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   session.signedIn = true;
-  state.thread.loading = false;
+  localStorage.clear();
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   state.fetchTrainings.mockReset().mockResolvedValue([arc("a", "Board pitch"), arc("b", "Team update"), arc("old", "Old", true)]);
   state.legacyRead.mockReset();
 });
@@ -81,11 +89,15 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.unstubAllGlobals();
 });
 
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
-describe("the speaking-coach door", () => {
+const row = (id: string) => host.querySelector<HTMLButtonElement>(`[data-chat-row="${id}"]`)!;
+const click = (button: HTMLButtonElement) => act(async () => button.click());
+
+describe("the chat workspace", () => {
   it("waits for auth without painting a stale destination", () => {
     session.signedIn = null;
     act(() => root.render(createElement(Surface, { onOpenProject: vi.fn(), onStartNewProject: vi.fn() })));
@@ -93,7 +105,7 @@ describe("the speaking-coach door", () => {
     expect(host.textContent).not.toContain("Will");
   });
 
-  it("keeps the people-chat read but uses the product home as the IA", async () => {
+  it("lists projects under Speaking Coach and opens each directly in the main pane", async () => {
     const openProject = vi.fn();
     const startNew = vi.fn();
     act(() => root.render(createElement(Surface, { onOpenProject: openProject, onStartNewProject: startNew })));
@@ -104,46 +116,65 @@ describe("the speaking-coach door", () => {
     expect(host.textContent).toContain("Team update");
     expect(host.textContent).not.toContain("Old");
     expect(host.textContent).toContain("Start a new project");
-    expect(host.textContent).not.toContain("Will");
-    expect(host.querySelector("[data-add-someone]")).toBeNull();
+    const workspace = host.querySelector("[data-chat-workspace]")!;
+    const sidebar = workspace.querySelector(":scope > aside");
+    const main = workspace.querySelector(":scope > [data-chat-main]");
+    const projects = row("speaking-coach").parentElement?.nextElementSibling;
+    expect(projects?.hasAttribute("data-product-projects")).toBe(true);
+    expect(projects?.contains(row("b"))).toBe(true);
+    expect(main?.querySelector("[data-coach-pane]")).not.toBeNull();
 
-    await act(async () => (host.querySelector('[data-home-row="b"] button') as HTMLButtonElement).click());
+    await click(row("b"));
     expect(openProject).toHaveBeenCalledWith(expect.objectContaining({ arcId: "b" }));
-    await act(async () => (host.querySelector("[data-start-new-project]") as HTMLButtonElement).click());
+    expect(row("b").getAttribute("aria-current")).toBe("page");
+    expect(main?.querySelector("[data-project-pane]")?.textContent).toBe("Team update");
+    expect(main?.querySelector("nav, select, aside")).toBeNull();
+
+    await click(row("a"));
+    expect(main?.querySelector("[data-project-pane]")?.textContent).toBe("Board pitch");
+    await click(row("speaking-coach"));
+    expect(main?.querySelector("[data-coach-pane]")).not.toBeNull();
+    expect(workspace.querySelector(":scope > aside")).toBe(sidebar);
+    expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
+
+    await click(host.querySelector<HTMLButtonElement>("[data-start-new-project]")!);
     expect(startNew).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the project index mounted while Speaking coach is open", async () => {
+  it("keeps both setup actions at the bottom of the shared sidebar", async () => {
     act(() => root.render(createElement(Surface, {
       onOpenProject: vi.fn(),
       onStartNewProject: vi.fn(),
     })));
     await flush();
+    const setup = host.querySelector("[data-chat-sidebar-setup]")!;
+    expect(setup.previousElementSibling?.hasAttribute("data-chat-list")).toBe(true);
+    expect(setup.contains(row("set-up-speaking-coach"))).toBe(true);
+    expect(setup.contains(row("start-own-chat"))).toBe(true);
+    await click(row("b"));
+    await click(row("set-up-speaking-coach"));
+    expect(host.querySelector("[data-coach-pane]")?.getAttribute("data-coach-pane")).toBe("1");
+    await click(row("start-own-chat"));
+    await click(document.querySelector<HTMLButtonElement>("[data-own-chat-yes]")!);
+    expect(host.querySelector("[data-chat-main] [data-builder-pane]")).not.toBeNull();
     expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      (host.querySelector('[data-home-row="speaking-coach"] button') as HTMLButtonElement).click();
-    });
-    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(true);
-    const back = host.querySelector('button[aria-label="Back"]') as HTMLButtonElement;
-    await act(async () => back.click());
-    await flush();
-
-    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(false);
-    expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
-    expect(host.textContent).toContain("Board pitch");
   });
 
-  it("opens Speaking coach with its title and toggles projects with its arrow", async () => {
+  it("closes the mobile sidebar on selection and reopens it from the workspace icon", async () => {
+    vi.mocked(window.matchMedia).mockReturnValue({ ...window.matchMedia(""), matches: false });
     act(() => root.render(createElement(Surface, { onOpenProject: vi.fn(), onStartNewProject: vi.fn() })));
     await flush();
-    const row = host.querySelector('[data-home-row="speaking-coach"]')!;
-    const chevron = row.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
-    const group = document.getElementById(chevron.getAttribute("aria-controls")!)!;
-    await act(async () => chevron.click());
-    expect(group.hidden).toBe(true);
-    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(false);
-    await act(async () => row.querySelector<HTMLButtonElement>("[data-chat-row]")!.click());
-    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(true);
+    const toggle = host.querySelector<HTMLButtonElement>("[data-chat-workspace] > button[aria-controls]")!;
+    const sidebar = document.getElementById(toggle.getAttribute("aria-controls")!);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    await click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(sidebar?.contains(row("b"))).toBe(true);
+    await click(row("b"));
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(host.querySelector("[data-chat-main] [data-project-pane]")?.textContent).toBe("Team update");
+    await click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(sidebar?.contains(row("a"))).toBe(true);
   });
 });

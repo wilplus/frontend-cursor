@@ -81,9 +81,9 @@ personality or challenge/threat state from voice alone (N663).
 
 ## 1. The rules
 
-### Speaking Coach projects and Take review (N666, N670)
+### Chat workspace and Take review (N666, N670, N671)
 
-The existing Speaking Coach row opens the general conversation. Its chevron independently reveals owned projects. Each project opens its conversation directly and has a project menu with a small arrow to hide or reopen it. The general conversation holds general advice. Each project conversation holds its own Takes, feedback and contextual questions.
+One sidebar sits beside the active chat. The Speaking Coach row opens general guidance, with its projects listed underneath. Each project row opens its own conversation, Takes, feedback, and contextual questions. Owned chats, subchats, and other conversations use the same sidebar. The sidebar icon stays at the top left. On a phone the sidebar opens as a drawer. Setup for Speaking Coach and a person's own chat sit at the bottom. This replaces the full-page chat list, the Projects selector, and the sidebar inside a project.
 
 A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The new review opens in the project conversation when its spoken Take finishes processing and the user is there. Minimise at the bottom or leave the project to fold it into one clickable bubble beneath its recording. The bubble gives a short preview. Opening it restores the same Take and its saved practice runs, including runs older than the conversation's first page.
 

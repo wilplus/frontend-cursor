@@ -96,6 +96,7 @@ export interface AppMenuProps {
   dataConsentHref?: string | null;
   /** The account's name, when it has one; the email is shown under it. */
   userName?: string | null;
+  above?: boolean;
 }
 
 export default function AppMenu({
@@ -109,6 +110,7 @@ export default function AppMenu({
   labHref = null,
   dataConsentHref = null,
   userName = null,
+  above = false,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -190,7 +192,8 @@ export default function AppMenu({
       {open && (
         <div
           id={MENU_ID}
-          className="absolute right-0 top-full z-50 mt-2 w-[280px] rounded-2xl border bg-card p-2 shadow-lg"
+          className={cn("absolute z-50 w-[280px] max-w-[calc(100vw-24px)] rounded-2xl border bg-card p-2 shadow-lg",
+            above ? "bottom-full left-0 mb-2 max-h-[70dvh] overflow-y-auto" : "right-0 top-full mt-2")}
         >
           {signedIn ? (
             <>
