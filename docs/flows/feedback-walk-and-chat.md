@@ -170,6 +170,9 @@ and [Chat Builder](../chat-builder/flow.md).
   the Take's text and its marks are stored: the marks are baked in the
   processing run right after the Take is ready, and the page asks for them
   until they are in (or for ninety seconds) (2026-10-20, WIL-76).
+  In a project chat, a reply keeps the same place as the message it answers
+  when the thread reloads. An ordinary reply stays visible while the Take
+  recap is folded.
 - **A2** The moment processing finishes, the walk opens by itself, with
   nothing in between: the waiting screen stays over it until the walk's
   first step is on screen and lifts then, so "done" never opens onto the
