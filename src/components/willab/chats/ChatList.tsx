@@ -84,14 +84,14 @@ function tintOf(id: string) {
 }
 
 /** A circle with the first letter of the name. */
-export function LetterCircle({ id, name, size }: { id: string; name: string; size: 36 | 48 }) {
+export function LetterCircle({ id, name, size }: { id: string; name: string; size: 24 | 36 | 48 }) {
   const tint = tintOf(id);
   return (
     <span
       aria-hidden
       data-chat-letter=""
       className={`flex shrink-0 items-center justify-center rounded-full font-semibold leading-none ${
-        size === 48 ? "h-12 w-12 text-[20px]" : "h-9 w-9 text-[15px]"
+        size === 48 ? "h-12 w-12 text-[20px]" : size === 36 ? "h-9 w-9 text-[15px]" : "size-6 text-xs"
       }`}
       style={{ background: tint.bg, color: tint.fg }}
     >

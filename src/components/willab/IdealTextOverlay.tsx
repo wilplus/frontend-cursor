@@ -21,8 +21,10 @@ import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import OtherAccountLink from "./OtherAccountLink";
 import { showCoachBubble } from "./useCoachBubbleFocus";
 import LoadingState from "./LoadingState";
+import TypingDots from "./TypingDots";
 import WalkLoading from "./walk/WalkLoading";
 import { useBackDismiss } from "./useBackDismiss";
+import { useInlineWalkHost } from "./walk/InlineWalkHost";
 import { RichText } from "./RichText";
 import IdealTextHeading from "./IdealTextHeading";
 import MarkedParagraphs from "./MarkedParagraphs";
@@ -236,6 +238,7 @@ export default function IdealTextOverlay({
    *  now — kept as-is so the two call sites don't churn.) */
   onReadAloud?: (version: number | null) => void;
 }) {
+  const inlineWalk = useInlineWalkHost() !== null;
   // The editor registers its one save-safe exit here. Every route out of this
   // full-screen surface (navbar controls, device/browser Back, and the walk's
   // close) goes through the same guard, so a draft can never disappear just
@@ -250,16 +253,15 @@ export default function IdealTextOverlay({
   // The lens's address goes on the Back entry just pushed, after it exists,
   // and comes off on every close (✕, Back, the next Take).
   useEffect(() => {
+    if (inlineWalk) return;
     if (initialMode !== "review" && initialMode !== "feedback") return;
     lensAddress(arcId, initialMode);
     return () => lensAddress(null);
-  }, [arcId, initialMode]);
+  }, [arcId, initialMode, inlineWalk]);
   // This page is always the live, editable document. An older Take's card
   // opens its own words elsewhere, read only (IdealTextPastVersion, backend
   // N375); the old "historical" step here (FE-3b, ?version) stays gone.
-  const [status, setStatus] = useState<
-    "loading" | "ready" | "instant" | "pending" | "notYours" | "error"
-  >("loading");
+  const [status, setStatus] = useState<IdealTextStatus>("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   const [refetchNonce, setRefetchNonce] = useState(0);
   // The page that can't load reads again by itself, and on "Try again"
@@ -399,7 +401,7 @@ export default function IdealTextOverlay({
   // The lens comes down as soon as the page knows there is nothing to walk
   // (founder 2026-10-14): the feedback settled and no step is opening.
   const lensPage = lensPageOf(status, feedbackPending, reviewWaiting, reviewOpenedRef.current, coachOnly);
-  const lens = useLensScreen(arcId, initialMode, lensIdle(lensPage), lensStillLoading(lensPage));
+  const lens = useLensScreen(arcId, inlineWalk ? "notebook" : initialMode, lensIdle(lensPage), lensStillLoading(lensPage));
   useEffect(() => {
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
@@ -1053,8 +1055,9 @@ export default function IdealTextOverlay({
     <div
       data-ideal-text-wheel-owner
       {...aiGeneratedAttrs("ideal-text")}
-      className={lensHides(lens.on)}
+      className={inlineWalk ? "contents" : lensHides(lens.on)}
     >
+      {inlineWalk ? null : <>
       <LensFrame on={lens.on} onClose={onClose} />
       <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
           {/* The project's name and its verification state, from the shared
@@ -1094,6 +1097,7 @@ export default function IdealTextOverlay({
       <PageNotice notice={notice} />
       {updateSlides.layer}
       {archivedReturn.layer}
+      </>}
 
       {shownStatus === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
@@ -1101,7 +1105,7 @@ export default function IdealTextOverlay({
         // chunk, REVIEW/EDITOR modals on the existing decide/lock lanes.
         // A user-edited document rides the same deck (its parts and locks
         // are real; there are simply no suggestions left to wait on).
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className={inlineWalk ? "contents" : "flex min-h-0 flex-1 flex-col"}>
           {tooLong ? (
             <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
               {IDEAL_EDIT_COPY.tooLong}
@@ -1127,7 +1131,7 @@ export default function IdealTextOverlay({
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
-            onLensClose={walkCloseFor(projectFlow, requestExit, lens.reveal)}
+            onLensClose={inlineWalk ? requestExit : walkCloseFor(projectFlow, requestExit, lens.reveal)}
             coachOnly={coachOnly}
             coachTake={coachTake}
             // Nothing of the coach's to show: back to the chat, at the
@@ -1136,10 +1140,10 @@ export default function IdealTextOverlay({
               showCoachBubble(coachTake ?? null);
               requestExit();
             }}
-            onLensReveal={walkRevealFor(lens.reveal, onPracticeUnavailable)}
-            onWalkEnd={walkEndFor(coachOnly, requestExit, lens, reviewAt)}
+            onLensReveal={walkRevealFor(inlineWalk ? requestExit : lens.reveal, onPracticeUnavailable)}
+            onWalkEnd={inlineWalk ? requestExit : walkEndFor(coachOnly, requestExit, lens, reviewAt)}
             onWalkClose={() => {
-              if (reviewAt?.practise || lens.onRef.current) requestExit();
+              if (inlineWalk || reviewAt?.practise || lens.onRef.current) requestExit();
             }}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
@@ -1182,7 +1186,7 @@ export default function IdealTextOverlay({
           />
           {/* MATERIAL RECOVERY — below the deck, same reasoning as before:
               nothing in the text to anchor to. */}
-          {sd.additions.length > 0 ? (
+          {!inlineWalk && sd.additions.length > 0 ? (
             <div
               data-ideal-text-wheel-native
               className="scrollbar-none max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3"
@@ -1196,93 +1200,9 @@ export default function IdealTextOverlay({
           ) : null}
         </div>
       ) : (
-        <div className="scrollbar-none flex-1 overflow-y-auto">
-          <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col px-5 py-8`}>
-            {shownStatus === "loading" ? (
-              analysisPending ? (
-                // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
-                // an ordinary load: the old text is deliberately inaccessible
-                // while the take's document assembles. It used to carry its own
-                // "Working on your text" line; that copy is DELETED and both
-                // phases of the wait now render the one waiting screen (founder
-                // 2026-08-11), so the wait never changes its subject halfway
-                // through. When the settle probe clears the marker,
-                // `analysisPending` flips and the fetch effect pulls the fresh
-                // document into this same view.
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <ProcessingWait
-                    phase="document"
-                    progress={{ stage: "document_assembly", percent: null }}
-                  />
-                </div>
-              ) : (
-                <LoadingState placement="surface" />
-              )
-            ) : shownStatus === "pending" ? (
-              <IdealTextPendingCoach
-                onReadAloud={onReadAloud}
-                onRetry={retryWhilePending}
-              />
-            ) : shownStatus === "notYours" ? (
-              // The coach's link in another account (WIL-93): said, never waited on.
-              <OtherAccountLink />
-            ) : shownStatus === "error" ? (
-              <LoadFailed onRetry={tryAgain} />
-            ) : shownStatus === "instant" && ideal ? (
-              <div className="flex flex-col gap-5">
-                {/* The persistent instant banner — this text is a free DRAFT the
-                  machine assembled; the coach-perfected version replaces it
-                  on this same screen once the coach approves it. */}
-                <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-                  <Sparkles
-                    className="h-4 w-4 shrink-0 text-primary"
-                    aria-hidden
-                  />
-                  <p className="text-[13px] leading-relaxed text-foreground">
-                    Instant draft. Your coach is polishing the full version.
-                  </p>
-                </div>
-                {/* The free machine draft: the words and their markers, and
-                  nothing else. It used to carry the star layer; stars are
-                  gone (founder 2026-08-11) and this lane has no decisions of
-                  its own — the coach's version arrives on the deck. */}
-                <MarkedParagraphs
-                  text={displayText}
-                  textSizeClass="text-[18px]"
-                />
-              </div>
-            ) : ideal ? (
-              <div className="flex flex-col gap-4">
-                {/* The verification badge moved into the header (above) — a row
-                  of its own was a band of vertical space for one word. */}
-                {/* Founder 2026-08-11 — the star lane's Approve-all is retired
-                  with the stars: every proposal now decides one at a time
-                  through the deck's REVIEW modal. */}
-
-                {tooLong ? (
-                  <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    {IDEAL_EDIT_COPY.tooLong}
-                  </p>
-                ) : saveStatusCopy ? (
-                  <p
-                    data-testid="ideal-text-save-status"
-                    className="text-[12px] leading-relaxed text-muted-foreground"
-                  >
-                    {saveStatusCopy}
-                  </p>
-                ) : null}
-
-                {/* Legacy (non-SD) payload — a plain, star-free read. The SD
-                  lane renders the deck above; this fading lane keeps its
-                  words and markers, nothing else (founder 2026-08-11: no
-                  stars anywhere). */}
-                <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
-                  <RichText text={displayText} />
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <IdealTextUnavailable status={shownStatus} inlineWalk={inlineWalk} analysisPending={analysisPending}
+          hasText={Boolean(ideal)} text={displayText} tooLong={tooLong} saveStatusCopy={saveStatusCopy}
+          onReadAloud={onReadAloud} tryAgain={tryAgain} retryWhilePending={retryWhilePending} />
       )}
 
       {/* The PERSISTENT bottom control. Reading the text out loud used to sit
@@ -1350,6 +1270,121 @@ export default function IdealTextOverlay({
       />
     </div>
     </MediaRefreshProvider>
+  );
+}
+
+type IdealTextStatus = "loading" | "ready" | "instant" | "pending" | "notYours" | "error";
+
+function IdealTextUnavailable({
+  status, inlineWalk, analysisPending, hasText, text: displayText, tooLong,
+  saveStatusCopy, onReadAloud, tryAgain, retryWhilePending,
+}: {
+  status: IdealTextStatus;
+  inlineWalk: boolean;
+  analysisPending: boolean;
+  hasText: boolean;
+  text: string;
+  tooLong: boolean;
+  saveStatusCopy: string | null;
+  onReadAloud?: (version: number | null) => void;
+  tryAgain: () => void;
+  retryWhilePending: () => void;
+}) {
+  if (inlineWalk) return (
+  <div className="py-2">
+    {status === "loading" ? <TypingDots label="Loading feedback" /> :
+      status === "notYours" ? <OtherAccountLink /> :
+      <LoadFailed onRetry={status === "error" ? tryAgain : retryWhilePending} />}
+  </div>
+  );
+  return (
+  <div className="scrollbar-none flex-1 overflow-y-auto">
+    <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col px-5 py-8`}>
+      {status === "loading" ? (
+        analysisPending ? (
+          // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
+          // an ordinary load: the old text is deliberately inaccessible
+          // while the take's document assembles. It used to carry its own
+          // "Working on your text" line; that copy is DELETED and both
+          // phases of the wait now render the one waiting screen (founder
+          // 2026-08-11), so the wait never changes its subject halfway
+          // through. When the settle probe clears the marker,
+          // `analysisPending` flips and the fetch effect pulls the fresh
+          // document into this same view.
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ProcessingWait
+              phase="document"
+              progress={{ stage: "document_assembly", percent: null }}
+            />
+          </div>
+        ) : (
+          <LoadingState placement="surface" />
+        )
+      ) : status === "pending" ? (
+        <IdealTextPendingCoach
+          onReadAloud={onReadAloud}
+          onRetry={retryWhilePending}
+        />
+      ) : status === "notYours" ? (
+        // The coach's link in another account (WIL-93): said, never waited on.
+        <OtherAccountLink />
+      ) : status === "error" ? (
+        <LoadFailed onRetry={tryAgain} />
+      ) : status === "instant" && hasText ? (
+        <div className="flex flex-col gap-5">
+          {/* The persistent instant banner — this text is a free DRAFT the
+            machine assembled; the coach-perfected version replaces it
+            on this same screen once the coach approves it. */}
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <Sparkles
+              className="h-4 w-4 shrink-0 text-primary"
+              aria-hidden
+            />
+            <p className="text-[13px] leading-relaxed text-foreground">
+              Instant draft. Your coach is polishing the full version.
+            </p>
+          </div>
+          {/* The free machine draft: the words and their markers, and
+            nothing else. It used to carry the star layer; stars are
+            gone (founder 2026-08-11) and this lane has no decisions of
+            its own — the coach's version arrives on the deck. */}
+          <MarkedParagraphs
+            text={displayText}
+            textSizeClass="text-[18px]"
+          />
+        </div>
+      ) : hasText ? (
+        <div className="flex flex-col gap-4">
+          {/* The verification badge moved into the header (above) — a row
+            of its own was a band of vertical space for one word. */}
+          {/* Founder 2026-08-11 — the star lane's Approve-all is retired
+            with the stars: every proposal now decides one at a time
+            through the deck's REVIEW modal. */}
+
+          {tooLong ? (
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
+              {IDEAL_EDIT_COPY.tooLong}
+            </p>
+          ) : saveStatusCopy ? (
+            <p
+              data-testid="ideal-text-save-status"
+              className="text-[12px] leading-relaxed text-muted-foreground"
+            >
+              {saveStatusCopy}
+            </p>
+          ) : null}
+
+          {/* Legacy (non-SD) payload — a plain, star-free read. The SD
+            lane renders the deck above; this fading lane keeps its
+            words and markers, nothing else (founder 2026-08-11: no
+            stars anywhere). */}
+          <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
+            <RichText text={displayText} />
+          </p>
+        </div>
+      ) : null}
+    </div>
+  </div>
   );
 }
 

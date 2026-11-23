@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import ChatComposer from "../chats/ChatComposer";
+import { useInlineWalkHost } from "./InlineWalkHost";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkFooter — one black pill, grey links under it, never beside it          */
@@ -51,13 +53,15 @@ export function WalkLink({ action }: { action: WalkAction }) {
 
 /** Start or retry a spoken exercise from the mic slot. */
 export function WalkMic({ action, secondary }: { action: WalkAction; secondary?: WalkAction }) {
-  return (
+  const host = useInlineWalkHost();
+  const composer = (
     <ChatComposer
       voiceRequired
       mic={{ start: action.onClick, label: action.label, disabled: action.disabled, attrs: { "data-testid": action.testId } }}
       above={secondary ? <WalkLink action={secondary} /> : null}
     />
   );
+  return host?.recordingDock ? createPortal(composer, host.recordingDock) : composer;
 }
 
 export default function WalkFooter({

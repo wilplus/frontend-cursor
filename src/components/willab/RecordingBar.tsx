@@ -1,6 +1,8 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import ChatComposer from "./chats/ChatComposer";
+import { useInlineWalkHost } from "./walk/InlineWalkHost";
 
 /** The strip's button, signed (the tempo step's word, N314). */
 export const RECORDING_STOP = "Stop";
@@ -18,9 +20,11 @@ export default function RecordingBar({
    *  yet (the tempo step). */
   onStop?: () => void;
 }) {
-  return (
+  const host = useInlineWalkHost();
+  const bar = (
     <div className="min-w-0 flex-1" data-recording-bar="">
       <ChatComposer voiceRequired recording={{ elapsedMs, stop: onStop, discard: onTrash, stopLabel: RECORDING_STOP }} />
     </div>
   );
+  return host?.recordingDock ? createPortal(bar, host.recordingDock) : bar;
 }

@@ -385,6 +385,26 @@ function bottomProcessing(
   return processingBubbleVisible(resume, { firstTakeWayIn });
 }
 
+function showsLoungeProcessing(projectChatActive: boolean, projectMarker: boolean, speakingProject: boolean, firstTakeWayIn: boolean) {
+  return !projectChatActive && !projectMarker && (!speakingProject || firstTakeWayIn);
+}
+
+function LoungeProcessingFailure({ active, retrying, onRetry }: { active: boolean; retrying: boolean; onRetry: () => void }) {
+  if (!active) return null;
+  return <>
+    <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
+      {FLOW_COPY.failed}
+    </p>
+    <p className="mb-1.5 px-4 text-center text-[12px] leading-relaxed text-muted-foreground">
+      {FLOW_COPY.failedNext}
+    </p>
+    <Button type="button" variant="outline" disabled={retrying} onClick={onRetry}
+      className="mb-2 h-10 w-full rounded-full">
+      {retrying ? "Restarting…" : "Try processing again"}
+    </Button>
+  </>;
+}
+
 /** The oldest and the newest message's client_id, or null for none. */
 function threadEnds(messages: readonly Pick<LoungeMessage, "client_id">[]): { oldest: string | null; newest: string | null } {
   return { oldest: messages.at(0)?.client_id ?? null, newest: messages.at(-1)?.client_id ?? null };
@@ -577,7 +597,8 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
-  projectUpdate,
+  projectChatActive = false,
+  onProjectTakeReady,
   onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
@@ -602,7 +623,8 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
-  projectUpdate?: ReactNode;
+  projectChatActive?: boolean;
+  onProjectTakeReady?: (arcId: string, sessionId: string, scoped: boolean) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
    *  with the topic filled in from the voice message, no feelings check; or,
    *  on a first-Take plan, the five questions at once (backend N401), and
@@ -634,6 +656,7 @@ export default function Lounge({
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
+  const ownsProjectConversations = onProjectTakeReady !== undefined;
   const openChat = useOpenChat();
   const composerScope = JSON.stringify(["lounge", userId, place, openChat]);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
@@ -702,7 +725,7 @@ export default function Lounge({
       if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
-      if (isProjectMessage(m) && !projectMessageStaysInLounge(m)) continue;
+      if (isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -720,7 +743,7 @@ export default function Lounge({
     // One action at a time (founder 2026-10-20): the message after a Take
     // waits, undrawn, under its ask; the card comes first.
     return afterTakeOrder(items);
-  }, [messages]);
+  }, [messages, place, ownsProjectConversations]);
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
@@ -1018,7 +1041,7 @@ export default function Lounge({
   const waitScreen = useWaitScreen({
     userId,
     signedIn: thread.signedIn === true,
-    labOpen: isLabOverlay(state),
+    labOpen: isLabOverlay(state) || projectChatActive,
     handedOver: waitHandedOver,
     onHandedOverShown: onWaitHandedOverShown,
     resume: processingResume,
@@ -1144,6 +1167,7 @@ export default function Lounge({
         return;
       }
       if (marker.status === "failed_ideal_text_unconfirmed") {
+        if (marker.projectChat) return;
         if (marker.arcId && marker.takeIndex === 1) {
           void publishIdealTextUnconfirmed({
             sessionId: marker.sessionId,
@@ -1228,6 +1252,14 @@ export default function Lounge({
       window.removeEventListener("storage", syncMarker);
     };
   }, [state, userId, publishIdealTextUnconfirmed]);
+  function handleUnconfirmedReadout(marker: ProcessingTake) {
+    if (marker.projectChat) {
+      markProcessingTakeIdealTextUnconfirmed(userId, marker.sessionId);
+      setResumeWatch(null);
+    } else if (marker.arcId && marker.takeIndex === 1) {
+      void publishIdealTextUnconfirmed({ sessionId: marker.sessionId, arcId: marker.arcId, takeIndex: 1 });
+    }
+  }
   useLabReadoutLive(
     // Gate from the rendered flow state, not from the effect-lagging local
     // state. A real Lab mount therefore tears this transport down in the same
@@ -1266,13 +1298,7 @@ export default function Lounge({
         r.readout.instantChunks.length > 0 ||
         r.readout.fullTranscriptChunks.length > 0;
       if (r.state === "failed_ideal_text_unconfirmed") {
-        if (currentMarker.arcId && currentMarker.takeIndex === 1) {
-          void publishIdealTextUnconfirmed({
-            sessionId: currentMarker.sessionId,
-            arcId: currentMarker.arcId,
-            takeIndex: 1,
-          });
-        }
+        handleUnconfirmedReadout(currentMarker);
         return;
       }
       if (r.state === "failed") {
@@ -1364,6 +1390,19 @@ export default function Lounge({
     enabled: !isLabOverlay(state),
     onSettled: (take) => {
       setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
+      if (projectChatActive) {
+        void reload().catch(() => undefined);
+        return;
+      }
+      if (place === "speaking" && take.arcId && onProjectTakeReady && (take.projectChat || !wayInTakeRef.current)) {
+        onProjectTakeReady(take.arcId, take.sessionId, take.projectChat === true);
+        void reload().catch(() => undefined);
+        return;
+      }
+      if (take.projectChat) {
+        void reload().catch(() => undefined);
+        return;
+      }
       // A guest left the Lab while the text was being made: post the "your
       // text is ready" bubble the server posts only for an account
       // (founder live test 2026-10-05).
@@ -1391,7 +1430,7 @@ export default function Lounge({
       void reload().catch(() => undefined);
     },
     onExpired: (take) => {
-      if (take.arcId && take.takeIndex === 1) {
+      if (!take.projectChat && take.arcId && take.takeIndex === 1) {
         void publishIdealTextUnconfirmed({
           sessionId: take.sessionId,
           arcId: take.arcId,
@@ -1457,6 +1496,9 @@ export default function Lounge({
     onWords: focusComposer,
   });
   wayInTakeRef.current = plan.firstTakeWayIn;
+  const showLoungeProcessing = showsLoungeProcessing(projectChatActive, Boolean(readProcessingTake(userId)?.projectChat),
+    place === "speaking" && Boolean(processingResume?.arcId), plan.firstTakeWayIn);
+  const loungeResume = showLoungeProcessing ? processingResume : null;
   /** "Open your feedback ›", or the orange row on top: Take 1's walk. */
   function openFirstTakeFeedback(): void {
     const arc = wayInReadyArc ?? firstTakeArcOf(messages);
@@ -2313,7 +2355,7 @@ export default function Lounge({
           full wait; orange once its walk is ready. */}
       <WayInTop
         on={plan.firstTakeWayIn}
-        resume={processingResume}
+        resume={loungeResume}
         readyArc={wayInReadyArc}
         walkReady={plan.wayInWalkReady}
         label={PROCESSING_STAGES[0]}
@@ -2379,7 +2421,6 @@ export default function Lounge({
             return withHostRows(i, drawShown(item, i));
           })
         )}
-        <PlaceOnly place={place} in={["speaking"]}>{projectUpdate}</PlaceOnly>
         {/* A host's chat's own messages after its newest Take (N648 item 8). */}
         {hostRowsAfter()}
 
@@ -2402,14 +2443,14 @@ export default function Lounge({
         {/* While a Take processes (founder lock 2026-10-12, section 1): a
             bubble in the chat with the typing dots (founder 2026-10-20, in
             place of the breathing mark); its tap opens the processing view. */}
-        {bottomProcessing(processingResume, plan.firstTakeWayIn) ? (
+        {bottomProcessing(loungeResume, plan.firstTakeWayIn) ? (
           <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
             <button
               ref={processingTriggerRef}
               type="button"
               aria-haspopup="dialog"
               data-processing-bubble=""
-              onClick={() => openProcessing(processingResume)}
+              onClick={() => openProcessing(loungeResume)}
               className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground"
             >
               <TypingGlyph />
@@ -2449,30 +2490,8 @@ export default function Lounge({
           openPastIdealText(arc, past);
         }}
       />
-      {processingResume?.status === "failed" ? (
-        <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
-          {FLOW_COPY.failed}
-        </p>
-      ) : null}
-      {/* Failure keeps its damage-bounding line before the retry. Active
-          processing deliberately has only the approved primary status; that
-          status becomes the doorway back into the processing view. */}
-      {processingResume?.status === "failed" ? (
-        <p className="mb-1.5 px-4 text-center text-[12px] leading-relaxed text-muted-foreground">
-          {FLOW_COPY.failedNext}
-        </p>
-      ) : null}
-      {processingResume?.status === "failed" ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={retryingProcessing}
-          onClick={() => void retryPreservedProcessing()}
-          className="mb-2 h-10 w-full rounded-full"
-        >
-          {retryingProcessing ? "Restarting…" : "Try processing again"}
-        </Button>
-      ) : null}
+      <LoungeProcessingFailure active={loungeResume?.status === "failed"} retrying={retryingProcessing}
+        onRetry={() => void retryPreservedProcessing()} />
 
       {/* The record-button slot. While an offer is "armed" (freshly triggered,
           or re-opened by tapping its thread bubble) its action pair REPLACES the
@@ -2620,7 +2639,7 @@ export default function Lounge({
           onClose={() => setConfidencePracticeId(null)}
         />
       )}
-      {waitScreen.view ? (
+      {showLoungeProcessing && waitScreen.view ? (
         <ProcessingResumeOverlay
           progress={waitScreen.view.progress}
           phase={waitScreen.view.phase}

@@ -49,6 +49,7 @@ export function TopBar({
   subtitle = null,
   onBack,
   onOpen = null,
+  beforeTitle = null,
   right = null,
 }: {
   circle: ReactNode;
@@ -59,6 +60,7 @@ export function TopBar({
   right?: ReactNode;
   /** A person's chat: their circle and name open their profile (N366). */
   onOpen?: (() => void) | null;
+  beforeTitle?: ReactNode;
 }) {
   const who = (
     <>
@@ -86,6 +88,7 @@ export function TopBar({
       >
         <ChevronLeft className="h-6 w-6" aria-hidden />
       </button>
+      {beforeTitle}
       {onOpen ? (
         <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
           {who}

@@ -175,11 +175,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderLounge(signedIn = true): Promise<HTMLTextAreaElement> {
+async function renderLounge(signedIn = true, projectConversations = false): Promise<HTMLTextAreaElement> {
   await act(async () => root.render(
     <LoungeThreadProvider signedIn={signedIn}>
       <ThreadProbe />
-      <Lounge state={"lounge_idle" as never} onStart={() => undefined} dispatch={() => undefined} />
+      <Lounge state={"lounge_idle" as never} onStart={() => undefined} dispatch={() => undefined}
+        onProjectTakeReady={projectConversations ? vi.fn() : undefined} />
     </LoungeThreadProvider>,
   ));
   return waitForComposer();
@@ -193,6 +194,19 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("typed answer in the main Will/Lounge chat", () => {
+  it("keeps project questions out of the general Speaking Coach conversation and its reply context", async () => {
+    harness.rows.push({ ...QUESTION, client_id: "general-advice", body: "A deliberate pause helps.", metadata: { place: "speaking" } });
+    harness.query.mockResolvedValue({ answer: "Give the main point room to land." });
+    const field = await renderLounge(true, true);
+    expect(host.textContent).toContain("A deliberate pause helps.");
+    expect(host.textContent).not.toContain(QUESTION.body);
+    expect(host.querySelector("[data-will-answers]")).toBeNull();
+    enter(field, "When should I slow down?");
+    send(field);
+    await flush();
+    expect(harness.query.mock.calls[0][0].history).toEqual([{ role: "assistant", content: "A deliberate pause helps." }]);
+  });
+
   it("retries the guest's local write after refresh without generating the answer again", async () => {
     const { LOUNGE_LOCAL_KEY, readLocalLoungeThread } = await import("@/lib/funnel/loungeLocalThread");
     const original = Storage.prototype.setItem;

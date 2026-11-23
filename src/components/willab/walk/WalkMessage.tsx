@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useInlineWalkHost } from "./InlineWalkHost";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkMessage — the grey bubble on the left (founder lock 2026-10-12, moment  */
@@ -32,14 +35,16 @@ export default function WalkMessage({
   /** A move of the row's own (the AI bubble landing after the typing dots). */
   className?: string;
 }) {
+  const inline = useInlineWalkHost() !== null;
   return (
     <div
       data-walk-message
       data-row="app"
       data-walk-coach={coach ? "true" : undefined}
-      className={cn("flex items-end gap-[7px] text-[18.5px] leading-[1.45] text-foreground", wide ? "max-w-full" : "max-w-[94%]", className)}
+      className={cn("flex items-end gap-[7px] text-foreground", inline ? "text-[15px] leading-relaxed" : "text-[18.5px] leading-[1.45]", wide ? "max-w-full" : "max-w-[94%]", className)}
     >
-      <div data-bubble="" className={cn("flex min-w-0 flex-col rounded-[22px] bg-muted px-[17px] py-[13px] font-normal", wide && "flex-1")}>
+      <div data-bubble="" className={cn("flex min-w-0 flex-col bg-muted font-normal",
+        inline ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-[17px] py-[13px]", wide && "flex-1")}>
         {children}
       </div>
     </div>

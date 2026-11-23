@@ -43,9 +43,9 @@ the surface is mounted inside the desktop canvas.
 
 Ask coach from a Take review returns to the scoped project and uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The Ideal text page keeps its document and practice actions.
 
-### Ideal text in Take review (N666)
+### Ideal text in Take review (N666, N670)
 
-Ideal text is the third step of the selected Take's review. It opens under the shared page header with the slide images, readable text, and orange helper words. Each slide can send a question to the same Take's project conversation. The conversation keeps a link back to the slide.
+Ideal text appears below the feedback and optional practice in the project's open Take review. The Ideal text button goes directly to it. It has the slide images, readable text, and orange helper words. Each slide can send a question to the same Take's project conversation. The conversation keeps a link back to the slide. Open Ideal text reaches the full document and its existing actions from the review.
 
 Current text uses the existing versioned edit flow. A historical Take's annotations and text edits are saved on that Take. Closing and reopening the review brings back saved edits.
 

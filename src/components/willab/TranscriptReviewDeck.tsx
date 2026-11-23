@@ -94,6 +94,7 @@ import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
 import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished, type FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
+import { useInlineWalkHost } from "./walk/InlineWalkHost";
 import type { CoachMessage } from "@/services/api/idealText";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { wordsPickedIn } from "@/lib/willab/walkThread";
@@ -434,6 +435,7 @@ export default function TranscriptReviewDeck({
    *  the way back to the text. */
   renderNextStep?: () => React.ReactNode;
 }) {
+  const inlineWalk = useInlineWalkHost() !== null;
   const summaryByParagraph = useMemo(() => {
     const grouped = new Map<string, ConfidentMomentSummary["items"]>();
     for (const item of confidentMomentSummary?.items ?? []) {
@@ -883,14 +885,14 @@ export default function TranscriptReviewDeck({
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;
-    if (requireFeedbackWalk) return;
+    if (requireFeedbackWalk && !inlineWalk) return;
     // Nothing to walk: the text (founder 2026-10-17). The 2026-09-30 sheets
     // and the coach's Step 0 no longer open here: every moment the server
     // sends is a step of the walk, and a review never falls back to them.
     onLensReveal?.();
     // reviewAt rides with the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewRequest, feedbackWalk, onLensReveal]);
+  }, [reviewRequest, feedbackWalk, inlineWalk, onLensReveal]);
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      link under "Record Take N" is offered only once nothing waits and the
      walk has a screen to play; its tap plays it with the answers as given. */
@@ -1266,11 +1268,11 @@ export default function TranscriptReviewDeck({
 
   return (
     <div
-      className="flex h-full min-h-0 w-full flex-col bg-background"
+      className={inlineWalk ? "contents" : "flex h-full min-h-0 w-full flex-col bg-background"}
       {...linkageAttrs(grouping, chunks, piecePartIds)}
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
-      {chrome === "full" ? (
+      {!inlineWalk && chrome === "full" ? (
         <div className={`shrink-0 ${TOP_NAV_SEPARATOR_CLASS}`}>
           <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-3`}>
             <span className="flex min-w-0 items-baseline gap-2">
@@ -1310,7 +1312,7 @@ export default function TranscriptReviewDeck({
           first, the slide advances only from its final chunk (§11.3) for
           WHEEL AND TOUCH. The keyboard steps one whole SCREEN — see the
           handler. */}
-      <div
+      {inlineWalk ? null : <div
         ref={stageRef}
         tabIndex={deckReady ? 0 : -1}
         onKeyDown={(e) => {
@@ -1520,6 +1522,7 @@ export default function TranscriptReviewDeck({
             nothing else (lock 2026-10-12, section 4). */}
       </div>
 
+      }
       {/* NO FOOTER (founder 2026-08-11). The review count, the slide
           position and the word count are all gone: the dots rail already
           says where you are, and a running word count is a number about
@@ -1668,7 +1671,7 @@ export default function TranscriptReviewDeck({
       ) : null}
       {/* The walk is its own screen over everything, never inside the
           Ideal Text (founder 2026-10-14). */}
-      {typeof document === "undefined" ? feedbackWalk.element : createPortal(feedbackWalk.element, document.body)}
+      {inlineWalk || typeof document === "undefined" ? feedbackWalk.element : createPortal(feedbackWalk.element, document.body)}
       <CoachStepLayer
         step={coachStep}
         message={walkCoachMessage}

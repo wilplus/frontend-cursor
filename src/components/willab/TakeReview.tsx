@@ -1,29 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { ChevronsUp } from "lucide-react";
 import { fetchArcFeedback, type FeedbackKeyMoment } from "@/services/api/arcFeedback";
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import { fetchIdealTextRevisions, type IdealTextRevision } from "@/services/api/blockVariants";
 import { fetchReviewTempo } from "@/services/api/reviewTempo";
-import { readReviewCopy, saveReviewCopy, type ReviewCopy, type ReviewRevision } from "@/services/api/takeReview";
+import { readReviewCopy, readReviewSteps, saveReviewCopy, type ReviewCopy, type ReviewRevision, type ReviewRun } from "@/services/api/takeReview";
 import type { TrainingArc, TrainingTake } from "@/services/api/trainings";
 import type { ChatQueryArgs } from "@/services/api/chatQuery";
 import { helperHeadlineOf, slideGroupsOf } from "@/lib/willab/pastIdealText";
 import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookmark";
-import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import type { PracticeDecision } from "@/lib/willab/practiceResume";
+import type { LoungeMessage } from "@/services/api/loungeMessages";
 import AiGeneratedNote from "./AiGeneratedNote";
 import DeckSlideThumb from "./DeckSlideThumb";
+import { EditableText } from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
-import LoadingState from "./LoadingState";
-import OverlayCloseButton from "./OverlayCloseButton";
-import { PageHeader } from "./PageHeader";
+import TypingDots from "./TypingDots";
 import { RichText } from "./RichText";
 import { useBackDismiss } from "./useBackDismiss";
 import { HelpersLabel } from "./TranscriptReviewDeck";
 import WalkPlayer from "./walk/WalkPlayer";
+import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
+import TakeReviewPracticeHistory from "./TakeReviewPracticeHistory";
+import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 
 export type ReviewFocus = NonNullable<NonNullable<ChatQueryArgs["presentationContext"]>["review_focus"]>;
-export type TakeReviewTarget = { take: TrainingTake; focus: ReviewFocus };
+export type TakeReviewTarget = {
+  take: TrainingTake;
+  focus: ReviewFocus;
+  walkRange?: FeedbackWalkSlideRange;
+  openWalk?: boolean;
+};
+export type ReviewExit = (afterSave: () => void) => void;
 type Step = ReviewFocus["step"];
 
 export const REVIEW_STEPS = [
@@ -34,10 +44,12 @@ export const REVIEW_STEPS = [
 
 const BUTTON = "min-h-11 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted";
 const LINK = "min-h-11 text-sm text-muted-foreground hover:underline";
+const BUBBLE = "w-fit max-w-[94%] min-w-0 rounded-[18px] bg-muted px-4 py-2.5";
 
 type ReviewEvidence = {
   moment: FeedbackKeyMoment | null;
   activity: string | null;
+  instruction?: string | null;
 };
 type Artifact = {
   evidence: ReviewEvidence;
@@ -91,6 +103,7 @@ async function latestEvidence(
         durationMs: clip.durationMs ?? 0, commentText: null } : null),
     activity: candidate?.practiceExercise?.title ??
       (candidate?.walkSlot === "between" ? "Clearer version" : candidate ? "AI audio" : null),
+    instruction: candidate?.practiceExercise?.instruction ?? null,
   };
 }
 
@@ -124,6 +137,7 @@ async function loadArtifact(project: string, take: TrainingTake, snippet?: strin
   const packet = await fetchArcFeedback(project).catch(() => null);
   const moment = packet?.takes.find((row) => row.sessionId === take.sessionId)?.keyMoments
     .find((row) => !snippet || row.snippetId === snippet) ?? null;
+  if (doc.kind === "error" && versions.kind === "error" && !moment) throw new Error("Take review unavailable");
   return { revision, evidence: { ...evidence, moment }, live };
 }
 
@@ -135,32 +149,45 @@ function focusFor(step: Step, moment: FeedbackKeyMoment | null): ReviewFocus {
   };
 }
 
-function editable(step: Step, artifact: Artifact | null, saved: ReviewRevision | null, sections: string[]) {
-  if (!artifact || step === "practise") return false;
-  return step === "feedback" ? saved !== null : sections.length > 0 && (artifact.live || saved !== null);
-}
+type Engine = "walk" | "practise" | "edit" | "document";
 
-function ReviewEngine({ arc, take, evidence, mode, onClose, onUnavailable }: {
-  arc: string; take: TrainingTake; evidence: ReviewEvidence | undefined; mode: "practise" | "edit";
-  onClose: () => void; onUnavailable: () => void;
+function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, practiceDecision, onClose, onUnavailable, onNextTake }: {
+  arc: string;
+  target: TakeReviewTarget;
+  evidence: ReviewEvidence | undefined;
+  mode: Engine;
+  recordingDock: HTMLDivElement | null;
+  savedSteps: readonly LoungeMessage[];
+  practiceDecision?: PracticeDecision;
+  onClose: () => void;
+  onUnavailable: () => void;
+  onNextTake: () => void;
 }) {
-  const practising = mode === "practise";
-  const snippet = evidence?.moment?.snippetId ?? null;
-  return (
+  const { take, walkRange } = target;
+  if (mode === "edit" || mode === "document") {
+    return <IdealTextOverlay arcId={arc} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
+      takeReviewEdit={mode === "edit"} onClose={onClose} onReadAloud={onNextTake}
+      practiceDecision={practiceDecision} />;
+  }
+  return <InlineWalkHost.Provider value={{ recordingDock, savedSteps }}>
     <IdealTextOverlay arcId={arc} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
-      initialMode={practising ? "review" : "notebook"}
-      reviewAt={practising ? { practise: true, take: take.sessionId, snippet } : null}
-      takeReviewEdit={!practising} onPracticeUnavailable={practising ? onUnavailable : undefined}
-      onClose={onClose} />
-  );
+      initialMode="review" reviewSlideRange={walkRange} requireFeedbackWalk
+      coachTake={mode === "walk" ? take.sessionId : undefined}
+      reviewAt={mode === "practise" ? { practise: true, take: take.sessionId, snippet: evidence?.moment?.snippetId ?? null } : null}
+      onPracticeUnavailable={onUnavailable} onClose={onClose} />
+  </InlineWalkHost.Provider>;
 }
 
 export default function TakeReview({
-  project, target, runCount, onClose, onAsk, onPracticeEnded, onNextTake,
+  project, target, runs, messages, recordingDock, practiceDecision, exitRef, onClose, onAsk, onPracticeEnded, onNextTake,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
-  runCount: number;
+  runs: readonly ReviewRun[];
+  messages: readonly LoungeMessage[];
+  recordingDock: HTMLDivElement | null;
+  practiceDecision?: PracticeDecision;
+  exitRef: MutableRefObject<ReviewExit | null>;
   onClose: () => void;
   onAsk: (target: TakeReviewTarget) => void;
   onPracticeEnded: () => void;
@@ -171,14 +198,11 @@ export default function TakeReview({
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [engine, setEngine] = useState<"practise" | "edit" | null>(null);
+  const [engine, setEngine] = useState<Engine | null>(() => target.openWalk ? "walk" : null);
   const [noPractice, setNoPractice] = useState(false);
-  const [copy, setCopy] = useState<ReviewRevision | null>(null);
-  const [draft, setDraft] = useState<ReviewCopy | null>(null);
-  const [saveMessage, setSaveMessage] = useState("");
-  const savingEdit = saveMessage === "Saving…";
-  const saving = useRef(false);
-  const anchor = useRef<HTMLElement | null>(null);
+  const [savedSteps, setSavedSteps] = useState<readonly LoungeMessage[]>([]);
+  const { copy, draft, setDraft, saveMessage, savingEdit, exit } = useReviewEdits(project.arcId, take.sessionId, refresh, exitRef);
+  const article = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -188,19 +212,174 @@ export default function TakeReview({
         setFailed(false);
       }
     }, () => { if (current) setFailed(true); });
-    void readReviewCopy(project.arcId, take.sessionId).then((result) => { if (current) setCopy(result); }).catch(() => undefined);
     return () => { current = false; };
   }, [project.arcId, take, refresh, target.focus.snippet_id]);
 
-  useEffect(() => { anchor.current?.scrollIntoView?.({ block: "start" }); }, [artifact, step]);
+  useEffect(() => {
+    let current = true;
+    void readReviewSteps(project.arcId, take.sessionId).then((rows) => {
+      if (current) setSavedSteps(rows);
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [project.arcId, take.sessionId, refresh, runs.length]);
+  const history = useMemo(() => {
+    const byId = new Map([...messages, ...savedSteps]
+      .filter((message) => message.kind === "walk_step" && message.metadata?.arc_id === project.arcId &&
+        message.metadata?.take_session_id === take.sessionId)
+      .map((message) => [message.client_id, message]));
+    return [...byId.values()].sort((a, b) => a.client_created_at.localeCompare(b.client_created_at));
+  }, [messages, savedSteps, project.arcId, take.sessionId]);
+
+  const loaded = artifact !== null;
   const moment = artifact?.evidence.moment ?? null;
   const groups = artifact?.revision ? slideGroupsOf(artifact.revision) : [];
   const sections = groups.map((group) => group.paragraphs.join("\n\n"));
   const savedIdeal = copy?.document.ideal_sections;
   const ideal = savedIdeal?.length === sections.length && !artifact?.live ? savedIdeal : sections;
   const feedback = copy?.document.feedback ?? moment?.commentText ?? "";
-  const ask = (focus: ReviewFocus) => onAsk({ take, focus });
-  const next = REVIEW_STEPS[REVIEW_STEPS.findIndex((entry) => entry.step === step) + 1];
+  const ask = (focus: ReviewFocus) => void exit(() => onAsk({ take, focus }));
+
+  useEffect(() => { article.current?.focus({ preventScroll: true }); }, [target.focus]);
+  useEffect(() => {
+    setStep(target.focus.step);
+    const node = target.focus.step === "ideal" && target.focus.slide_index !== undefined
+      ? article.current?.querySelector<HTMLElement>('[data-review-slide="' + target.focus.slide_index + '"]')
+      : article.current?.querySelector<HTMLElement>('[data-review-section="' + target.focus.step + '"]');
+    scrollWithinProject(node ?? article.current);
+  }, [target.focus, loaded]);
+
+  function jump(next: Step) {
+    void exit(() => {
+      setStep(next);
+      scrollWithinProject(article.current?.querySelector<HTMLElement>('[data-review-section="' + next + '"]'));
+    });
+  }
+
+  function closeEngine() {
+    setEngine(null);
+    if (engine === "practise" || engine === "walk") onPracticeEnded();
+    setRefresh((v) => v + 1);
+  }
+
+  useBackDismiss(() => void exit(onClose), () => {
+    if (engine) {
+      closeEngine();
+      return true;
+    }
+    if (!draft && !savingEdit) return false;
+    void exit(onClose);
+    return true;
+  });
+
+  function startEditing(section: "feedback" | "ideal") {
+    if (section === "feedback") setDraft({ feedback });
+    else if (artifact?.live) setEngine("edit");
+    else setDraft({ ideal_sections: ideal });
+  }
+
+  const engineView = engine ? <ReviewEngine arc={project.arcId} target={target} mode={engine}
+    evidence={artifact?.evidence} recordingDock={recordingDock} savedSteps={history}
+    practiceDecision={practiceDecision} onClose={closeEngine}
+    onUnavailable={() => {
+      if (engine === "practise") setNoPractice(true);
+      closeEngine();
+    }}
+    onNextTake={() => void exit(onNextTake)} /> : null;
+  const draftFeedback = draft?.feedback !== undefined;
+  const draftIdeal = draft?.ideal_sections !== undefined;
+  const done = () => void exit();
+  const retry = () => setRefresh((v) => v + 1);
+
+  return (
+    <article ref={article} tabIndex={-1} data-take-review data-review-step={step} aria-label={"Take " + take.takeIndex + " review"}
+      className="flex min-w-0 flex-col items-start gap-2.5 text-[15px] leading-relaxed">
+      <section data-review-section="feedback" aria-label="Feedback" className={BUBBLE + " space-y-1.5"}>
+        <TakeReviewStatus project={project} take={take} loading={!artifact} failed={failed} onRetry={retry} />
+        {artifact ? <>
+          <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={moment}
+            onEdit={(text) => setDraft({ feedback: text })} onAsk={() => ask(focusFor("feedback", moment))} />
+          <ReviewEditAction editing={draftFeedback} canEdit={copy !== null && !draftIdeal}
+            busy={savingEdit} onEdit={() => startEditing("feedback")} onDone={done} />
+        </> : null}
+      </section>
+
+      <nav aria-label="Take review" className="grid w-full max-w-[320px] grid-cols-3 gap-1.5">
+        {REVIEW_STEPS.map(({ step: next, label }) => (
+          <button key={next} type="button" className={BUTTON + " px-1"} disabled={savingEdit} onClick={() => jump(next)}>{label}</button>
+        ))}
+      </nav>
+      {saveMessage ? <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p> : null}
+
+      {engine === "walk" ? <div className="w-full">{engineView}</div> : artifact ? (
+        <button type="button" className={LINK} onClick={() => void exit(() => setEngine("walk"))}>Review feedback</button>
+      ) : null}
+
+      <section data-review-section="practise" aria-label="Practise" className="w-full">
+        {artifact ? <PractiseStep evidence={artifact.evidence} unavailable={noPractice} repeated={runs.length > 0}
+          trying={engine === "practise"} onTry={() => void exit(() => setEngine("practise"))} onSkip={() => jump("ideal")}
+          onAsk={() => ask(focusFor("practise", moment))} /> : null}
+        {engine === "practise" ? engineView : engine === "walk" ? null : <TakeReviewPracticeHistory runs={runs} messages={history} />}
+      </section>
+
+      <section data-review-section="ideal" aria-label="Ideal text"
+        className="w-[94%] max-w-2xl rounded-[18px] border border-border bg-background px-4 py-2.5">
+        <h3 className="font-semibold">Ideal text</h3>
+        <AiGeneratedNote kind="ideal-text" name={project.topic} take={take.takeIndex} />
+        {artifact ? <IdealStep revision={artifact.revision} groups={groups} text={ideal} draft={draft?.ideal_sections}
+          onEdit={(ideal_sections) => setDraft({ ideal_sections })}
+          onAsk={(index) => ask(index === null ? { step: "ideal" } : { step: "ideal", slide_index: index })} /> : null}
+        <div className="flex flex-wrap items-center gap-x-3">
+          <ReviewEditAction editing={draftIdeal} canEdit={ideal.length > 0 && !draftFeedback && Boolean(artifact?.live || copy)}
+            busy={savingEdit} onEdit={() => startEditing("ideal")} onDone={done} />
+          {artifact?.live ? <button type="button" className={LINK}
+            onClick={() => void exit(() => setEngine("document"))}>Open Ideal text</button> : null}
+        </div>
+      </section>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className={BUTTON} disabled={savingEdit} onClick={() => void exit(onNextTake)}>Continue recording</button>
+        <button type="button" className={LINK + " inline-flex items-center gap-1.5 px-2"} disabled={savingEdit}
+          onClick={() => void exit(onClose)}><ChevronsUp className="size-4" aria-hidden />Minimise</button>
+      </div>
+      {engine === "edit" || engine === "document" ? engineView : null}
+    </article>
+  );
+}
+
+function TakeReviewStatus({ project, take, loading, failed, onRetry }: {
+  project: TrainingArc; take: TrainingTake; loading: boolean; failed: boolean; onRetry: () => void;
+}) {
+  const latest = !project.takes.some((item) => item.takeIndex > take.takeIndex);
+  const coverage = project.practiceCoverage;
+  const range = project.practiceChunks.find((chunk) => chunk.latestSessionId === take.sessionId);
+  const [rangeLabel, setRangeLabel] = useState<string | null>(null);
+  return <>
+    <p className="text-[13px] text-muted-foreground">
+      <strong className="font-medium text-foreground">Take {take.takeIndex} is ready.</strong>
+      {latest && coverage?.total ? <> You’ve practised {coverage.practised} of {coverage.total} {coverage.unit}.</> : null}
+      {latest && !coverage?.total && project.practiceProgress > 0 ? <> Progress · {Math.round(project.practiceProgress)}%</> : null}
+      {range ? <> · <EditableText value={rangeLabel ?? `Slides ${range.startSlide}–${range.endSlide}`}
+        label="Edit slide range" onCommit={setRangeLabel} className="rounded underline-offset-2 hover:underline focus:outline-primary" />
+        {range.attempts > 0 ? ` · ${range.attempts} ${range.attempts === 1 ? "attempt" : "attempts"}` : null}
+      </> : null}
+    </p>
+    {failed ? <button type="button" className={BUTTON} onClick={onRetry}>Try again</button> :
+      loading ? <TypingDots label="Loading feedback" /> : null}
+  </>;
+}
+
+function useReviewEdits(arcId: string, takeId: string, refresh: number, exitRef: MutableRefObject<ReviewExit | null>) {
+  const [copy, setCopy] = useState<ReviewRevision | null>(null);
+  const [draft, setDraft] = useState<ReviewCopy | null>(null);
+  const [saveMessage, setSaveMessage] = useState("");
+  const saving = useRef(false);
+  useEffect(() => {
+    let current = true;
+    void readReviewCopy(arcId, takeId).then((result) => {
+      if (current) setCopy(result);
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [arcId, takeId, refresh]);
 
   async function exit(action?: () => void) {
     if (saving.current) return;
@@ -208,7 +387,7 @@ export default function TakeReview({
       if (!copy) return;
       saving.current = true;
       setSaveMessage("Saving…");
-      const result = await saveReviewCopy(project.arcId, take.sessionId, copy.revision, draft).catch(() => null);
+      const result = await saveReviewCopy(arcId, takeId, copy.revision, draft).catch(() => null);
       saving.current = false;
       if (!result || result.conflict) {
         if (result) setCopy(result.revision);
@@ -221,86 +400,48 @@ export default function TakeReview({
     }
     action?.();
   }
-  useBackDismiss(() => { if (!engine) void exit(onClose); });
 
-  if (engine) {
-    return <ReviewEngine arc={project.arcId} take={take} mode={engine} evidence={artifact?.evidence}
-      onUnavailable={() => { setNoPractice(true); setEngine(null); }}
-      onClose={() => {
-        if (engine === "practise") onPracticeEnded();
-        else setRefresh((v) => v + 1);
-        setEngine(null);
-      }} />;
-  }
+  useEffect(() => {
+    exitRef.current = (afterSave) => void exit(afterSave);
+    return () => { exitRef.current = null; };
+  });
 
-  function startEditing() {
-    if (step === "feedback") setDraft({ feedback });
-    if (step === "ideal") {
-      if (artifact?.live) setEngine("edit");
-      else setDraft({ ideal_sections: ideal });
-    }
-  }
-
-  return (
-    <article data-take-review data-review-step={step} className="absolute inset-0 z-40 flex flex-col bg-background">
-      <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
-        <div className="min-w-0">
-          <p className="break-words text-[17px] font-semibold">{project.topic}</p>
-          <AiGeneratedNote kind="ideal-text" name={project.topic} take={take.takeIndex} />
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {draft ? <button className={LINK} type="button" disabled={savingEdit} onClick={() => void exit()}>Done</button> :
-            editable(step, artifact, copy, ideal) ? <button className={LINK} type="button" onClick={startEditing}>Edit text</button> : null}
-          <OverlayCloseButton onClick={() => void exit(onClose)} disabled={savingEdit} />
-        </div>
-      </PageHeader>
-      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
-        <div className={`${WILLAB_CONTENT_RAIL} space-y-4 px-4 py-5`}>
-          <h2 className="text-xl font-semibold">{REVIEW_STEPS.find((item) => item.step === step)?.label}</h2>
-          {saveMessage ? <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-          {!artifact && !failed ? <LoadingState placement="surface" /> : null}
-          {failed ? <button type="button" className={BUTTON} onClick={() => setRefresh((v) => v + 1)}>Try again</button> : null}
-          {step === "feedback" && artifact ? (
-            <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={moment}
-              onEdit={(text) => setDraft({ feedback: text })}
-              onAsk={() => void exit(() => ask(focusFor("feedback", moment)))} />
-          ) : null}
-          {step === "practise" && artifact ? <PractiseStep activity={artifact.evidence.activity}
-            unavailable={noPractice} repeated={runCount > 0} onTry={() => setEngine("practise")}
-            onAsk={() => ask(focusFor("practise", moment))} /> : null}
-          {step === "ideal" && artifact ? <IdealStep revision={artifact.revision} groups={groups}
-            text={ideal} draft={draft?.ideal_sections} slide={target.focus.slide_index} anchor={anchor}
-            onEdit={(ideal_sections) => setDraft({ ideal_sections })}
-            onAsk={(index) => void exit(() => ask(index === null ? { step: "ideal" } : { step: "ideal", slide_index: index }))} /> : null}
-          {next ? <button type="button" className={BUTTON} disabled={savingEdit} onClick={() => void exit(() => setStep(next.step))}>{next.label}</button> :
-            <button type="button" className={BUTTON} disabled={savingEdit} onClick={() => void exit(onNextTake)}>Continue recording</button>}
-        </div>
-      </div>
-    </article>
-  );
+  return { copy, draft, setDraft, saveMessage, savingEdit: saveMessage === "Saving…", exit };
 }
 
-function PractiseStep({ activity, unavailable, repeated, onTry, onAsk }: {
-  activity: string | null; unavailable: boolean; repeated: boolean; onTry: () => void; onAsk: () => void;
+function ReviewEditAction({ editing, canEdit, busy, onEdit, onDone }: {
+  editing: boolean; canEdit: boolean; busy: boolean; onEdit: () => void; onDone: () => void;
 }) {
-  return <div className="space-y-2">
-    {activity ? <p className="font-semibold">{activity}</p> : null}
+  if (editing) return <button type="button" className={LINK} disabled={busy} onClick={onDone}>Done</button>;
+  return canEdit ? <button type="button" className={LINK} onClick={onEdit}>Edit text</button> : null;
+}
+
+function PractiseStep({ evidence, unavailable, repeated, trying, onTry, onSkip, onAsk }: {
+  evidence: ReviewEvidence; unavailable: boolean; repeated: boolean; trying: boolean;
+  onTry: () => void; onSkip: () => void; onAsk: () => void;
+}) {
+  return <div className={BUBBLE + " space-y-1"}>
+    {evidence.activity ? <p className="font-medium">{evidence.activity}</p> : null}
+    {evidence.instruction ? <p>{evidence.instruction}</p> : null}
     {unavailable ? <p className="text-sm text-muted-foreground">No activity for this Take yet.</p> :
-      <button className={BUTTON} type="button" onClick={onTry}>Try it</button>}
-    {repeated ? <span className="ml-2 text-xs text-muted-foreground">Practised before</span> : null}
-    <div><button className={LINK} type="button" onClick={onAsk}>Ask coach</button></div>
+      trying ? null : <div className="flex flex-wrap items-center gap-x-3">
+        <button className={BUTTON} type="button" onClick={onTry}>Try it</button>
+        <button className={LINK} type="button" onClick={onSkip}>Skip</button>
+        {repeated ? <span className="text-xs text-muted-foreground">Practised before</span> : null}
+      </div>}
+    <button className={LINK} type="button" onClick={onAsk}>Ask coach</button>
   </div>;
 }
 
-function IdealStep({ revision, groups, text, draft, slide, anchor, onEdit, onAsk }: {
+function IdealStep({ revision, groups, text, draft, onEdit, onAsk }: {
   revision: IdealTextRevision | null; groups: ReturnType<typeof slideGroupsOf>;
-  text: string[]; draft?: string[]; slide?: number; anchor: React.RefObject<HTMLElement | null>;
+  text: string[]; draft?: string[];
   onEdit: (sections: string[]) => void; onAsk: (index: number | null) => void;
 }) {
   if (!revision || groups.length === 0) return <p className="text-sm text-muted-foreground">Ideal text isn’t available for this Take yet.</p>;
   return <div className="space-y-5">
     {groups.map((group, index) => (
-      <ReviewSlide key={index} nodeRef={slide === group.slideIndex ? anchor : undefined}
+      <ReviewSlide key={index}
         slide={group.slideIndex} revision={revision} text={text[index]} draft={draft?.[index]}
         onEdit={(next) => onEdit((draft ?? text).map((part, i) => i === index ? next : part))}
         onAsk={() => onAsk(group.slideIndex)} />
@@ -313,11 +454,11 @@ function ReviewMoment({ feedback, draft, moment, onEdit, onAsk }: {
   onEdit: (text: string) => void; onAsk: () => void;
 }) {
   return (
-    <div className="max-w-2xl space-y-3">
+    <div className="max-w-2xl space-y-1.5">
       {draft !== undefined ? <ReviewField label="Edit feedback" value={draft} onEdit={onEdit} /> :
         feedback ? <p className="whitespace-pre-wrap">{feedback}</p> : null}
       {moment ? (
-        <div className="space-y-2 border-l border-border pl-3">
+        <div className="space-y-1.5 border-t border-border pt-2">
           {moment.slideIndex !== null ? <p className="text-xs text-muted-foreground">Slide {moment.slideIndex + 1}</p> : null}
           <p>{moment.transcript}</p>
           {moment.audioRef ? <WalkPlayer seed={moment.snippetId} label="moment" src={moment.audioRef}
@@ -329,17 +470,17 @@ function ReviewMoment({ feedback, draft, moment, onEdit, onAsk }: {
   );
 }
 
-function ReviewSlide({ slide, revision, text, draft, nodeRef, onEdit, onAsk }: {
+function ReviewSlide({ slide, revision, text, draft, onEdit, onAsk }: {
   slide: number | null; revision: IdealTextRevision; text: string; draft?: string;
-  nodeRef?: React.RefObject<HTMLElement | null>; onEdit: (text: string) => void; onAsk: () => void;
+  onEdit: (text: string) => void; onAsk: () => void;
 }): ReactNode {
   const headline = helperHeadlineOf(revision, slide);
   return (
-    <section ref={nodeRef} className="max-w-2xl space-y-2">
-      {slide === null ? null : <>
-        <h3 className="font-semibold">Slide {slide + 1}</h3>
-        <DeckSlideThumb presentationRef={revision.presentationRef} pageIndex={slide} label={`Slide ${slide + 1}`} />
-      </>}
+    <section data-review-slide={slide ?? undefined} className="max-w-2xl space-y-2 border-t border-border pt-2">
+      {slide === null ? null : <div className="flex items-center gap-2">
+        <DeckSlideThumb compact presentationRef={revision.presentationRef} pageIndex={slide} label={"Slide " + (slide + 1)} />
+        <h3 className="text-[13px] text-muted-foreground">Slide {slide + 1}</h3>
+      </div>}
       {draft !== undefined ? <ReviewField label="Edit Ideal text" value={draft} onEdit={onEdit} /> : (
         <div className="space-y-3">
           <HelpersLabel phrases={missingHelperWords(text, headline)} />

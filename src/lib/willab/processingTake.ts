@@ -48,6 +48,8 @@ export interface ProcessingTakeProgress {
 export interface ProcessingTake {
   sessionId: string;
   arcId: string | null;
+  /** The owning project presents the wait and review for this accepted Take. */
+  projectChat?: true;
   /** 1-based take index within the batch; null for standalone recordings. */
   takeIndex: number | null;
   /** Epoch ms when the wait began (the upload starting; before N110 its
@@ -145,6 +147,7 @@ export function readProcessingTake(
     return {
       sessionId: v.sessionId,
       arcId: typeof v.arcId === "string" ? v.arcId : null,
+      ...(v.projectChat === true ? { projectChat: true } : {}),
       takeIndex: typeof v.takeIndex === "number" ? v.takeIndex : null,
       startedAt,
       phase: v.phase === "document" ? "document" : "analysis",
