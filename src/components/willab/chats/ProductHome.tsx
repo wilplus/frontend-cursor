@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
-import { Archive, AudioLines, ChevronDown, Pencil, Plus, SquarePen, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, Pencil, Plus, SquarePen, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
@@ -40,7 +40,6 @@ const OWN_INTRO = W.ownChatSheet;
 
 export default function ProductHome({
   onOpenSpeaking,
-  onSetUpSpeaking = onOpenSpeaking,
   coachActions,
   activeChat,
   structure,
@@ -55,7 +54,6 @@ export default function ProductHome({
   onProjects,
 }: {
   onOpenSpeaking: () => void;
-  onSetUpSpeaking?: () => void;
   coachActions?: ReactNode;
   activeChat?: string;
   structure?: { layout: ChatStructure | null; change: (action: ChangeStructure) => Promise<boolean> };
@@ -135,13 +133,19 @@ export default function ProductHome({
     setSheet(false);
     onOpenOwnChat?.();
   };
-  const setUpSpeaking = async () => {
-    if (layout && layout.coach !== "active") {
+  const startProject = async () => {
+    if (layout?.coach === "deleted") {
       if (!await change({ action: "restore", section: "coach" })) return;
       setAttempt((n) => n + 1);
     }
-    onSetUpSpeaking();
+    onStartNewProject();
   };
+  const newProject = (
+    <button type="button" data-start-new-project onClick={() => void startProject()}
+      className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
+      <Plus size={16} aria-hidden />{uiText(locale, "startNewProject")}
+    </button>
+  );
 
   return (
     <div data-product-home data-chat-sidebar-content className="flex min-h-0 flex-1 flex-col">
@@ -204,20 +208,16 @@ export default function ProductHome({
                 />
               ))
             )}
-            <button type="button" data-start-new-project onClick={onStartNewProject}
-              className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
-              <Plus size={16} aria-hidden />{uiText(locale, "startNewProject")}
-            </button>
+            {newProject}
           </div>
           </> : null}
+          {layout?.coach === "deleted" ? newProject : null}
           {onOpenPerson ? people.map((chat) => <HomeRow key={chat.id} id={chat.id} title={chat.title}
             circle={<LetterCircle id={chat.id} name={chat.title} size={24} />}
             active={activeChat === `person:${chat.id}`} onOpen={() => onOpenPerson(chat)} />) : null}
           <ArchivedChats layout={layout} title={title} coachTitle={uiText(locale, "speakingCoach")} change={change} />
       </nav>
       <div data-chat-sidebar-setup className="shrink-0 space-y-0.5 border-t border-border px-2 py-1.5">
-        <HomeRow id="set-up-speaking-coach" title={uiText(locale, "setUpSpeakingCoach")}
-          circle={<AudioLines size={17} aria-hidden />} onOpen={() => void setUpSpeaking()} />
         <HomeRow id="start-own-chat" title={uiText(locale, showOwn ? "editOwnChat" : "startOwnChat")}
           circle={<SquarePen size={17} aria-hidden />} onOpen={() => showOwn ? onOpenOwnChat?.() : setSheet(true)} />
       </div>

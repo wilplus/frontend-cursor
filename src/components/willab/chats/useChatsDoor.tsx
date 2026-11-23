@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { Archive, Trash2 } from "lucide-react";
@@ -52,7 +52,6 @@ type ChatsDoor = {
   loungeCovered: boolean;
   projects: TrainingArc[];
   speakingActive: boolean;
-  coachSetup: number;
 };
 
 function chatKey(destination: Destination): string {
@@ -90,8 +89,6 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
   useForgetChatsSignedOut(decided);
 
   const [destination, setDestination] = useState<Destination>({ kind: "coach" });
-  const [coachSetup, setCoachSetup] = useState(0);
-  const setupRequests = useRef(0);
   const [projects, setProjects] = useState<TrainingArc[]>([]);
   const structure = useChatStructure();
   const { layout, change } = structure;
@@ -112,11 +109,10 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
   }, [destination, layout]);
 
   const navigate = options?.navigate ?? ((action: () => void) => action());
-  function open(next: Destination, setup = false) {
+  function open(next: Destination) {
     navigate(() => {
       options?.onLeaveProject?.();
       setDestination(next);
-      setCoachSetup(setup ? ++setupRequests.current : 0);
     });
   }
   const openCoach = () => open({ kind: "coach" });
@@ -124,7 +120,6 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
     if (arc.archived || arc.deletion || project?.arcId === arc.arcId) return;
     navigate(() => {
       setDestination({ kind: "coach" });
-      setCoachSetup(0);
       options?.onOpenProject?.(arc);
     });
   }
@@ -132,7 +127,6 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
     navigate(() => {
       options?.onLeaveProject?.();
       setDestination({ kind: "coach" });
-      setCoachSetup(0);
       options?.onStartNewProject?.();
     });
   }
@@ -147,7 +141,6 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
     activeChat,
     loungeCovered,
     speakingActive,
-    coachSetup: speakingActive && !project ? coachSetup : 0,
     projects: projects.filter((arc) => !arc.archived && !arc.deletion),
     heading,
     sidebar: enabled ? <ProductHome
@@ -157,7 +150,6 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       onProjects={setProjects}
       onOpenPerson={openedPerson}
       onOpenSpeaking={openCoach}
-      onSetUpSpeaking={() => open({ kind: "coach" }, true)}
       coachActions={layout?.coach === "active" ? <CoachMenu change={change} onDelete={() => {
         options?.onLeaveProject?.();
         setProjects([]);
