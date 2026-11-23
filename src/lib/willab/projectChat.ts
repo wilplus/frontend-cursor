@@ -56,14 +56,14 @@ export function speakingCoachMessages(
   return messages.filter((message) => !isProjectMessage(message));
 }
 
-/** A project question and every turn answering it still belong to the
- *  speaking conversation where the speaker met them. Their arc metadata is
- *  retained as well, so opening the project shows the same exchange. */
+/** Keep the established after-Take prompts in the Lounge. Questions asked
+ *  from a project or its review belong to the project conversation. */
 export function projectMessageStaysInLounge(message: Pick<LoungeMessage, "metadata">): boolean {
   const metadata = message.metadata ?? {};
+  if (metadata.review_focus) return false;
+  if (metadata[TYPED_PROJECT_TURN] === true) return Boolean(metadata.reply_to);
   const step = metadata.will_question_step;
   return metadata.offer === "will_question" ||
-    metadata[TYPED_PROJECT_TURN] === true ||
     step === "ask" || step === "follow" || step === "answer" || step === "reply" ||
     step === "thanks" || step === "skip";
 }

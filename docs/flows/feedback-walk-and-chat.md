@@ -126,8 +126,9 @@ composer keeps touch-sized controls and accounts for the phone's safe area.
   the available project actions. In a project the mic opens recording for
   that project, and the file action updates that project's slides. Asking
   from review shows the selected Take, slide or moment above the same bar.
-  The durable send still keeps the project and Take identity through reload
-  and retry.
+  The durable send keeps the project and Take identity through reload and
+  retry. Standalone project questions and review follow-ups are drawn in
+  their project conversation.
 
 The implementation lives in `ChatComposer.tsx`, with `useComposerVoice.tsx`
 for a local audio draft and `RecordingBar.tsx` for guided recording.
