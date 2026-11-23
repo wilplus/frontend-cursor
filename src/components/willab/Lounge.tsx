@@ -1,16 +1,25 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
 import ChatComposer, { type ComposerFileAction } from "./chats/ChatComposer";
+import { ChatArtifactScope } from "./chats/ChatArtifact";
+import { useComposerVoice } from "./chats/useComposerVoice";
+import LoungeTakeConversation, { type TakeCitation } from "./LoungeTakeConversation";
+import { takeSessionOf } from "@/lib/willab/takeExchange";
 import type { PlanLounge } from "./plan/usePlanLounge";
-import { willComposerMic } from "./plan/PlanDock";
+import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
+import { fetchTrainings } from "@/services/api/trainings";
+import { unarchiveProject } from "@/services/api/projectArchive";
+import { keepNextTakeShare, readPrivateTakeShare } from "@/lib/willab/nextTakeShare";
+import { clearPracticeResume } from "@/lib/willab/practiceResume";
+import { PLAN_COPY } from "@/lib/willab/planCopy";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import CoachMoment from "./CoachMoment";
-import CoachWordingCard from "./CoachWordingCard";
+import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { coachWording } from "@/services/api/coachWording";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -76,7 +85,7 @@ import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdeal
 import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
-import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
+import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLineDraft, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import {
   clearExploreArc,
@@ -103,7 +112,6 @@ import { offersUpdateSlides, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides"
 import { NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import NoticeBar from "./NoticeBar";
 import {
-  afterGoodbye,
   afterTakeOrder,
   askShowing,
   heldFor,
@@ -155,13 +163,14 @@ import {
   useStrengths,
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
-import { postWillQuestion } from "@/services/api/willQuestion";
+import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
 import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
   isProjectMessage,
   isReplayedTerminalReply,
   openProjectQuestion,
+  projectIdOf,
   projectConversationHistory,
   projectMessageStaysInLounge,
   typedProjectErrorMetadata,
@@ -470,6 +479,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
       : suggested
         ? { suggested_action: suggested }
         : {}),
+    ...(offersNextTake(response) ? { suggested_action: "record_again" } : {}),
     ...(productAction ? { product_action: productAction } : {}),
     ...(moment ? { coach_moment: moment } : {}),
     ...(artifact ? { chat_artifact: artifact } : {}),
@@ -530,7 +540,8 @@ function useLoungeDraft(scope: string) {
 }
 
 function LoungeComposer({
-  place, openChat, draft, plan, keyLine, notebook, nextTake, held, busy, onSend, onFirst, onRecord, onProjects, onUpload, onSlides,
+  place, openChat, draft, plan, keyLine, notebook, held, busy, onSend, onProjects, onUpload, onSlides,
+  citation, clearCitation, voice,
 }: {
   place: LoungePlace | null;
   openChat: string | null;
@@ -538,19 +549,19 @@ function LoungeComposer({
   plan: PlanLounge;
   keyLine: KeyLineHear;
   notebook: VoiceNotebook;
-  nextTake: { arcId: string; takeIndex: number } | null;
   held: boolean;
   busy: boolean;
-  onSend: () => Promise<void>;
-  onFirst: () => void;
-  onRecord: (arcId: string, takeIndex: number) => void;
+  onSend: () => Promise<boolean>;
   onProjects: () => void;
   onUpload: () => void;
   onSlides?: () => void;
+  citation?: TakeCitation | null;
+  clearCitation?: () => void;
+  voice?: ReturnType<typeof useComposerVoice>;
 }) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const speaking = !openChat && !wordsAlways(place);
-  const hear = speaking ? plan.hear ?? keyLine.hear : null;
+  const hear = speaking && !citation?.focus ? plan.hear ?? keyLine.hear : null;
   const guidedRecording = speaking ? plan.recording ?? keyLine.recording : undefined;
   const notebookRecording = notebook.recording ? {
     elapsedMs: notebook.note.elapsedMs,
@@ -558,9 +569,7 @@ function LoungeComposer({
     stop: notebook.note.send,
     attrs: { "data-voice-note-stop": "" },
   } : undefined;
-  const mic = speaking ? willComposerMic({
-    hear, next: nextTake, onRecord, onFirst, held: held || keyLine.sending,
-  }) : undefined;
+  const mic = hear ? { label: PLAN_COPY.recordAnswer, start: hear.onTap, attrs: { "data-will-hear": "" } } : voice?.mic;
   const files: ComposerFileAction[] = [];
   if (speaking) {
     files.push({
@@ -589,11 +598,16 @@ function LoungeComposer({
       onValue={draft.setDraft}
       onSend={onSend}
       busy={busy}
-      voiceRequired={Boolean(hear || keyLine.sending && speaking)}
+      voiceRequired={!citation?.focus && Boolean(hear || keyLine.sending && speaking)}
       mic={mic}
-      recording={guidedRecording ?? notebookRecording}
+      recording={voice?.recording ?? guidedRecording ?? notebookRecording}
+      voiceDraft={voice?.voiceDraft}
+      above={citation?.quote ? <div className="flex items-center gap-2 border-l-2 border-border pl-3 text-xs text-muted-foreground">
+        <p className="min-w-0 flex-1 truncate">{citation.quote}</p>
+        <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={clearCitation}>×</button>
+      </div> : undefined}
       files={files}
-      status={uploadError ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError}</p> : null}
+      status={uploadError || voice?.error ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError || voice?.error}</p> : null}
     />
   );
 }
@@ -672,13 +686,22 @@ export default function Lounge({
   const sidebar = useWorkspaceSidebar();
   const ownsProjectConversations = onProjectTakeReady !== undefined;
   const openChat = useOpenChat();
-  const composerScope = JSON.stringify(["lounge", userId, place, openChat]);
+  const viewScope = useContext(ChatArtifactScope);
+  const composerScope = JSON.stringify(["lounge", userId, place, openChat, viewScope]);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
   const { messages } = outbox;
+  const savedWordings = useMemo(() => linkedSavedWordings(messages), [messages]);
   const { reload } = thread;
   const draft = useLoungeDraft(composerScope);
   const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
   const { value: draftText, setDraft: setDraftText, focus: focusComposer } = draft;
+  const [citation, setCitation] = useState<TakeCitation | null>(null);
+  const currentCitation = useRef(citation);
+  const currentComposerScope = useRef(composerScope);
+  const recordRequestPending = useRef(false);
+  currentCitation.current = citation;
+  currentComposerScope.current = composerScope;
+  useEffect(() => { setCitation(null); }, [composerScope]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
   // for them nothing below mounts and this component behaves exactly as it did
@@ -688,6 +711,19 @@ export default function Lounge({
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [thinkingHere, setBotThinking] = useState(false);
   const botThinking = outbox.busy(thinkingHere);
+  const reviewVoice = useComposerVoice({
+    enabled: thread.signedIn,
+    held: botThinking || !outbox.ready,
+    maxSeconds: 120,
+    label: "Record your answer",
+    scope: JSON.stringify([composerScope, citation?.takeId, citation?.focus]),
+    onSend: async (audio, duration) => {
+      if (!outbox.isCurrent()) return false;
+      const spoken = await transcribeChatAnswer(audio, duration, citation ?? undefined);
+      if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== composerScope || !outbox.isCurrent()) return false;
+      return handleSend(spoken);
+    },
+  });
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -740,7 +776,7 @@ export default function Lounge({
       if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
-      if (isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
+      if (!openChat && isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -758,7 +794,7 @@ export default function Lounge({
     // One action at a time (founder 2026-10-20): the message after a Take
     // waits, undrawn, under its ask; the card comes first.
     return afterTakeOrder(items);
-  }, [messages, place, ownsProjectConversations]);
+  }, [messages, place, ownsProjectConversations, openChat]);
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
@@ -789,6 +825,24 @@ export default function Lounge({
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
   const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  const takeConversations = useMemo(() => {
+    const groups = new Map<string, { arcId: string; takeId: string; rows: LoungeMessage[]; anchor?: string }>();
+    if (!openChat && !(ownsProjectConversations && place === "speaking")) return groups;
+    for (const { message } of threadItems) {
+      const takeId = takeSessionOf(message);
+      const arcId = projectIdOf(message);
+      if (!takeId || !arcId || message.metadata?.take_exchange === false || !shownIn(message, place, openChat)) continue;
+      const group = groups.get(takeId) ?? { arcId, takeId, rows: [] };
+      if (group.arcId !== arcId) continue;
+      group.rows.push(message);
+      groups.set(takeId, group);
+    }
+    for (const { message } of shownItems) {
+      const group = groups.get(takeSessionOf(message) ?? "");
+      if (group && !group.anchor) group.anchor = message.client_id;
+    }
+    return groups;
+  }, [openChat, ownsProjectConversations, place, shownItems, threadItems]);
   const hostRows = useMemo(
     () => hostRowsAround(hostMessages, shownItems.map((item) => item.message.client_created_at)),
     [hostMessages, shownItems],
@@ -1518,10 +1572,6 @@ export default function Lounge({
     const arc = wayInReadyArc ?? firstTakeArcOf(messages);
     if (arc) openIdealText(arc, "review");
   }
-  // AFTER THE GOODBYE (N296 state 4, N483 item 2): the mic action is
-  // "Record Take N" for the goodbye's Take, with no tap first (`useGoodbye`).
-  const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake });
-
   const closeProcessingOverlay = useCallback(() => {
     setOpenedProcessingSessionId(null);
     requestAnimationFrame(() =>
@@ -1904,58 +1954,85 @@ export default function Lounge({
 
   /** "Start your first recording": the plan's first Take when there is a
    *  plan, else a new project (N483 item 2). */
-  function startFirst(): void {
-    (plan.startFirst ?? onStartNewProject ?? onStart)();
-  }
-
-  /** "Record Take N": after the first Take (backend N401 item 4) the real
-   *  talk, its own set-up with the plan's topic, never the five questions
-   *  again; otherwise that Take's text, the sharing question first. */
-  function recordNext(arcId: string, takeIndex: number): void {
-    if ((goodbye.afterFirstTake || isFirstTakeArc(userId, arcId, takeIndex)) && onStartPlanRecording) {
-      onStartPlanRecording(plan.topic, { afterFirstTake: true });
-      return;
+  async function recordNext(arcId: string) {
+    if (recordRequestPending.current || takeInFlight || !thread.signedIn) return;
+    recordRequestPending.current = true;
+    const stillHere = () => outbox.isCurrent() && currentComposerScope.current === composerScope;
+    try {
+      const projects = await fetchTrainings({ includeArchived: true });
+      const project = projects?.find((item) => item.arcId === arcId);
+      if (!project || project.deletion || !stillHere()) return;
+      const latest = project.takes.reduce<((typeof project.takes)[number]) | undefined>(
+        (last, take) => !last || take.takeIndex > last.takeIndex ? take : last, undefined,
+      );
+      const takeIndex = Math.max(project.takeCount, latest?.takeIndex ?? 0);
+      if (!takeIndex) return;
+      if (project.archived && !await unarchiveProject(arcId)) return;
+      if (!stillHere()) return;
+      if (isFirstTakeArc(userId, arcId, takeIndex) && onStartPlanRecording) {
+        onStartPlanRecording(plan.topic, { afterFirstTake: true });
+        return;
+      }
+      const share = await readPrivateTakeShare();
+      if (!stillHere()) return;
+      keepNextTakeShare(null);
+      clearPracticeResume(userId, arcId);
+      if (share) void thread.append(shareLineDraft(WALK_COPY.shareOnlyMe, share, arcId)).catch(() => undefined);
+      writeExploreArc(userId, arcId, takeIndex + 1, undefined, latest?.sessionId ?? latestArcSessionId(arcId));
+      (onStartInProject ?? onStart)();
+    } finally {
+      recordRequestPending.current = false;
     }
-    openIdealText(arcId, "share");
   }
 
-  async function handleSend() {
-    const submittedDraft = draftText;
+  function recordOffer(message: LoungeMessage, arcId?: string) {
+    if (message.role !== "bot" || !thread.signedIn || !offersNextTake(message.metadata)) return null;
+    const shownAt = shownMessages.findIndex((item) => item.client_id === message.client_id);
+    const previousTake = !openChat && shownAt > 0 ? restingTake(shownMessages.slice(0, shownAt)) : null;
+    const target = arcId ?? projectIdOf(message) ?? previousTake?.arcId;
+    return target ? <RecordNextTakeLink offer={message.metadata} onRecord={() => { void recordNext(target); }} /> : null;
+  }
+
+  async function handleSend(spoken?: { text: string; durationMs: number }): Promise<boolean> {
+    const submittedDraft = spoken?.text ?? draftText;
     const q = submittedDraft.trim();
-    // Guard BEFORE clearing the input so a send while the bot is busy keeps the
-    // user's text rather than silently dropping it.
-    if (!q || botThinking || sendingRef.current || !outbox.ready) return;
-    setDraftText("");
+    if (!q || botThinking || sendingRef.current || !outbox.ready) return false;
+    if (!spoken) setDraftText("");
     // Free words under a Take's open Will question are a real chat turn. The
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
     const typedQuestion = openProjectQuestion(shownMessages);
+    if (citation) {
+      await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken?.durationMs));
+      return true;
+    }
     const retry = outbox.turns.findLast((turn) =>
       turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
     if (retry) {
       await sendTypedTurn(retry);
-      return;
+      return true;
     }
     // The way in waits for these words: "Something else", or Will's last
     // question after the walk (backend N573, N592 item 2).
     if (!typedQuestion && plan.say(q)) {
       followAnswer();
-      return;
+      return true;
     }
     if (!typedQuestion && setupWaits) {
       // Refused or not sent: the words go back into the box, never lost.
       if ((await setupWaits.say(q)) === false) setDraftText(q);
       followAnswer();
-      return;
+      return true;
     }
     // A host who set up their chat asks to change it: its parts open again
     // (backend N618 item 8). No call for anyone without a set-up chat.
-    if (!typedQuestion && await sayToWill(q)) return;
+    if (!typedQuestion && await sayToWill(q)) return true;
     if (sendingRef.current) {
-      setDraftText(submittedDraft);
-      return;
+      if (!spoken) setDraftText(submittedDraft);
+      return false;
     }
-    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft));
+    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken?.durationMs));
+    return true;
   }
 
   // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
@@ -2109,25 +2186,31 @@ export default function Lounge({
     }
   }
 
-  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string) {
-    const project = projectQuestionTurn(question);
-    const hint = typedHint(place, project?.arcId, openChat);
-    const metadata = project ? {
-      ...hint,
+  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, durationMs?: number) {
+    const questionProject = projectQuestionTurn(question);
+    const arcId = citation?.arcId ?? questionProject?.arcId;
+    const takeId = citation?.takeId ?? questionProject?.takeSessionId;
+    const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
+    const reviewFocus = citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined;
+    const hint = typedHint(openChat && citation ? null : place, arcId, openChat);
+    const scope = arcId && takeId ? {
       ...typedProjectTurnMetadata({
-        arcId: project.arcId, takeSessionId: project.takeSessionId,
-        questionClientId: project.row.client_id, role: "answer", place,
+        arcId, takeSessionId: takeId,
+        questionClientId: scopedQuestion?.client_id ?? "", role: "answer", place: openChat && citation ? null : place,
       }),
-    } : hint;
+      ...(reviewFocus ? { review_focus: reviewFocus } : {}),
+      ...(citation ? { take_exchange: true } : {}),
+    } : null;
+    const metadata = { ...hint, ...scope, ...(durationMs === undefined ? {} : { will_voice: true, duration_ms: durationMs }) };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
-    const history = project
-      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), project.arcId)
+    const history = arcId
+      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arcId)
       : regularScreenHistory(screen);
-    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, question, {
+    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, scopedQuestion, {
       question: q, history, historySource: thread.signedIn ? "screen" : undefined,
-      projectId: project?.arcId, sessionId: project?.takeSessionId, place, persist: thread.signedIn,
-      presentationContext: currentPresentationContext(),
+      projectId: arcId, sessionId: takeId, place, persist: thread.signedIn,
+      presentationContext: { ...currentPresentationContext(), ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
     });
     rememberPlace(turn.user.client_id, place);
     return turn;
@@ -2140,19 +2223,21 @@ export default function Lounge({
     setBotThinking(true);
     setActiveOffer((open) => open === "feedback_check" ? null : open);
     atBottomRef.current = true;
-    const project = projectQuestionTurn(turn.question);
+    const { projectId, sessionId } = turn.request;
+    const reviewFocus = turn.request.presentationContext?.review_focus;
+    const project = projectId && sessionId ? { arcId: projectId, takeSessionId: sessionId } : null;
     try {
       const result = await outbox.deliver(turn, (response) => {
         const body = chatReplyBody(response, project ? null : "I know nothing about that, at least yet 😏");
         if (!body || isReplayedTerminalReply(body, messages)) throw new Error("Missing contextual reply");
         const projectMeta = project ? typedProjectTurnMetadata({
           arcId: project.arcId, takeSessionId: project.takeSessionId,
-          questionClientId: project.row.client_id, role: "reply", place,
+          questionClientId: turn.question?.client_id ?? "", role: "reply", place: openChat && reviewFocus ? null : place,
         }) : null;
         return {
           role: "bot", kind: "text", body,
-          metadata: { ...typedHint(place, project?.arcId, openChat), ...chatReplyMetadata(response),
-            ...projectMeta, ...response.row_metadata },
+          metadata: { ...typedHint(openChat && reviewFocus ? null : place, project?.arcId, openChat), ...chatReplyMetadata(response),
+            ...projectMeta, ...response.row_metadata, ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
         };
       });
       if (!result || !outbox.isCurrent()) return;
@@ -2239,6 +2324,27 @@ export default function Lounge({
   };
   const drawShown = (item: ThreadItem, i: number) => {
     const id = item.message.client_id;
+    const take = item.message.metadata?.take_exchange !== false
+      ? takeConversations.get(takeSessionOf(item.message) ?? "") : undefined;
+    if (take) {
+      if (take.anchor !== id) return null;
+      return <LoungeTakeConversation key={composerScope + ":" + take.takeId} arcId={take.arcId} takeId={take.takeId}
+        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock}
+        onCitation={(next) => {
+          setCitation((current) => next ?? (current?.takeId === take.takeId ? null : current));
+          if (next?.quote) focusComposer();
+        }} onReload={() => { void reload(); }}
+        renderFooter={(message) => {
+          const failed = outbox.turns.find((turn) => turn.user.client_id === message.client_id && !outbox.isSending(turn));
+          if (failed) return <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} />;
+          const offer = recordOffer(message, take.arcId);
+          const wording = message.role === "bot" && message.metadata?.coach_wording ? (
+            <CoachWordingCard message={message} project={take.arcId} recordingDock={recordingDock}
+              savedReply={savedWordings.has(message.client_id)} onSaved={() => { void reload(); }} />
+          ) : null;
+          return offer || wording ? <>{offer}{wording}</> : null;
+        }} />;
+    }
     const walk = walkAt.get(id);
     if (!walk) return drawItem(item, i);
     const cardId = pairs.cardOf.get(id);
@@ -2319,6 +2425,7 @@ export default function Lounge({
         onRetryIdealText={retryIdealTextFromCard}
         onOpenConfidencePractice={setConfidencePracticeId}
         onChip={onChip}
+        recordOffer={recordOffer(item.message)}
         activeOffer={activeOffer}
         onOpenOffer={setActiveOffer}
         willOpen={i === shownItems.length - 1}
@@ -2558,10 +2665,11 @@ export default function Lounge({
       <div className="peer-[:not(:empty)]:hidden">
         <LoungeComposer key={composerScope}
           place={place} openChat={openChat} draft={draft} plan={plan} keyLine={keyLine} notebook={notebook}
-          nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
           held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
           busy={botThinking || !outbox.ready}
-          onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={sidebar?.show ?? onStart}
+          citation={citation} voice={reviewVoice}
+          clearCitation={() => setCitation((current) => current ? { ...current, focus: undefined, quote: undefined } : null)}
+          onSend={handleSend} onProjects={sidebar?.show ?? onStart}
           onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
         />
       </div>
@@ -2617,36 +2725,6 @@ export default function Lounge({
             setIdealTextLaunchMode("notebook");
             setIdealTextCoachTake(null);
             setIdealTextNotice(null);
-          }}
-          // SD — "Read it aloud": the re-read is just another recording. Seed
-          // THIS presentation (only when the cache holds a different arc; the
-          // BE reconciles the real take index on upload) and open the Lab.
-          onReadAloud={(version) => {
-            const arcId = idealTextArcId;
-            const cached = readExploreArc(userId);
-            // The first Take's page, with only that Take: "Record Take 2" is
-            // the real talk, as the chat's is (backend N449 item 1), never
-            // the five questions again.
-            const nextTake = cached?.arcId === arcId ? cached.nextTakeIndex : (version ?? 1) + 1;
-            if (isFirstTakeArc(userId, arcId, nextTake - 1) && onStartPlanRecording) {
-              setIdealTextArcId(null);
-              onStartPlanRecording(plan.topic, { afterFirstTake: true });
-              return;
-            }
-            if (cached?.arcId !== arcId) {
-              // Seed the next-take index from the SD version hint (≈ takes so
-              // far); the BE reconciles the real take_index on upload.
-              writeExploreArc(
-                userId,
-                arcId,
-                (version ?? 0) + 1,
-                undefined,
-                latestArcSessionId(arcId),
-              );
-            }
-            setIdealTextArcId(null);
-            // The arc is already seeded above — never ask WHICH project.
-            (onStartInProject ?? onStart)();
           }}
         />
         </IdealTextPastOr>
@@ -2881,7 +2959,7 @@ function BotWays({
   const many = onChip ? coerceSuggestedActions(metadata?.suggested_actions) : [];
   const one = onChip ? coerceSuggestedAction(metadata?.suggested_action) : null;
   const actions = many.length > 0 ? many : one ? [one] : [];
-  const ways = actions.filter((action) => action !== "feedback_skip");
+  const ways = actions.filter((action) => action !== "feedback_skip" && !(action === "trainings" && offersNextTake(metadata)));
   return (
     <>
       {/* Ways to go are links on Will's side, one per line; "Skip" is a
@@ -3067,6 +3145,7 @@ function BubbleBody({
   onRetryIdealText,
   onOpenConfidencePractice,
   onChip,
+  recordOffer,
   activeOffer,
   onOpenOffer,
   willOpen = false,
@@ -3109,6 +3188,7 @@ function BubbleBody({
   /** Coach-shared exercise opens independently of the three-take journey. */
   onOpenConfidencePractice?: (practiceId: string) => void;
   onChip?: (action: ChipAction) => void;
+  recordOffer?: ReactNode;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
   /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
@@ -3185,6 +3265,7 @@ function BubbleBody({
           onOpenFeedback={onOpenFeedback}
           onOpenConfidencePractice={onOpenConfidencePractice}
         />
+        {recordOffer}
         {/* FE-5 — the life card rides in metadata exactly like the B-1 chip
             above, so it survives reload and scroll-back without a second write
             path. A turn that carried none passes undefined and renders null,
@@ -3207,18 +3288,11 @@ function BubbleBody({
  *  wait's percent does (Never 1, founder 2026-10-19). */
 const FIRST_TAKE_TIME = "About 2 minutes to record. Your feedback comes about a minute later.";
 
-/** The last Take at rest, so the composer is "Record Take N" for the
- *  one after it (N483 item 2): the newest Take in the thread, else this
- *  device's record of the project; none before the first Take. */
-function restingTake(
-  messages: readonly Pick<LoungeMessage, "kind" | "metadata">[],
-  ownerId: string | null,
-): { arcId: string; takeIndex: number } | null {
-  const meta = messages.findLast((m) => m.kind === "recording_summary")?.metadata;
-  if (typeof meta?.arc_id === "string" && typeof meta.take_index === "number") return { arcId: meta.arc_id, takeIndex: meta.take_index };
-  const project = readExploreArc(ownerId);
-  const done = project ? project.nextTakeIndex - 1 : 0;
-  return project && done > 0 ? { arcId: project.arcId, takeIndex: done } : null;
+/** The preceding recorded project for a general chat offer without coordinates. */
+function restingTake(messages: readonly LoungeMessage[]): { arcId: string } | null {
+  const summary = messages.findLast((message) => message.kind === "recording_summary");
+  const arcId = summary ? projectIdOf(summary) : null;
+  return arcId ? { arcId } : null;
 }
 
 function LoungeEmptyState({ hidden }: { hidden: boolean }) {
@@ -3414,39 +3488,6 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
     [watched],
   );
   return { waits };
-}
-
-/** After a Take's goodbye (N296 state 4, backend N483 item 2): the bar's
- *  middle is "Record Take N" for the Take after it, with nothing to tap
- *  first (was the tap "I want to continue my practice", N294 item 6). Only
- *  the newest Take's goodbye, whatever the project (N244, N251); a practice
- *  day's one thing, newer, holds the chat's one record button (N167). */
-function useGoodbye({
-  messages,
-  oneHoldsRecord,
-  planOne,
-  olderTake,
-}: {
-  messages: readonly LoungeMessage[];
-  oneHoldsRecord: boolean;
-  /** A practice day's Take, while its one thing holds the chat's one record
-   *  button (`usePlanLounge` `one`). */
-  planOne: { arcId: string; takeIndex: number } | null;
-  olderTake: (meta?: Record<string, unknown> | null) => number | null;
-}) {
-  const goodbye = useMemo(() => {
-    const at = afterGoodbye(messages);
-    return at && !oneHoldsRecord && olderTake(at.message.metadata) === null ? at : null;
-  }, [messages, oneHoldsRecord, olderTake]);
-  return {
-    /** The Take "Record Take N" follows: the goodbye's, else a practice
-     *  day's (the-plan.md G6); never both, as the practice day's one thing
-     *  holds the button. */
-    recordNext: goodbye ? goodbye.next : planOne,
-    /** That "Record Take N" follows the first Take, as its goodbye says
-     *  (backend N449 item 1): the real talk. */
-    afterFirstTake: goodbye?.message.metadata?.first_take === true,
-  };
 }
 
 /** The Lounge's one wait under the thread (B8): a reply being written, or

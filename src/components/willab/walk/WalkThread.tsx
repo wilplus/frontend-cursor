@@ -487,6 +487,7 @@ function InlineThread({ frame, opening, current, buttons, onClose, children }: {
   onClose: () => void;
   children: ReactNode;
 }) {
+  const conversation = useInlineWalkHost()?.conversation === true;
   const [dock, setDock] = useState<HTMLDivElement | null>(null);
   const close = useRef<(() => void) | null>(null);
   const [position, setPosition] = useState({ index: 0, total: 0 });
@@ -512,7 +513,7 @@ function InlineThread({ frame, opening, current, buttons, onClose, children }: {
   }
 
   return <div ref={frame} data-walk-thread data-inline-walk-thread className="flex min-w-0 flex-col gap-2">
-    <div className="flex items-center justify-between">
+    {!conversation ? <div className="flex items-center justify-between">
       <nav aria-label="Feedback walk" className="flex items-center gap-1">
         <button type="button" aria-label={COPY.pagerBack} disabled={position.index <= 0}
           className="grid size-9 place-items-center rounded-full text-muted-foreground disabled:opacity-25" onClick={() => jump(-1)}>
@@ -524,7 +525,7 @@ function InlineThread({ frame, opening, current, buttons, onClose, children }: {
         </button>
       </nav>
       <OverlayCloseButton onClick={leave} />
-    </div>
+    </div> : null}
     <div className="flex flex-col gap-2">
       <FrameContext.Provider value={frameValue}>{children}</FrameContext.Provider>
     </div>

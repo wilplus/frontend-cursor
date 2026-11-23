@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import {
@@ -36,16 +35,12 @@ import { BlockVariantSheet } from "./BlockVariantPicker";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
-import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
-import IdealTextHeading from "./IdealTextHeading";
-import AiGeneratedNote from "./AiGeneratedNote";
 import { GuestGateContext, guestNeedsAccount, useGuestGate } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
 import { wallMomentOf } from "./wallMoment";
 import {
-  aiGeneratedAttrs,
   copyAiGeneratedText,
 } from "@/lib/willab/aiGeneratedMark";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -68,8 +63,8 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
-import IdealTextActions from "./IdealTextActions";
 import ReadoutMenu from "./ReadoutMenu";
+import IdealTextDocument from "./IdealTextDocument";
 import { useReadoutLanding } from "./useReadoutLanding";
 import type { ReadoutPayload } from "./readout";
 import type {
@@ -139,7 +134,6 @@ export default function IdealTextReadout({
   signedIn,
   onAutoSent,
   onSignUp,
-  onReRead,
   onClose,
   analysisPending = false,
   processingCycleStartedAt = null,
@@ -162,10 +156,6 @@ export default function IdealTextReadout({
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
   onSignUp: () => void;
-  /** Re-read: reading this ideal text aloud is just the next take — the host
-   *  drops us back into the record flow for this presentation, and the reading
-   *  sharpens the text. Absent → the re-read block hides. */
-  onReRead?: () => void;
   /** Founder 2026-07-30 — the host's way out, drawn in THIS screen's head
    *  beside the title, the way the ideal-text overlay draws its own. The host
    *  stops drawing its bare header when it passes this, so the ✕ moves rather
@@ -195,11 +185,6 @@ export default function IdealTextReadout({
     autoOpened.current = true;
     setReviewRequest((n) => n + 1);
   }, [reviewWaiting]);
-  /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
-     finished walk can be played again; the link under "Record Take N" bumps
-     the request that plays it. */
-  const [replayReady, setReplayReady] = useState(false);
-  const [replayRequest, setReplayRequest] = useState(0);
   const firedRef = useRef(false);
   // #214 — edit persistence: armed once the SD GET confirms the contract and
   // hands us the current version. Until then (flag OFF / guest) edits are
@@ -229,8 +214,7 @@ export default function IdealTextReadout({
     decisionHistory: DecisionHistoryEntry[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
-    /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
-     *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
+    /** The recorded deck PDF this document belongs to. */
     presentationRef: string | null;
     /** Slide titles by index — the deck's title slot. */
     slideTitles: string[] | null;
@@ -658,7 +642,7 @@ export default function IdealTextReadout({
   );
 
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
-  const deckRef = useArcDeckRef(arcId, sd?.presentationRef ?? null, sdSettled);
+  const deckRef = sd?.presentationRef ?? null;
 
   /* THE DECK'S INPUTS HAVE TO KEEP THEIR IDENTITY (2026-09-19). Same defect
    * as IdealTextOverlay, fixed in both so they cannot drift: these were built
@@ -1030,58 +1014,7 @@ export default function IdealTextReadout({
     );
   }
 
-  /** The loop's next step — the bottom bar, and the card after the last
-   *  moment of the walk (founder 2026-09-26), from one place. */
-  function nextStep(waiting: boolean, endCard = false): React.ReactNode {
-    if (!sd || !arcId || !onReRead) return null;
-    return (
-      <IdealTextActions
-        canRecordTake={sd.canRecordTake}
-        takeCount={sd.takeCount}
-        arcId={arcId}
-        reviewWaiting={waiting}
-        endCard={endCard}
-        onReview={() => setReviewRequest((n) => n + 1)}
-        onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
-        onNewTake={gate(onReRead, undefined)}
-        onClose={onClose ?? null}
-      />
-    );
-  }
-
-  return (
-    // `min-h-0` so the deck below can shrink into the space the header and
-    // the actions leave — without it a flex child refuses to go under its
-    // content height and the screen grows a second scroll.
-    <div
-      data-ideal-text-wheel-owner
-      {...aiGeneratedAttrs("ideal-text")}
-      className="relative flex min-h-0 flex-1 flex-col gap-4 overscroll-none"
-    >
-      {covered ? (
-        <div className="absolute inset-0 z-40 flex flex-col bg-background">
-          {waitScreen()}
-        </div>
-      ) : null}
-      {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
-          like one: the project's name with its verification state beside it,
-          the actions and the way out on the same row. It used to spend this
-          band on a lone badge under an EMPTY overlay header — the one thing
-          the ideal-text overlay had already been fixed not to do. The host
-          hands its ✕ down here rather than drawing a second one above (the
-          same "it moves, it does not duplicate" rule as the setup flow). */}
-      <div className="flex items-center justify-between gap-2">
-        {/* Article 50(2) as a caption under the name (founder 2026-09-26),
-            the same head the notebook wears. */}
-        <div className="flex min-w-0 flex-col">
-          <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-          <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* ONE ⋯ (founder 2026-09-26): Copy and Save the ideal text, the
-              same menu as the notebook. Same marked copy from the one
-              module, so the two cannot export differently. No edit control
-              in the top bar (founder 2026-08-11). */}
+  const menu = (
           <ReadoutMenu
             text={text}
             arcId={arcId}
@@ -1097,9 +1030,14 @@ export default function IdealTextReadout({
               setSdNonce((n) => n + 1);
             }}
           />
-        </div>
-      </div>
-
+  );
+  return (
+    <div data-ideal-text-wheel-owner className="relative flex min-h-0 flex-1 flex-col overscroll-none">
+      {covered ? (
+        <div className="absolute inset-0 z-40 flex flex-col bg-background">{waitScreen()}</div>
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+      <IdealTextDocument name={sd?.title} take={sd?.takeCount} menu={menu} onClose={onClose}>
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}
       {canRead && arcId && !sdSettled ? (
@@ -1122,20 +1060,18 @@ export default function IdealTextReadout({
         // `min-h-0`, not a floor: the deck takes the height that is LEFT.
         // A minimum here is what pushed the page past the viewport and gave
         // the screen a second scroll (founder 2026-08-11).
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-w-0">
           <FeedbackFailedNotice
             failed={sd.feedbackFailed}
             onRetry={() => setSdNonce((n) => n + 1)}
           />
           <GuestGateContext.Provider value={guestGate.block}>
           <TranscriptReviewDeck
+            inlineDocument
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
-            replayRequest={replayRequest}
-            onReplayReady={setReplayReady}
             onLensClose={onClose}
-            renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={text}
             parts={partsRef.current ?? sd.parts}
@@ -1238,29 +1174,9 @@ export default function IdealTextReadout({
         >
           Create an account to keep this text
         </Button>
-      ) : sd && arcId && onReRead ? (
-        // MASTER DOCUMENT — Save, then the next official take. Reading the
-        // text back into the mic used to sit between them; retired (founder
-        // 2026-08-05). The take nudge that sat under this went with it:
-        // "not text that it really lands on the 3rd time; on the bubble
-        // never" — and it was no better as a standing line on the document.
-        // 8px above, on each side and below (N505), out of the shell's
-        // 16px sides and 8px bottom and the column's 16px gap.
-        <div className="-mx-2 -mb-2 -mt-2">{nextStep(reviewWaiting === true)}</div>
-      ) : onReRead ? (
-        // Flag OFF / no SD payload — the plain small mic into the record flow.
-        <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
-          <Button
-            type="button"
-            onClick={onReRead}
-            variant="outline"
-            className="h-10 rounded-full px-5 text-[14px] font-medium"
-          >
-            <Mic className="mr-2 h-4 w-4" aria-hidden />
-            continue refining ideal text
-          </Button>
-        </div>
       ) : null}
+      </IdealTextDocument>
+      </div>
 
       {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological).
           Kept visually separate from the offer sheet above BY DESIGN (§6):

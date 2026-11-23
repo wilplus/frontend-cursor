@@ -1469,39 +1469,6 @@ export default function LabOverlay({
     onClose();
   }
 
-  function startNextTakeHere() {
-    // A new Take must not inherit the previous Take's consumed fragment.
-    // Retrying a rejected recording keeps its choice in onRecordAgain instead.
-    practiceResumeRef.current = null;
-    // A re-read is just the next take on THIS presentation: keep the
-    // deck (context) and arc (arcTakeIndex was already advanced on the
-    // prior upload), drop the current take's readout/session/blob, and
-    // drop back to the mic. The BE reconciles the real take index on
-    // upload. Clear the parked readout so it can't restore over the
-    // new take; startPendingRef lets the mic-state effect re-init the
-    // slide timeline at the real recording start.
-    clearParked();
-    setReadout(null);
-    setLabSessionId(null);
-    setBlob(null);
-    uploadStartedRef.current = false;
-    pendingCarryRef.current = null;
-    setPollSessionId(null);
-    setPollSlow(false);
-    startPendingRef.current = true;
-    // THE BUTTON THE FOUNDER PRESSED (2026-08-12): "after clicking
-    // the record button - it yet again opens up the waiting screen
-    // instead of just bringing me to the recording page". The mic
-    // has been parked on {status:"stopped", audioBlob:<last take>}
-    // since that take ended, so entering lab_recording let the
-    // stop→processing branch fire on the PREVIOUS blob and bounce
-    // straight back out. Reset to idle first — RecordingPhase's
-    // "Getting your mic ready…" covers idle while getUserMedia
-    // resolves, which is the screen he was asking for.
-    cancelMic();
-    dispatch("take_started");
-    void mic.start();
-  }
 
   /** Abandon a slow analysis (the daemon still finishes it server-side; the
    *  marker + Lounge indicator keep tracking it). The stashed arc bookkeeping
@@ -1963,7 +1930,6 @@ export default function LabOverlay({
             // already been asked over their text, so the "One quick step"
             // page in between was a second ask with nothing new in it.
             onSignUp={() => startUnsignedSend()}
-            onReRead={startNextTakeHere}
           />
         )}
 

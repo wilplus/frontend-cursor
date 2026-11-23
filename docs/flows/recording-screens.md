@@ -16,6 +16,8 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 
 ## 1. The rules
 
+The chat composer records answers in its own conversation. In a Take exchange, `record_again` supplies the **Record the next take** link. The link opens that project's recording flow. (Founder, 23 November 2026, N682.)
+
 `LOCKED 2026-10-07 · founder in chat: "Lock the recording screens" · decisions log N59`
 `RE-LOCKED 2026-10-12 · founder in chat: "that's what i want; please lock it" · decisions log N70`
 

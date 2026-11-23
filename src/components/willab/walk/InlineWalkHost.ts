@@ -9,6 +9,7 @@ export const PROJECT_SPEAKER_BUBBLE = "bg-[#f8f1ea] text-foreground dark:bg-[#3c
 export const InlineWalkHost = createContext<{
   recordingDock: HTMLDivElement | null;
   savedSteps: readonly LoungeMessage[];
+  conversation?: boolean;
 } | null>(null);
 
 export function useInlineWalkHost() {
@@ -16,7 +17,7 @@ export function useInlineWalkHost() {
 }
 
 export function scrollWithinProject(node: HTMLElement | null | undefined): void {
-  const viewport = node?.closest<HTMLElement>("[data-project-scroll]");
+  const viewport = node?.closest<HTMLElement>("[data-project-scroll], [data-thread]");
   if (!node || !viewport) return;
   viewport.scrollTop += node.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 12;
 }

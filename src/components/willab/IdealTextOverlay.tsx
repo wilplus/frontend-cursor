@@ -26,11 +26,8 @@ import WalkLoading from "./walk/WalkLoading";
 import { useBackDismiss } from "./useBackDismiss";
 import { useInlineWalkHost } from "./walk/InlineWalkHost";
 import { RichText } from "./RichText";
-import IdealTextHeading from "./IdealTextHeading";
 import MarkedParagraphs from "./MarkedParagraphs";
-import AiGeneratedNote from "./AiGeneratedNote";
 import {
-  aiGeneratedAttrs,
   copyAiGeneratedText,
 } from "@/lib/willab/aiGeneratedMark";
 import {
@@ -72,12 +69,9 @@ import {
 } from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { LENS_DOTS_AFTER_MS, LENS_IDLE_MS, LENS_WATCHDOG_MS, WALK_STEP_SELECTOR, lensAddress, lensIdle, lensStillLoading, walkDoorReady, type LensPage } from "@/lib/willab/lensScreen";
-import { useArcDeckRef } from "./useArcDeckRef";
-import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
 import { IdealTextEditorLayer } from "./IdealTextEditor";
 import { useUpdateSlides } from "./UpdateSlides";
-import { useArchivedReturn } from "./OneProjectQuestion";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -100,8 +94,7 @@ import {
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
-import { PageHeader } from "./PageHeader";
-import type { PracticeDecision } from "@/lib/willab/practiceResume";
+import IdealTextDocument from "./IdealTextDocument";
 
 type IdealTextSaveStatus = "saved" | "authority" | "error" | null;
 
@@ -180,7 +173,6 @@ function selectedReviewValue<T>(selected: T | null | undefined, current: T | nul
 
 export default function IdealTextOverlay({
   arcId,
-  practiceDecision,
   analysisPending = false,
   initialMode = "notebook",
   coachTake,
@@ -191,16 +183,15 @@ export default function IdealTextOverlay({
   projectFlow = false,
   notice = null,
   reviewAt = null,
-  takeReviewEdit = false,
+  inlineDocument = false,
   onPracticeUnavailable,
   onClose,
-  onReadAloud,
 }: {
   arcId: string;
-  practiceDecision?: PracticeDecision;
   /** With "review": the Lounge step tapped, where the walk opens. */
   reviewAt?: WalkStepTarget | null;
-  takeReviewEdit?: boolean;
+  /** Read and manage the current Take's Ideal Text within the chat scroll. */
+  inlineDocument?: boolean;
   onPracticeUnavailable?: () => void;
   /** W4/W5 — true while a take for this arc is still analysing. While true
    *  the overlay shows its LOADING state instead of fetching (a fetch now
@@ -231,12 +222,6 @@ export default function IdealTextOverlay({
    *  so this is the latest Take (backend N380). */
   notice?: string | null;
   onClose: () => void;
-  /** The host closes this overlay into the record flow for the NEXT official
-   *  take of this presentation. Receives the current version as a take-count
-   *  hint for the arc seed. Optional: without it the CTA hides.
-   *  (Named for the retired "read it aloud" lane; it is the next-take route
-   *  now — kept as-is so the two call sites don't churn.) */
-  onReadAloud?: (version: number | null) => void;
 }) {
   const inlineWalk = useInlineWalkHost() !== null;
   // The editor registers its one save-safe exit here. Every route out of this
@@ -249,7 +234,7 @@ export default function IdealTextOverlay({
   }, [onClose]);
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
   // nested FeedbackOverlay, which pushes its own entry on top).
-  useBackDismiss(requestExit, () => editorBackGuardResult(editBackRef.current));
+  useBackDismiss(requestExit, () => editorBackGuardResult(editBackRef.current), !inlineDocument);
   // The lens's address goes on the Back entry just pushed, after it exists,
   // and comes off on every close (✕, Back, the next Take).
   useEffect(() => {
@@ -339,7 +324,7 @@ export default function IdealTextOverlay({
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
-  const [editingIdealText, setEditingIdealText] = useState(takeReviewEdit);
+  const [editingIdealText, setEditingIdealText] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportChooserOpen, setExportChooserOpen] = useState(false);
   const [exportFormat, setExportFormat] =
@@ -387,8 +372,6 @@ export default function IdealTextOverlay({
   /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
      finished walk can be played again; the link under "Record Take N" bumps
      the request that plays it. */
-  const [replayReady, setReplayReady] = useState(false);
-  const [replayRequest, setReplayRequest] = useState(0);
   const reviewOpenedRef = useRef(false);
   // The coach's link opens only what the coach sent; with nothing of theirs
   // to show once the feedback settled, it goes back to the chat, where the
@@ -465,7 +448,7 @@ export default function IdealTextOverlay({
       r: Extract<IdealTextResult, { kind: "single" }>,
       markCorePainted: boolean,
     ): boolean => {
-      if (takeReviewEdit && r.latestTakeSessionId !== reviewTake) {
+      if (inlineDocument && r.latestTakeSessionId !== reviewTake) {
         setEditingIdealText(false);
         setStatus("pending");
         return false;
@@ -564,7 +547,7 @@ export default function IdealTextOverlay({
       active = false;
     };
   }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake, takeRetry, retryFailed,
-    takeReviewEdit, reviewTake]);
+    inlineDocument, reviewTake]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -975,19 +958,8 @@ export default function IdealTextOverlay({
     return true;
   };
 
-  // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
-  // Resolved only under SD (the legacy lanes have no piece structure to
-  // attach slides to), after the GET settles.
-  // Update slides under ⋯ (N257), and the one-project question before an
-  // archived project's next Take (N254).
   const updateSlides = useUpdateSlides(arcId, sd);
-  const archivedReturn = useArchivedReturn(arcId, sd);
-
-  const deckRef = useArcDeckRef(
-    arcId,
-    sd?.presentationRef ?? null,
-    status === "ready" && sd !== null,
-  );
+  const deckRef = sd?.presentationRef ?? null;
 
   // Founder 2026-08-11 — the whole star layer is gone: the bulk polish lane,
   // the per-star taps, the moment sheet and its folds. Feedback reaches the
@@ -1020,84 +992,31 @@ export default function IdealTextOverlay({
     });
   }, [arcId]);
 
-  /** The loop's next step — the bottom bar, and the card after the last
-   *  moment of the walk (founder 2026-09-26), from one place so the two can
-   *  never offer different next steps. */
-  function nextStep(waiting: boolean, endCard = false): React.ReactNode {
-    if (!sd || !onReadAloud) return null;
-    return (
-      <IdealTextActions
-        canRecordTake={sd.canRecordTake}
-        takeCount={sd.takeCount}
-        arcId={arcId}
-        reviewWaiting={waiting}
-        endCard={endCard}
-        onReview={() => setReviewRequest((n) => n + 1)}
-        onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
-        onNewTake={() => onReadAloud(sd.version)}
-        onClose={requestExit}
-        shareFirst={!endCard && initialMode === "share"}
-        confirmFirst={archivedReturn.confirmFirst}
-        practiceDecision={practiceDecision}
-      />
-    );
-  }
-
-  // Words and button together on the first paint (founder 2026-09-28, "A"):
-  // the bottom no longer waits on any fact ("See next steps" is gone,
-  // Q-B10 A), so the page draws its own status as it is.
   const shownStatus = status;
   const saveStatusCopy = saveStatusCopyFor(saveStatus);
   const mediaPayload = useMemo(() => [sd, ideal], [sd, ideal]);
 
-  return (
-    <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
-    <div
-      data-ideal-text-wheel-owner
-      {...aiGeneratedAttrs("ideal-text")}
-      className={inlineWalk ? "contents" : lensHides(lens.on)}
-    >
-      {inlineWalk ? null : <>
-      <LensFrame on={lens.on} onClose={onClose} />
-      <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
-          {/* The project's name and its verification state, from the shared
-              head, with the Article 50(2) notice as a caption under it
-              (founder 2026-09-26: it keeps its mark on every branch, but it no
-              longer spends a full-width row of its own). */}
-          <div className="flex min-w-0 flex-col">
-            <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-            <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
-          </div>
-          <div className="flex items-center gap-1.5">
-            {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version
-                history, Copy, Edit ideal text and Save the ideal text. None of
-                them is part of the review loop, and on a phone their icons read
-                as a row of unlabelled circles. */}
-            {shownStatus === "ready" && sd ? (
-              <IdealTextMenu
-                arcId={arcId}
-                saved={sd.saved}
-                onSaved={() => setRefetchNonce((n) => n + 1)}
-                onEdit={() => setEditingIdealText(true)}
-                onPresent={() => setPresenting(true)}
-                onExport={() => setExportChooserOpen(true)}
-                onHistory={historyEntry(sd.version, openHistory)}
-                slides={updateSlides.item}
-                onCopy={copyText}
-                copied={copied}
-              />
-            ) : null}
-            {/* ✕ beside the ⋯ (founder 2026-10-18): the same close as the
-                "Close" under Record, where the eye looks for it on a wide
-                screen. */}
-            <OverlayCloseButton onClick={onClose} />
-          </div>
-      </PageHeader>
+  const menu = shownStatus === "ready" && sd ? (
+    <IdealTextMenu
+      arcId={arcId}
+      saved={sd.saved}
+      onSaved={() => setRefetchNonce((n) => n + 1)}
+      onEdit={() => setEditingIdealText(true)}
+      onPresent={() => setPresenting(true)}
+      onExport={() => setExportChooserOpen(true)}
+      onHistory={historyEntry(sd.version, openHistory)}
+      slides={updateSlides.item}
+      onCopy={copyText}
+      copied={copied}
+    />
+  ) : null;
+
+  const content = <>
+      {!inlineWalk ? <>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
       <PageNotice notice={notice} />
       {updateSlides.layer}
-      {archivedReturn.layer}
-      </>}
+      </> : null}
 
       {shownStatus === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
@@ -1105,7 +1024,7 @@ export default function IdealTextOverlay({
         // chunk, REVIEW/EDITOR modals on the existing decide/lock lanes.
         // A user-edited document rides the same deck (its parts and locks
         // are real; there are simply no suggestions left to wait on).
-        <div className={inlineWalk ? "contents" : "flex min-h-0 flex-1 flex-col"}>
+        <div className={inlineWalk ? "contents" : "flex min-w-0 flex-col gap-3"}>
           {tooLong ? (
             <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
               {IDEAL_EDIT_COPY.tooLong}
@@ -1123,14 +1042,13 @@ export default function IdealTextOverlay({
             onRetry={() => setRefetchNonce((n) => n + 1)}
           />
           <TranscriptReviewDeck
+            inlineDocument={!inlineWalk}
             reviewRequest={reviewRequest}
             reviewAt={reviewAt}
             reviewSlideRange={reviewSlideRange}
             requireFeedbackWalk={requireFeedbackWalk}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
-            replayRequest={replayRequest}
-            onReplayReady={setReplayReady}
             onLensClose={inlineWalk ? requestExit : walkCloseFor(projectFlow, requestExit, lens.reveal)}
             coachOnly={coachOnly}
             coachTake={coachTake}
@@ -1145,7 +1063,6 @@ export default function IdealTextOverlay({
             onWalkClose={() => {
               if (inlineWalk || reviewAt?.practise || lens.onRef.current) requestExit();
             }}
-            renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={displayText}
             parts={sd.parts}
@@ -1189,7 +1106,7 @@ export default function IdealTextOverlay({
           {!inlineWalk && sd.additions.length > 0 ? (
             <div
               data-ideal-text-wheel-native
-              className="scrollbar-none max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3"
+              className="border-t border-border py-3"
             >
               <AdditionsPanel
                 additions={sd.additions}
@@ -1200,26 +1117,10 @@ export default function IdealTextOverlay({
           ) : null}
         </div>
       ) : (
-        <IdealTextUnavailable status={shownStatus} inlineWalk={inlineWalk} analysisPending={analysisPending}
+        <IdealTextUnavailable status={shownStatus} inlineWalk={inlineWalk || inlineDocument} analysisPending={analysisPending}
           hasText={Boolean(ideal)} text={displayText} tooLong={tooLong} saveStatusCopy={saveStatusCopy}
-          onReadAloud={onReadAloud} tryAgain={tryAgain} retryWhilePending={retryWhilePending} />
+          tryAgain={tryAgain} retryWhilePending={retryWhilePending} />
       )}
-
-      {/* The PERSISTENT bottom control. Reading the text out loud used to sit
-          here as a second, gated mic; it is retired (founder 2026-08-05 — it
-          brought no value to the coach or the user). What remains is one lane:
-          take after take, each an official recording. */}
-      {shownStatus === "ready" && sd && onReadAloud ? (
-        <div className="shrink-0 bg-background bar-space">
-          {/* 8px above, on each side and below (founder 2026-11-04, N505):
-              the text stops 8px above "Record Take N"; "Close" adds nothing
-              under it, its own row holds the 8px (N280). */}
-          {/* MASTER DOCUMENT — Save, then the next official take. On a
-              computer in the Lounge's column, as the lens is (founder
-              2026-10-20: the three views share one column). */}
-          <div className={WILLAB_CONTENT_RAIL}>{nextStep(reviewWaiting === true)}</div>
-        </div>
-      ) : null}
 
       {/* PRESENT MODE — fullscreen, over everything. Nothing but the X. */}
       {presenting ? (
@@ -1268,16 +1169,44 @@ export default function IdealTextOverlay({
         onCancel={() => setEditingIdealText(false)}
         onSave={(next) => saveDocument(next)}
       />
-    </div>
+  </>;
+
+  return (
+    <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
+      <IdealTextSurface inlineDocument={inlineDocument} inlineWalk={inlineWalk} lens={lens.on}
+        title={sd?.title} take={reviewTakeIndex ?? sd?.takeCount ?? null} menu={menu}
+        onClose={requestExit}>{content}</IdealTextSurface>
     </MediaRefreshProvider>
   );
+}
+
+function IdealTextSurface({ inlineDocument, inlineWalk, lens, title, take, menu, onClose, children }: {
+  inlineDocument: boolean;
+  inlineWalk: boolean;
+  lens: boolean;
+  title?: string | null;
+  take: number | null;
+  menu: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (inlineWalk) return <div className="contents">{children}</div>;
+  if (inlineDocument) return <IdealTextDocument name={title} take={take} menu={menu}>{children}</IdealTextDocument>;
+  return <>
+    <LensFrame on={lens} onClose={onClose} />
+    <div data-ideal-text-wheel-owner className={lensHides(lens)}>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-6">
+        <IdealTextDocument name={title} take={take} menu={menu} onClose={onClose}>{children}</IdealTextDocument>
+      </div>
+    </div>
+  </>;
 }
 
 type IdealTextStatus = "loading" | "ready" | "instant" | "pending" | "notYours" | "error";
 
 function IdealTextUnavailable({
   status, inlineWalk, analysisPending, hasText, text: displayText, tooLong,
-  saveStatusCopy, onReadAloud, tryAgain, retryWhilePending,
+  saveStatusCopy, tryAgain, retryWhilePending,
 }: {
   status: IdealTextStatus;
   inlineWalk: boolean;
@@ -1286,7 +1215,6 @@ function IdealTextUnavailable({
   text: string;
   tooLong: boolean;
   saveStatusCopy: string | null;
-  onReadAloud?: (version: number | null) => void;
   tryAgain: () => void;
   retryWhilePending: () => void;
 }) {
@@ -1322,7 +1250,6 @@ function IdealTextUnavailable({
         )
       ) : status === "pending" ? (
         <IdealTextPendingCoach
-          onReadAloud={onReadAloud}
           onRetry={retryWhilePending}
         />
       ) : status === "notYours" ? (

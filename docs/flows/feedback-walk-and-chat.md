@@ -60,14 +60,11 @@ existing controls remain unchanged.
 
 Speaking Coach sends project identity with each project bubble in screen history. An interrupted typed turn stays in its conversation through refresh, and **Try again** reuses its original words and identity until the stored reply arrives.
 
-The compact project result has one title inside the selected slide row, not a
-second repeated heading above Progress. Its black **Feedback** control opens
-that selected Take's Feedback Walk directly; **Ideal text** remains the white
-door to the document. The practice decision is one row: white **Rehearse this
-again** with a red, yellow or green readiness dot, then black **Continue
-practice**. Red is Not yet there, yellow is the intermediate/Almost state, and
-green is Good to go or stronger. These labels describe the next action, not a
-score (founder, 2026-11-18; backend N663).
+A Take recap opens its feedback and practice in order, then its Ideal Text with
+each slide above the text it belongs to. The coach can offer the next Take in
+the conversation with **Record the next take ›** after serving the
+`record_again` action. The text of any answer or closing line never supplies
+that action on its own. (Founder, 23 November 2026, N682.)
 
 The Speaking Coach answers the latest turn in that turn's language. A greeting
 gets a greeting and cannot replay an older project answer. A request for an
@@ -87,9 +84,7 @@ One sidebar sits beside the active chat. The Speaking Coach row opens general gu
 
 On 23 November 2026, the sidebar's separate Speaking Coach setup shortcut was retired (N676). The plan opens from its existing prompts in the coach conversation. If the person previously deleted Speaking Coach, **Start a new project** can create a fresh project from the sidebar. An archived coach is restored from **Archived chats**.
 
-A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The new review opens in the project conversation when its spoken Take finishes processing and the user is there. Minimise at the bottom or leave the project to fold it into one clickable bubble beneath its recording. The bubble gives a short preview. Opening it restores the same Take and its saved practice runs, including runs older than the conversation's first page.
-
-Feedback, Practise, and Ideal text have equal buttons within the open review. They navigate within the same conversation. Feedback plays the picked recording moment and opens the existing feedback walk in the thread. Practise opens the selected optional activity using the shared recording composer and offers another try. The Ideal text is available directly below. Ask coach carries the project, Take and available slide or moment back to the project conversation. A retry keeps the same turn identity and scope through reload.
+A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The live review opens in the active project as soon as its Take is ready. Leaving folds the exchange into a single preview below its recording. Opening the preview restores the conversation, including saved messages and practices across storage pages.
 
 The inline review opens on the strongest published praise for this Take when it has one. Its clip is playable beside the coach's reaction. The existing Walk writer uses the Take's words, its available delivery evidence and its recorded setup. Published praise is available while the writer is pending or unavailable. The other review buttons remain open to the speaker. The project composer can continue from the section and recording moment being reviewed without first tapping Ask coach. A reply can open the Take's selected practice or its Ideal Text inline. Leaving the optional practice or skipping it leads to the Ideal Text and its available helper words.
 
@@ -105,13 +100,11 @@ When a recommendation changes what to say or how to say it, the coach gives one 
 
 When asked about the last two recordings, Speaking Coach compares those authorised Takes and attaches the example to the Take it is meant for. If the recording clip is unavailable, the coach can demonstrate with the supported words and a delivery direction. A project-free example can still be tried in the chat.
 
-#### Shared chat artifacts (N673)
+#### Shared Take exchanges
 
-A Take review or a reply with structured content uses one small, clickable preview. Open it in the thread to see the available parts in order. The **moment** can be a quote or the original clip. The **intervention** can be a rewrite, an instruction, an AI audio or coach video example, or the Sniper pace practice. The **output** can be saved wording, a recorded attempt, a pace trace, or the Take's Ideal Text. Only available parts appear. Ordinary replies use the usual message bubble.
+The conversation opens at its original place in the chat and uses the full reading area. Each reply and speaker turn has its own bubble. The original clip, coach video, AI example, suggested wording, and saved Sniper trace or attempt appear where they were sent. Saved exercises can be replayed. A quote from an exact moment carries the Take and available moment reference into the regular composer. A spoken follow-up is heard under the existing recording authorization and its words enter the same chat query and outbox path. Retry keeps the original turn, recording context, and referenced moment.
 
-The exact clip, the optional practice and its saved attempts stay tied to the same Take and moment. Wording choices use the Ideal Text decision service. Practise uses the existing walk and recorder. The latest saved attempt is visible and earlier attempts can be expanded. **Minimise** folds the artifact and returns keyboard focus to its preview. Returning to the conversation also starts folded, while saved results remain available. A finished Take still opens its review in the active project automatically.
-
-Speaking Coach, project and person-to-person chats, the website widget, and Chat Builder's test, main and named conversations share the same ordered component. A new specialist chat inherits it from Chat Builder. The component displays the structured reply and the controls the particular chat has permission to use.
+The Ideal Text opens below the recorded walk in the same scroll, with its existing editing, copy, delivery and export actions. Other long generated documents occupy the same width. Later follow-ups continue in ordinary chat bubbles. The Take preview is shared by project and hosted coaching chats and by member and website threads with replies linked to an authorized Take. The conversation's own permissions determine the media and text it serves. (Founder approval in the Take design thread, 23 November 2026. Amends N670 and N673.)
 
 Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
 
@@ -125,10 +118,15 @@ appears immediately before the mic when the current draft can be sent. The
 composer keeps touch-sized controls and accounts for the phone's safe area.
 
 - In a conversation, type or start recording from the same row. Files opens
-  the attachments or upload actions supported by the current chat. A place
+  the attachments or upload actions supported by the current chat on an opaque surface. A place
   without a particular input keeps its slot disabled. Context chips, tap
   answers, consent, ratings, slide navigation and progress stay outside the
   message field.
+- In Speaking Coach and project chat the conversation mic records a reply.
+  Stop prepares the answer for preview. Send transcribes it under the
+  speaker's recording authorization and submits its words through the
+  existing chat turn. A selected Take or moment stays attached to the
+  answer. (Founder, 23 November 2026, N682.)
 - For a voice-only step the field is disabled and prompts the user to record.
   During capture the center shows the running timer and the right slot
   becomes Stop. The discard action sits beside the timer. Typing returns

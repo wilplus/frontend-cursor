@@ -326,7 +326,7 @@ function FilesSlot({ files, onPick, disabled }: {
         <Paperclip className="size-[18px]" aria-hidden />
       </button>
       {open ? (
-        <div className="absolute bottom-full left-0 z-20 mb-2 grid min-w-44 rounded-xl border border-border bg-popover p-1 text-sm text-popover-foreground shadow-lg">
+        <div className="absolute bottom-full left-0 z-20 mb-2 grid min-w-44 rounded-xl border border-border bg-background p-1 text-sm text-foreground shadow-lg">
           {files.map((action) => (
             <button key={action.label} type="button" onClick={() => select(action)}
               className="flex min-h-11 items-center gap-2 whitespace-nowrap rounded-lg px-2.5 text-left hover:bg-muted">

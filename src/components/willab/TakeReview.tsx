@@ -8,23 +8,20 @@ import { fetchReviewTempo } from "@/services/api/reviewTempo";
 import { readReviewCopy, readReviewSteps, saveReviewCopy, type ReviewCopy, type ReviewRevision, type ReviewRun } from "@/services/api/takeReview";
 import type { TrainingArc, TrainingTake } from "@/services/api/trainings";
 import type { ChatQueryArgs } from "@/services/api/chatQuery";
-import { helperHeadlineOf, slideGroupsOf } from "@/lib/willab/pastIdealText";
-import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookmark";
-import type { PracticeDecision } from "@/lib/willab/practiceResume";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import AiGeneratedNote from "./AiGeneratedNote";
-import DeckSlideThumb from "./DeckSlideThumb";
-import { EditableText } from "./FeedbackWalkCard";
+import { mergeTakeExchange } from "@/lib/willab/takeExchange";
+import { isPersistedTerminalReplay, orderedProjectMessages } from "@/lib/willab/projectChat";
+import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import IdealTextOverlay from "./IdealTextOverlay";
+import { ArchivedIdealText } from "./IdealTextPastVersion";
 import TypingDots from "./TypingDots";
-import { RichText } from "./RichText";
 import { useBackDismiss } from "./useBackDismiss";
-import { HelpersLabel } from "./TranscriptReviewDeck";
 import WalkPlayer from "./walk/WalkPlayer";
 import { useBestSaid, useWalkVoiceOn } from "./walk/useWalkVoice";
 import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
-import TakeReviewPracticeHistory, { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
-import { ChatArtifactPanel } from "./chats/ChatArtifact";
+import { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
+import { ConversationBubble } from "./chats/TakeConversation";
+import TakeConversationMessage from "./chats/TakeConversationMessage";
 import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 
 export type ReviewFocus = NonNullable<NonNullable<ChatQueryArgs["presentationContext"]>["review_focus"]>;
@@ -33,10 +30,12 @@ export type TakeReviewTarget = {
   focus: ReviewFocus;
   walkRange?: FeedbackWalkSlideRange;
   openWalk?: boolean;
+  /** An archived exchange can be played back and discussed in the composer. */
+  replay?: boolean;
+  quote?: string;
 };
 export type ReviewExit = (afterSave: () => void) => void;
 type Step = ReviewFocus["step"];
-
 export const REVIEW_STEPS = [
   { step: "feedback", label: "Feedback" },
   { step: "practise", label: "Practise" },
@@ -130,6 +129,7 @@ function liveRevision(head: Extract<IdealTextResult, { kind: "single" }>, take: 
   return {
     revision: head.version ?? 0, takeIndex: take.takeIndex, text: head.ideal.text,
     slides: pieces.map((piece) => piece.slideIndex ?? null), presentationRef: head.presentationRef,
+    slideTitles: head.slideTitles ?? undefined, deckKnown: true,
     helperWords: [...roots].map(([slideIndex, phrases]) => ({ slideIndex, phrases: [...new Set(phrases)] })),
     createdAt: head.updatedAt, isHead: true,
   };
@@ -161,32 +161,24 @@ function focusFor(step: Step, moment: FeedbackKeyMoment | null): ReviewFocus {
   };
 }
 
-type Engine = "walk" | "practise" | "edit" | "document";
+type Engine = "walk" | "practise";
 
-function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, practiceDecision, onClose, onUnavailable, onNextTake }: {
+function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, onClose }: {
   arc: string;
   target: TakeReviewTarget;
   evidence: ReviewEvidence | undefined;
   mode: Engine;
   recordingDock: HTMLDivElement | null;
   savedSteps: readonly LoungeMessage[];
-  practiceDecision?: PracticeDecision;
   onClose: () => void;
-  onUnavailable: () => void;
-  onNextTake: () => void;
 }) {
   const { take, walkRange } = target;
-  if (mode === "edit" || mode === "document") {
-    return <IdealTextOverlay arcId={arc} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
-      takeReviewEdit={mode === "edit"} onClose={onClose} onReadAloud={onNextTake}
-      practiceDecision={practiceDecision} />;
-  }
-  return <InlineWalkHost.Provider value={{ recordingDock, savedSteps }}>
+  return <InlineWalkHost.Provider value={{ recordingDock, savedSteps, conversation: true }}>
     <IdealTextOverlay arcId={arc} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
       initialMode="review" reviewSlideRange={walkRange} requireFeedbackWalk
       coachTake={mode === "walk" ? take.sessionId : undefined}
       reviewAt={mode === "practise" ? { practise: true, take: take.sessionId, snippet: evidence?.moment?.snippetId ?? null } : null}
-      onPracticeUnavailable={onUnavailable} onClose={onClose} />
+      onPracticeUnavailable={onClose} onClose={onClose} />
   </InlineWalkHost.Provider>;
 }
 
@@ -201,31 +193,29 @@ function useReviewOpening(takeId: string, evidence: ReviewEvidence | undefined, 
 }
 
 export default function TakeReview({
-  project, target, runs, messages, recordingDock, practiceDecision, exitRef, focusRef, onClose, onAsk, onPracticeEnded, onNextTake,
+  project, target, runs, messages, chat, recordingDock, exitRef, focusRef, onClose, onAsk, onPracticeEnded, renderFooter,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
   runs: readonly ReviewRun[];
   messages: readonly LoungeMessage[];
+  chat?: string;
   recordingDock: HTMLDivElement | null;
-  practiceDecision?: PracticeDecision;
   exitRef: MutableRefObject<ReviewExit | null>;
-  focusRef: MutableRefObject<TakeReviewTarget | null>;
+  focusRef?: MutableRefObject<TakeReviewTarget | null>;
   onClose: () => void;
   onAsk: (target: TakeReviewTarget) => void;
   onPracticeEnded: () => void;
-  onNextTake: () => void;
+  renderFooter?: (message: LoungeMessage) => ReactNode;
 }) {
   const { take } = target;
-  const [step, setStep] = useState(target.focus.step);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [engine, setEngine] = useState<Engine | null>(() => target.openWalk ? "walk" : null);
-  const [noPractice, setNoPractice] = useState(false);
-  const [savedSteps, setSavedSteps] = useState<readonly LoungeMessage[]>([]);
+  const [savedSteps, setSavedSteps] = useState<LoungeMessage[]>([]);
   const { copy, draft, setDraft, saveMessage, savingEdit, exit } = useReviewEdits(project.arcId, take.sessionId, refresh, exitRef);
-  const article = useRef<HTMLElement | null>(null);
+  const article = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -240,184 +230,153 @@ export default function TakeReview({
 
   useEffect(() => {
     let current = true;
-    void readReviewSteps(project.arcId, take.sessionId).then((rows) => {
+    void readReviewSteps(project.arcId, take.sessionId, true, chat).then((rows) => {
       if (current) setSavedSteps(rows);
     }).catch(() => undefined);
     return () => { current = false; };
-  }, [project.arcId, take.sessionId, refresh, runs.length]);
-  const history = useMemo(() => {
-    const byId = new Map([...messages, ...savedSteps]
-      .filter((message) => message.kind === "walk_step" && message.metadata?.arc_id === project.arcId &&
-        message.metadata?.take_session_id === take.sessionId)
-      .map((message) => [message.client_id, message]));
-    return [...byId.values()].sort((a, b) => a.client_created_at.localeCompare(b.client_created_at));
-  }, [messages, savedSteps, project.arcId, take.sessionId]);
+  }, [project.arcId, take.sessionId, chat, refresh, runs.length]);
 
-  const loaded = artifact !== null;
+  const history = useMemo(() => {
+    const merged = mergeTakeExchange(savedSteps, messages, project.arcId, take.sessionId);
+    return orderedProjectMessages(merged, project.arcId).filter((row) => !isPersistedTerminalReplay(row, merged));
+  }, [messages, savedSteps, project.arcId, take.sessionId]);
+  const endAt = [...messages, ...savedSteps].find((row) => row.kind === "walk_step" &&
+    row.metadata?.step === "end" && row.metadata?.take_session_id === take.sessionId)?.client_created_at;
+  const documentAt = history.findIndex((row) =>
+    endAt ? row.client_created_at > endAt : row.metadata?.review_focus != null);
+  const before = documentAt < 0 ? history : history.slice(0, documentAt);
+  const after = documentAt < 0 ? [] : history.slice(documentAt);
   const moment = artifact?.evidence.moment ?? null;
-  const { strength, moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
-  const groups = artifact?.revision ? slideGroupsOf(artifact.revision) : [];
-  const sections = groups.map((group) => group.paragraphs.join("\n\n"));
-  const savedIdeal = copy?.document.ideal_sections;
-  const ideal = savedIdeal?.length === sections.length && !artifact?.live ? savedIdeal : sections;
-  const feedback = copy?.document.feedback ?? opening;
-  const ask = (focus: ReviewFocus) => void exit(() => onAsk({ take, focus }));
+  const { moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
+  const seenWalk = history.some((row) =>
+    row.kind === "walk_step" && row.role === "bot" && (row.body.trim() || row.metadata?.clip),
+  );
+  const hasAttempt = new Set(history.filter(isSavedPracticeAttempt).map((row) => row.id ?? row.client_id));
+  const undrawnRuns = runs.filter((run) => !hasAttempt.has(run.id));
 
   useEffect(() => {
-    const focus = step === "ideal" ? { step, slide_index: target.focus.slide_index } :
-      focusFor(step, step === "practise" ? moment : openingMoment);
+    if (!focusRef) return;
+    const step = target.focus.step;
+    const focus = step === "ideal" ? target.focus : focusFor(step, step === "practise" ? moment : openingMoment);
     const active = { take, focus };
     focusRef.current = active;
     return () => {
       if (focusRef.current === active) focusRef.current = null;
     };
-  }, [take, step, moment, openingMoment, target.focus.slide_index, focusRef]);
+  }, [focusRef, target.focus, take, moment, openingMoment]);
 
-  useEffect(() => { article.current?.focus({ preventScroll: true }); }, [target.focus]);
-  useEffect(() => { setStep(target.focus.step); }, [target.focus]);
   useEffect(() => {
-    if (!loaded) return;
-    const node = step === "ideal" && target.focus.slide_index !== undefined
-      ? article.current?.querySelector<HTMLElement>('[data-review-slide="' + target.focus.slide_index + '"]')
-      : article.current?.querySelector<HTMLElement>('[data-review-section="' + step + '"]');
-    scrollWithinProject(node ?? article.current);
-  }, [step, target.focus, loaded]);
+    article.current?.focus({ preventScroll: true });
+    scrollWithinProject(article.current);
+  }, [take.sessionId]);
+  useEffect(() => {
+    if (target.focus.step === "practise" && artifact) {
+      scrollWithinProject(article.current?.querySelector('[data-review-section="practise"]'));
+      return;
+    }
+    if (target.focus.step !== "ideal" || !artifact) return;
+    const slide = target.focus.slide_index;
+    const node = Array.from(article.current?.querySelectorAll<HTMLElement>("[data-review-slide]") ?? [])
+      .find((entry) => entry.dataset.reviewSlide === String(slide));
+    scrollWithinProject(node ?? article.current?.querySelector("[data-chat-document]"));
+  }, [artifact, target.focus.step, target.focus.slide_index]);
 
-  function jump(next: Step) {
-    void exit(() => setStep(next));
-  }
-
-  function closeEngine(showOutput = true) {
+  function closeEngine() {
     setEngine(null);
-    if (strength && engine === "practise" && showOutput) setStep("ideal");
-    if (engine === "practise" || engine === "walk") onPracticeEnded();
+    onPracticeEnded();
     setRefresh((v) => v + 1);
   }
 
   useBackDismiss(() => void exit(onClose), () => {
-    if (engine) {
-      closeEngine();
-      return true;
-    }
-    if (!draft && !savingEdit) return false;
-    void exit(onClose);
+    if (!engine) return false;
+    closeEngine();
     return true;
-  });
+  }, Boolean(engine));
 
-  function startEditing(section: "feedback" | "ideal") {
-    if (section === "feedback") setDraft({ feedback });
-    else if (artifact?.live) setEngine("edit");
-    else setDraft({ ideal_sections: ideal });
-  }
+  const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote });
+  const row = (message: LoungeMessage) => <TakeConversationMessage key={message.client_id} message={message}
+    project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
+    onRefer={(snippet, words) => refer({ step: "feedback", snippet_id: snippet }, words)}
+    footer={renderFooter?.(message)} />;
 
-  const engineView = engine ? <ReviewEngine arc={project.arcId} target={target} mode={engine}
-    evidence={artifact?.evidence} recordingDock={recordingDock} savedSteps={history}
-    practiceDecision={practiceDecision} onClose={() => closeEngine()}
-    onUnavailable={() => {
-      if (engine === "practise") setNoPractice(true);
-      closeEngine(false);
-    }}
-    onNextTake={() => void exit(onNextTake)} /> : null;
-  const draftFeedback = draft?.feedback !== undefined;
-  const draftIdeal = draft?.ideal_sections !== undefined;
-  const done = () => void exit();
-  const retry = () => setRefresh((v) => v + 1);
-
-  const momentSection = <div data-review-section="feedback" aria-label="Feedback" className="space-y-1.5">
-    <TakeReviewStatus project={project} take={take} loading={!artifact} failed={failed} onRetry={retry} />
-    {artifact ? <>
-      <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={openingMoment}
-        publishedPraise={strength ? opening : null} onEdit={(text) => setDraft({ feedback: text })}
-        onAsk={() => ask(focusFor("feedback", openingMoment))} />
-      <ReviewEditAction editing={draftFeedback} canEdit={copy !== null && !draftIdeal}
-        busy={savingEdit} onEdit={() => startEditing("feedback")} onDone={done} />
-    </> : null}
-  </div>;
-  const intervention = <>
-      <nav aria-label="Take review" className="flex max-w-[320px] flex-wrap gap-2">
-        {REVIEW_STEPS.map(({ step: next, label }) => (
-          <button key={next} type="button" className={LINK + " rounded px-2"} disabled={savingEdit} onClick={() => jump(next)}>{label}</button>
-        ))}
-      </nav>
-      {saveMessage ? <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-
-      {engine === "walk" ? <div className="w-full">{engineView}</div> : artifact ? (
-        <button type="button" className={LINK} onClick={() => void exit(() => setEngine("walk"))}>Review feedback</button>
-      ) : null}
-
-      <div data-review-section="practise" aria-label="Practise">
-        {artifact && (!strength || step === "practise" || engine === "practise") ? <PractiseStep evidence={artifact.evidence} unavailable={noPractice || (strength !== null && !artifact.evidence.activity)} repeated={runs.length > 0}
-          trying={engine === "practise"} onTry={() => void exit(() => setEngine("practise"))} onSkip={() => jump("ideal")}
-          onAsk={() => ask(focusFor("practise", moment))} /> : null}
-        {engine === "practise" ? engineView : null}
-      </div>
-    </>;
-  const output = reviewOutput({
-    engine, runs, history, step, artifact, project, take, groups, ideal, draft, savingEdit, editable: copy !== null,
-    onEdit: () => startEditing("ideal"), onDone: done, onDraft: (ideal_sections) => setDraft({ ideal_sections }),
-    onAsk: ask, onOpen: () => void exit(() => setEngine("document")),
-  });
-  const footer = <>
-    {!engine ? <button type="button" className={BUTTON + " w-fit"} disabled={savingEdit}
-      onClick={() => void exit(onNextTake)}>Continue recording</button> : null}
-    {engine === "edit" || engine === "document" ? engineView : null}
-  </>;
-  return <ChatArtifactPanel panelRef={article} data-take-review data-review-step={step}
-    aria-label={"Take " + take.takeIndex + " review"} className="max-w-2xl"
-    moment={momentSection} intervention={intervention} output={output} footer={footer}
-    hideMinimise={engine !== null || savingEdit} onMinimise={() => void exit(onClose)} />;
-}
-
-function reviewOutput({
-  engine, runs, history, step, artifact, project, take, groups, ideal, draft, savingEdit, editable,
-  onEdit, onDone, onDraft, onAsk, onOpen,
-}: {
-  engine: Engine | null; runs: readonly ReviewRun[]; history: readonly LoungeMessage[];
-  step: Step; artifact: Artifact | null; project: TrainingArc; take: TrainingTake;
-  groups: ReturnType<typeof slideGroupsOf>; ideal: string[]; draft: ReviewCopy | null;
-  savingEdit: boolean; editable: boolean;
-  onEdit: () => void; onDone: () => void; onDraft: (sections: string[]) => void;
-  onAsk: (focus: ReviewFocus) => void; onOpen: () => void;
-}): ReactNode {
-  const showRuns = engine !== "practise" && engine !== "walk" && (runs.length > 0 || history.some(isSavedPracticeAttempt));
-  const hasIdeal = Boolean(artifact?.revision || artifact?.live);
-  const showIdeal = artifact && (step === "ideal" || (hasIdeal && !artifact.evidence.strength));
-  if (!showRuns && !showIdeal) return null;
-  return <>
-    {showRuns ? <TakeReviewPracticeHistory runs={runs} messages={history} /> : null}
-    {showIdeal ? <div data-review-section="ideal" aria-label="Ideal text" className="space-y-1">
-      <h3 className="font-semibold">Ideal text</h3>
-      {hasIdeal ? <AiGeneratedNote kind="ideal-text" name={project.topic} take={take.takeIndex} /> : null}
-      <IdealStep revision={artifact.revision} groups={groups} text={ideal} draft={draft?.ideal_sections}
-        onEdit={onDraft}
-        onAsk={(index) => onAsk(index === null ? { step: "ideal" } : { step: "ideal", slide_index: index })} />
-      <div className="flex flex-wrap items-center gap-x-3">
-        <ReviewEditAction editing={draft?.ideal_sections !== undefined}
-          canEdit={ideal.length > 0 && draft?.feedback === undefined && (artifact.live || editable)}
-          busy={savingEdit} onEdit={onEdit} onDone={onDone} />
-        {artifact.live ? <button type="button" className={LINK} onClick={onOpen}>Open Ideal text</button> : null}
-      </div>
+  return <div ref={article} tabIndex={-1} data-take-review aria-label={"Take " + take.takeIndex + " review"}
+    className="flex w-full min-w-0 flex-col gap-2 outline-none">
+    <div className={WILLAB_CONTENT_RAIL}>
+      <TakeReviewStatus project={project} take={take} replay={target.replay} loading={!artifact} failed={failed} onRetry={() => setRefresh((v) => v + 1)} />
+    </div>
+    {!seenWalk && !engine ? <ReviewOpening moment={openingMoment} text={copy?.document.feedback ?? opening} onRefer={refer} /> : null}
+    {engine ? <div className={WILLAB_CONTENT_RAIL} data-review-section={engine === "practise" ? "practise" : undefined}>
+      <ReviewEngine arc={project.arcId} target={target} mode={engine} evidence={artifact?.evidence}
+        recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closeEngine} />
+    </div> : before.map(row)}
+    {!engine ? <ReviewPracticeOffer evidence={artifact?.evidence} target={target} seenWalk={seenWalk}
+      onTry={() => setEngine("practise")} /> : null}
+    {!engine ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
+      {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
+    </ConversationBubble>) : null}
+    {!engine && artifact?.live ? <div data-review-section="ideal">
+      <IdealTextOverlay key={take.sessionId} arcId={project.arcId} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
+        inlineDocument onClose={onPracticeEnded} />
     </div> : null}
-  </>;
+    {!engine && !artifact?.live && artifact?.revision ? <div data-review-section="ideal">
+      <ArchivedIdealText revision={artifact.revision} name={project.topic} take={take.takeIndex}
+        review={{ arcId: project.arcId, takeId: take.sessionId, copy, draft: draft?.ideal_sections,
+          status: saveMessage, saving: savingEdit, onEdit: (sections) => setDraft({ ideal_sections: sections }),
+          onSave: () => void exit() }} />
+    </div> : null}
+    {!engine ? after.map(row) : null}
+  </div>;
 }
 
-function TakeReviewStatus({ project, take, loading, failed, onRetry }: {
-  project: TrainingArc; take: TrainingTake; loading: boolean; failed: boolean; onRetry: () => void;
+function ReviewOpening({ moment, text, onRefer }: {
+  moment: FeedbackKeyMoment | null;
+  text: string;
+  onRefer: (focus: ReviewFocus, quote: string) => void;
+}) {
+  if (!moment) return null;
+  return <div data-review-section="feedback">
+    <ConversationBubble>
+      {text ? <p className="whitespace-pre-wrap">{text}</p> : null}
+      {moment.transcript ? <button type="button" onClick={() => onRefer(focusFor("feedback", moment), moment.transcript)}
+        className="min-h-11 whitespace-pre-wrap text-left hover:underline" title="Refer to this moment">{moment.transcript}</button> : null}
+      {moment.audioRef ? <WalkPlayer seed={moment.snippetId} label="Original moment" src={moment.audioRef}
+        startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs || null} look="bare" /> : null}
+    </ConversationBubble>
+  </div>;
+}
+
+function ReviewPracticeOffer({ evidence, target, seenWalk, onTry }: {
+  evidence: ReviewEvidence | undefined;
+  target: TakeReviewTarget;
+  seenWalk: boolean;
+  onTry: () => void;
+}) {
+  const invited = target.focus.step === "practise";
+  if (!evidence?.activity || target.replay || (!invited && (seenWalk || evidence.strength || !evidence.instruction))) return null;
+  return <div data-review-section="practise">
+    <ConversationBubble>
+      <p className="font-medium">{evidence.activity}</p>
+      {evidence.instruction ? <p>{evidence.instruction}</p> : null}
+      <button type="button" className={LINK} onClick={onTry}>{invited ? "Try it" : "Practise"}</button>
+    </ConversationBubble>
+  </div>;
+}
+
+function TakeReviewStatus({ project, take, replay, loading, failed, onRetry }: {
+  project: TrainingArc; take: TrainingTake; replay?: boolean; loading: boolean; failed: boolean; onRetry: () => void;
 }) {
   const latest = !project.takes.some((item) => item.takeIndex > take.takeIndex);
   const coverage = project.practiceCoverage;
   const range = project.practiceChunks.find((chunk) => chunk.latestSessionId === take.sessionId);
-  const [rangeLabel, setRangeLabel] = useState<string | null>(null);
   return <>
-    <p className="text-[13px] text-muted-foreground">
+    {!replay ? <p className="text-[13px] text-muted-foreground">
       <strong className="font-medium text-foreground">Take {take.takeIndex} is ready.</strong>
       {latest && coverage?.total ? <> You’ve practised {coverage.practised} of {coverage.total} {coverage.unit}.</> : null}
       {latest && !coverage?.total && project.practiceProgress > 0 ? <> Progress · {Math.round(project.practiceProgress)}%</> : null}
-      {range ? <> · <EditableText value={rangeLabel ?? `Slides ${range.startSlide}–${range.endSlide}`}
-        label="Edit slide range" onCommit={setRangeLabel} className="rounded underline-offset-2 hover:underline focus:outline-primary" />
+      {range ? <> · Slides {range.startSlide}–{range.endSlide}
         {range.attempts > 0 ? ` · ${range.attempts} ${range.attempts === 1 ? "attempt" : "attempts"}` : null}
       </> : null}
-    </p>
+    </p> : null}
     {failed ? <button type="button" className={BUTTON} onClick={onRetry}>Try again</button> :
       loading ? <TypingDots label="Loading feedback" /> : null}
   </>;
@@ -462,97 +421,4 @@ function useReviewEdits(arcId: string, takeId: string, refresh: number, exitRef:
   });
 
   return { copy, draft, setDraft, saveMessage, savingEdit: saveMessage === "Saving…", exit };
-}
-
-function ReviewEditAction({ editing, canEdit, busy, onEdit, onDone }: {
-  editing: boolean; canEdit: boolean; busy: boolean; onEdit: () => void; onDone: () => void;
-}) {
-  if (editing) return <button type="button" className={LINK} disabled={busy} onClick={onDone}>Done</button>;
-  return canEdit ? <button type="button" className={LINK} onClick={onEdit}>Edit text</button> : null;
-}
-
-function PractiseStep({ evidence, unavailable, repeated, trying, onTry, onSkip, onAsk }: {
-  evidence: ReviewEvidence; unavailable: boolean; repeated: boolean; trying: boolean;
-  onTry: () => void; onSkip: () => void; onAsk: () => void;
-}) {
-  return <div className="space-y-1">
-    {evidence.activity ? <p className="font-medium">{evidence.activity}</p> : null}
-    {evidence.strength && evidence.activity && evidence.moment?.audioRef && !trying && !unavailable ?
-      <WalkPlayer seed={evidence.moment.snippetId} label="moment" src={evidence.moment.audioRef}
-        startOffsetMs={evidence.moment.startOffsetMs} durationMs={evidence.moment.durationMs || null} look="bare" /> : null}
-    {evidence.instruction ? <p>{evidence.instruction}</p> : null}
-    {unavailable ? <p className="text-sm text-muted-foreground">No activity for this Take yet.</p> :
-      trying ? null : <div className="flex flex-wrap items-center gap-x-3">
-        <button className={BUTTON} type="button" onClick={onTry}>Try it</button>
-        <button className={LINK} type="button" onClick={onSkip}>Skip</button>
-        {repeated ? <span className="text-xs text-muted-foreground">Practised before</span> : null}
-      </div>}
-    <button className={LINK} type="button" onClick={onAsk}>Ask coach</button>
-  </div>;
-}
-
-function IdealStep({ revision, groups, text, draft, onEdit, onAsk }: {
-  revision: IdealTextRevision | null; groups: ReturnType<typeof slideGroupsOf>;
-  text: string[]; draft?: string[];
-  onEdit: (sections: string[]) => void; onAsk: (index: number | null) => void;
-}) {
-  if (!revision || groups.length === 0) return <p className="text-sm text-muted-foreground">Ideal text isn’t available for this Take yet.</p>;
-  return <div className="space-y-5">
-    {groups.map((group, index) => (
-      <ReviewSlide key={index}
-        slide={group.slideIndex} revision={revision} text={text[index]} draft={draft?.[index]}
-        onEdit={(next) => onEdit((draft ?? text).map((part, i) => i === index ? next : part))}
-        onAsk={() => onAsk(group.slideIndex)} />
-    ))}
-  </div>;
-}
-
-function ReviewMoment({ feedback, draft, moment, publishedPraise, onEdit, onAsk }: {
-  feedback: string; draft?: string; moment: FeedbackKeyMoment | null; publishedPraise?: string | null;
-  onEdit: (text: string) => void; onAsk: () => void;
-}) {
-  return (
-    <div className="max-w-2xl space-y-1.5">
-      {publishedPraise && publishedPraise !== feedback ? <p className="whitespace-pre-wrap">{publishedPraise}</p> : null}
-      {draft !== undefined ? <ReviewField label="Edit feedback" value={draft} onEdit={onEdit} /> :
-        feedback ? <p className="whitespace-pre-wrap">{feedback}</p> : null}
-      {moment ? (
-        <div className="space-y-1.5 border-t border-border pt-2">
-          {moment.slideIndex !== null ? <p className="text-xs text-muted-foreground">Slide {moment.slideIndex + 1}</p> : null}
-          <p>{moment.transcript}</p>
-          {moment.audioRef ? <WalkPlayer seed={moment.snippetId} label="moment" src={moment.audioRef}
-            startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs || null} look="bare" /> : null}
-        </div>
-      ) : <p className="text-sm text-muted-foreground">Feedback isn’t available for this Take yet.</p>}
-      <button type="button" className={LINK} onClick={onAsk}>Ask coach</button>
-    </div>
-  );
-}
-
-function ReviewSlide({ slide, revision, text, draft, onEdit, onAsk }: {
-  slide: number | null; revision: IdealTextRevision; text: string; draft?: string;
-  onEdit: (text: string) => void; onAsk: () => void;
-}): ReactNode {
-  const headline = helperHeadlineOf(revision, slide);
-  return (
-    <section data-review-slide={slide ?? undefined} className="max-w-2xl space-y-2 border-t border-border pt-2">
-      {slide === null ? null : <div className="flex items-center gap-2">
-        <DeckSlideThumb compact presentationRef={revision.presentationRef} pageIndex={slide} label={"Slide " + (slide + 1)} />
-        <h3 className="text-[13px] text-muted-foreground">Slide {slide + 1}</h3>
-      </div>}
-      {draft !== undefined ? <ReviewField label="Edit Ideal text" value={draft} onEdit={onEdit} /> : (
-        <div className="space-y-3">
-          <HelpersLabel phrases={missingHelperWords(text, headline)} />
-          {text.split("\n\n").map((paragraph, index) => (
-            <p key={index}><RichText text={paragraph} tint={helperWordRanges(paragraph, headline)} /></p>
-          ))}
-        </div>
-      )}
-      <button type="button" className={LINK} onClick={onAsk}>Ask coach</button>
-    </section>
-  );
-}
-
-function ReviewField({ label, value, onEdit }: { label: string; value: string; onEdit: (text: string) => void }) {
-  return <textarea aria-label={label} className="block min-h-24 w-full rounded-lg border border-border bg-background p-2" value={value} onChange={(event) => onEdit(event.target.value)} />;
 }

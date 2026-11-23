@@ -56,7 +56,7 @@ function PracticeRows({ rows }: { rows: readonly LoungeMessage[] }) {
   </div>;
 }
 
-function PastAttempt({ row }: { row: LoungeMessage }) {
+export function PastAttempt({ row }: { row: LoungeMessage }) {
   const metadata = row.metadata;
   const clip = metadata?.clip as Record<string, unknown> | null;
   const path = metadata?.path;

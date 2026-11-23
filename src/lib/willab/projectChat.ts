@@ -77,14 +77,14 @@ export function typedProjectTurnMetadata({
   place,
 }: {
   arcId: string;
-  takeSessionId: string;
+  takeSessionId?: string;
   questionClientId: string;
   role: "answer" | "reply";
   place?: string | null;
 }): Record<string, unknown> {
   return {
     arc_id: arcId,
-    take_session_id: takeSessionId,
+    ...(takeSessionId ? { take_session_id: takeSessionId } : {}),
     will_question_step: role,
     reply_to: questionClientId,
     [TYPED_PROJECT_TURN]: true,
