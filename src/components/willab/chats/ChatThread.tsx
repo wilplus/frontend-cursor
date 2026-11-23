@@ -553,8 +553,8 @@ function ReadyBySheet({ onDone, onClose }: { onDone: (day: string) => void; onCl
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={READY_BY}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/30" />
-      <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-md flex-col gap-3 rounded-t-[22px] bg-white px-[18px] pb-[26px] pt-2.5">
-        <div className="mx-auto h-1 w-[38px] rounded bg-[#D9D9D9]" />
+      <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-md flex-col gap-3 rounded-t-[22px] bg-white dark:bg-card px-[18px] pb-[26px] pt-2.5">
+        <div className="mx-auto h-1 w-[38px] rounded bg-[#D9D9D9] dark:bg-white/15" />
         <p className="text-center text-[16px] font-semibold">{READY_BY}</p>
         <MonthGrid
           large
@@ -734,22 +734,22 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   const left = Math.max(0, Math.ceil((startedAt + UNDO_MS - now) / 1000));
   if (failed) {
     return (
-      <div data-chat-sending="failed" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
-        <span className="min-w-0 truncate font-medium text-[#5F5F5F]">{NOT_SENT}</span>
-        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212]">
+      <div data-chat-sending="failed" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] dark:bg-card pl-[18px] pr-1.5 text-[14.5px]">
+        <span className="min-w-0 truncate font-medium text-[#5F5F5F] dark:text-foreground/75">{NOT_SENT}</span>
+        <button type="button" onClick={sendAgain} data-chat-send-again="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212] dark:text-foreground">
           {SEND_AGAIN}
         </button>
       </div>
     );
   }
   return (
-    <div data-chat-sending="" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px]">
-      <span className="min-w-0 truncate font-medium tabular-nums text-[#5F5F5F]">
+    <div data-chat-sending="" className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] dark:bg-card pl-[18px] pr-1.5 text-[14.5px]">
+      <span className="min-w-0 truncate font-medium tabular-nums text-[#5F5F5F] dark:text-foreground/75">
         {sendingTo(name)}
         {waited ? "" : ` ${left}`}
       </span>
       {waited ? null : (
-        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212]">
+        <button type="button" onClick={undoAnswer} data-chat-undo="" className="h-9 shrink-0 rounded-full px-3 text-[14.5px] font-bold text-[#121212] dark:text-foreground">
           {UNDO}
         </button>
       )}

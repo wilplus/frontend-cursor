@@ -66,8 +66,8 @@ export function DatePickSheet({ onPick, onClose }: { onPick: (day: string) => vo
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={PLAN_COPY.pickDate}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/30" />
-      <div className="absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[22px] bg-white px-[18px] pb-[26px] pt-2.5">
-        <div className="mx-auto mb-3 h-1 w-[38px] rounded bg-[#D9D9D9]" />
+      <div className="absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[22px] bg-white dark:bg-card px-[18px] pb-[26px] pt-2.5">
+        <div className="mx-auto mb-3 h-1 w-[38px] rounded bg-[#D9D9D9] dark:bg-white/15" />
         <MonthGrid
           large
           month={month}
@@ -100,14 +100,14 @@ function Scale({ lo, hi, onPick }: { lo: string; hi: string; onPick: (v: number)
             className={`h-8 w-8 rounded-full border-[1.5px] p-0 text-[13.5px] font-semibold ${
               picked === n
                 ? "border-primary bg-primary text-primary-foreground"
-                : `border-[#DCDCDC] bg-white text-[#121212] ${picked !== null ? "opacity-45" : ""}`
+                : `border-[#DCDCDC] dark:border-border bg-white dark:bg-card text-[#121212] dark:text-foreground ${picked !== null ? "opacity-45" : ""}`
             }`}
           >
             {n}
           </button>
         ))}
       </div>
-      <div className="flex justify-between text-[12.5px] text-[#737373]">
+      <div className="flex justify-between text-[12.5px] text-[#737373] dark:text-muted-foreground">
         <span>{lo}</span>
         <span>{hi}</span>
       </div>

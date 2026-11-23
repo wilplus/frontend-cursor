@@ -60,7 +60,7 @@ function WhoAsked({ who, bundleId, onClose, onSplit }: { who: BundleWho; bundleI
         className="flex max-h-[80%] flex-col gap-3 overflow-y-auto rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0] dark:bg-white/15" />
         <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{who.title}</p>
         <ul className="flex flex-col gap-3">
           {who.people.map((p) => {

@@ -18,8 +18,8 @@ export function NeedsYou({ panel, onFix }: { panel: OwnerPanel; onFix: (step: st
   const needs = panel.needs_you;
   if (!needs) return null;
   return (
-    <div data-model-needs className="flex flex-col gap-1 rounded-2xl border-[1.5px] border-[#F26B21] bg-[#FFF1E7] px-3.5 py-3 text-[14.5px]">
-      <b className="text-[#C2410C]">{needs.title}</b>
+    <div data-model-needs className="flex flex-col gap-1 rounded-2xl border-[1.5px] border-[#F26B21] bg-[#FFF1E7] dark:bg-accent px-3.5 py-3 text-[14.5px]">
+      <b className="text-[#C2410C] dark:text-[#ff8a4c]">{needs.title}</b>
       <span>{needs.line}</span>
       <div className="pt-1">
         <Mini label={needs.actions[0]} onClick={() => onFix(needs.step)} />

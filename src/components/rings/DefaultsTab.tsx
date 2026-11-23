@@ -17,14 +17,14 @@ const ATTRIBUTE_HELP: Record<string, string> = {
 
 function Stepper({ label, value, onChange, hint }: { label: string; value: number | null; onChange: (next: number) => void; hint: string }) {
   return (
-    <div className="rounded-lg border border-black/10 p-4">
+    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
       <h3 className="text-sm font-semibold">{label}</h3>
       <div className="my-2 text-3xl font-semibold tabular-nums">{value ?? "—"}</div>
       <div className="flex gap-2">
-        <button type="button" className="rounded-md border border-black/10 px-3 py-1" disabled={value === null || value <= 0} onClick={() => value !== null && onChange(value - 1)} aria-label={`${label} down`}>
+        <button type="button" className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1" disabled={value === null || value <= 0} onClick={() => value !== null && onChange(value - 1)} aria-label={`${label} down`}>
           −
         </button>
-        <button type="button" className="rounded-md border border-black/10 px-3 py-1" disabled={value === null} onClick={() => value !== null && onChange(value + 1)} aria-label={`${label} up`}>
+        <button type="button" className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1" disabled={value === null} onClick={() => value !== null && onChange(value + 1)} aria-label={`${label} up`}>
           +
         </button>
       </div>
@@ -89,7 +89,7 @@ export default function DefaultsTab() {
           onChange={(ring) => void changeMine(ring)}
           hint="Set it to a feature's ring to test; set it back to feel what a default person feels."
         />
-        <div className="rounded-lg border border-black/10 p-4">
+        <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
           <h3 className="text-sm font-semibold">Attributes people can carry</h3>
           <ul className="mt-2 space-y-1 text-xs text-foreground/70">
             {(attributeKeys.length ? attributeKeys : Object.keys(ATTRIBUTE_HELP)).map((key) => (

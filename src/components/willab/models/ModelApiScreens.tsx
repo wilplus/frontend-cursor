@@ -101,7 +101,7 @@ function Bubble({ said }: { said: Said }) {
       >
         {said.text}
       </p>
-      {said.mark ? <small data-try-unsure className="text-[12.5px] font-semibold text-[#C2410C]">{said.mark}</small> : null}
+      {said.mark ? <small data-try-unsure className="text-[12.5px] font-semibold text-[#C2410C] dark:text-[#ff8a4c]">{said.mark}</small> : null}
     </div>
   );
 }
@@ -278,7 +278,7 @@ function UsageBody({ usage, onChanged }: { usage: ModelUsage; onChanged: () => v
     <>
       <Line text={usage.line} />
       {usage.alerts.map((a) => (
-        <div key={a.title} data-usage-alert className="flex flex-col gap-1 rounded-2xl bg-[#FFF4D6] px-3.5 py-3">
+        <div key={a.title} data-usage-alert className="flex flex-col gap-1 rounded-2xl bg-[#FFF4D6] dark:bg-[#2a2210] px-3.5 py-3">
           <b className="text-[16px]">{a.title}</b>
           <span className="text-[14.5px]">{a.line}</span>
         </div>

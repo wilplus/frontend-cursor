@@ -152,7 +152,7 @@ function AnswerRow({ part, onOpen }: { part: SetupPart; onOpen: () => void }) {
       data-build-part={part.part}
       data-answer-row=""
       onClick={onOpen}
-      className="flex min-h-[72px] w-full flex-col items-start justify-center gap-1 border-b border-[#F0F0F0] px-1 py-4 text-left"
+      className="flex min-h-[72px] w-full flex-col items-start justify-center gap-1 border-b border-[#F0F0F0] dark:border-border px-1 py-4 text-left"
     >
       <span className="text-[18px] font-semibold leading-snug text-foreground">{part.title}</span>
       <span className="max-w-full break-words text-[16px] leading-snug text-foreground">{part.value}</span>
@@ -262,7 +262,7 @@ function NeedsPage({
         <>
           <div className="flex flex-wrap items-center gap-2">
             <Said>{recipe.live ? W.partsOpen : W.partsSaved}</Said>
-            {recipe.live ? <span data-chat-open="" className="inline-flex rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#1F7A55]">{W.openBadge}</span> : null}
+            {recipe.live ? <span data-chat-open="" className="inline-flex rounded-full bg-[#E2F4EB] dark:bg-[#12271d] px-2 py-0.5 text-[12px] font-semibold text-[#1F7A55] dark:text-[#4cc38a]">{W.openBadge}</span> : null}
           </div>
           {groups.map((g) => {
             const SectionIcon = g.heading ? SECTION_ICON[g.heading] : null;

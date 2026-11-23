@@ -182,7 +182,7 @@ function ListBody({ list, onWhat, onOpen, onTeach, onUse, onEarnings, onClear, o
   }
   return (
     <>
-      <button type="button" onClick={onWhat} className="flex flex-col gap-0.5 rounded-2xl bg-[#E2F4EB] px-3.5 py-3 text-left">
+      <button type="button" onClick={onWhat} className="flex flex-col gap-0.5 rounded-2xl bg-[#E2F4EB] dark:bg-[#12271d] px-3.5 py-3 text-left">
         <b>{list.what_do_i_get}</b>
         <span className="text-[13.5px] text-muted-foreground">{TO_SIGN.whatDoIGetLine}</span>
       </button>
@@ -259,9 +259,9 @@ export function ModelListScreen({
 /* ── What do I get? (d:7; MOD-12) ────────────────────────────────────────── */
 
 const GET_ICONS = [
-  "bg-[#E2F4EB] [--mark:#2F9E6E] rounded-[4px]",
-  "bg-[#FFF4D6] [--mark:#E8A317] rounded-full",
-  "bg-[#E3EEFB] [--mark:#1E4C99] rounded-[2px_10px_2px_10px]",
+  "bg-[#E2F4EB] dark:bg-[#12271d] [--mark:#2F9E6E] rounded-[4px]",
+  "bg-[#FFF4D6] dark:bg-[#2a2210] [--mark:#E8A317] rounded-full",
+  "bg-[#E3EEFB] dark:bg-[#132238] [--mark:#1E4C99] rounded-[2px_10px_2px_10px]",
 ];
 
 export function WhatDoIGetScreen({ onBack, onClose }: Nav) {
@@ -422,7 +422,7 @@ function QueueRow({ row, onPause, onTeach }: { row: Queue["models"][number]; onP
       <span className="col-start-2 row-start-1 justify-self-end">
         <Badge text={row.badge} />
       </span>
-      <span className="col-start-1 text-[13px] font-bold text-[#C2410C]">
+      <span className="col-start-1 text-[13px] font-bold text-[#C2410C] dark:text-[#ff8a4c]">
         {row.waiting} <span className="font-medium text-muted-foreground">{TO_SIGN.waiting}</span>
       </span>
       <span className="col-start-2 justify-self-end" aria-pressed={row.paused}>

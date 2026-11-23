@@ -14,9 +14,9 @@ import { percentOf } from "./teachSteps";
 /** The prototype's three colours: green for public, gold for private and a
  *  draft, blue for ready to use. */
 const BADGE = {
-  ready: "bg-[#E3EEFB] text-[#1E4C99]",
-  public: "bg-[#E2F4EB] text-[#2F9E6E]",
-  private: "bg-[#F6EED8] text-[#7A5A12]",
+  ready: "bg-[#E3EEFB] dark:bg-[#132238] text-[#1E4C99]",
+  public: "bg-[#E2F4EB] dark:bg-[#12271d] text-[#2F9E6E]",
+  private: "bg-[#F6EED8] text-[#7A5A12] dark:text-[#e0b85a]",
 } as const;
 
 export function Badge({ text }: { text: string }) {
@@ -86,7 +86,7 @@ export function Card({ children, draft = false, onOpen, testId }: { children: Re
 export function Empty({ title, line }: { title: string; line: string }) {
   return (
     <div data-models-empty className="flex flex-col items-center gap-2 px-3 py-12 text-center">
-      <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-full bg-[#E2F4EB]">
+      <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-full bg-[#E2F4EB] dark:bg-[#12271d]">
         <span className="h-4 w-4 rounded-[4px] border-[2.5px] border-[#2F9E6E]" />
       </span>
       <b className="text-[19px]">{title}</b>

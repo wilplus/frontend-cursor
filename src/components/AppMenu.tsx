@@ -310,7 +310,7 @@ export default function AppMenu({
                 type="button"
                 onClick={onLogout}
                 disabled={loggingOut}
-                className={cn(ROW_CLASS, "text-[#B42318] disabled:opacity-50")}
+                className={cn(ROW_CLASS, "text-[#B42318] dark:text-[#ff6b5f] disabled:opacity-50")}
               >
                 <MenuIcon tone="red">
                   <LogOut className="h-[18px] w-[18px]" />

@@ -2203,6 +2203,11 @@ latest page opens.
 O3  With no Take at risk, it opens at once.","O1, O2 -> ""a tap while a Take is at risk waits, then opens once the server has the Take""
 O2 -> ""a waiting tap opens once the Take is discarded, or the screens close""
 O3 -> ""a tap with no Take at risk opens at once""","Founder 2026-11-09, backend N560 item 3 (""Wait, then go""): a tapped push or link reloaded the page at once and the Take was lost. Never 3."
+src/lib/phone/appearance.test.ts,Story,"As the founder trying dark mode first, I want the app dark only when my iPhone is dark and dark mode is switched on for me, and everyone else's app exactly as it is (backend N678 item 2, N680).","O1  Dark only with the ring row on and the iPhone set to dark; any other
+case, or an iPhone that did not answer, stays light.
+O2  Showing a style marks the page and tells the app's own parts, and a
+refusal from the app still leaves the page right.","O1 -> ""is dark only with the switch on and the iPhone dark""
+O2 -> ""marks the page and tells the app""",
 src/lib/phone/dumpScreen.test.ts,Story,"As a speaker with the iPhone app, I want the dump screen to open and keep what I say even with no signal, so that a thought on the metro is not lost.","The app hears ""on"" with the ring row and the notebook's Yes, ""off""
 without the Yes, and nothing when a read fails (offline).",A failed read never switches the native screen off (N506 item 3).,One failed request used to switch it off until the next good load.
 src/lib/phone/launchScreen.test.ts,Story,"As a speaker opening the iPhone app, I want the mark to stay until the page is there, so that I never look at a blank white screen.","O1  In the app, the launch screen leaves once the page has drawn, and

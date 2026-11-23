@@ -167,7 +167,7 @@ export function TeachStep({ screen, caption, content, note, chosen, onPick, onSk
       <ExampleCase content={content} />
       <Question text={screen.question} big={!judge} />
       {note ? (
-        <span data-model-note className="self-start rounded-full bg-[#E2F4EB] px-2.5 py-[3px] text-[12.5px] font-semibold text-[#1F7A55]">{note}</span>
+        <span data-model-note className="self-start rounded-full bg-[#E2F4EB] dark:bg-[#12271d] px-2.5 py-[3px] text-[12.5px] font-semibold text-[#1F7A55] dark:text-[#4cc38a]">{note}</span>
       ) : null}
       {judge ? (
         <Faces answers={choices} chosen={chosen} onPick={onPick} />
