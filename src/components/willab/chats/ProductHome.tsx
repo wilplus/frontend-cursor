@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import { Archive, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
 import type { TrainingArc } from "@/services/api/trainings";
@@ -12,6 +14,7 @@ import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
 import { takeTrainings } from "@/services/api/bootPrefetch";
 import { VoiceMark } from "../LoadingState";
 import { PdfPage } from "../pdfSlides";
+import { useBackDismiss } from "../useBackDismiss";
 import { ChatListRow, PersonCircle, WillMark } from "./ChatList";
 import { OwnAvatar } from "./hostsetup/ChatIconPicker";
 import ProjectRowMenu, { type RowMenuAction } from "../ProjectRowMenu";
@@ -226,21 +229,80 @@ export default function ProductHome({
           </button>
         </div>
       </div>
-      {sheet ? <OwnChatSheet onYes={confirm} onClose={() => setSheet(false)} /> : null}
+      {sheet ? <OwnChatSheet title={uiText(locale, "startOwnChat")} onYes={confirm} onClose={() => setSheet(false)} /> : null}
     </div>
   );
 }
 
-function OwnChatSheet({ onYes, onClose }: { onYes: () => void; onClose: () => void }) {
-  return (
-    <div data-own-chat-sheet="" className="absolute inset-0 z-30 flex flex-col justify-end bg-black/30" onClick={onClose}>
-      <div role="dialog" aria-label="Start your own chat" className="flex flex-col gap-3 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5" onClick={(e) => e.stopPropagation()}>
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
-        <p className="m-0 text-[16px] leading-snug text-foreground">{OWN_INTRO}</p>
-        <button type="button" data-own-chat-yes="" onClick={onYes} className="flex h-11 items-center justify-center rounded-full bg-foreground text-[15px] font-semibold text-background">Yes</button>
-        <button type="button" data-own-chat-close="" onClick={onClose} className="flex h-11 items-center justify-center rounded-full border border-border text-[15px] font-semibold text-foreground">Close</button>
-      </div>
-    </div>
+function OwnChatSheet({ title, onYes, onClose }: { title: string; onYes: () => Promise<void>; onClose: () => void }) {
+  const titleId = useId();
+  const descriptionId = useId();
+  const panel = useRef<HTMLElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const yesButton = useRef<HTMLButtonElement>(null);
+  const [opening, setOpening] = useState(false);
+  useBackDismiss(onClose, () => opening);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    closeButton.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
+
+  const confirm = async () => {
+    if (opening) return;
+    panel.current?.focus();
+    setOpening(true);
+    try {
+      await onYes();
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      data-own-chat-sheet=""
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/30 sm:items-center sm:bg-foreground/35 sm:p-4"
+      onClick={(event) => {
+        if (!opening && event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        ref={panel}
+        role="dialog"
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        aria-busy={opening}
+        className="flex max-h-full w-full flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-3xl bg-background px-[18px] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2.5 focus:outline-none sm:max-w-sm sm:rounded-3xl sm:p-5 sm:shadow-xl"
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !opening) {
+            event.stopPropagation();
+            onClose();
+          }
+          if (event.key === "Tab") {
+            event.preventDefault();
+            const next = document.activeElement === closeButton.current ? yesButton : closeButton;
+            next.current?.focus();
+          }
+        }}
+      >
+        <span aria-hidden className="h-[5px] w-10 shrink-0 self-center rounded-full bg-[#E0E0E0] sm:hidden" />
+        <h2 id={titleId} className="text-[21px] font-bold leading-tight text-foreground sm:text-[18px] sm:font-semibold">{title}</h2>
+        <p id={descriptionId} className="text-[15px] leading-snug text-muted-foreground sm:text-sm">{OWN_INTRO}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button ref={closeButton} type="button" variant="outline" data-own-chat-close="" onClick={onClose}
+            disabled={opening} className="h-11 rounded-full text-[15px]">Close</Button>
+          <Button ref={yesButton} type="button" data-own-chat-yes="" onClick={() => void confirm()}
+            disabled={opening} className="h-11 rounded-full bg-foreground text-[15px] text-background hover:bg-foreground/90">Yes</Button>
+        </div>
+      </section>
+    </div>,
+    document.body,
   );
 }
 
