@@ -37,6 +37,7 @@ import {
   isRetiredLoungeMessage,
   loungeToHistory,
   splitBotMessage,
+  speakingCoachReplyText,
   withoutCoachTranscriptFooter,
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
@@ -684,8 +685,8 @@ export default function Lounge({
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
   const sidebar = useWorkspaceSidebar();
-  const ownsProjectConversations = onProjectTakeReady !== undefined;
   const openChat = useOpenChat();
+  const showTakeArtifacts = Boolean(openChat) || place !== "speaking" || onProjectTakeReady === undefined;
   const viewScope = useContext(ChatArtifactScope);
   const composerScope = JSON.stringify(["lounge", userId, place, openChat, viewScope]);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
@@ -776,7 +777,7 @@ export default function Lounge({
       if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
-      if (!openChat && isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
+      if (!openChat && isProjectMessage(m) && (!showTakeArtifacts || !projectMessageStaysInLounge(m))) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -794,7 +795,7 @@ export default function Lounge({
     // One action at a time (founder 2026-10-20): the message after a Take
     // waits, undrawn, under its ask; the card comes first.
     return afterTakeOrder(items);
-  }, [messages, place, ownsProjectConversations, openChat]);
+  }, [messages, showTakeArtifacts, openChat]);
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
@@ -827,7 +828,7 @@ export default function Lounge({
   const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
   const takeConversations = useMemo(() => {
     const groups = new Map<string, { arcId: string; takeId: string; rows: LoungeMessage[]; anchor?: string }>();
-    if (!openChat && !(ownsProjectConversations && place === "speaking")) return groups;
+    if (!openChat) return groups;
     for (const { message } of threadItems) {
       const takeId = takeSessionOf(message);
       const arcId = projectIdOf(message);
@@ -842,7 +843,7 @@ export default function Lounge({
       if (group && !group.anchor) group.anchor = message.client_id;
     }
     return groups;
-  }, [openChat, ownsProjectConversations, place, shownItems, threadItems]);
+  }, [openChat, place, shownItems, threadItems]);
   const hostRows = useMemo(
     () => hostRowsAround(hostMessages, shownItems.map((item) => item.message.client_created_at)),
     [hostMessages, shownItems],
@@ -2177,7 +2178,7 @@ export default function Lounge({
       setActiveOffer(chatOffer);
     }
     const takeCard = response.take_card;
-    if (takeCard && typeof takeCard.arc_id === "string" && takeCard.arc_id) {
+    if (showTakeArtifacts && takeCard && typeof takeCard.arc_id === "string" && takeCard.arc_id) {
       thread.appendLocalOnly(idealTextReadyDraft({
         arcId: takeCard.arc_id,
         version: typeof takeCard.version === "number" ? takeCard.version : null,
@@ -2397,6 +2398,7 @@ export default function Lounge({
       <Bubble
         key={item.reactKey}
         message={item.message}
+        showTakeArtifacts={showTakeArtifacts}
         recordingDock={recordingDock}
         shareLine={shares.get(item.message.client_id) ?? null}
         shareChange={shareChange?.recording === item.message.client_id ? shareChange : null}
@@ -2968,10 +2970,10 @@ function BotWays({
         {productDestination ? (
           <ChatLink label={productDestination.actionLabel} href={productDestination.href} />
         ) : null}
-        {confidenceCorrection ? (
+        {confidenceCorrection && onOpenFeedback ? (
           <ChatLink label="Review coach feedback" onClick={() => onOpenFeedback?.(confidenceCorrection)} />
         ) : null}
-        {sharedPracticeId ? (
+        {sharedPracticeId && onOpenConfidencePractice ? (
           <ChatLink label="Open exercise" onClick={() => onOpenConfidencePractice?.(sharedPracticeId)} />
         ) : null}
         {goalCardSpeaker ? (
@@ -3137,6 +3139,7 @@ function Bubble(props: Parameters<typeof BubbleBody>[0]) {
 function BubbleBody({
   message,
   recordingDock,
+  showTakeArtifacts = true,
   onViewInsights,
   onOpenBestPresentation,
   onOpenTranscripts,
@@ -3165,6 +3168,7 @@ function BubbleBody({
 }: {
   message: LoungeMessage;
   recordingDock?: HTMLDivElement | null;
+  showTakeArtifacts?: boolean;
   /** An older Ideal Text card opens its own version, read only (backend N375). */
   onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** A recording's line: who heard the Take (G1, N192). */
@@ -3224,6 +3228,7 @@ function BubbleBody({
     message.kind === "feedback" ||
     message.kind === "ideal_text"
   ) {
+    if (!showTakeArtifacts) return null;
     return (
       <ReportCard
         message={message}
@@ -3254,16 +3259,18 @@ function BubbleBody({
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
         <SequentialBotBubbles
-          chunks={splitBotMessage(withoutCoachTranscriptFooter(message.body))}
+          chunks={splitBotMessage(showTakeArtifacts ? withoutCoachTranscriptFooter(message.body) : speakingCoachReplyText(message))}
           animate={animate}
         />
-        <CoachMoment raw={message.metadata?.coach_moment} artifact={message.metadata?.chat_artifact} recordingDock={recordingDock} />
-        <CoachWordingCard message={message} recordingDock={recordingDock} />
+        {showTakeArtifacts ? <>
+          <CoachMoment raw={message.metadata?.coach_moment} artifact={message.metadata?.chat_artifact} recordingDock={recordingDock} />
+          <CoachWordingCard message={message} recordingDock={recordingDock} />
+        </> : null}
         <BotWays
           metadata={message.metadata}
           onChip={onChip}
-          onOpenFeedback={onOpenFeedback}
-          onOpenConfidencePractice={onOpenConfidencePractice}
+          onOpenFeedback={showTakeArtifacts ? onOpenFeedback : undefined}
+          onOpenConfidencePractice={showTakeArtifacts ? onOpenConfidencePractice : undefined}
         />
         {recordOffer}
         {/* FE-5 — the life card rides in metadata exactly like the B-1 chip

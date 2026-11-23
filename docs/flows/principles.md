@@ -2,7 +2,7 @@
 
 > **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
-A reflection and cohesion tool, apart from the speaking coach: grounding,
+A reflection and cohesion tool: grounding,
 calm, and motivation that comes from who you want to be, a principled man
 or woman (backend N182). The voice notebook's # notes feed it. The Sunday
 note finds a pattern in them and suggests a principle; life goals work one
@@ -45,16 +45,19 @@ Life Panel.
 2. Ring 5 and up, through the rings panel's rows `voice_notebook` and
    `life_goals`, each set to ring 5; nobody below ring 5. Ring 5 holds only
    people who know it is a test (N212, which widened N182's ring 6; N208).
-3. Not the speaking coach. The plan, the coach panel and a Take's summary
-   never read or show the principles, the Sunday note or life goals (N182).
+3. The plan, the coach panel and a Take's summary never read or show the
+   principles, the Sunday note or life goals (N182). The person's Speaking
+   Coach conversation shows their Sunday note, weekly principles and
+   Strengths (N683).
    The walk reads them in two places only, and the coach never sees either:
    after a Good job on a Clearer version, the walk may quote the speaker's
    own kept words (R, N268); and the walk's pick and its Clearer version
    read what the speaker noted themselves, never shown (S, N326, which
    amends N182 item 3 for these two only).
-4. Where it shows: the Sunday note and life goals in the Lounge and their
-   lens; the principles in the Life Panel. Never on the recording screens,
-   never shown to a coach. Private like the notebook (N158, N172, N182).
+4. The Sunday note and Strengths open their existing lenses in Speaking
+   Coach. Life goals open in the Principles chat and their lens. Saved
+   principles remain in the Life Panel. The notebook's privacy and recording
+   rules apply (N158, N172, N182, N683).
 5. How it begins (N411, which replaces N195's three bubbles). The first
    time Will spots something, it introduces the notebook: "🎙 Tap the mic any
    time and say what's on your mind. It helps you catch negative thinking
