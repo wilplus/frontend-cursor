@@ -8,6 +8,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
+        // Light unless the page asks for dark (Appearance.swift, backend N679):
+        // held here, not in Info.plist, so the iPhone's own setting stays
+        // readable for dark mode.
+        window?.overrideUserInterfaceStyle = .light
         // Ours, not Capacitor's plain one: it registers the app's native
         // plugins (WillpowerLabBridge.swift). The storyboard is not used here.
         window?.rootViewController = WillpowerLabViewController()
