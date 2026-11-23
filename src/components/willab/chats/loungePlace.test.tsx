@@ -75,6 +75,7 @@ const ROWS: Row[] = [
   { client_id: "t1", body: "Your feedback is ready.", metadata: { arc_id: "a1" }, place: "speaking" },
   { client_id: "w1", body: "Your chat is saved.", metadata: null, place: "will" },
   { client_id: "p1", body: "We spotted a strength!", metadata: { offer: "strengths" }, place: "principles" },
+  { client_id: "p2", body: "Your life goals.", metadata: { offer: "life_goals" }, place: "principles" },
 ];
 
 let host: HTMLDivElement;
@@ -105,7 +106,7 @@ describe("three chats over the one Lounge (N636)", () => {
     draw("speaking", ROWS, { arcId: "a1", takeIndex: 1 });
     expect(recordButton()).toBe("Record Take 2");
     expect(host.querySelector("textarea")?.disabled).toBe(false);
-    expect(thread()).toBe("Your feedback is ready.");
+    expect(thread()).toBe("Your feedback is ready.We spotted a strength!");
     expect(host.querySelector("[data-plan-dock]")).not.toBeNull();
     expect(host.querySelector("[data-needs-you]")).toBeNull();
 
@@ -124,11 +125,11 @@ describe("three chats over the one Lounge (N636)", () => {
     draw("principles", ROWS, { arcId: "a1", takeIndex: 1 });
     expect(recordButton()).toBeNull();
     expect(host.querySelector("textarea")).not.toBeNull();
-    expect(thread()).toBe("We spotted a strength!");
+    expect(thread()).toBe("Your life goals.");
 
     // Without the ring: every row, the record button, the dock, as it was.
     draw(null, ROWS, { arcId: "a1", takeIndex: 1 });
-    expect(thread()).toBe("Your feedback is ready.Your chat is saved.We spotted a strength!");
+    expect(thread()).toBe("Your feedback is ready.Your chat is saved.We spotted a strength!Your life goals.");
     expect(recordButton()).toBe("Record Take 2");
     expect(host.querySelector("[data-plan-dock]")).not.toBeNull();
 

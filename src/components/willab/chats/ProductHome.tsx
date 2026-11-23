@@ -26,6 +26,7 @@ import type { Chat } from "@/services/api/chats";
 import { subchatActions } from "./BuilderSubchats";
 import { subscribeToProjectTrainings } from "@/lib/willab/projectTrainings";
 import { COACH_PANEL_COPY } from "@/lib/willab/coachPanelCopy";
+import type { PendingProjectTake } from "../usePendingProjectTakes";
 
 type Status = "loading" | "ready" | "error";
 type RenameStatus = "editing" | "saving" | "saved" | "error";
@@ -52,6 +53,8 @@ export default function ProductHome({
   onOpenOwnSection,
   knownProjects,
   onProjects,
+  pendingProjects = [],
+  onOpenPendingProject,
 }: {
   onOpenSpeaking: () => void;
   coachActions?: ReactNode;
@@ -68,6 +71,8 @@ export default function ProductHome({
   /** A page that already has the project list. Absent: read it. */
   knownProjects?: TrainingArc[];
   onProjects?: (projects: TrainingArc[]) => void;
+  pendingProjects?: readonly PendingProjectTake[];
+  onOpenPendingProject?: (take: PendingProjectTake) => void;
 }) {
   const locale = useUiLocale();
   const [projects, setProjects] = useState<TrainingArc[]>(knownProjects ?? []);
@@ -162,6 +167,13 @@ export default function ProductHome({
             onOpen={onOpenSpeaking}
           />
           <div data-product-projects className="ml-5 border-l border-border pl-2">
+            {pendingProjects.filter((take) => !projects.some((project) =>
+              project.arcId === take.projectId || project.takes.some((item) =>
+                item.uploadKey === take.key || item.sessionId === take.sessionId))).map((take) => (
+              <HomeRow key={take.key} id={`pending:${take.key}`} title={take.topic}
+                circle={<LetterCircle id={take.key} name={take.topic} size={24} />}
+                active={activeChat === `pending:${take.key}`} onOpen={() => onOpenPendingProject?.(take)} />
+            ))}
             {status === "loading" ? (
               <ProjectsLoading locale={locale} />
             ) : status === "error" ? (

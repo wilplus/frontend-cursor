@@ -40,6 +40,7 @@ vi.mock("../pdfSlides", () => ({
 }));
 
 import ProductHome from "./ProductHome";
+import { publishProjectTrainings } from "@/lib/willab/projectTrainings";
 
 const arc = (
   arcId: string,
@@ -131,6 +132,33 @@ async function renderHome(projects: TrainingArc[]) {
 }
 
 describe("Speaking coach home", () => {
+  it("opens a finished recording from the sidebar before its project is listed", async () => {
+    api.fetchTrainings.mockResolvedValue([]);
+    const onOpenPendingProject = vi.fn();
+    const pending = { key: "upload-a", ownerId: "speaker", projectId: null,
+      topic: "Board pitch", takeIndex: 1, startedAt: Date.now() };
+    act(() => root.render(createElement(ProductHome, {
+      activeChat: "pending:upload-a",
+      pendingProjects: [pending],
+      onOpenPendingProject,
+      onOpenSpeaking: vi.fn(),
+      onOpenProject: vi.fn(),
+      onStartNewProject: vi.fn(),
+    })));
+    const row = host.querySelector<HTMLButtonElement>('[data-chat-row="pending:upload-a"]');
+    expect(row?.getAttribute("aria-current")).toBe("page");
+    act(() => row?.click());
+    expect(onOpenPendingProject).toHaveBeenCalledWith(pending);
+    await flush();
+
+    act(() => publishProjectTrainings([{ ...arc("actual-project", pending.topic), takes: [
+      { sessionId: "take-a", takeIndex: 1, createdAt: null, hasSlides: false,
+        feedbackAvailable: false, uploadKey: pending.key },
+    ] }]));
+    expect(host.querySelector('[data-chat-row="pending:upload-a"]')).toBeNull();
+    expect(host.querySelector('[data-chat-row="actual-project"]')).not.toBeNull();
+  });
+
   it("keeps the shell and primary action usable while projects load", async () => {
     let resolve: (value: TrainingArc[]) => void = () => undefined;
     const projects = new Promise<TrainingArc[]>((done) => { resolve = done; });

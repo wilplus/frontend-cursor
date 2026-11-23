@@ -22,6 +22,7 @@ import { TakesChatBar, TopBar } from "./TopBar";
 import { WillMark } from "./ChatList";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import { useChatStructure } from "./useChatStructure";
+import type { PendingProjectTake } from "../usePendingProjectTakes";
 
 const loading = () => <LoadingState placement="surface" />;
 const ChatThread = dynamic(() => import("./ChatThread"), { ssr: false, loading });
@@ -35,6 +36,9 @@ type Destination =
 
 type Options = {
   activeProject?: TrainingArc | null;
+  pendingProjectKey?: string;
+  pendingProjects?: PendingProjectTake[];
+  onOpenPendingProject?: (take: PendingProjectTake) => void;
   navigate?: (action: () => void) => void;
   onLeaveProject?: () => void;
   onOpenProject?: (project: TrainingArc) => void;
@@ -61,15 +65,16 @@ function chatKey(destination: Destination): string {
 }
 
 function conversationStatus(destination: Destination, project: TrainingArc | null | undefined,
-  enabled: boolean, coachAvailable: boolean) {
+  enabled: boolean, coachAvailable: boolean, pendingProjectKey?: string) {
+  const projectOpen = Boolean(project || pendingProjectKey);
   const takesChat = destination.kind === "person" && destination.chat.takes && !destination.thread ? destination.chat : null;
   const speakingActive = enabled && destination.kind === "coach" && coachAvailable;
-  const takesChatId = !project && enabled ? takesChat?.id ?? null : null;
+  const takesChatId = !projectOpen && enabled ? takesChat?.id ?? null : null;
   return {
     takesChat, takesChatId, speakingActive,
-    place: speakingActive || project || takesChatId ? "speaking" as const : null,
-    loungeCovered: Boolean(project) || (enabled && !speakingActive && !takesChat),
-    coachHeading: enabled && !project && destination.kind === "coach",
+    place: speakingActive || projectOpen || takesChatId ? "speaking" as const : null,
+    loungeCovered: projectOpen || (enabled && !speakingActive && !takesChat),
+    coachHeading: enabled && !projectOpen && destination.kind === "coach",
   };
 }
 
@@ -93,8 +98,9 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
   const structure = useChatStructure();
   const { layout, change } = structure;
   const project = options?.activeProject;
+  const pendingKey = options?.pendingProjectKey;
   const { takesChat, takesChatId, speakingActive, place, loungeCovered, coachHeading } =
-    conversationStatus(destination, project, enabled, layout?.coach !== "archived" && layout?.coach !== "deleted");
+    conversationStatus(destination, project, enabled, layout?.coach !== "archived" && layout?.coach !== "deleted", pendingKey);
   const takesChatName = takesChat?.title;
 
   useEffect(() => {
@@ -131,7 +137,7 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
     });
   }
   const openedPerson = (chat: Chat) => open({ kind: "person", chat });
-  const activeChat = project ? `project:${project.arcId}` : chatKey(destination);
+  const activeChat = pendingKey ? `pending:${pendingKey}` : project ? `project:${project.arcId}` : chatKey(destination);
   const heading = coachHeading ?
     <TopBar title={uiText(locale, "speakingCoach")} circle={<WillMark size={32} />} /> : null;
 
@@ -148,6 +154,11 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       structure={structure}
       people={people ?? []}
       onProjects={setProjects}
+      pendingProjects={options?.pendingProjects}
+      onOpenPendingProject={(take) => navigate(() => {
+        setDestination({ kind: "coach" });
+        options?.onOpenPendingProject?.(take);
+      })}
       onOpenPerson={openedPerson}
       onOpenSpeaking={openCoach}
       coachActions={layout?.coach === "active" ? <CoachMenu change={change} onDelete={() => {
@@ -160,7 +171,7 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       onOpenOwnChat={() => open({ kind: "builder" })}
       onOpenOwnSection={(name, section) => open({ kind: "built", name, section })}
     /> : null,
-    pane: enabled && !project ? <ConversationPane
+    pane: enabled && !project && !pendingKey ? <ConversationPane
       destination={destination}
       takesChat={takesChat}
       layout={layout}

@@ -92,13 +92,15 @@ When the speaker names the main audience, the coach can give advice for those li
 
 In the inline Walk, the speaker's messages and recordings use the project conversation's soft orange bubble. The Walk's bubbles use the same text size as the project conversation.
 
-When a Speaking Coach or project chat reply points to an exact recording moment, it can play that fragment beside the reply (N672). Automatic transcript footers are hidden. If the current Picker serves practice for the same moment, the reply presents its instruction and available demonstration. Practise opens only that activity in the conversation and uses the shared microphone. Reopening the chat resolves the recording against current project access and recording permissions.
+Speaking Coach and Project Chat both use the speaker's words and available delivery cues from the exact passage. Project Chat uses the authorised Takes in that project, including the selected moment during a review. It answers the speaker's question in context and can give one useful line to say or one thing to try. When delivery is unavailable, the coach describes what the words support.
+
+The owning project plays an exact recording moment beside its reply. If the Picker serves an intervention for that moment, the project reply presents the instruction and available demonstration. Practise opens the activity with the shared microphone. Reopening checks current project access and recording permissions. Speaking Coach uses ordinary text for its advice and guides the speaker to the project for a Take's artifacts. Automatic transcript footers are hidden. Speaker-wide Strengths and weekly principles appear in Speaking Coach (N683).
 
 #### Speakable wording in coaching replies
 
-When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. The line is visible in the chat with **Practise** and **Save wording** when it has a project. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take as a project-chat entry. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
+When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. Project Chat shows the line with **Practise** and **Save wording**. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take in the project. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
 
-When asked about the last two recordings, Speaking Coach compares those authorised Takes and attaches the example to the Take it is meant for. If the recording clip is unavailable, the coach can demonstrate with the supported words and a delivery direction. A project-free example can still be tried in the chat.
+When asked about the last two recordings, Speaking Coach compares those authorised Takes and gives an example in the reply text. Older wording replies keep their words and delivery direction visible as text. If the recording clip is unavailable, the coach can demonstrate with the supported words and a delivery direction.
 
 #### Shared Take exchanges
 
@@ -170,6 +172,12 @@ and [Chat Builder](../chat-builder/flow.md).
   the Take's text and its marks are stored: the marks are baked in the
   processing run right after the Take is ready, and the page asks for them
   until they are in (or for ninety seconds) (2026-10-20, WIL-76).
+  For a project Take, the close control enters its own chat from the moment
+  Finish saves the recording, including before server acceptance. A new chat
+  appears in the Speaking Coach sidebar with the speaker's recording followed
+  by the processing bubble. Tapping it opens the same full-screen progress,
+  and the chat follows the exact Take when it appears in the server list
+  (founder 2026-11-23).
   In a project chat, a reply keeps the same place as the message it answers
   when the thread reloads. An ordinary reply stays visible while the Take
   recap is folded.

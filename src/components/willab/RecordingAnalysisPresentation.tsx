@@ -41,7 +41,7 @@ export default function RecordingAnalysisPresentation({
   return (
     <div
       data-processing-wait=""
-      className="flex w-full max-w-[19rem] flex-1 flex-col justify-center pb-[9vh] text-left"
+      className="mx-auto flex w-full max-w-[19rem] flex-1 flex-col justify-center text-left"
     >
       <div className="mb-11 flex justify-center">
         <VoiceMark size={88} />

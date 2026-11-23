@@ -35,7 +35,10 @@ import { ChatTurnRetry } from "./ChatTurnRetry";
 import FeedbackWalkCard, { type FeedbackWalkChunk } from "./FeedbackWalkCard";
 import IdealTextOverlay from "./IdealTextOverlay";
 import TakeTranscriptSheet from "./TakeTranscriptSheet";
-import TypingDots, { TypingGlyph } from "./TypingDots";
+import TypingDots from "./TypingDots";
+import { PendingRecordingBubbles, RecordingProcessingBubble } from "./ProjectRecordingBubbles";
+import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
+import type { PendingProjectTake } from "./usePendingProjectTakes";
 import WillQuestionBubble, { SOMETHING_ELSE, TYPE_YOUR_ANSWER } from "./WillQuestion";
 import { LetterCircle } from "./chats/ChatList";
 import { TopBar } from "./chats/TopBar";
@@ -302,7 +305,9 @@ function useProjectRecordingLifecycle({
 
   useEffect(() => {
     setLiveProject(project);
-    setRecordingActive(recordingInProgress || (handoffTake !== null && handoffTake !== settledSession.current));
+    const incoming = handoffTake !== null && handoffTake !== settledSession.current;
+    if (incoming) returnToReview.current = true;
+    setRecordingActive(recordingInProgress || incoming);
   }, [project, recordingInProgress, handoffTake]);
 
   useEffect(() => {
@@ -496,9 +501,17 @@ function takePreview(messages: readonly LoungeMessage[]): string | null {
     feedback[0]?.body ?? null;
 }
 
-function ProjectProcessingStatus({ active, failed, retrying, onRetry }: {
-  active: boolean; failed: boolean; retrying: boolean; onRetry: () => void;
+function ProjectProcessingStatus({ active, failed, retrying, marker, onRetry }: {
+  active: boolean;
+  failed: boolean;
+  retrying: boolean;
+  marker: ProcessingTake | null;
+  onRetry: () => void;
 }) {
+  const [waitOpenedAt, setWaitOpenedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (!active || failed) setWaitOpenedAt(null);
+  }, [active, failed]);
   if (failed) return (
     <div data-processing-error role="alert"
       className="mr-auto flex max-w-[88%] flex-col gap-2 rounded-[16px] bg-destructive/10 px-3 py-2 text-[14px] leading-[1.45] text-destructive">
@@ -510,13 +523,12 @@ function ProjectProcessingStatus({ active, failed, retrying, onRetry }: {
     </div>
   );
   if (!active) return null;
-  return <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-    <div data-processing-bubble role="status"
-      className="flex items-center gap-2.5 rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] leading-[1.45] text-foreground">
-      <TypingGlyph />
-      <span>Processing your recording</span>
-    </div>
-  </div>;
+  return <>
+    <RecordingProcessingBubble onOpen={() => setWaitOpenedAt(Date.now())} />
+    {waitOpenedAt !== null ? <ProcessingResumeOverlay progress={marker?.progress ?? null}
+      phase={marker?.phase} cycleStartedAt={marker?.startedAt ?? waitOpenedAt} phaseStartedAt={marker?.phaseStartedAt}
+      onClose={() => setWaitOpenedAt(null)} /> : null}
+  </>;
 }
 
 export default function ProjectChat({
@@ -524,6 +536,8 @@ export default function ProjectChat({
   analysisPending = false,
   recordingInProgress = false,
   handoffTake = null,
+  pendingRecording,
+  onOpenPendingRecording,
   initialReview = null,
   beforeLeaveRef,
   initialDraft = "",
@@ -538,6 +552,8 @@ export default function ProjectChat({
    *  gap before the accepted Take has a session/processing marker. */
   recordingInProgress?: boolean;
   handoffTake?: string | null;
+  pendingRecording?: PendingProjectTake;
+  onOpenPendingRecording?: (take: PendingProjectTake) => void;
   initialReview?: TakeReviewTarget | null;
   beforeLeaveRef?: MutableRefObject<ReviewExit | null>;
   initialDraft?: string;
@@ -959,8 +975,12 @@ export default function ProjectChat({
           ))}
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
-          <ProjectProcessingStatus active={recordingActive} failed={failed}
-            retrying={retrying} onRetry={() => void retryProcessing()} />
+          {pendingRecording && !recordingTakes.some((take) =>
+            take.uploadKey === pendingRecording.key || take.sessionId === pendingRecording.sessionId)
+            ? <PendingRecordingBubbles take={pendingRecording}
+                onOpen={() => onOpenPendingRecording?.(pendingRecording)} />
+            : <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
+                retrying={retrying} onRetry={() => void retryProcessing()} />}
           {sending ? <TypingDots label="Will is replying" /> : null}
           </div>
         </div>
