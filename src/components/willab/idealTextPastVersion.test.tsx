@@ -54,7 +54,7 @@ beforeEach(() => {
     headRevision: 3,
     revisions: [
       { revision: 3, takeIndex: 3, text: "What I said in Take three.", slides: null, presentationRef: null, helperWords: [], createdAt: null, isHead: true },
-      { revision: 1, takeIndex: 1, text: "What I said in Take one.\n\nStill on slide one.\n\nOn to slide two.", slides: [0, 0, 1], presentationRef: null, helperWords: [{ slideIndex: 1, phrases: ["slide two"] }], createdAt: null, isHead: false },
+      { revision: 1, takeIndex: 1, text: "What I said in Take one.\n\nStill on slide one.\n\nOn to slide two.", slides: [0, 0, 1], presentationRef: null, slideTitles: ["The opening", "The proposal"], deckKnown: true, helperWords: [{ slideIndex: 1, phrases: ["slide two"] }], createdAt: null, isHead: false },
     ],
   });
 });
@@ -127,6 +127,9 @@ describe("an older Take's Ideal Text card (N375)", () => {
     // Two slides: the first holds two paragraphs, the second one.
     expect(container.querySelectorAll("section")).toHaveLength(2);
     expect(container.textContent).toContain("Slide 2");
+    const slide = container.querySelector("[data-ideal-text-slide='1']");
+    expect(slide?.textContent).toContain("The proposal");
+    expect(slide?.nextElementSibling?.textContent).toContain("On to slide two.");
   });
 
   it("says which Take, leads to the latest, keeps its helper words", async () => {
@@ -134,7 +137,7 @@ describe("an older Take's Ideal Text card (N375)", () => {
     if (opened.kind !== "past") throw new Error("expected the older version");
     const onLatest = await draw(opened.revision, opened.latestTake);
     expect(container.textContent).toContain("This is what you said in Take 1.");
-    const go = [...container.querySelectorAll("button")].find((b) => b.textContent === "Go to Take 3");
+    const go = [...container.querySelectorAll("button")].find((b) => b.firstChild?.textContent === "Go to Take 3");
     await act(async () => go!.click());
     expect(onLatest).toHaveBeenCalled();
     // The words of its time, orange where the words say them.

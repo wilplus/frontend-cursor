@@ -8,7 +8,7 @@ import {
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
 import type { ChatQueryResponse } from "@/services/api/chatQuery";
-import { postWillQuestion, transcribeTakeFollowUp } from "@/services/api/willQuestion";
+import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import {
   CHAT_FAILURE_BODY,
@@ -40,21 +40,16 @@ import WillQuestionBubble, { SOMETHING_ELSE, TYPE_YOUR_ANSWER } from "./WillQues
 import { LetterCircle } from "./chats/ChatList";
 import { TopBar } from "./chats/TopBar";
 import { useBackDismiss } from "./useBackDismiss";
-import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
-import { recordLabel } from "@/lib/willab/chatBuilder/screenCopy";
 import { useUserId } from "./useUserId";
 import { refreshLiveIdealDoc } from "./ReportCard";
-import {
-  practiceSelection,
-  readPracticeCheckpoint,
-  writePracticeResume,
-  type PracticeDecision,
-} from "@/lib/willab/practiceResume";
+import { clearPracticeResume, readPracticeCheckpoint } from "@/lib/willab/practiceResume";
+import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import TakeReview, { type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
+import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
 import { isTakeExchangeMessage, readyForReview, takeSessionOf } from "@/lib/willab/takeExchange";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
@@ -64,7 +59,7 @@ import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHo
 import CoachMoment from "./CoachMoment";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
-type Opened = "walk" | "ideal" | "decision" | null;
+type Opened = "walk" | "ideal" | null;
 
 type ProjectReviewSelection = {
   coachTake: string | null;
@@ -468,7 +463,7 @@ function ProjectChatHeader({ project, onBack }: {
 }
 
 function samePending(
-  turn: PendingChatTurn, answer: string, take: string, question: LoungeMessage | null, focus: ReviewFocus | undefined,
+  turn: PendingChatTurn, answer: string, take: string | undefined, question: LoungeMessage | null, focus: ReviewFocus | undefined,
 ): boolean {
   return turn.request.question === answer && turn.request.sessionId === take &&
     turn.question?.client_id === question?.client_id &&
@@ -480,7 +475,7 @@ function typedQuestionTarget(project: TrainingArc, active: LoungeMessage | null,
   const question = retry ? retry.question : focus ? null : active;
   const take = retry?.request.sessionId ?? target?.take.sessionId ?? question?.metadata?.take_session_id ??
     project.takes.at(-1)?.sessionId;
-  return { focus, question, take };
+  return { focus, question, take: typeof take === "string" ? take : undefined };
 }
 
 function questionInTakeView(
@@ -555,7 +550,6 @@ export default function ProjectChat({
   const leavingReview = useCallback((action: () => void) => (reviewExit.current ?? ((afterSave) => afterSave()))(action), []);
   const back = () => leavingReview(onBack);
   useBackDismiss(back);
-  const coach = usePublishedCoach();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const {
@@ -627,14 +621,15 @@ export default function ProjectChat({
   const currentReviewContext = useRef(reviewContext);
   currentReviewContext.current = reviewContext;
   const voice = useComposerVoice({
-    enabled: Boolean(askTarget && thread.signedIn),
-    held: sending,
+    enabled: thread.signedIn,
+    held: sending || !outbox.ready,
     maxSeconds: 120,
     label: "Record your answer",
-    scope: reviewContext ? JSON.stringify([activeProject.arcId, reviewContext.take.sessionId, reviewContext.focus]) : undefined,
+    scope: JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]),
     onSend: async (audio, duration) => {
-      if (!reviewContext || !outbox.isCurrent()) return false;
-      const spoken = await transcribeTakeFollowUp(activeProject.arcId, reviewContext.take.sessionId, audio, duration);
+      if (!outbox.isCurrent()) return false;
+      const take = reviewContext ? { arcId: activeProject.arcId, takeId: reviewContext.take.sessionId } : undefined;
+      const spoken = await transcribeChatAnswer(audio, duration, take);
       return spoken && outbox.isCurrent() && currentReviewContext.current === reviewContext ? answerText(undefined, spoken) : false;
     },
   });
@@ -730,7 +725,7 @@ export default function ProjectChat({
     const target = askTarget ?? (questionInView ? null : takeReview);
     const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, questionInView, target, retry);
     const arc = activeProject.arcId;
-    if (!answer || sending || sendingRef.current || !outbox.ready || typeof take !== "string") return false;
+    if (!answer || sending || sendingRef.current || !outbox.ready) return false;
     const existing = retry ?? outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus));
     if (existing && outbox.isSending(existing)) return false;
     sendingRef.current = true;
@@ -763,6 +758,7 @@ export default function ProjectChat({
         if (!body || isReplayedTerminalReply(body, thread.messages)) throw new Error("Missing contextual reply");
         return { role: "bot", kind: "text", body,
           metadata: { ...typedProjectTurnMetadata({ ...scope, role: "reply" }), ...response.row_metadata,
+            ...(offersNextTake(response) ? { suggested_action: "record_again" } : {}),
             ...(turn.user.metadata?.take_exchange === undefined ? {} : { take_exchange: turn.user.metadata.take_exchange }) } };
       });
       if (result && outbox.isCurrent()) await thread.reload();
@@ -817,31 +813,19 @@ export default function ProjectChat({
     })}>Take {take.takeIndex}{label} · Back to review</button>;
   }
 
-  function startPractice(scope: "fragment" | "whole", chunk: FeedbackWalkChunk | undefined): void {
-    const span = activeProject.practiceChunks.find((item) => item.latestSessionId === chunk?.latestSessionId);
-    writePracticeResume(userId, activeProject.arcId, practiceSelection(scope, span));
-    setOpened(null);
-    startRecording();
-    onRecord(activeProject.arcId);
+  function recordNext() {
+    if (recordingActive) return;
+    leavingReview(() => {
+      keepNextTakeShare(null);
+      clearPracticeResume(userId, activeProject.arcId);
+      startRecording();
+      onRecord(activeProject.arcId);
+    });
   }
 
-  function practiceDecisionFor(chunk: FeedbackWalkChunk | undefined): PracticeDecision | undefined {
-    if (!hasPractice) return undefined;
-    return {
-      deliveryLabel: chunk?.deliveryLabel ?? undefined,
-      onFragment: () => { finishReview(); startPractice("fragment", chunk); },
-      onWholePresentation: () => { finishReview(); startPractice("whole", chunk); },
-    };
-  }
-
-  function recordNext(chunk: FeedbackWalkChunk | null = null) {
-    if (hasPractice) {
-      setOpenedPractice(chunk);
-      setOpened("decision");
-      return;
-    }
-    startRecording();
-    onRecord(activeProject.arcId);
+  function recordOffer(message: LoungeMessage) {
+    return message.role === "bot" && offersNextTake(message.metadata)
+      ? <RecordNextTakeLink offer={message.metadata} onRecord={recordNext} /> : null;
   }
 
   return (
@@ -888,7 +872,7 @@ export default function ProjectChat({
                   const retry = failedTurns.get(message.client_id);
                   return retry ? <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(retry)} />
-                  </div> : null;
+                  </div> : recordOffer(message);
                 }} /> : null}
               </TakeConversation> : null}
             </div>;
@@ -943,6 +927,7 @@ export default function ProjectChat({
                 {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
                   artifact={message.metadata?.chat_artifact}
                   project={activeProject.arcId} recordingDock={recordingDock} />}
+                {recordOffer(message)}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />
@@ -969,7 +954,7 @@ export default function ProjectChat({
         inputLabel="Answer about this take" sendLabel="Send answer" value={draft} onValue={setDraft} onSend={() => answerText()}
         autoFocus={typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
-        mic={voice.mic ?? { label: recordLabel(coach, Boolean(hasPractice)), start: () => leavingReview(() => recordNext()), attrs: { "data-project-record": "" } }}
+        mic={voice.mic}
         recording={voice.recording} voiceDraft={voice.voiceDraft} status={voice.error ?? undefined} />
       </div>
       {slides.layer}
@@ -982,11 +967,6 @@ export default function ProjectChat({
           requireFeedbackWalk={opened === "walk"}
           projectFlow={opened === "walk"}
           onClose={closeResult}
-          onReadAloud={() => {
-            startRecording();
-            onRecord(activeProject.arcId);
-          }}
-          practiceDecision={practiceDecisionFor(openedPractice ?? practiceChunks.at(-1))}
         />
       ) : null}
       {openedTranscript ? (

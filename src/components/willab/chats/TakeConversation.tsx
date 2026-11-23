@@ -71,14 +71,15 @@ export function ConversationBubble({ speaker = false, children, className }: {
 }
 
 /** Long content breaks out of the message rail, within the chat viewport. */
-export function ConversationDocument({ title, actions, children }: {
+export function ConversationDocument({ title, actions, children, stickyHeader }: {
   title: string;
   actions?: ReactNode;
   children: ReactNode;
+  stickyHeader?: boolean;
 }) {
   return <article data-chat-document="" aria-label={title}
     className="my-3 w-full min-w-0 border-y border-border bg-background px-1 py-5 sm:px-4 sm:py-6">
-    <header className="mb-4 flex items-center justify-between gap-3">
+    <header className={cn("mb-4 flex items-center justify-between gap-3", stickyHeader && "sticky top-0 z-10 bg-background py-2")}>
       <h3 className="min-w-0 break-words text-lg font-semibold tracking-tight">{title}</h3>
       {actions ? <div className="shrink-0">{actions}</div> : null}
     </header>

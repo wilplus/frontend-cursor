@@ -552,8 +552,8 @@ src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the proje
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
-O4  Every route to the current Ideal Text preserves the decision to
-rehearse the whole presentation or repeat the selected fragment.
+O4  Recording another Take is offered by a chat reply. Ideal Text
+keeps its document tools and slide previews.
 O5  The project-card CTAs keep the selected Take and route distinct:
 Feedback opens its exact Feedback Walk range; Ideal Text stays
 on Ideal Text.
@@ -561,15 +561,14 @@ O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
 O7  A refused quick choice remains one durable user turn with one
 recoverable error instead of disappearing.
-O8  After my first full Take, both rehearsal choices stay available;
-an unavailable fragment span falls back to the whole presentation.","O1 -> ""puts the result before the project conversation""
+O8  The mic sends a spoken answer in its own project chat.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
-O4 -> ""keeps the fragment decision when Ideal Text opens from the card""
+O4 -> ""starts another Take only from the served chat action""
 O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
 O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
 O7 -> ""keeps a refused quick choice once with one recoverable error""
-O8 -> ""as a speaker after my first full Take, I can rehearse even before a fragment span is available""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
+O8 -> ""sends a spoken answer in the current project before its first Take""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -1260,19 +1259,6 @@ O2 -> ""eight words at most ...""
 O3 -> ""one chip per Take; an earlier Take's words save with its number""
 O4 -> ""Delete asks once, then deletes""
 O5 -> ""the button lights only when the words differ from the saved ones""","Founder lock 2026-09-30 (B4, B10, D4, D5, Q2, Q3)."
-src/components/willab/idealTextActions.test.tsx,Story,"As a speaker, I want the bottom of my Ideal Text page to offer ""Record Take N+1"" and a grey Close, so that the next Take is always one tap away, and I want each Take to stay mine until I send it.","O1  The only buttons are ""Record Take 2"" and ""Close"", even when a review
-is waiting; Close closes the page.
-O2  ""Record Take N"" records at once, whatever I chose for an earlier
-Take: nothing is asked before it, nothing is sent or shared once it
-is up, and its line reads ""Only me"" (in the people shape with sending
-on, so the line opens ""Who hears this Take"" with nobody ticked; in the
-community shape with sending off). A choice kept on the phone from
-before is dropped, never applied. Nobody in my list: no line. A read
-that does not answer still records within 1.5 s.
-O3  Both rehearsal choices follow the active UI language and invoke their
-own action, while the served readiness label and its dot stay intact.","O1 -> ""is ● Record Take N and a grey Close, the one way out""
-O2 -> ""records at once with nothing sent, whatever was chosen before; its line is Only me""
-O3 -> ""as a Polish-speaking user, I can choose either rehearsal scope in my UI language""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2: founder 2026-11-10, backend N626 (""I don't want to send it to others now""; ""Nothing by default""), replacing the remembered choice of N309 item 5, N470 and N479 item 5."
 src/components/willab/idealTextCantLoad.test.tsx,Story,"As a speaker whose Ideal Text could not load, I want the page to try again by itself and give me Try again, so that I never have to close and reopen it to see my words.","O1  The line shows with ""Try again"" under it; the page reads again by
 itself 3 s and 10 s after the failed load, the line staying on screen
 while it reads, and then stops.
@@ -1470,6 +1456,9 @@ nothing of the machine's read is fetched or drawn, before or after an
 answer (Never 2).","O1 -> ""below the ring … nothing"", ""an invite … 404"", ""the profile … 404""
 O2 -> one test per story, named by its id
 O3 -> ""MOD-09 …""",The App Model's stories are the contract the founder compares the code with (backend N574); the ring keeps the screens safe to merge before backend #1863 and its migration.
+src/components/willab/nextTakeOffer.test.tsx,Story,A speaker can start the next Take when a chat reply offers it.,"O1  The offered link uses the interface language.
+O2  A subsequent Take starts private.","O1 -> ""uses the UI language and shows a single link on an explicit next Take offer""
+O2 -> ""starts private regardless of earlier recipients and bounds the sharing lookup""","Founder, 23 November 2026, N682. N626 governs sharing."
 src/components/willab/noStarsOnUserSurfaces.test.ts,Guard,No component in src/components or src/app draws a star icon.,"Never 1 (no verdicts shown to speakers): a `<Star` element or a lucide
 `Star` import in any .tsx, user lane or coach lane. A source scan on
 purpose: the star rating once lived in six separate renderers, and a

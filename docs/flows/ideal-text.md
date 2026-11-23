@@ -14,7 +14,7 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 
 Much of this lock was superseded for the walk on 2026-10-06: the walk through the text, praise, practise and the helper words inside the walk are on the walk's page ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md), C and F), and **where the walk's page covers the same thing, the walk's page wins**. What stays here is the Ideal Text page's own lock.
 
-The Ideal Text in a Take exchange uses the full width of the chat area and scrolls with the conversation. The current Take uses the existing document and menu. An earlier Take reads and exports its own revision and saves review edits against that Take. Other conversation bubbles resume below the document. (Founder approval in the Take design thread, 23 November 2026.)
+Ideal Text uses the same full-width document layout in a Take exchange, from an older Take card, and from a direct open. Each recorded slide sits immediately above the paragraphs attached to it. Historical text uses its own Take's deck and the slide titles recorded with it. If the recorded slide map is missing, the words still appear. The menu holds the existing document tools. Other chat bubbles resume below the document. (Founder, 23 November 2026, N682.)
 
 ### The loading frame
 
@@ -25,25 +25,17 @@ while the phase changes. Ordinary page reads, route openings and overlays use
 the same frame. Typing bubbles remain only as inline feedback for an actual
 in-chat response and are not page loaders.
 
-### The shared authenticated page header
+### The document header
 
-**Locked by founder visual feedback, 2026-11-17.** Ideal Text uses the
-cross-app `PageHeader` primitive: its title, menu and small outlined circular
-X share one safe content rail, while the full-width divider remains at the
-viewport edge. The same primitive is used by project chat and feedback
-overlays; mobile margins and safe-area spacing stay intact, and the existing
-overlay close plus browser-back behavior is unchanged. Onboarding progress is
-left-aligned within that safe rail rather than globally centered.
-
-The 2026-11-18 screenshot correction keeps that divider anchored to the
-header's bottom edge and centered to `100vw`, so it remains edge-to-edge when
-the surface is mounted inside the desktop canvas.
+The document title and its menu sit at the top of the document. A standalone
+open adds the app's close control. The document uses the same reading width
+and slide layout inside the Take exchange and from a direct open.
 
 ---
 
 ## 1. The rules
 
-Ask coach from a Take review returns to the scoped project and uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The Ideal text page keeps its document and practice actions.
+Ask coach from a Take review returns to the scoped project and uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The Ideal Text menu keeps its document actions. An offer to record a new Take appears in the chat.
 
 ### Ideal text in Take review (N666, N670)
 
@@ -486,31 +478,11 @@ the rail remains fluid and keeps each screen's existing side padding.
 ### Project rehearsal choices (2026-11-23)
 
 This section supersedes the older continuation-footer change notes below.
-From the project conversation, Ideal Text offers white **Repeat this fragment**
-and black **Rehearse whole presentation** side by side. The selected Feedback
-Walk span is used, otherwise the newest span. Without a proven span, recording
-uses the complete text. The served readiness label and its shared colored dot
-are retained; the UI never recalculates readiness.
-
-The only persisted choice (`practiceResume.ts`) is `{scope: "whole"}` or
-`{scope: "fragment", startSlide, endSlide}` with inclusive 1-based deck pages.
-There is no second start index or configurable duration in that choice.
-`ProjectChat` writes it; `LabOverlay` consumes storage once at microphone start
-and retains the active choice for navigation and timer behavior throughout the
-Take. `RecordingRoadmap` uses the same bounds, retaining original PDF-page,
-helper-word and upload-timeline indices. The recorder contract is described in
-[recording-screens.md](recording-screens.md).
-
-Both fixed labels use the reactive UI locale (`uiLocale.ts`):
-
-| English | Polish |
-| --- | --- |
-| Repeat this fragment | Powtórz ten fragment |
-| Rehearse whole presentation | Przećwicz całą prezentację |
-
-Speaker text and served feedback retain their content language. The business
-tests are `ProjectChat.test.tsx` (choice routing), `idealTextActions.test.tsx`
-(localized actions), and the recording stories linked on the recording page.
+The Ideal Text displays the document with its own slides and menu. Readiness and
+rehearsal choices have been removed from the document. A reply that supplies
+`record_again` offers **Record the next take** in the chat. It starts the
+project's regular recording flow. Guided exercises still use their own capture.
+(Founder, 23 November 2026, N682.)
 
 ## 2. In flight
 
@@ -536,7 +508,7 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/IdealTextHeading.tsx`
 - `src/components/willab/IdealTextMenu.tsx`
 - `src/components/willab/IdealTextEditor.tsx`
-- `src/components/willab/IdealTextActions.tsx`
+- `src/components/willab/IdealTextDocument.tsx` and `src/components/willab/IdealTextSlide.tsx`
 - `src/components/willab/IdealTextReadout.tsx`
 - `src/components/willab/TranscriptReviewDeck.tsx`
 - `src/components/willab/DeckSlidePreview.tsx`

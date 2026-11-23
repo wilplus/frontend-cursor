@@ -1,15 +1,7 @@
-import type { PracticeDeliveryLabel } from "@/services/api/trainings";
-
 /** One recording choice. Fragment bounds are inclusive, 1-based deck pages. */
 export type PracticeResumeSelection =
   | { scope: "whole" }
   | { scope: "fragment"; startSlide: number; endSlide: number };
-
-export interface PracticeDecision {
-  deliveryLabel?: PracticeDeliveryLabel;
-  onFragment: () => void;
-  onWholePresentation: () => void;
-}
 
 /** Missing history means the full text; never invent a fragment from a checkpoint. */
 export function practiceSelection(

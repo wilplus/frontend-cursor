@@ -9,6 +9,7 @@ import DeckChunkModal, {
 } from "@/components/willab/DeckChunkModal";
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
 import DeckSlideThumb from "@/components/willab/DeckSlideThumb";
+import IdealTextSlide from "./IdealTextSlide";
 import { WalkEndLayer } from "@/components/willab/WalkEnd";
 import {
   CHUNK_SHEET_COPY,
@@ -1377,6 +1378,12 @@ export default function TranscriptReviewDeck({
               // full width.
               className={layout.slide}
             >
+              {inlineDocument && g.slideIndex !== null ? <IdealTextSlide
+                presentationRef={presentationRef}
+                pageIndex={g.slideIndex}
+                slideTitle={slideTitles?.[g.slideIndex]}
+                label={kickerFor(g.slideIndex, slideCount)} /> : null}
+              {!inlineDocument ? <>
               {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
                   B): the slide as a small tile, its kicker, and the pencil.
                   The picture used to stand up to 38% of the screen high on
@@ -1403,6 +1410,7 @@ export default function TranscriptReviewDeck({
                 </p>
                 </div>
               </div>
+              </> : null}
               {/* The INNER chunk scroller: overscroll-contained so the
                   last chunk never chains into a slide flip mid-gesture —
                   the bubble is a deliberate step, taken above. `my-auto`

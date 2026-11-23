@@ -60,14 +60,11 @@ existing controls remain unchanged.
 
 Speaking Coach sends project identity with each project bubble in screen history. An interrupted typed turn stays in its conversation through refresh, and **Try again** reuses its original words and identity until the stored reply arrives.
 
-The compact project result has one title inside the selected slide row, not a
-second repeated heading above Progress. Its black **Feedback** control opens
-that selected Take's Feedback Walk directly; **Ideal text** remains the white
-door to the document. The practice decision is one row: white **Rehearse this
-again** with a red, yellow or green readiness dot, then black **Continue
-practice**. Red is Not yet there, yellow is the intermediate/Almost state, and
-green is Good to go or stronger. These labels describe the next action, not a
-score (founder, 2026-11-18; backend N663).
+A Take recap opens its feedback and practice in order, then its Ideal Text with
+each slide above the text it belongs to. The coach can offer the next Take in
+the conversation with **Record the next take ›** after serving the
+`record_again` action. The text of any answer or closing line never supplies
+that action on its own. (Founder, 23 November 2026, N682.)
 
 The Speaking Coach answers the latest turn in that turn's language. A greeting
 gets a greeting and cannot replay an older project answer. A request for an
@@ -111,10 +108,15 @@ appears immediately before the mic when the current draft can be sent. The
 composer keeps touch-sized controls and accounts for the phone's safe area.
 
 - In a conversation, type or start recording from the same row. Files opens
-  the attachments or upload actions supported by the current chat. A place
+  the attachments or upload actions supported by the current chat on an opaque surface. A place
   without a particular input keeps its slot disabled. Context chips, tap
   answers, consent, ratings, slide navigation and progress stay outside the
   message field.
+- In Speaking Coach and project chat the conversation mic records a reply.
+  Stop prepares the answer for preview. Send transcribes it under the
+  speaker's recording authorization and submits its words through the
+  existing chat turn. A selected Take or moment stays attached to the
+  answer. (Founder, 23 November 2026, N682.)
 - For a voice-only step the field is disabled and prompts the user to record.
   During capture the center shows the running timer and the right slot
   becomes Stop. The discard action sits beside the timer. Typing returns

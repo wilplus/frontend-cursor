@@ -176,6 +176,13 @@ export async function readSend(): Promise<SendRead> {
   return { enabled: true, people: people.people, choice: last.choice };
 }
 
+/** A subsequent Take starts private, in the sharing format the caller uses. */
+export async function readPrivateTakeShare(): Promise<ShareChoiceMeta | PeopleShareMeta | null> {
+  const send = await within(readSend(), SEND_READ_CAP_MS, { enabled: false } as const);
+  if (!send.enabled) return shareChoiceMeta(["none"], []);
+  return send.people.length ? { kind: "people", all: false, user_ids: [], names: [] } : null;
+}
+
 /** A promise, or `fallback` once `ms` have passed. */
 export function within<T, F>(promise: Promise<T>, ms: number, fallback: F): Promise<T | F> {
   return new Promise((resolve) => {

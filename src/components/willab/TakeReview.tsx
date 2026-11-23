@@ -8,27 +8,18 @@ import { fetchReviewTempo } from "@/services/api/reviewTempo";
 import { readReviewCopy, readReviewSteps, saveReviewCopy, type ReviewCopy, type ReviewRevision, type ReviewRun } from "@/services/api/takeReview";
 import type { TrainingArc, TrainingTake } from "@/services/api/trainings";
 import type { ChatQueryArgs } from "@/services/api/chatQuery";
-import { helperHeadlineOf, slideGroupsOf } from "@/lib/willab/pastIdealText";
-import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookmark";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { mergeTakeExchange } from "@/lib/willab/takeExchange";
 import { isPersistedTerminalReplay, orderedProjectMessages } from "@/lib/willab/projectChat";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
-import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
-import AiGeneratedNote from "./AiGeneratedNote";
-import DeckSlideThumb from "./DeckSlideThumb";
 import IdealTextOverlay from "./IdealTextOverlay";
-import IdealTextMenu from "./IdealTextMenu";
-import PresentMode from "./PresentMode";
-import ExportFormatDialog from "./ExportFormatDialog";
+import { ArchivedIdealText } from "./IdealTextPastVersion";
 import TypingDots from "./TypingDots";
-import { RichText } from "./RichText";
 import { useBackDismiss } from "./useBackDismiss";
-import { HelpersLabel } from "./TranscriptReviewDeck";
 import WalkPlayer from "./walk/WalkPlayer";
 import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
 import { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
-import { ConversationBubble, ConversationDocument } from "./chats/TakeConversation";
+import { ConversationBubble } from "./chats/TakeConversation";
 import TakeConversationMessage from "./chats/TakeConversationMessage";
 import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 
@@ -120,6 +111,7 @@ function liveRevision(head: Extract<IdealTextResult, { kind: "single" }>, take: 
   return {
     revision: head.version ?? 0, takeIndex: take.takeIndex, text: head.ideal.text,
     slides: pieces.map((piece) => piece.slideIndex ?? null), presentationRef: head.presentationRef,
+    slideTitles: head.slideTitles ?? undefined, deckKnown: true,
     helperWords: [...roots].map(([slideIndex, phrases]) => ({ slideIndex, phrases: [...new Set(phrases)] })),
     createdAt: head.updatedAt, isHead: true,
   };
@@ -289,58 +281,13 @@ export default function TakeReview({
       <IdealTextOverlay key={take.sessionId} arcId={project.arcId} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
         inlineDocument onClose={onPracticeEnded} />
     </div> : null}
-    {!engine && !artifact?.live && artifact?.revision ? <HistoricalDocument
-      arcId={project.arcId} takeId={take.sessionId} revision={artifact.revision} copy={copy} draft={draft?.ideal_sections}
-      status={saveMessage} saving={savingEdit} onEdit={(sections) => setDraft({ ideal_sections: sections })} onSave={() => void exit()} />
-    : null}
+    {!engine && !artifact?.live && artifact?.revision ? <div data-review-section="ideal">
+      <ArchivedIdealText revision={artifact.revision} name={project.topic} take={take.takeIndex}
+        review={{ arcId: project.arcId, takeId: take.sessionId, copy, draft: draft?.ideal_sections,
+          status: saveMessage, saving: savingEdit, onEdit: (sections) => setDraft({ ideal_sections: sections }),
+          onSave: () => void exit() }} />
+    </div> : null}
     {!engine ? after.map(row) : null}
-  </div>;
-}
-
-function HistoricalDocument({ arcId, takeId, revision, copy, draft, status, saving, onEdit, onSave }: {
-  arcId: string;
-  takeId: string;
-  revision: IdealTextRevision;
-  copy: ReviewRevision | null;
-  draft?: string[];
-  status: string;
-  saving: boolean;
-  onEdit: (sections: string[]) => void;
-  onSave: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const [chooser, setChooser] = useState(false);
-  const [delivery, setDelivery] = useState<"present" | PresentationExportFormat | null>(null);
-  const groups = slideGroupsOf(revision);
-  const text = copy?.document.ideal_sections?.length === groups.length
-    ? copy.document.ideal_sections : groups.map((group) => group.paragraphs.join("\n\n"));
-  const words = text.join("\n\n");
-  const pieces = text.flatMap((section, i) => section.split("\n\n").map((paragraph) => ({
-    text: paragraph,
-    slideIndex: groups[i].slideIndex,
-    rootPhrase: helperHeadlineOf(revision, groups[i].slideIndex) ?? "",
-  }))).map((piece, pieceKey) => ({
-    ...piece, pieceKey, rootType: "flagship" as const, status: "settled" as const,
-    takeSessionId: takeId, takeIndex: revision.takeIndex, snippetId: "", challenger: null,
-  }));
-  const actions = draft ? <button type="button" className={LINK} disabled={saving} onClick={onSave}>Done</button> :
-    <IdealTextMenu arcId={arcId} saved={null} onSaved={() => undefined}
-      onEdit={copy && text.length ? () => onEdit(text) : null}
-      onExport={() => setChooser(true)} onPresent={() => setDelivery("present")}
-      copied={copied} onCopy={() => void navigator.clipboard.writeText(words).then(() => setCopied(true), () => undefined)} />;
-  return <div data-review-section="ideal">
-    <ConversationDocument title="Ideal text" actions={actions}>
-      <AiGeneratedNote kind="ideal-text" take={revision.takeIndex} />
-      {status ? <p role="status" className="text-sm text-muted-foreground">{status}</p> : null}
-      <div className="space-y-6">
-        {groups.map((group, index) => <ReviewSlide key={index} slide={group.slideIndex} revision={revision}
-          text={text[index]} draft={draft?.[index]}
-          onEdit={(next) => onEdit((draft ?? text).map((part, i) => i === index ? next : part))} />)}
-      </div>
-    </ConversationDocument>
-    {chooser ? <ExportFormatDialog onClose={() => setChooser(false)} onSelect={(format) => { setChooser(false); setDelivery(format); }} /> : null}
-    {delivery ? <PresentMode text={words} pieces={pieces} presentationRef={revision.presentationRef ?? null}
-      exportFormat={delivery === "present" ? null : delivery} onClose={() => setDelivery(null)} /> : null}
   </div>;
 }
 
@@ -403,31 +350,4 @@ function useReviewEdits(arcId: string, takeId: string, refresh: number, exitRef:
   });
 
   return { copy, draft, setDraft, saveMessage, savingEdit: saveMessage === "Saving…", exit };
-}
-
-function ReviewSlide({ slide, revision, text, draft, onEdit }: {
-  slide: number | null; revision: IdealTextRevision; text: string; draft?: string;
-  onEdit: (text: string) => void;
-}): ReactNode {
-  const headline = helperHeadlineOf(revision, slide);
-  return (
-    <section data-review-slide={slide ?? undefined} className="w-full space-y-2 border-t border-border pt-2">
-      {slide === null ? null : <div className="flex items-center gap-2">
-        <DeckSlideThumb compact presentationRef={revision.presentationRef} pageIndex={slide} label={"Slide " + (slide + 1)} />
-        <h3 className="text-[13px] text-muted-foreground">Slide {slide + 1}</h3>
-      </div>}
-      {draft !== undefined ? <ReviewField label="Edit Ideal text" value={draft} onEdit={onEdit} /> : (
-        <div className="space-y-3">
-          <HelpersLabel phrases={missingHelperWords(text, headline)} />
-          {text.split("\n\n").map((paragraph, index) => (
-            <p key={index}><RichText text={paragraph} tint={helperWordRanges(paragraph, headline)} /></p>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ReviewField({ label, value, onEdit }: { label: string; value: string; onEdit: (text: string) => void }) {
-  return <textarea aria-label={label} className="block min-h-24 w-full rounded-lg border border-border bg-background p-2" value={value} onChange={(event) => onEdit(event.target.value)} />;
 }

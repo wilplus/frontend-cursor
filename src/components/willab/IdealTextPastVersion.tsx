@@ -1,20 +1,23 @@
 "use client";
 
-import AiGeneratedNote from "./AiGeneratedNote";
-import DeckSlideThumb from "./DeckSlideThumb";
-import IdealTextHeading from "./IdealTextHeading";
+import { useState, type ReactNode } from "react";
+import { copyAiGeneratedText } from "@/lib/willab/aiGeneratedMark";
+import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
+import { stripRichMarkers } from "@/lib/willab/richMarkers";
+import type { ReviewRevision } from "@/services/api/takeReview";
+import IdealTextMenu from "./IdealTextMenu";
+import PresentMode from "./PresentMode";
+import ExportFormatDialog from "./ExportFormatDialog";
 import { PAST_TAKE_COPY } from "./idealEditCopy";
-import OverlayCloseButton from "./OverlayCloseButton";
 import { RichText } from "./RichText";
 import { HelpersLabel, kickerFor } from "./TranscriptReviewDeck";
 import { useBackDismiss } from "./useBackDismiss";
-import { WalkLink, WalkPill } from "./walk/WalkFooter";
-import { aiGeneratedAttrs } from "@/lib/willab/aiGeneratedMark";
+import { ChatLink } from "./WillQuestion";
 import { helperWordRanges, missingHelperWords } from "@/lib/willab/answeredBookmark";
 import { helperHeadlineOf, slideGroupsOf, type IdealTextPast } from "@/lib/willab/pastIdealText";
 import type { IdealTextRevision } from "@/services/api/blockVariants";
-import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
-import { PageHeader } from "./PageHeader";
+import IdealTextDocument from "./IdealTextDocument";
+import IdealTextSlide from "./IdealTextSlide";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextPastVersion — an older Take's Ideal Text card, opened (founder    */
@@ -41,66 +44,87 @@ export default function IdealTextPastVersion({
   onLatest: () => void;
 }) {
   useBackDismiss(onClose);
-  const groups = slideGroupsOf(revision);
-  const onSlides = groups.some((g) => g.slideIndex !== null);
   const take = revision.takeIndex ?? (past.by === "take" ? past.n : null);
   return (
-    <div
-      data-ideal-text-past
-      {...aiGeneratedAttrs("ideal-text")}
-      className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
-    >
-      <PageHeader contentClassName="justify-between gap-3 px-4 py-2.5">
-          <div className="flex min-w-0 flex-col">
-            <IdealTextHeading title={past.title} status={null} />
-            <AiGeneratedNote
-              kind="ideal-text"
-              name={past.title}
-              take={take}
-            />
-          </div>
-          <OverlayCloseButton onClick={onClose} />
-      </PageHeader>
-      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
-        {/* Which Take this is, and the way to the latest (N380, signed). */}
+    <div data-ideal-text-past className="fixed inset-0 z-40 overflow-y-auto overscroll-none bg-background px-4 sm:px-6">
+      <ArchivedIdealText revision={revision} name={past.title} take={take} onClose={onClose}>
         {take !== null ? (
-          <div data-past-take className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-3 px-6 pt-6 sm:px-10`}>
-            <p className="text-[15px] leading-relaxed text-foreground">{PAST_TAKE_COPY.whichTake(take)}</p>
+          <div data-past-take>
+            <p className="text-[15px] leading-relaxed">{PAST_TAKE_COPY.whichTake(take)}</p>
             {latestTake !== null && latestTake !== take ? (
-              <WalkPill outline action={{ label: PAST_TAKE_COPY.goToLatest(latestTake), onClick: onLatest }} />
+              <ChatLink label={PAST_TAKE_COPY.goToLatest(latestTake)} onClick={onLatest} />
             ) : null}
           </div>
         ) : null}
-        {groups.map((g, i) => (
-          // The live page's reading column and its compact slide row
-          // (founder 2026-09-26 and 2026-09-28): the tile beside the kicker
-          // on a phone, above it on a computer. Read only: no pencil.
-          <section key={i} className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-6 py-6 sm:px-10`}>
-            {onSlides ? (
-              <div className="flex shrink-0 items-center gap-3 md:flex-col md:gap-2">
-                {g.slideIndex !== null ? (
-                  <DeckSlideThumb
-                    presentationRef={revision.presentationRef}
-                    pageIndex={g.slideIndex}
-                    label={kickerFor(g.slideIndex, null)}
-                  />
-                ) : null}
-                <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground md:flex-none">
-                  {kickerFor(g.slideIndex, null)}
-                </p>
-              </div>
-            ) : null}
-            <PastSlideText paragraphs={g.paragraphs} headline={helperHeadlineOf(revision, g.slideIndex)} />
-          </section>
-        ))}
-      </div>
-      <div className="shrink-0 bg-background px-4">
-        <div className={WILLAB_CONTENT_RAIL}>
-          <WalkLink action={{ label: "Close", onClick: onClose }} />
-        </div>
-      </div>
+      </ArchivedIdealText>
     </div>
   );
+}
+
+type ReviewEdits = {
+  arcId: string;
+  takeId: string;
+  copy: ReviewRevision | null;
+  draft?: string[];
+  status: string;
+  saving: boolean;
+  onEdit: (sections: string[]) => void;
+  onSave: () => void;
+};
+
+export function ArchivedIdealText({ revision, name, take, review, onClose, children }: {
+  revision: IdealTextRevision;
+  name?: string | null;
+  take: number | null;
+  review?: ReviewEdits;
+  onClose?: () => void;
+  children?: ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [chooser, setChooser] = useState(false);
+  const [delivery, setDelivery] = useState<"present" | PresentationExportFormat | null>(null);
+  const groups = slideGroupsOf(revision);
+  const saved = review?.copy?.document.ideal_sections;
+  const sections = saved?.length === groups.length ? saved : groups.map((group) => group.paragraphs.join("\n\n"));
+  const words = sections.join("\n\n");
+  const pieces = sections.flatMap((section, i) => section.split("\n\n").map((text) => ({
+    text, slideIndex: groups[i].slideIndex, rootPhrase: helperHeadlineOf(revision, groups[i].slideIndex) ?? "",
+  }))).map((piece, pieceKey) => ({
+    ...piece, pieceKey, rootType: "flagship" as const, status: "settled" as const,
+    takeSessionId: review?.takeId ?? "", takeIndex: take, snippetId: "", challenger: null,
+  }));
+  const menu = review?.draft ? <button type="button" className="min-h-11 text-sm underline"
+    disabled={review.saving} onClick={review.onSave}>Done</button> :
+    <IdealTextMenu arcId={review?.arcId ?? ""} saved={null} onSaved={() => undefined}
+      onEdit={review?.copy && sections.length ? () => review.onEdit(sections) : null}
+      onExport={() => setChooser(true)} onPresent={() => setDelivery("present")}
+      copied={copied} onCopy={() => {
+        void copyAiGeneratedText(stripRichMarkers(words), "ideal-text", { name }).then((ok) => setCopied(ok));
+      }} />;
+  return <>
+    <IdealTextDocument name={name} take={take} menu={menu} onClose={onClose}>
+      {children}
+      {review?.status ? <p role="status" className="text-sm text-muted-foreground">{review.status}</p> : null}
+      {groups.map((group, i) => (
+        <section key={i} className="flex w-full flex-col gap-3 border-t border-border py-2"
+          data-review-slide={group.slideIndex ?? undefined}>
+          {group.slideIndex !== null ? <IdealTextSlide presentationRef={revision.presentationRef}
+            pageIndex={group.slideIndex} slideTitle={revision.slideTitles?.[group.slideIndex]}
+            deckKnown={revision.deckKnown === true} label={kickerFor(group.slideIndex, null)} /> : null}
+          {review?.draft ? <textarea aria-label="Edit Ideal text" value={review.draft[i]}
+            className="min-h-24 w-full rounded-lg border border-border bg-background p-2"
+            onChange={(event) => {
+              const next = event.target.value;
+              review.onEdit((review.draft ?? sections).map((text, index) => index === i ? next : text));
+            }} /> :
+            <PastSlideText paragraphs={sections[i].split("\n\n")} headline={helperHeadlineOf(revision, group.slideIndex)} />}
+        </section>
+      ))}
+    </IdealTextDocument>
+    {chooser ? <ExportFormatDialog onClose={() => setChooser(false)} onSelect={(format) => { setChooser(false); setDelivery(format); }} /> : null}
+    {delivery ? <PresentMode text={words} pieces={pieces} presentationRef={revision.presentationRef} slideTitles={revision.slideTitles}
+      exportFormat={delivery === "present" ? null : delivery} onClose={() => setDelivery(null)} /> : null}
+  </>;
 }
 
 /** One slide's words, as the page draws them: the helper words of that

@@ -173,6 +173,9 @@ export interface IdealTextRevision {
   slides: (number | null)[] | null;
   /** The deck this version's Take was said on; null: none, or unknown. */
   presentationRef: string | null;
+  slideTitles?: string[];
+  /** False when the recorded setup is missing. */
+  deckKnown?: boolean;
   /** The helper words each slide had while this version was the latest
    *  (backend N380); empty when none, or not served. */
   helperWords: { slideIndex: number; phrases: string[] }[];
@@ -229,6 +232,8 @@ export async function fetchIdealTextRevisions(
         ? r.slides.map((v) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null))
         : null,
       presentationRef: str(r.presentation_ref) || null,
+      slideTitles: Array.isArray(r.slide_titles) ? r.slide_titles.map(str) : undefined,
+      deckKnown: typeof r.deck_known === "boolean" ? r.deck_known : undefined,
       helperWords: helperWordsOf(r.helper_words),
       createdAt: str(r.created_at) || null,
       isHead: r.is_head === true,

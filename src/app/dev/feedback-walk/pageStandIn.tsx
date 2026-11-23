@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import { WalkLink, WalkPill } from "@/components/willab/walk/WalkFooter";
-import IdealTextActions from "@/components/willab/IdealTextActions";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { MOMENTS, PAGE_WORDS, PARAGRAPHS, PROJECT_TITLE, SLIDE_LABEL, TAKE_SHOWN } from "./walkFixtures";
 
@@ -52,7 +51,7 @@ export default function PageStandIn({
       </div>
       <div className="flex flex-col gap-1 px-5 pb-[30px] pt-2.5">
         {onReviewAgain ? (
-          <IdealTextActions takeCount={TAKE_SHOWN} onNewTake={() => undefined} onReviewAgain={onReviewAgain} />
+          <WalkPill action={{ label: PAGE_WORDS.reviewFeedback, onClick: onReviewAgain, testId: "walk-review" }} />
         ) : (
           <>
             <WalkPill action={{ label: PAGE_WORDS.reviewFeedback, onClick: onReview, testId: "walk-review" }} />

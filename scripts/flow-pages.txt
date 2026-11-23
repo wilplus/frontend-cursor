@@ -97,7 +97,8 @@ docs/flows/ideal-text.md
   src/components/willab/IdealTextHeading.tsx
   src/components/willab/IdealTextMenu.tsx
   src/components/willab/IdealTextEditor.tsx
-  src/components/willab/IdealTextActions.tsx
+  src/components/willab/IdealTextDocument.tsx
+  src/components/willab/IdealTextSlide.tsx
   src/components/willab/IdealTextReadout.tsx
   src/components/willab/TranscriptReviewDeck.tsx
   src/components/willab/DeckSlidePreview.tsx

@@ -53,17 +53,22 @@ export async function postWillQuestionVoice(
 }
 
 /** Hear a spoken follow-up; the existing chat outbox sends its words. */
-export async function transcribeTakeFollowUp(
-  arcId: string, takeSessionId: string, audio: Blob, durationMs: number,
+export async function transcribeChatAnswer(
+  audio: Blob, durationMs: number, take?: { arcId: string; takeId: string },
 ): Promise<{ text: string; durationMs: number } | null> {
   const form = new FormData();
   const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
   form.append("audio", audio, `follow-up.${ext}`);
   form.append("duration_ms", String(Math.round(durationMs)));
-  form.append("take_session_id", takeSessionId);
-  form.append("transcribe_only", "1");
+  const path = take
+    ? `/api/v2/explore/arc/${encodeURIComponent(take.arcId)}/will-question/voice`
+    : "/api/v2/chat/voice";
+  if (take) {
+    form.append("take_session_id", take.takeId);
+    form.append("transcribe_only", "1");
+  }
   try {
-    const reply = await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/will-question/voice`, {
+    const reply = await bffFetch(path, {
       method: "POST", cache: "no-store", timeoutMs: 60_000, body: form,
     });
     if (reply.kind !== "response" || !reply.ok) return null;
