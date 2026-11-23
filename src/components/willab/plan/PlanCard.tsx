@@ -36,7 +36,7 @@ function PlanList({ plan, onBook }: { plan: Plan; onBook?: (which: CallWhich) =>
       ) : null}
       {date ? (
         <li data-plan-date>
-          {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C]">{date}</span>
+          {PLAN_COPY.yourDeadline}: <span className="font-semibold text-[#C2410C] dark:text-[#ff8a4c]">{date}</span>
         </li>
       ) : null}
       {callsOn ? (
@@ -61,7 +61,7 @@ function CallItem({ name, call, onBook }: { name: string; call: Plan["calls"]["k
         type="button"
         onClick={onBook}
         disabled={!onBook}
-        className="-mx-2 px-2 py-3 font-semibold text-[#121212] underline underline-offset-[3px]"
+        className="-mx-2 px-2 py-3 font-semibold text-[#121212] dark:text-foreground underline underline-offset-[3px]"
         data-plan-book
       >
         {PLAN_COPY.book}
@@ -80,7 +80,7 @@ export function PlanBar({ bar }: { bar: PlanBarData | null | undefined }) {
   const done = Math.max(0, Math.min(bar.marks, of));
   return (
     <div className="flex flex-col gap-1.5" data-plan-bar>
-      <div className="text-[15px] font-semibold text-[#121212]" data-plan-level>
+      <div className="text-[15px] font-semibold text-[#121212] dark:text-foreground" data-plan-level>
         {bar.level_name}
       </div>
       <div className="flex gap-1.5" aria-hidden="true" data-plan-marks>
@@ -108,16 +108,16 @@ export default function PlanCard({
   return (
     <div
       data-plan-card
-      className="flex w-full flex-col gap-3 rounded-[18px] border border-[#E6E6E6] bg-white p-4 text-[#121212] shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
+      className="flex w-full flex-col gap-3 rounded-[18px] border border-[#E6E6E6] dark:border-border bg-white dark:bg-card p-4 text-[#121212] dark:text-foreground shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
     >
-      <div className="text-[13px] text-[#6B6B6B]">{PLAN_COPY.planHeading}</div>
+      <div className="text-[13px] text-[#6B6B6B] dark:text-muted-foreground">{PLAN_COPY.planHeading}</div>
       <PlanBar bar={plan.bar} />
       <PlanList plan={plan} onBook={onBook} />
       {onChange ? (
         <button
           type="button"
           onClick={onChange}
-          className="-mx-2 -my-3 self-start px-2 py-3 text-[13px] text-[#6B6B6B] underline underline-offset-[3px]"
+          className="-mx-2 -my-3 self-start px-2 py-3 text-[13px] text-[#6B6B6B] dark:text-muted-foreground underline underline-offset-[3px]"
         >
           {PLAN_COPY.changeYourPlan}
         </button>

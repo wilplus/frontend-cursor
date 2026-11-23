@@ -61,7 +61,7 @@ function ChatToast({ text, onGone }: { text: string; onGone: () => void }) {
     <div
       role="status"
       data-chat-toast=""
-      className="pointer-events-none absolute left-1/2 top-[calc(env(safe-area-inset-top)+70px)] z-50 max-w-[86%] -translate-x-1/2 rounded-xl bg-[#121212] px-3.5 py-2 text-center text-[13px] text-white"
+      className="pointer-events-none absolute left-1/2 top-[calc(env(safe-area-inset-top)+70px)] z-50 max-w-[86%] -translate-x-1/2 rounded-xl bg-[#121212] dark:bg-cta dark:text-cta-foreground px-3.5 py-2 text-center text-[13px] text-white"
     >
       {text}
     </div>
@@ -115,12 +115,12 @@ function AskSheet({ title, line, actions, onClose }: { title: string; line: stri
       <div
         role="dialog"
         aria-label={title}
-        className="flex flex-col gap-3.5 rounded-t-3xl bg-white px-[18px] pb-6 pt-2.5 text-[#121212]"
+        className="flex flex-col gap-3.5 rounded-t-3xl bg-white dark:bg-card px-[18px] pb-6 pt-2.5 text-[#121212] dark:text-foreground"
         onClick={(e) => e.stopPropagation()}
       >
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0] dark:bg-white/15" />
         <p className="mt-1 text-[21px] font-bold leading-tight">{title}</p>
-        <p className="text-[15px] leading-snug text-[#5F5F5F]">{line}</p>
+        <p className="text-[15px] leading-snug text-[#5F5F5F] dark:text-foreground/75">{line}</p>
         {actions.map(({ label, tone, act }) => (
           <button
             key={label}
@@ -131,13 +131,13 @@ function AskSheet({ title, line, actions, onClose }: { title: string; line: stri
               act();
             }}
             className={`h-[52px] rounded-full text-[16px] font-semibold ${
-              tone === "red" ? "bg-[#B42318] text-white" : "border-[1.5px] border-[#B42318] bg-white text-[#B42318]"
+              tone === "red" ? "bg-[#B42318] text-white" : "border-[1.5px] border-[#B42318] bg-white dark:bg-card text-[#B42318] dark:text-[#ff6b5f]"
             }`}
           >
             {label}
           </button>
         ))}
-        <button type="button" onClick={onClose} className="h-10 text-[15px] font-medium text-[#737373]">
+        <button type="button" onClick={onClose} className="h-10 text-[15px] font-medium text-[#737373] dark:text-muted-foreground">
           {CANCEL}
         </button>
       </div>
@@ -153,13 +153,13 @@ export function SafetyRows({ safety }: { safety: Safety }) {
   const { name, blocked } = safety;
   const close = () => setAsking(null);
   return (
-    <div data-profile-safety="" className="bg-white px-[18px] py-1">
+    <div data-profile-safety="" className="bg-white dark:bg-card px-[18px] py-1">
       <button
         type="button"
         data-profile-block=""
         onClick={() => (blocked ? safety.unblock() : setAsking("block"))}
-        className={`block w-full border-b border-[#F0F0F0] py-3.5 text-left text-[16px] font-medium ${
-          blocked ? "text-[#121212]" : "text-[#B42318]"
+        className={`block w-full border-b border-[#F0F0F0] dark:border-border py-3.5 text-left text-[16px] font-medium ${
+          blocked ? "text-[#121212] dark:text-foreground" : "text-[#B42318] dark:text-[#ff6b5f]"
         }`}
       >
         {blocked ? unblockName(name) : blockName(name)}
@@ -168,7 +168,7 @@ export function SafetyRows({ safety }: { safety: Safety }) {
         type="button"
         data-profile-report=""
         onClick={() => setAsking("report")}
-        className="block w-full py-3.5 text-left text-[16px] font-medium text-[#B42318]"
+        className="block w-full py-3.5 text-left text-[16px] font-medium text-[#B42318] dark:text-[#ff6b5f]"
       >
         {reportName(name)}
       </button>
@@ -196,14 +196,14 @@ export function BlockedBar({ name, onUnblock }: { name: string; onUnblock: () =>
   return (
     <div
       data-chat-blocked=""
-      className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] pl-[18px] pr-1.5 text-[14.5px] font-medium text-[#5F5F5F]"
+      className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#F2F2F2] dark:bg-card pl-[18px] pr-1.5 text-[14.5px] font-medium text-[#5F5F5F] dark:text-foreground/75"
     >
       <span className="min-w-0 truncate">{youBlocked(name)}</span>
       <button
         type="button"
         data-chat-unblock=""
         onClick={onUnblock}
-        className="h-9 shrink-0 rounded-full bg-white px-4 text-[14.5px] font-semibold text-[#121212]"
+        className="h-9 shrink-0 rounded-full bg-white dark:bg-card px-4 text-[14.5px] font-semibold text-[#121212] dark:text-foreground"
       >
         {UNBLOCK}
       </button>

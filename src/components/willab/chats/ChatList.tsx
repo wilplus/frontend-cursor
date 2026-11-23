@@ -260,7 +260,7 @@ export function ChatListRow({
         style={{ opacity: cameFrom ? 1 : 0 }}
       />
       {circle}
-      <span className="flex h-full min-w-0 flex-1 flex-col justify-center gap-[3px] border-b border-[#F0F0F0] pr-4">
+      <span className="flex h-full min-w-0 flex-1 flex-col justify-center gap-[3px] border-b border-[#F0F0F0] dark:border-border pr-4">
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
             <span className={`max-w-full shrink-0 truncate text-[16px] leading-snug text-foreground ${isNew ? "font-bold" : "font-semibold"}`}>
@@ -269,17 +269,17 @@ export function ChatListRow({
             {subtitle ? <span className="min-w-0 truncate text-[12.5px] leading-snug text-muted-foreground">{subtitle}</span> : null}
           </span>
           {time ? (
-            <span className={`shrink-0 text-[12px] leading-snug ${isNew ? "font-semibold text-[#C2410C]" : "text-muted-foreground"}`}>{time}</span>
+            <span className={`shrink-0 text-[12px] leading-snug ${isNew ? "font-semibold text-[#C2410C] dark:text-[#ff8a4c]" : "text-muted-foreground"}`}>{time}</span>
           ) : null}
         </span>
         <span className="flex min-h-[20px] min-w-0 items-center gap-2">
-          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "font-bold text-[#C2410C]" : "text-muted-foreground"}`}>
+          <span data-chat-last className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${isNew ? "font-bold text-[#C2410C] dark:text-[#ff8a4c]" : "text-muted-foreground"}`}>
             {preview}
           </span>
           {isNew ? (
             <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
           ) : pinned ? (
-            <Pin aria-hidden className="h-[15px] w-[15px] shrink-0 text-[#A3A3A3]" />
+            <Pin aria-hidden className="h-[15px] w-[15px] shrink-0 text-[#A3A3A3] dark:text-muted-foreground" />
           ) : null}
         </span>
       </span>

@@ -73,7 +73,7 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
         className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 rounded-t-3xl bg-background px-[18px] pb-6 pt-2.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+        <span aria-hidden className="h-[5px] w-10 self-center rounded-full bg-[#E0E0E0] dark:bg-white/15" />
         <p className="mt-1 text-[21px] font-bold leading-tight text-foreground">{ADD_SHEET_TITLE}</p>
         {WEBSITE_SWITCH_SHOWN ? (
         <button
@@ -109,7 +109,7 @@ export function AddSomeoneSheet({ onClose, fixed = false }: { onClose: () => voi
           ) : null
         ) : link ? (
           <div className="flex items-center gap-2.5 rounded-[14px] border-[1.5px] border-foreground px-3.5 py-3">
-            <span aria-hidden className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#FFF1E7] text-[#F26B21]">
+            <span aria-hidden className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#FFF1E7] dark:bg-accent text-[#F26B21]">
               <LinkIcon className="h-4 w-4" />
             </span>
             <span data-my-link className="min-w-0 select-all break-all text-[15px] font-semibold text-foreground">

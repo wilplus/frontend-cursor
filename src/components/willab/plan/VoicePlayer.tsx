@@ -86,7 +86,7 @@ export function VoicePlayer({
         type="button"
         onClick={toggle}
         aria-label={playing ? "Pause" : "Play"}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${orange ? "bg-white" : dark ? "bg-[#121212]" : "bg-[#E2E2E2]"}`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${orange ? "bg-white" : dark ? "bg-[#121212] dark:bg-cta" : "bg-[#E2E2E2] dark:bg-white/15"}`}
       >
         {playing ? (
           <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true">
@@ -104,15 +104,15 @@ export function VoicePlayer({
           <i
             key={i}
             className={`block w-[3px] rounded-full ${
-              orange ? (i < lit ? "bg-white" : "bg-white/55") : i < lit ? "bg-[#121212]" : dark ? "bg-[#C9C9C9]" : "bg-[#BDBDBD]"
+              orange ? (i < lit ? "bg-white" : "bg-white/55") : i < lit ? "bg-[#121212] dark:bg-cta" : dark ? "bg-[#C9C9C9]" : "bg-[#BDBDBD]"
             }`}
             style={{ height: `${Math.round(h * 22)}px` }}
           />
         ))}
       </div>
-      {label ? <span className="text-[13px] text-[#6B6B6B]">{label}</span> : null}
+      {label ? <span className="text-[13px] text-[#6B6B6B] dark:text-muted-foreground">{label}</span> : null}
       {!label && durationMs ? (
-        <span className={`text-[13px] tabular-nums ${orange ? "text-white" : "text-[#6B6B6B]"}`}>{clock(durationMs)}</span>
+        <span className={`text-[13px] tabular-nums ${orange ? "text-white" : "text-[#6B6B6B] dark:text-muted-foreground"}`}>{clock(durationMs)}</span>
       ) : null}
     </div>
   );

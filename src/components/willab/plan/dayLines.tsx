@@ -35,7 +35,7 @@ export function dayLinesFor(rows: { at: string; ownLine?: boolean }[]): Map<numb
 
 export function DayLine({ text }: { text: string }) {
   return (
-    <div className="self-center py-1.5 text-[12.5px] text-[#737373]" data-day-line>
+    <div className="self-center py-1.5 text-[12.5px] text-[#737373] dark:text-muted-foreground" data-day-line>
       {text}
     </div>
   );

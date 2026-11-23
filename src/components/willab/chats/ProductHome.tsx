@@ -285,7 +285,7 @@ function OwnChatSheet({ title, onYes, onClose }: { title: string; onYes: () => P
           }
         }}
       >
-        <span aria-hidden className="h-[5px] w-10 shrink-0 self-center rounded-full bg-[#E0E0E0] sm:hidden" />
+        <span aria-hidden className="h-[5px] w-10 shrink-0 self-center rounded-full bg-[#E0E0E0] dark:bg-white/15 sm:hidden" />
         <h2 id={titleId} className="text-[21px] font-bold leading-tight text-foreground sm:text-[18px] sm:font-semibold">{title}</h2>
         <p id={descriptionId} className="text-[15px] leading-snug text-muted-foreground sm:text-sm">{OWN_INTRO}</p>
         <div className="mt-2 grid grid-cols-2 gap-2">

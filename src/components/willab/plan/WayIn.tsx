@@ -66,11 +66,11 @@ export function WayInProfileCard({ profile }: { profile: WayInProfile }) {
     <div
       data-row="app"
       data-way-in-profile=""
-      className="mr-auto flex w-[85%] flex-col gap-1.5 rounded-[18px] border border-[#E6E6E6] bg-white p-4 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
+      className="mr-auto flex w-[85%] flex-col gap-1.5 rounded-[18px] border border-[#E6E6E6] dark:border-border bg-white dark:bg-card p-4 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]"
     >
       {profile.name ? <div className="text-[17px] font-semibold leading-snug">{profile.name}</div> : null}
-      {profile.role ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A]">{profile.role}</div> : null}
-      {profile.about ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A]">{profile.about}</div> : null}
+      {profile.role ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A] dark:text-foreground/80">{profile.role}</div> : null}
+      {profile.about ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A] dark:text-foreground/80">{profile.about}</div> : null}
       {profile.topics.length ? (
         <div className="mt-1 flex flex-col items-start gap-1.5">
           {profile.topics.map((topic) => (

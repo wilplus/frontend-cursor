@@ -26,7 +26,7 @@ function AnnouncementCard({
   const requiresConsent = Boolean(feature.consent_purpose);
   const policyMissing = feature.counts?.consent_policy_available === false;
   return (
-    <div className="rounded-lg border border-black/10 p-4">
+    <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
       <h3 className="font-mono text-sm font-semibold">{feature.feature}</h3>
       <div className="mt-1 flex flex-wrap gap-1 text-xs">
         {feature.consent_purpose ? <Chip tone="hold">{feature.consent_purpose}</Chip> : <Chip tone="on">no consent</Chip>}
@@ -38,7 +38,7 @@ function AnnouncementCard({
       </label>
       <input
         id={`title-${feature.feature}`}
-        className="w-full rounded-md border border-black/10 bg-background px-2 py-1 text-sm"
+        className="w-full rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 text-sm"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
       />
@@ -47,7 +47,7 @@ function AnnouncementCard({
       </label>
       <textarea
         id={`body-${feature.feature}`}
-        className="min-h-16 w-full rounded-md border border-black/10 bg-background px-2 py-1 text-sm"
+        className="min-h-16 w-full rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 text-sm"
         value={body}
         onChange={(event) => setBody(event.target.value)}
       />
@@ -59,7 +59,7 @@ function AnnouncementCard({
           Save (re-announces)
         </button>
         {existing && !existing.retired_at ? (
-          <button type="button" className="rounded-md border border-black/10 px-3 py-1 text-sm" onClick={() => onSave({ title, body, requires_consent: requiresConsent, retired: true })}>
+          <button type="button" className="rounded-md border border-black/10 dark:border-white/10 px-3 py-1 text-sm" onClick={() => onSave({ title, body, requires_consent: requiresConsent, retired: true })}>
             Retire
           </button>
         ) : null}
@@ -107,7 +107,7 @@ export default function AnnouncementsTab() {
         ))}
       </div>
       {silent.length ? (
-        <details className="mt-4 rounded-lg border border-black/10 p-3 text-sm">
+        <details className="mt-4 rounded-lg border border-black/10 dark:border-white/10 p-3 text-sm">
           <summary className="cursor-pointer">Features without an announcement ({silent.length}): they just appear</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {silent.map((feature) => (

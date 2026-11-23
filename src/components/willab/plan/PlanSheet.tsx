@@ -18,8 +18,8 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/30" />
-      <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[88vh] max-w-md overflow-y-auto rounded-t-[22px] bg-white px-[18px] pb-[26px] pt-2.5 text-[#121212]">
-        <div className="mx-auto mb-3 h-1 w-[38px] rounded bg-[#D9D9D9]" />
+      <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[88vh] max-w-md overflow-y-auto rounded-t-[22px] bg-white dark:bg-card px-[18px] pb-[26px] pt-2.5 text-[#121212] dark:text-foreground">
+        <div className="mx-auto mb-3 h-1 w-[38px] rounded bg-[#D9D9D9] dark:bg-white/15" />
         <div className="mb-1 flex items-center justify-between text-[17px]">
           <b>{title}</b>
           <button type="button" aria-label="Close" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full">
@@ -42,7 +42,7 @@ function Row({ label, value, onClick }: { label: string; value: string; onClick:
       className="flex w-full items-center justify-between gap-3 border-b border-[#EFEFEF] px-0.5 py-[15px] text-left text-[15.5px] font-medium"
     >
       <span>{label}</span>
-      <span className="text-right font-normal text-[#6B6B6B]">{value} ›</span>
+      <span className="text-right font-normal text-[#6B6B6B] dark:text-muted-foreground">{value} ›</span>
     </button>
   );
 }

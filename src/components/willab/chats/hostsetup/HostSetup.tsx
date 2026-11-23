@@ -637,7 +637,7 @@ function kc<T>(c: Ctx, id: string, line: string, list: T[], current: T, show: (v
       <Say>{line}</Say>
       <div data-setup-value="">{show(value)}</div>
       {S.refused ? (
-        <p role="alert" data-setup-refused="" className="m-0 text-[14px] font-semibold text-[#C2410C]">
+        <p role="alert" data-setup-refused="" className="m-0 text-[14px] font-semibold text-[#C2410C] dark:text-[#ff8a4c]">
           {W.refusedWords}
         </p>
       ) : null}

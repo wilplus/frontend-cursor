@@ -105,12 +105,12 @@ export default function FeedbackWalkCard({
   return (
     <section
       data-feedback-walk-card
-      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-3.5" : "p-4"}`}
+      className={`w-full rounded-[22px] bg-[#f5f5f5] dark:bg-card text-[#121212] dark:text-foreground ${single ? "p-3.5" : "p-4"}`}
     >
       {title ? <p className="mb-2 text-[15px] font-semibold">{title}</p> : null}
       <div className="mb-2">
-        <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373]">
-          <span>Progress</span><b className="text-[14px] text-[#121212]">{safeProgress}%</b>
+        <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373] dark:text-muted-foreground">
+          <span>Progress</span><b className="text-[14px] text-[#121212] dark:text-foreground">{safeProgress}%</b>
         </div>
         {showProgress ? (
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
@@ -124,7 +124,7 @@ export default function FeedbackWalkCard({
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="mb-[7px] flex min-h-9 w-full items-center justify-center rounded-[11px] border border-dashed border-[#ebebeb] text-[13px] font-semibold text-[#737373] hover:bg-white hover:text-[#121212]"
+          className="mb-[7px] flex min-h-9 w-full items-center justify-center rounded-[11px] border border-dashed border-[#ebebeb] dark:border-border text-[13px] font-semibold text-[#737373] dark:text-muted-foreground hover:bg-white hover:text-[#121212]"
         >
           {expanded ? "Hide earlier chunks" : `Show ${hidden} earlier chunks`}
         </button>
@@ -141,7 +141,7 @@ export default function FeedbackWalkCard({
               key={chunk.latestSessionId}
               data-practice-chunk
               onClick={() => setSelectedId(chunk.latestSessionId)}
-              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white ${single ? "min-h-[70px] p-2.5" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
+              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white dark:bg-card ${single ? "min-h-[70px] p-2.5" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
             >
               <SlideThumbnail compact={compact} onOpen={() => onIdealText(chunk)} />
               <div className="min-w-0 flex-1">
@@ -153,7 +153,7 @@ export default function FeedbackWalkCard({
                       onCommit={(next) => setRangeLabels((current) => keys.has(chunk.latestSessionId) ? { ...current, [chunk.latestSessionId]: next } : current)}
                       className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded text-[14px] font-bold outline-none focus:bg-[#f5f5f5] focus:ring-1 focus:ring-[#ff6a14]"
                     />
-                    <span aria-hidden className="text-[11px] font-semibold text-[#737373] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">Edit</span>
+                    <span aria-hidden className="text-[11px] font-semibold text-[#737373] dark:text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">Edit</span>
                   </span>
                   {chunk.attempts !== null ? (
                     <span className="shrink-0 rounded-full bg-[#ffeadf] px-2 py-[3px] text-[11px] font-bold text-[#ff6727]">{attemptsLabel(chunk.attempts)}</span>
@@ -169,7 +169,7 @@ export default function FeedbackWalkCard({
         <button type="button" onClick={() => onFeedback(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] bg-[#1b1918] px-2 text-[13px] font-semibold text-white">
           <MessageSquareText className="h-[15px] w-[15px]" aria-hidden /> Feedback
         </button>
-        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] bg-white px-2 text-[13px] font-semibold text-[#121212]">
+        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] dark:border-border bg-white dark:bg-card px-2 text-[13px] font-semibold text-[#121212] dark:text-foreground">
           <MonitorPlay className="h-[15px] w-[15px]" aria-hidden /> Ideal text
         </button>
       </div>

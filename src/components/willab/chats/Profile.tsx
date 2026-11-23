@@ -117,8 +117,8 @@ export default function Profile({
   );
 
   return (
-    <div data-profile className="absolute inset-0 z-40 flex flex-col bg-[#F4F4F4] text-[#121212]">
-      <div className="box-content flex h-14 shrink-0 items-center justify-between bg-white px-1 pt-[env(safe-area-inset-top)]">
+    <div data-profile className="absolute inset-0 z-40 flex flex-col bg-[#F4F4F4] text-[#121212] dark:text-foreground">
+      <div className="box-content flex h-14 shrink-0 items-center justify-between bg-white dark:bg-card px-1 pt-[env(safe-area-inset-top)]">
         <button type="button" onClick={onBack} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full">
           <ChevronLeft className="h-6 w-6" aria-hidden />
         </button>
@@ -135,11 +135,11 @@ export default function Profile({
       </div>
       {p ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-6">
-          <div className="flex flex-col items-center gap-1.5 bg-white px-5 pb-5 pt-1.5">
+          <div className="flex flex-col items-center gap-1.5 bg-white dark:bg-card px-5 pb-5 pt-1.5">
             {mine ? (
               <button type="button" data-profile-photo="" onClick={() => setSheet(true)} aria-label={W.choosePhoto} className="relative rounded-full">
                 {circle}
-                <span className="absolute bottom-0.5 right-0.5 flex h-[34px] w-[34px] items-center justify-center rounded-full border-[3px] border-white bg-[#121212] text-white">
+                <span className="absolute bottom-0.5 right-0.5 flex h-[34px] w-[34px] items-center justify-center rounded-full border-[3px] border-white bg-[#121212] dark:bg-cta dark:text-cta-foreground text-white">
                   <Camera className="h-4 w-4" aria-hidden />
                 </span>
               </button>
@@ -168,13 +168,13 @@ export default function Profile({
                 <h2 data-profile-name className="mt-1.5 text-[24px] font-bold leading-tight">
                   {p.name}
                 </h2>
-                {p.role ? <span className="text-[15px] text-[#737373]">{p.role}</span> : null}
+                {p.role ? <span className="text-[15px] text-[#737373] dark:text-muted-foreground">{p.role}</span> : null}
               </>
             )}
           </div>
           {p.about || mine ? (
-            <div className="bg-white px-[18px] py-3.5">
-              <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{W.about}</p>
+            <div className="bg-white dark:bg-card px-[18px] py-3.5">
+              <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A] dark:text-muted-foreground">{W.about}</p>
               {editing ? (
                 <div className="relative">
                   <textarea
@@ -183,16 +183,16 @@ export default function Profile({
                     maxLength={LIMIT.about}
                     value={draft.about}
                     onChange={(e) => setDraft({ ...draft, about: e.target.value })}
-                    className="min-h-[110px] w-full resize-y rounded-xl border-[1.5px] border-[#121212] py-2.5 pl-3 pr-9 text-[15.5px] leading-normal outline-none focus:outline-2 focus:outline-[#F26B21]"
+                    className="min-h-[110px] w-full resize-y rounded-xl border-[1.5px] border-[#121212] dark:border-foreground py-2.5 pl-3 pr-9 text-[15.5px] leading-normal outline-none focus:outline-2 focus:outline-[#F26B21]"
                   />
                   <Pencil aria-hidden className="pointer-events-none absolute right-2.5 top-2.5 h-[18px] w-[18px] text-[#F26B21]" />
                   {editing === "about" ? (
                     <div className="mt-2 flex items-center gap-2">
-                      <span className="flex-1 text-[12.5px] tabular-nums text-[#8A8A8A]">{LIMIT.about - draft.about.length}</span>
+                      <span className="flex-1 text-[12.5px] tabular-nums text-[#8A8A8A] dark:text-muted-foreground">{LIMIT.about - draft.about.length}</span>
                       <button type="button" onClick={() => setEditing(null)} className="h-[38px] rounded-full border border-[#E5E5E5] px-4 text-[14px] font-semibold">
                         {W.cancel}
                       </button>
-                      <button type="button" data-profile-save="" onClick={() => void save()} className="h-[38px] rounded-full bg-[#121212] px-4 text-[14px] font-semibold text-white">
+                      <button type="button" data-profile-save="" onClick={() => void save()} className="h-[38px] rounded-full bg-[#121212] dark:bg-cta dark:text-cta-foreground px-4 text-[14px] font-semibold text-white">
                         {W.save}
                       </button>
                     </div>
@@ -202,7 +202,7 @@ export default function Profile({
                 <div className="flex items-start gap-2.5">
                   <p className="min-w-0 flex-1 whitespace-pre-line text-[15.5px] leading-normal">
                     {p.about}
-                    {mine && isToday(p.about_edited_at) ? <span className="mt-1.5 block text-[12.5px] text-[#8A8A8A]">{W.editedToday}</span> : null}
+                    {mine && isToday(p.about_edited_at) ? <span className="mt-1.5 block text-[12.5px] text-[#8A8A8A] dark:text-muted-foreground">{W.editedToday}</span> : null}
                   </p>
                   {mine ? (
                     <button
@@ -210,7 +210,7 @@ export default function Profile({
                       data-profile-pencil=""
                       onClick={() => startEdit("about")}
                       aria-label={W.edit}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF1E7] text-[#F26B21]"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF1E7] dark:bg-accent text-[#F26B21]"
                     >
                       <Pencil className="h-[18px] w-[18px]" aria-hidden />
                     </button>
@@ -223,8 +223,8 @@ export default function Profile({
               MOD-50): on your own profile, and on another person's once the
               backend names whose it is; nothing below ring 6. */}
           <ProfileModels mine={mine} userId={p.user_id} />
-          <div className="bg-white px-[18px] py-3.5">
-            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{W.photos}</p>
+          <div className="bg-white dark:bg-card px-[18px] py-3.5">
+            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A] dark:text-muted-foreground">{W.photos}</p>
             {p.photos.length ? (
               <div className="grid grid-cols-3 gap-1">
                 {p.photos.map((x) => (
@@ -235,15 +235,15 @@ export default function Profile({
                 ))}
               </div>
             ) : (
-              <p className="text-[14px] text-[#8A8A8A]">{W.noPhotos}</p>
+              <p className="text-[14px] text-[#8A8A8A] dark:text-muted-foreground">{W.noPhotos}</p>
             )}
           </div>
-          <div className="bg-white px-[18px] py-3.5">
-            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{W.files}</p>
+          <div className="bg-white dark:bg-card px-[18px] py-3.5">
+            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A] dark:text-muted-foreground">{W.files}</p>
             {p.files.length ? (
               <div className="flex flex-col">
                 {p.files.map((x) => (
-                  <a key={x.id} href={chatFileSrc(x.chat_id, x.id)} className="flex items-center gap-3 border-b border-[#F0F0F0] py-2.5 last:border-b-0">
+                  <a key={x.id} href={chatFileSrc(x.chat_id, x.id)} className="flex items-center gap-3 border-b border-[#F0F0F0] dark:border-border py-2.5 last:border-b-0">
                     <span className="flex h-10 w-[34px] shrink-0 items-center justify-center rounded-md bg-[#E5484D] text-[9px] font-bold text-white">
                       {(x.name.split(".").pop() || "").slice(0, 4).toUpperCase()}
                     </span>
@@ -252,7 +252,7 @@ export default function Profile({
                 ))}
               </div>
             ) : (
-              <p className="text-[14px] text-[#8A8A8A]">{W.noFiles}</p>
+              <p className="text-[14px] text-[#8A8A8A] dark:text-muted-foreground">{W.noFiles}</p>
             )}
           </div>
           {safety ? <SafetyRows safety={safety} /> : null}
@@ -262,8 +262,8 @@ export default function Profile({
       )}
       {sheet ? (
         <div className="absolute inset-0 z-10 flex flex-col justify-end bg-black/30" onClick={() => setSheet(false)}>
-          <div className="flex flex-col gap-1 rounded-t-3xl bg-white px-4 pb-6 pt-2.5" onClick={(e) => e.stopPropagation()}>
-            <span aria-hidden className="mb-1 h-[5px] w-10 self-center rounded-full bg-[#E0E0E0]" />
+          <div className="flex flex-col gap-1 rounded-t-3xl bg-white dark:bg-card px-4 pb-6 pt-2.5" onClick={(e) => e.stopPropagation()}>
+            <span aria-hidden className="mb-1 h-[5px] w-10 self-center rounded-full bg-[#E0E0E0] dark:bg-white/15" />
             <button type="button" onClick={() => take.current?.click()} className="rounded-xl px-2.5 py-3 text-left text-[15px] font-medium">
               {W.takePhoto}
             </button>
@@ -271,11 +271,11 @@ export default function Profile({
               {W.choosePhoto}
             </button>
             {p?.has_photo ? (
-              <button type="button" onClick={() => void remove()} className="rounded-xl px-2.5 py-3 text-left text-[15px] font-medium text-[#B42318]">
+              <button type="button" onClick={() => void remove()} className="rounded-xl px-2.5 py-3 text-left text-[15px] font-medium text-[#B42318] dark:text-[#ff6b5f]">
                 {W.deletePhoto}
               </button>
             ) : null}
-            <button type="button" onClick={() => setSheet(false)} className="h-10 text-[15px] font-medium text-[#737373]">
+            <button type="button" onClick={() => setSheet(false)} className="h-10 text-[15px] font-medium text-[#737373] dark:text-muted-foreground">
               {W.cancel}
             </button>
           </div>

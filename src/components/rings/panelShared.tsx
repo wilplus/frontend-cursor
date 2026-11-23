@@ -23,7 +23,7 @@ export function RingSelect({
   return (
     <select
       aria-label={label}
-      className="rounded-md border border-black/10 bg-background px-2 py-1 font-mono text-sm"
+      className="rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 font-mono text-sm"
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(Number(event.target.value))}

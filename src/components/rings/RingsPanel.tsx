@@ -48,7 +48,7 @@ export default function RingsPanel() {
         </p>
       </header>
       <p className="mb-4 text-sm text-foreground/70">{RULE_SENTENCE}</p>
-      <nav role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-black/10">
+      <nav role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/10">
         {TABS.map((item) => (
           <button
             key={item.key}
@@ -59,7 +59,7 @@ export default function RingsPanel() {
             className={
               "whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium " +
               (tab === item.key
-                ? "border border-b-0 border-black/10 bg-white"
+                ? "border border-b-0 border-black/10 dark:border-white/10 bg-white dark:bg-card"
                 : "text-foreground/60 hover:text-foreground")
             }
           >

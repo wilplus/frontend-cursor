@@ -63,7 +63,7 @@ function LockedAnswer({ message }: { message: LoungeMessage }) {
     <div
       data-row="me"
       data-plan-answered
-      className="ml-auto inline-flex w-max items-center gap-1.5 rounded-full border-[1.5px] border-[#E6E6E6] bg-white py-1 pl-2.5 pr-3 text-[13.5px] text-[#737373]"
+      className="ml-auto inline-flex w-max items-center gap-1.5 rounded-full border-[1.5px] border-[#E6E6E6] dark:border-border bg-white dark:bg-card py-1 pl-2.5 pr-3 text-[13.5px] text-[#737373] dark:text-muted-foreground"
     >
       <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -132,7 +132,7 @@ function Hello({ message, ctx }: { message: LoungeMessage; ctx: PlanRowCtx }) {
         <button
           type="button"
           onClick={ctx.onSeePlan}
-          className="-mx-2 -mb-1.5 block px-2 py-3 text-[13px] text-[#6B6B6B] underline underline-offset-[3px]"
+          className="-mx-2 -mb-1.5 block px-2 py-3 text-[13px] text-[#6B6B6B] dark:text-muted-foreground underline underline-offset-[3px]"
         >
           {PLAN_COPY.seeYourPlan}
         </button>
@@ -160,10 +160,10 @@ function SummaryCall({ ctx }: { ctx: PlanRowCtx }) {
   const call = ctx.plan?.calls.summary ?? null;
   if (!callsOn) return null;
   return (
-    <div className="flex w-full flex-col gap-2.5 rounded-[18px] border border-[#E6E6E6] bg-white p-4 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]" data-plan-summary-call>
+    <div className="flex w-full flex-col gap-2.5 rounded-[18px] border border-[#E6E6E6] dark:border-border bg-white dark:bg-card p-4 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.25)]" data-plan-summary-call>
       <div className="text-[18px] font-semibold">{PLAN_COPY.yourSummaryCall}</div>
-      {call ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A]">{call.text}</div> : null}
-      <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A]">{PLAN_COPY.summaryCallWhat}</div>
+      {call ? <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A] dark:text-foreground/80">{call.text}</div> : null}
+      <div className="text-[14.5px] leading-[1.4] text-[#4A4A4A] dark:text-foreground/80">{PLAN_COPY.summaryCallWhat}</div>
       {call ? null : (
         <button
           type="button"

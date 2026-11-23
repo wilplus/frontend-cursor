@@ -807,6 +807,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-23 · N678 item 2, N680 · dark mode, colours only: each hard-coded colour on these screens gets its dark value beside it (white surfaces to the raised near-black, black ink to the dark ink, black buttons to the white main button, greys, washes and coloured words lifted to read on black). Light mode is byte-for-byte as before, and dark shows only in the iPhone app with dark_mode on (app 1.1). No layout, flow or word changes · FE (this PR)
 - 2026-11-16 · founder · the segmented progress bar leaves the practice-day hello; that card keeps its greeting and See your plan. Progress is being redesigned with Ideal Text and the Feedback walk · FE (this PR)
 
 - 2026-11-11 · N635, N636 items 1 to 5 · for the chat builder's ring the plan, its questions, its card, its dock and the way in show in the speaking chat ("Speaking coach") only, never in Will's; on the way in's "You're set." row the speaking chat leaves off "Copy my link ›" and "Your questions for people who join ›", which Will's chat draws with his lines, the same links (`ownChatLinks` in `WayIn.tsx` and `usePlanLounge.tsx`; `chats/OwnChatLinks.tsx`). No new words. Without the ring, as it was · BE #1926, FE (this PR)
