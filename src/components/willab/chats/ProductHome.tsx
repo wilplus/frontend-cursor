@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
-import { createPortal } from "react-dom";
 import { Archive, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
@@ -24,6 +23,7 @@ import type { ChangeStructure, ChatStructure, Subchat } from "@/services/api/cha
 import { useChatStructure } from "./useChatStructure";
 import { subchatActions } from "./BuilderSubchats";
 import { subscribeToProjectTrainings } from "@/lib/willab/projectTrainings";
+import { COACH_PANEL_COPY } from "@/lib/willab/coachPanelCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The speaking-coach home. The old people-chat list still reads its backend  */
@@ -36,6 +36,13 @@ import { subscribeToProjectTrainings } from "@/lib/willab/projectTrainings";
 /* -------------------------------------------------------------------------- */
 
 type Status = "loading" | "ready" | "error";
+type RenameStatus = "editing" | "saving" | "saved" | "error";
+
+type RenameState = {
+  projectId: string;
+  value: string;
+  status: RenameStatus;
+};
 
 const OWN_INTRO = W.ownChatSheet;
 
@@ -67,7 +74,7 @@ export default function ProductHome({
   const [attempt, setAttempt] = useState(0);
   const [sheet, setSheet] = useState(false);
   const [own, setOwn] = useState(readOwnChat());
-  const [editingProject, setEditingProject] = useState<TrainingArc | null>(null);
+  const [rename, setRename] = useState<RenameState | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -110,6 +117,12 @@ export default function ProductHome({
   }, [attempt, knownProjects]);
   useEffect(() => { onProjects?.(projects); }, [onProjects, projects]);
 
+  useEffect(() => {
+    if (rename?.status !== "saved") return;
+    const timer = window.setTimeout(() => setRename(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [rename?.status]);
+
   const title = layout?.published_chat?.name || ownChatTitle();
   const showOwn = (own.started || layout?.published_chat) && (!layout || layout.builder === "active");
   const confirm = async () => {
@@ -149,7 +162,18 @@ export default function ProductHome({
             ) : status === "error" ? (
               <HomeError locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
             ) : (
-              projects.map((project) => (
+              projects.map((project) => rename?.projectId === project.arcId ? (
+                <ProjectEditRow
+                  key={project.arcId}
+                  project={project}
+                  locale={locale}
+                  value={rename.value}
+                  status={rename.status}
+                  onChange={(value) => setRename((current) => current ? { ...current, value, status: "editing" } : current)}
+                  onCancel={() => setRename(null)}
+                  onSave={() => void saveProjectName(project, rename.value, setProjects, setRename)}
+                />
+              ) : (
                 <HomeRow
                   key={project.arcId}
                   id={project.arcId}
@@ -168,7 +192,7 @@ export default function ProductHome({
                             project,
                             locale,
                             setProjects,
-                            setEditingProject,
+                            () => setRename({ projectId: project.arcId, value: project.topic, status: "editing" }),
                           )}
                         />
                       )
@@ -203,21 +227,6 @@ export default function ProductHome({
         </div>
       </div>
       {sheet ? <OwnChatSheet onYes={confirm} onClose={() => setSheet(false)} /> : null}
-      {editingProject ? (
-        <RenameProjectDialog
-          project={editingProject}
-          locale={locale}
-          onCancel={() => setEditingProject(null)}
-          onRenamed={(displayName) => {
-            setProjects((list) => list.map((item) =>
-              item.arcId === editingProject.arcId
-                ? { ...item, topic: displayName }
-                : item,
-            ));
-            setEditingProject(null);
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -239,7 +248,7 @@ function projectActions(
   project: TrainingArc,
   locale: UiLocale,
   setProjects: Dispatch<SetStateAction<TrainingArc[]>>,
-  setEditingProject: Dispatch<SetStateAction<TrainingArc | null>>,
+  onEdit: () => void,
 ): RowMenuAction[] {
   return [
     {
@@ -247,7 +256,7 @@ function projectActions(
       icon: Pencil,
       failedLabel: uiText(locale, "projectEditFailed"),
       onRun: async () => {
-        setEditingProject(project);
+        onEdit();
         return true;
       },
     },
@@ -489,97 +498,91 @@ function ProjectsLoading({ locale }: { locale: UiLocale }) {
   );
 }
 
-function RenameProjectDialog({
+function ProjectEditRow({
   project,
   locale,
+  value,
+  status,
+  onChange,
   onCancel,
-  onRenamed,
+  onSave,
 }: {
   project: TrainingArc;
   locale: UiLocale;
+  value: string;
+  status: RenameStatus;
+  onChange: (value: string) => void;
   onCancel: () => void;
-  onRenamed: (displayName: string) => void;
+  onSave: () => void;
 }) {
-  const [value, setValue] = useState(project.topic);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const busy = status === "saving" || status === "saved";
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onCancel();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
+  }, []);
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="rename-project-title"
-    >
-      <form
-        className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (busy || !value.trim()) return;
-          setBusy(true);
-          setFailed(false);
-          void renameProject(project.arcId, value)
-            .then((displayName) => {
-              if (displayName) {
-                onRenamed(displayName);
-                return;
-              }
-              setFailed(true);
-              setBusy(false);
-            })
-            .catch(() => {
-              setFailed(true);
-              setBusy(false);
-            });
-        }}
-      >
-        <h2 id="rename-project-title" className="text-[18px] font-semibold text-foreground">
-          {uiText(locale, "projectEdit")}
-        </h2>
+  return (
+    <div data-project-edit-row={project.arcId} className="flex min-h-[76px] items-center gap-3 border-b border-[#F0F0F0] px-0">
+      <ProjectCircle project={project} />
+      <div className="min-w-0 flex-1">
+        <label htmlFor={`project-name-${project.arcId}`} className="sr-only">
+          {uiText(locale, "projectEdit")} {project.topic}
+        </label>
         <input
           ref={inputRef}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
+          id={`project-name-${project.arcId}`}
+          data-project-name-input=""
           aria-label={`${uiText(locale, "projectEdit")} ${project.topic}`}
-          className="mt-4 h-12 w-full rounded-2xl border border-border bg-background px-4 text-[16px] text-foreground outline-none focus:border-foreground"
+          value={value}
           disabled={busy}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onSave();
+            } else if (event.key === "Escape" && !busy) {
+              onCancel();
+            }
+          }}
+          className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-[16px] text-foreground outline-none focus:border-foreground disabled:opacity-60"
         />
-        {failed ? (
-          <p role="alert" className="mt-2 text-[13px] text-record">
-            {uiText(locale, "projectEditFailed")}
-          </p>
-        ) : null}
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-            className="h-11 rounded-full border border-border text-[14px] font-medium"
-          >
+        {status === "saving" ? <span role="status" className="text-[12px] text-muted-foreground">{uiText(locale, "loading")}</span> : null}
+        {status === "saved" ? <span role="status" className="text-[12px] text-muted-foreground">{COACH_PANEL_COPY.saved}</span> : null}
+        {status === "error" ? <span role="alert" className="text-[12px] text-record">{uiText(locale, "projectEditFailed")}</span> : null}
+      </div>
+      {!busy ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={onCancel} className="h-10 rounded-full border border-border px-3 text-[13px] font-medium">
             {uiText(locale, "cancel")}
           </button>
-          <button
-            type="submit"
-            disabled={busy || !value.trim()}
-            className="h-11 rounded-full bg-foreground text-[14px] font-semibold text-background disabled:opacity-50"
-          >
+          <button type="button" onClick={onSave} disabled={!value.trim()} className="h-10 rounded-full bg-foreground px-3 text-[13px] font-semibold text-background disabled:opacity-50">
             {uiText(locale, "projectEdit")}
           </button>
         </div>
-      </form>
-    </div>,
-    document.body,
+      ) : null}
+    </div>
   );
+}
+
+async function saveProjectName(
+  project: TrainingArc,
+  value: string,
+  setProjects: Dispatch<SetStateAction<TrainingArc[]>>,
+  setRename: Dispatch<SetStateAction<RenameState | null>>,
+) {
+  const nextName = value.trim();
+  if (!nextName) {
+    setRename({ projectId: project.arcId, value, status: "error" });
+    return;
+  }
+  setRename({ projectId: project.arcId, value: nextName, status: "saving" });
+  const displayName = await renameProject(project.arcId, nextName).catch(() => null);
+  if (!displayName) {
+    setRename({ projectId: project.arcId, value: nextName, status: "error" });
+    return;
+  }
+  setProjects((list) => list.map((item) => item.arcId === project.arcId ? { ...item, topic: displayName } : item));
+  setRename({ projectId: project.arcId, value: displayName, status: "saved" });
 }
