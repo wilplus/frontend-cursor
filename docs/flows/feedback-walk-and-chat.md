@@ -91,6 +91,8 @@ Feedback, Practise, and Ideal text have equal buttons within the open review. Th
 
 In the inline Walk, the speaker's messages and recordings use the project conversation's soft orange bubble. The Walk's bubbles use the same text size as the project conversation.
 
+When a Speaking Coach or project chat reply points to an exact recording moment, it can play that fragment beside the reply (N672). Automatic transcript footers are hidden. If the current Picker serves practice for the same moment, the reply presents its instruction and available demonstration. Practise opens only that activity in the conversation and uses the shared microphone. Reopening the chat resolves the recording against current project access and recording permissions.
+
 Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
 
 ### Shared composer (N667)

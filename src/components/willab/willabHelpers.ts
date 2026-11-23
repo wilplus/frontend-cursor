@@ -71,6 +71,12 @@ export function loungeToHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
  * Returns [] for an empty / whitespace-only body (render nothing) and a single
  * element when there's no blank-line break.
  */
+/** Automatic citations in older Speaking Coach replies. User messages keep their links. */
+export function withoutCoachTranscriptFooter(body: string): string {
+  const footer = /^Transcript https?:\/\/(?:www\.)?willpowerlab\.com\/chat\/take\/[\da-f-]{36}(?:\?slide=\d+)?$/i;
+  return body.split("\n").filter((line) => !footer.test(line.trim())).join("\n").trimEnd();
+}
+
 export function splitBotMessage(body: string): string[] {
   return body
     .split(/\n{2,}/)

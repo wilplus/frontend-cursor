@@ -59,6 +59,8 @@ import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
+import CoachMoment from "./CoachMoment";
+import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -870,15 +872,17 @@ export default function ProjectChat({
               <Fragment key={message.client_id}>
               <div
                 data-project-message={message.client_id}
-                className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed ${
+                className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
                   message.role === "user"
                     ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
                     : "mr-auto bg-muted text-foreground"
                 }`}
               >
-                {message.body}
+                {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
                 {reviewLink(message)}
               </div>
+                {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
+                  project={activeProject.arcId} recordingDock={recordingDock} />}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />

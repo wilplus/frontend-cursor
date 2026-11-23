@@ -34,6 +34,7 @@ import { isConfidentVoiceFeedback, judgedStatus } from "@/lib/willab/chunkSteps"
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
+  pickedPracticeSteps,
   walkHelpersForPart,
   walkStart,
   walkStepForPart,
@@ -267,7 +268,7 @@ function stretchClipChat(tempo: TempoStretch): Record<string, unknown> | null {
  *  those); a slow stretch off such a week leaves the fix a moment (T, N323
  *  item 6). A Take served before N289 keeps its tempo step on any stretch.
  *  Pure. */
-function tempoOffered(
+export function tempoOffered(
   tempo: TempoStretch | null | undefined,
   items: readonly FeedbackWalkItem<DocumentSuggestion>[],
 ): readonly WalkIntervention[] {
@@ -616,6 +617,14 @@ export function exerciseOf(item: DocumentSuggestion): FeedbackWalkItemExercise<D
     say,
     item,
   };
+}
+
+/** Keep the exercise shown in chat and the action that opens tied to the same pick. */
+export function practiceKey(source: FeedbackWalkModel<DocumentSuggestion>, step: WalkStep): string {
+  const moment = step.moment == null ? null : source.moments[step.moment];
+  if (step.key === "clearer") return `clearer:${moment?.clearer?.item.id ?? ""}`;
+  const exercise = moment?.exercise?.item.practiceExercise;
+  return exercise ? `${step.key}:${exercise.exerciseId}:${exercise.version}` : step.key;
 }
 
 /** The span to save on the paragraph as it is now: the walk's own span when
@@ -1488,16 +1497,10 @@ export function useDeckFeedbackWalk(args: {
 
   const openPickedPractice = useCallback((target: WalkStepTarget): boolean => {
     const source = liveAll ?? model;
-    const actions = new Set(["tempo", "clearer", "exVideo", "practise", "processing", "improved", "encourage", "thanks", "late"]);
-    const matches = (step: WalkStep) => !target.snippet || (
-      step.key === "tempo" ? tempo?.snippetId === target.snippet
-        : step.moment != null && source.moments[step.moment]?.clip?.snippetId === target.snippet
-    );
-    const first = source.plan.find((step) => actions.has(step.key) && matches(step));
+    const steps = pickedPracticeSteps(source, target.snippet, tempo?.snippetId);
+    const first = steps[0];
     if (!first) return false;
-    const steps = source.plan.filter((step) => actions.has(step.key) && (
-      first.key === "tempo" ? step.key === "tempo" : step.key !== "tempo" && step.moment === first.moment
-    ));
+    if (target.practiceKey && target.practiceKey !== practiceKey(source, first)) return false;
     tempoRunId.current = first.key === "tempo" ? globalThis.crypto.randomUUID() : null;
     setReplaying({ ...source, scroll: false, plan: [
       { key: "page", overlay: false }, ...steps, { key: "end", overlay: false },

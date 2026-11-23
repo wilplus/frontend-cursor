@@ -391,6 +391,13 @@ while its content is still rendered.
 O2  Once visible, exactly one receipt is sent, even when visibility fires
 again and the card re-renders; its exposure id reaches the card.","O1 -> ""creates nothing for a mounted card that never becomes visible""
 O2 -> ""records exactly one exposure when visible, however often visibility fires""","Blind coach review: an exposure is the proof of what the coach saw, and when."
+src/components/willab/CoachMoment.test.tsx,Story,"As a speaker, I want the coach to play the fragment it cites and present the exercise for that moment in my chat.","O1  An authorized clip plays beside the served exercise and opens practice in place.
+O2  An exercise for another moment stays out of the reply.
+O3  An unavailable clip stays out of the reply.
+O4  Older automatic transcript footers disappear while normal text stays.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
+O2 -> ""keeps the clip when the served intervention is for another moment""
+O3 -> ""omits an unauthorized fragment and never looks up its practice""
+O4 -> ""drops the automatic transcript footer while keeping ordinary chat text""",
 src/components/willab/ConsentAsk.test.tsx,Story,"As a speaker asked for consent in the chat, I want Yes to save it as the Data & consent page does and No to save nothing, so that my answer means what I chose.","O1  The card shows the question's own words and Read more.
 O2  Yes saves the consent and closes the ask.
 O3  No saves nothing and closes the ask.","O1 -> ""shows the question's own words with Read more""
