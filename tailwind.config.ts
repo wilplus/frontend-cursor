@@ -99,6 +99,14 @@ const config: Config = {
         // Live capture — the pulsing dot, the stop button, an overrun
         // clock. NOT --destructive: recording is not an error state (see
         // globals.css for the full rationale).
+        mine: {
+          DEFAULT: "hsl(var(--mine))",
+          foreground: "hsl(var(--mine-foreground))",
+        },
+        cta: {
+          DEFAULT: "hsl(var(--cta))",
+          foreground: "hsl(var(--cta-foreground))",
+        },
         record: {
           DEFAULT: "hsl(var(--record))",
           foreground: "hsl(var(--record-foreground))",
