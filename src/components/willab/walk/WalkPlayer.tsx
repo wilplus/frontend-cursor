@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import SnippetWavePlayer from "../SnippetWavePlayer";
+import { PROJECT_SPEAKER_BUBBLE, useInlineWalkHost } from "./InlineWalkHost";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkPlayer — the one player, in three looks (founder lock 2026-10-06, "one */
@@ -53,14 +54,16 @@ export default function WalkPlayer({
   /** Used by AI voice players when play() rejects before media emits error. */
   onPlayError?: () => void;
 }) {
+  const inline = useInlineWalkHost() !== null;
+  const speaker = inline ? PROJECT_SPEAKER_BUBBLE : "bg-primary text-primary-foreground";
   const player = (
     <SnippetWavePlayer
       seed={seed}
       src={src}
       startOffsetMs={startOffsetMs}
       durationMs={durationMs}
-      size={look === "me" ? "default" : "compact"}
-      tone={look === "me" || look === "chip" ? "me" : "ink"}
+      size={look === "me" && !inline ? "default" : "compact"}
+      tone={!inline && (look === "me" || look === "chip") ? "me" : "ink"}
       label={label}
       onError={onError}
       onPlayError={onPlayError}
@@ -74,9 +77,9 @@ export default function WalkPlayer({
         data-walk-player
         data-walk-chip
         data-row="me"
-        className="ml-auto flex w-[62%] flex-col gap-1 rounded-[18px] bg-primary px-3 py-2 text-primary-foreground"
+        className={cn("ml-auto flex w-[62%] flex-col gap-1 rounded-[18px] px-3 py-2", speaker)}
       >
-        <span className="text-[13px] font-semibold text-white/[0.85]">{label}</span>
+        <span className={cn("text-[13px] font-semibold", !inline && "text-white/[0.85]")}>{label}</span>
         {player}
       </div>
     );
@@ -90,7 +93,7 @@ export default function WalkPlayer({
       className={cn(
         "flex flex-col",
         look === "me"
-          ? "ml-auto w-[90%] gap-2 rounded-[22px] bg-primary px-[17px] py-[13px] text-primary-foreground"
+          ? cn("ml-auto gap-2", speaker, inline ? "w-fit max-w-[86%] rounded-[18px] px-4 py-2.5" : "w-[90%] rounded-[22px] px-[17px] py-[13px]")
           : "gap-2.5 rounded-2xl border border-border bg-background px-3.5 py-3",
       )}
     >
@@ -98,7 +101,8 @@ export default function WalkPlayer({
         <div
           className={cn(
             "leading-[1.45] [&_s]:decoration-[1.5px]",
-            look === "me" ? "text-[16px] [&_s]:text-white/[0.72]" : "text-[16.5px] leading-[1.55] [&_s]:text-muted-foreground",
+            inline ? "text-[15px] [&_s]:text-muted-foreground" :
+              look === "me" ? "text-[16px] [&_s]:text-white/[0.72]" : "text-[16.5px] leading-[1.55] [&_s]:text-muted-foreground",
           )}
         >
           {words}

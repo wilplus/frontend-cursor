@@ -20,7 +20,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import OverlayCloseButton from "../OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "../TypingDots";
 import WalkFooter from "./WalkFooter";
-import { scrollWithinProject, useInlineWalkHost } from "./InlineWalkHost";
+import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject, useInlineWalkHost } from "./InlineWalkHost";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkThread — the lens as one chat (founder 2026-10-20, WIL-89; prototype   */
@@ -181,12 +181,15 @@ export function WalkThreadMark({ label, quiet = false }: { label: string; quiet?
 
 /** The speaker's own answer: their orange bubble on the right. */
 export function WalkSpeakerBubble({ children, edited = false }: { children: ReactNode; edited?: boolean }) {
+  const inline = useInlineWalkHost() !== null;
   return (
     <div data-walk-said className="flex justify-end">
-      <span className="max-w-[88%] rounded-[22px] bg-primary px-[17px] py-[13px] text-[18.5px] leading-[1.45] text-primary-foreground">
+      <span className={inline
+        ? PROJECT_SPEAKER_BUBBLE + " max-w-[86%] rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed"
+        : "max-w-[88%] rounded-[22px] bg-primary px-[17px] py-[13px] text-[18.5px] leading-[1.45] text-primary-foreground"}>
         {children}
         {edited ? (
-          <span data-walk-edited className="ml-2.5 whitespace-nowrap text-[13px] text-primary-foreground/80">
+          <span data-walk-edited className={`ml-2.5 whitespace-nowrap text-[13px] ${inline ? "text-muted-foreground" : "text-primary-foreground/80"}`}>
             {WALK_COPY.edited}
           </span>
         ) : null}
@@ -525,8 +528,8 @@ function InlineThread({ frame, opening, current, buttons, onClose, children }: {
     <div className="flex flex-col gap-2">
       <FrameContext.Provider value={frameValue}>{children}</FrameContext.Provider>
     </div>
-    <div ref={setDock} data-walk-dock hidden={!buttons} />
-    {!buttons ? <WalkFooter pill={{ label: COPY.pillClose, onClick: leave, testId: "walk-scroll-close" }} /> : null}
+    <div ref={setDock} data-walk-dock hidden={!buttons} className="w-full max-w-xs" />
+    {!buttons ? <div className="w-full max-w-xs"><WalkFooter pill={{ label: COPY.pillClose, onClick: leave, testId: "walk-scroll-close" }} /></div> : null}
   </div>;
 }
 

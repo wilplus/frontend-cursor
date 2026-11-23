@@ -58,9 +58,7 @@ import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
 import { ProjectChatNavigation, ProjectMenuToggle, type ProjectNavigation } from "./ProjectChatNavigation";
-import { scrollWithinProject } from "./walk/InlineWalkHost";
-
-const SPEAKER_BUBBLE = "bg-[#f8f1ea] text-foreground dark:bg-[#3c3028]";
+import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -805,7 +803,7 @@ export default function ProjectChat({
               ["praise", "best", "fix", "tempo:open"].includes(String(message.metadata?.step)))?.body ?? null;
             return <div key={take.sessionId} data-project-take={take.sessionId} className="flex flex-col gap-2">
               <div data-project-recording={take.sessionId}
-                className={SPEAKER_BUBBLE + " ml-auto max-w-[86%] rounded-[18px] px-4 py-3"}>
+                className={PROJECT_SPEAKER_BUBBLE + " ml-auto max-w-[86%] rounded-[18px] px-4 py-3"}>
               <p className="text-[15px] font-semibold">Your recording · Take {take.takeIndex}</p>
               <button
                 type="button"
@@ -870,7 +868,7 @@ export default function ProjectChat({
                 data-project-message={message.client_id}
                 className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed ${
                   message.role === "user"
-                    ? "ml-auto " + SPEAKER_BUBBLE
+                    ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
                     : "mr-auto bg-muted text-foreground"
                 }`}
               >

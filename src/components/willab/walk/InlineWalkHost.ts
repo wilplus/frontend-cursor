@@ -3,6 +3,8 @@
 import { createContext, useContext } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
+export const PROJECT_SPEAKER_BUBBLE = "bg-[#f8f1ea] text-foreground dark:bg-[#3c3028]";
+
 /** The project thread owns scrolling and the composer when it hosts a walk. */
 export const InlineWalkHost = createContext<{
   recordingDock: HTMLDivElement | null;

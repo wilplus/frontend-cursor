@@ -4,6 +4,7 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewRun } from "@/services/api/takeReview";
 import { TempoTryBubble } from "./walk/WalkTempo";
 import WalkPlayer from "./walk/WalkPlayer";
+import { PROJECT_SPEAKER_BUBBLE } from "./walk/InlineWalkHost";
 
 function isAttempt(message: LoungeMessage): boolean {
   const step = message.metadata?.step;
@@ -49,7 +50,7 @@ function PastAttempt({ row }: { row: LoungeMessage }) {
     return <TempoTryBubble label={row.body} path={path} />;
   }
   const audio = typeof clip?.src === "string" ? clip.src : null;
-  return <div className="ml-auto w-fit max-w-[86%] space-y-1.5 rounded-[18px] bg-[#f8f1ea] px-4 py-2.5 dark:bg-[#3c3028]">
+  return <div className={PROJECT_SPEAKER_BUBBLE + " ml-auto w-fit max-w-[86%] space-y-1.5 rounded-[18px] px-4 py-2.5"}>
     <p className="whitespace-pre-wrap">{row.body}</p>
     {audio ? <WalkPlayer look="bare" seed={row.client_id} src={audio} label={row.body}
       startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
