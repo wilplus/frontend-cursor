@@ -61,9 +61,10 @@ export function speakingCoachMessages(
 export function projectMessageStaysInLounge(message: Pick<LoungeMessage, "metadata">): boolean {
   const metadata = message.metadata ?? {};
   if (metadata.review_focus) return false;
-  if (metadata[TYPED_PROJECT_TURN] === true) return Boolean(metadata.reply_to);
+  if (metadata[TYPED_PROJECT_TURN] === true && metadata.reply_to === "") return false;
   const step = metadata.will_question_step;
   return metadata.offer === "will_question" ||
+    metadata[TYPED_PROJECT_TURN] === true ||
     step === "ask" || step === "follow" || step === "answer" || step === "reply" ||
     step === "thanks" || step === "skip";
 }
