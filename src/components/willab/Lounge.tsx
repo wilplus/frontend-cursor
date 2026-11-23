@@ -10,6 +10,8 @@ import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import CoachMoment from "./CoachMoment";
+import CoachWordingCard from "./CoachWordingCard";
+import { coachWording } from "@/services/api/coachWording";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   ChatQueryRequestError,
@@ -461,6 +463,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
   const productAction = productActionFromMetadata({ product_action: response.product_action });
   const moment = coachMomentFromMetadata(response.row_metadata?.coach_moment);
   const artifact = chatArtifactContent(response.row_metadata?.chat_artifact);
+  const wording = coachWording(response.row_metadata?.coach_wording);
   return {
     ...(suggestedActions.length > 0
       ? { suggested_actions: suggestedActions }
@@ -470,6 +473,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
     ...(productAction ? { product_action: productAction } : {}),
     ...(moment ? { coach_moment: moment } : {}),
     ...(artifact ? { chat_artifact: artifact } : {}),
+    ...(wording ? { coach_wording: wording } : {}),
   };
 }
 
@@ -3174,6 +3178,7 @@ function BubbleBody({
           animate={animate}
         />
         <CoachMoment raw={message.metadata?.coach_moment} artifact={message.metadata?.chat_artifact} recordingDock={recordingDock} />
+        <CoachWordingCard message={message} recordingDock={recordingDock} />
         <BotWays
           metadata={message.metadata}
           onChip={onChip}
