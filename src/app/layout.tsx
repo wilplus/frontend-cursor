@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
+import { isAppUserAgent } from "@/lib/nativeAppAgent";
 import PendingCoachSend from "@/components/willab/PendingCoachSend";
 import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
@@ -120,7 +121,10 @@ export default function RootLayout({
           <div data-app-content className="relative min-h-0 flex-1">
             <div className="h-full overflow-y-auto">{children}</div>
           </div>
-          <Footer />
+          {/* No website footer inside the iPhone app (backend N674 item 1): the
+              language follows the iPhone's, About us, Blog and Privacy are in
+              the menu. Read from the user agent, so it never flashes. */}
+          {isAppUserAgent(requestHeaders.get("user-agent")) ? null : <Footer />}
           <Toaster position="top-center" />
           <ServiceWorkerRegistrar />
           <HomeScreenReporter />

@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Coins, Home, LogOut, Menu, Settings, Sparkles } from "lucide-react";
+import { BookOpen, ChevronRight, Coins, Home, Info, LogOut, Menu, Settings, Shield, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isNativeApp } from "@/lib/auth/nativeSignIn";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { TOKENS_COPY } from "@/components/tokens/copy";
 import type { ProductMenuEntry } from "@/lib/productDiscovery";
@@ -113,6 +116,11 @@ export default function AppMenu({
   above = false,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
+  // In the iPhone app there is no website footer (backend N674 item 1): its
+  // About us, Blog and Privacy rows are here instead, with the same names.
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(isNativeApp()), []);
+  const locale = useUiLocale();
   const pathname = usePathname();
   // An in-app row for the current page: marked, and announced as the page.
   const current = (href: string) =>
@@ -280,6 +288,23 @@ export default function AppMenu({
                   </Link>
                 ),
               )}
+              {inApp ? (
+                <>
+                  <div className="mx-1.5 my-1 h-px bg-border" />
+                  {([
+                    ["/about", "footerAbout", Info],
+                    ["/blog", "footerBlog", BookOpen],
+                    ["/terms", "footerPrivacy", Shield],
+                  ] as const).map(([href, word, Icon]) => (
+                    <Link key={href} ref={firstRef()} href={href} prefetch={false} {...row(href)} onClick={() => setOpen(false)}>
+                      <MenuIcon tone="grey">
+                        <Icon className="h-[18px] w-[18px]" />
+                      </MenuIcon>
+                      <span className="flex-1">{uiText(locale, word)}</span>
+                    </Link>
+                  ))}
+                </>
+              ) : null}
               <div className="mx-1.5 my-1 h-px bg-border" />
               <button
                 type="button"
