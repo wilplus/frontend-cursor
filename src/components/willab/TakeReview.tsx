@@ -21,6 +21,7 @@ import { RichText } from "./RichText";
 import { useBackDismiss } from "./useBackDismiss";
 import { HelpersLabel } from "./TranscriptReviewDeck";
 import WalkPlayer from "./walk/WalkPlayer";
+import { useBestSaid, useWalkVoiceOn } from "./walk/useWalkVoice";
 import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
 import TakeReviewPracticeHistory, { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
 import { ChatArtifactPanel } from "./chats/ChatArtifact";
@@ -47,6 +48,7 @@ const LINK = "min-h-11 text-sm text-muted-foreground hover:underline";
 
 type ReviewEvidence = {
   moment: FeedbackKeyMoment | null;
+  strength?: FeedbackKeyMoment | null;
   activity: string | null;
   instruction?: string | null;
 };
@@ -70,6 +72,15 @@ function momentFromSuggestion(item: DocumentSuggestion): FeedbackKeyMoment | nul
   };
 }
 
+function strongestMoment(items: DocumentSuggestion[]): FeedbackKeyMoment | null {
+  const best = items.find((item) => item.snippetId && (item.highestMoment || item.walkSlot === "strongest") &&
+    (item.bookmarkTier ? item.bookmarkTier === "confident" :
+      item.feedbackFamily === "great_formulation" || item.openCard === "praise"));
+  if (!best) return null;
+  const moment = momentFromSuggestion(best);
+  return moment ? { ...moment, commentText: best.praiseReason?.paragraphs.join("\n\n") ?? best.praiseLine } : null;
+}
+
 async function tempoEvidence(project: string, take: string, snippet?: string): Promise<ReviewEvidence | null> {
   const tempo = await fetchReviewTempo(project, take);
   if (!tempo || tempo === "failed" || !tempo.snippetId || (snippet && tempo.snippetId !== snippet)) return null;
@@ -89,13 +100,15 @@ async function latestEvidence(
 ): Promise<ReviewEvidence> {
   if (result.kind !== "single") return { moment: null, activity: null };
   const items = (result.suggestions ?? []).filter((item) => item.takeSessionId === take);
+  const strength = snippet ? null : strongestMoment(items);
   const tempo = items.some((item) => item.oneFix === "tempo") ? await tempoEvidence(project, take, snippet) : null;
-  if (tempo) return tempo;
+  if (tempo) return { ...tempo, strength };
   const candidates = snippet ? items.filter((item) => item.snippetId === snippet) : items;
   const candidate = candidates.find((item) => item.walkSlot === "weakest" || item.walkSlot === "between");
   const strongest = candidates.find((item) => item.highestMoment || item.walkSlot === "strongest") ?? candidates[0];
   const clip = result.ideal.keyMoments.find((item) => item.takeSessionId === take && (!snippet || item.snippetId === snippet));
   return {
+    strength,
     moment: (candidate ? momentFromSuggestion(candidate) : strongest ? momentFromSuggestion(strongest) : null) ??
       (clip ? { snippetId: clip.snippetId, slideIndex: null, recordingKind: "spoken", transcript: clip.anchor,
         audioRef: clip.snippetAudioRef ?? null, startOffsetMs: clip.startOffsetMs ?? 0,
@@ -177,8 +190,18 @@ function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, 
   </InlineWalkHost.Provider>;
 }
 
+function useReviewOpening(takeId: string, evidence: ReviewEvidence | undefined, history: readonly LoungeMessage[]) {
+  const strength = evidence?.strength ?? null;
+  const moment = strength ?? evidence?.moment ?? null;
+  const voiceOn = useWalkVoiceOn();
+  const savedPraise = strength ? history.findLast((row) => row.role === "bot" && row.body.trim() &&
+    row.metadata?.snippet_id === strength.snippetId && ["praise", "best"].includes(String(row.metadata?.step)))?.body : null;
+  const praise = useBestSaid(takeId, savedPraise ? null : strength?.snippetId ?? null, voiceOn);
+  return { strength, moment, opening: savedPraise ?? praise.text ?? moment?.commentText ?? "" };
+}
+
 export default function TakeReview({
-  project, target, runs, messages, recordingDock, practiceDecision, exitRef, onClose, onAsk, onPracticeEnded, onNextTake,
+  project, target, runs, messages, recordingDock, practiceDecision, exitRef, focusRef, onClose, onAsk, onPracticeEnded, onNextTake,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
@@ -187,6 +210,7 @@ export default function TakeReview({
   recordingDock: HTMLDivElement | null;
   practiceDecision?: PracticeDecision;
   exitRef: MutableRefObject<ReviewExit | null>;
+  focusRef: MutableRefObject<TakeReviewTarget | null>;
   onClose: () => void;
   onAsk: (target: TakeReviewTarget) => void;
   onPracticeEnded: () => void;
@@ -231,31 +255,41 @@ export default function TakeReview({
 
   const loaded = artifact !== null;
   const moment = artifact?.evidence.moment ?? null;
+  const { strength, moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
   const groups = artifact?.revision ? slideGroupsOf(artifact.revision) : [];
   const sections = groups.map((group) => group.paragraphs.join("\n\n"));
   const savedIdeal = copy?.document.ideal_sections;
   const ideal = savedIdeal?.length === sections.length && !artifact?.live ? savedIdeal : sections;
-  const feedback = copy?.document.feedback ?? moment?.commentText ?? "";
+  const feedback = copy?.document.feedback ?? opening;
   const ask = (focus: ReviewFocus) => void exit(() => onAsk({ take, focus }));
 
-  useEffect(() => { article.current?.focus({ preventScroll: true }); }, [target.focus]);
   useEffect(() => {
-    setStep(target.focus.step);
-    const node = target.focus.step === "ideal" && target.focus.slide_index !== undefined
+    const focus = step === "ideal" ? { step, slide_index: target.focus.slide_index } :
+      focusFor(step, step === "practise" ? moment : openingMoment);
+    const active = { take, focus };
+    focusRef.current = active;
+    return () => {
+      if (focusRef.current === active) focusRef.current = null;
+    };
+  }, [take, step, moment, openingMoment, target.focus.slide_index, focusRef]);
+
+  useEffect(() => { article.current?.focus({ preventScroll: true }); }, [target.focus]);
+  useEffect(() => { setStep(target.focus.step); }, [target.focus]);
+  useEffect(() => {
+    if (!loaded) return;
+    const node = step === "ideal" && target.focus.slide_index !== undefined
       ? article.current?.querySelector<HTMLElement>('[data-review-slide="' + target.focus.slide_index + '"]')
-      : article.current?.querySelector<HTMLElement>('[data-review-section="' + target.focus.step + '"]');
+      : article.current?.querySelector<HTMLElement>('[data-review-section="' + step + '"]');
     scrollWithinProject(node ?? article.current);
-  }, [target.focus, loaded]);
+  }, [step, target.focus, loaded]);
 
   function jump(next: Step) {
-    void exit(() => {
-      setStep(next);
-      scrollWithinProject(article.current?.querySelector<HTMLElement>('[data-review-section="' + next + '"]'));
-    });
+    void exit(() => setStep(next));
   }
 
-  function closeEngine() {
+  function closeEngine(showOutput = true) {
     setEngine(null);
+    if (strength && engine === "practise" && showOutput) setStep("ideal");
     if (engine === "practise" || engine === "walk") onPracticeEnded();
     setRefresh((v) => v + 1);
   }
@@ -278,10 +312,10 @@ export default function TakeReview({
 
   const engineView = engine ? <ReviewEngine arc={project.arcId} target={target} mode={engine}
     evidence={artifact?.evidence} recordingDock={recordingDock} savedSteps={history}
-    practiceDecision={practiceDecision} onClose={closeEngine}
+    practiceDecision={practiceDecision} onClose={() => closeEngine()}
     onUnavailable={() => {
       if (engine === "practise") setNoPractice(true);
-      closeEngine();
+      closeEngine(false);
     }}
     onNextTake={() => void exit(onNextTake)} /> : null;
   const draftFeedback = draft?.feedback !== undefined;
@@ -292,8 +326,9 @@ export default function TakeReview({
   const momentSection = <div data-review-section="feedback" aria-label="Feedback" className="space-y-1.5">
     <TakeReviewStatus project={project} take={take} loading={!artifact} failed={failed} onRetry={retry} />
     {artifact ? <>
-      <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={moment}
-        onEdit={(text) => setDraft({ feedback: text })} onAsk={() => ask(focusFor("feedback", moment))} />
+      <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={openingMoment}
+        publishedPraise={strength ? opening : null} onEdit={(text) => setDraft({ feedback: text })}
+        onAsk={() => ask(focusFor("feedback", openingMoment))} />
       <ReviewEditAction editing={draftFeedback} canEdit={copy !== null && !draftIdeal}
         busy={savingEdit} onEdit={() => startEditing("feedback")} onDone={done} />
     </> : null}
@@ -311,7 +346,7 @@ export default function TakeReview({
       ) : null}
 
       <div data-review-section="practise" aria-label="Practise">
-        {artifact ? <PractiseStep evidence={artifact.evidence} unavailable={noPractice} repeated={runs.length > 0}
+        {artifact && (!strength || step === "practise" || engine === "practise") ? <PractiseStep evidence={artifact.evidence} unavailable={noPractice || (strength !== null && !artifact.evidence.activity)} repeated={runs.length > 0}
           trying={engine === "practise"} onTry={() => void exit(() => setEngine("practise"))} onSkip={() => jump("ideal")}
           onAsk={() => ask(focusFor("practise", moment))} /> : null}
         {engine === "practise" ? engineView : null}
@@ -346,7 +381,7 @@ function reviewOutput({
 }): ReactNode {
   const showRuns = engine !== "practise" && engine !== "walk" && (runs.length > 0 || history.some(isSavedPracticeAttempt));
   const hasIdeal = Boolean(artifact?.revision || artifact?.live);
-  const showIdeal = artifact && (hasIdeal || step === "ideal");
+  const showIdeal = artifact && (step === "ideal" || (hasIdeal && !artifact.evidence.strength));
   if (!showRuns && !showIdeal) return null;
   return <>
     {showRuns ? <TakeReviewPracticeHistory runs={runs} messages={history} /> : null}
@@ -442,6 +477,9 @@ function PractiseStep({ evidence, unavailable, repeated, trying, onTry, onSkip, 
 }) {
   return <div className="space-y-1">
     {evidence.activity ? <p className="font-medium">{evidence.activity}</p> : null}
+    {evidence.strength && evidence.activity && evidence.moment?.audioRef && !trying && !unavailable ?
+      <WalkPlayer seed={evidence.moment.snippetId} label="moment" src={evidence.moment.audioRef}
+        startOffsetMs={evidence.moment.startOffsetMs} durationMs={evidence.moment.durationMs || null} look="bare" /> : null}
     {evidence.instruction ? <p>{evidence.instruction}</p> : null}
     {unavailable ? <p className="text-sm text-muted-foreground">No activity for this Take yet.</p> :
       trying ? null : <div className="flex flex-wrap items-center gap-x-3">
@@ -469,12 +507,13 @@ function IdealStep({ revision, groups, text, draft, onEdit, onAsk }: {
   </div>;
 }
 
-function ReviewMoment({ feedback, draft, moment, onEdit, onAsk }: {
-  feedback: string; draft?: string; moment: FeedbackKeyMoment | null;
+function ReviewMoment({ feedback, draft, moment, publishedPraise, onEdit, onAsk }: {
+  feedback: string; draft?: string; moment: FeedbackKeyMoment | null; publishedPraise?: string | null;
   onEdit: (text: string) => void; onAsk: () => void;
 }) {
   return (
     <div className="max-w-2xl space-y-1.5">
+      {publishedPraise && publishedPraise !== feedback ? <p className="whitespace-pre-wrap">{publishedPraise}</p> : null}
       {draft !== undefined ? <ReviewField label="Edit feedback" value={draft} onEdit={onEdit} /> :
         feedback ? <p className="whitespace-pre-wrap">{feedback}</p> : null}
       {moment ? (

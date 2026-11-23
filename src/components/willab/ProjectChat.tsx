@@ -52,7 +52,7 @@ import {
 } from "@/lib/willab/practiceResume";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import TakeReview, { type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
+import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import TakeReviewMessage, { readyForReview } from "./TakeReviewMessage";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
@@ -570,6 +570,7 @@ export default function ProjectChat({
     return () => { beforeLeaveRef.current = null; };
   }, [beforeLeaveRef, leavingReview, recordingDock]);
   const [askTarget, setAskTarget] = useState<TakeReviewTarget | null>(null);
+  const reviewFocusRef = useRef<TakeReviewTarget | null>(null);
   const slides = useUpdateSlides(activeProject.arcId, {
     hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
   });
@@ -687,7 +688,8 @@ export default function ProjectChat({
 
   async function answerText(retry?: PendingChatTurn): Promise<void> {
     const answer = retry?.request.question ?? draft.trim();
-    const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, activeQuestion, askTarget, retry);
+    const target = askTarget ?? reviewFocusRef.current;
+    const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, activeQuestion, target, retry);
     const arc = activeProject.arcId;
     if (!answer || sending || sendingRef.current || !outbox.ready || typeof take !== "string") return;
     const existing = retry ?? outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus));
@@ -757,14 +759,17 @@ export default function ProjectChat({
   }
 
   function reviewLink(message: LoungeMessage) {
-    const coords = message.metadata?.review_focus as Partial<ReviewFocus> | null;
+    const destination = message.role === "bot" ? message.metadata?.review_destination as Partial<ReviewFocus> | undefined : undefined;
+    const offeredStep = REVIEW_STEPS.find(({ step }) => step === destination?.step);
+    const coords = offeredStep ? destination : message.metadata?.review_focus as Partial<ReviewFocus> | null;
     if (!coords || !["feedback", "practise", "ideal"].includes(coords.step ?? "")) return null;
     const take = recordingTakes.find((part) => part.sessionId === message.metadata?.take_session_id);
     if (!take) return null;
     const label = typeof coords.slide_index === "number" ? ` · Slide ${coords.slide_index + 1}` : "";
-    return <button type="button" className="block min-h-8 text-xs underline" onClick={() => openReview({
+    const title = offeredStep?.label ?? "Take " + take.takeIndex + label + " · Back to review";
+    return <button type="button" className="block min-h-11 text-xs underline" onClick={() => openReview({
       take, focus: coords as ReviewFocus,
-    })}>Take {take.takeIndex}{label} · Back to review</button>;
+    })}>{title}</button>;
   }
 
   function startPractice(scope: "fragment" | "whole", chunk: FeedbackWalkChunk | undefined): void {
@@ -823,7 +828,8 @@ export default function ProjectChat({
               </button>
               </div>
               {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
-                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit}
+                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock}
+                exitRef={reviewExit} focusRef={reviewFocusRef}
                 practiceDecision={practiceDecisionFor(chunk)}
                 onAsk={setAskTarget} onClose={finishReview}
                 onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}

@@ -17,6 +17,9 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
              recoverable error instead of disappearing.
          O8  After my first full Take, both rehearsal choices stay available;
              an unavailable fragment span falls back to the whole presentation.
+         O9  Feedback opens on the Take's published strength. I can type
+             my reaction without a separate action, then open the selected
+             practice from the reply and reach the same Take's Ideal Text.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
@@ -25,6 +28,7 @@ PROVES   O1 -> "puts the result before the project conversation"
          O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
          O7 -> "keeps a refused quick choice once with one recoverable error"
          O8 -> "as a speaker after my first full Take, I can rehearse even before a fragment span is available"
+         O9 -> "opens feedback on the published strength and keeps practice on the selected fix"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -107,6 +111,7 @@ vi.mock("./IdealTextOverlay", () => ({
     initialMode,
     coachTake,
     reviewTake,
+    reviewAt,
     reviewSlideRange,
     requireFeedbackWalk,
     projectFlow,
@@ -116,6 +121,7 @@ vi.mock("./IdealTextOverlay", () => ({
     initialMode?: string;
     coachTake?: string | null;
     reviewTake?: string | null;
+    reviewAt?: { snippet?: string | null } | null;
     reviewSlideRange?: { startSlide: number; endSlide: number } | null;
     requireFeedbackWalk?: boolean;
     projectFlow?: boolean;
@@ -128,6 +134,7 @@ vi.mock("./IdealTextOverlay", () => ({
         "data-overlay-mode": initialMode ?? "notebook",
         "data-coach-take": coachTake ?? "",
         "data-review-take": reviewTake ?? "",
+        "data-review-snippet": reviewAt?.snippet ?? "",
         "data-review-range": reviewSlideRange
           ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
           : "",
@@ -318,6 +325,52 @@ describe("project conversation", () => {
     act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
     expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toEqual({ scope: "whole" });
     expect(onRecord).toHaveBeenCalledWith("arc-a");
+  });
+
+  it("opens feedback on the published strength and keeps practice on the selected fix", async () => {
+    reviewApi.idealText.mockResolvedValue({
+      kind: "single", latestTakeSessionId: "take-a", ideal: { text: "The current opening.", keyMoments: [] },
+      suggestions: [{
+        takeSessionId: "take-a", walkSlot: "weakest", bookmarkTier: "weak", snippetId: "fix",
+        quote: "The next sentence runs together.", rewriteMove: "Give the end room.",
+        evidence: { slideIndex: 1 }, practiceExercise: { title: "Land the final word" },
+      }, {
+        takeSessionId: "take-a", walkSlot: "strongest", highestMoment: true, bookmarkTier: "confident", snippetId: "strength",
+        quote: "I want a clear decision today.", praiseLine: "The pause gives your request room.",
+        evidence: { slideIndex: 0 },
+      }, {
+        takeSessionId: "another-take", walkSlot: "strongest", bookmarkTier: "confident", snippetId: "wrong-take",
+        quote: "This is from another recording.", praiseLine: "This is from another recording.",
+      }],
+    });
+    render();
+    await flush();
+    const review = await openTake("take-a");
+    const feedback = review.querySelector('[data-review-section="feedback"]');
+    expect(feedback?.textContent).toContain("The pause gives your request room.");
+    expect(feedback?.textContent).toContain("I want a clear decision today.");
+    expect(feedback?.textContent).not.toContain("The next sentence runs together.");
+    expect(feedback?.textContent).not.toContain("another recording");
+    expect(review.textContent).not.toContain("Land the final word");
+    expect(review.querySelector('[data-review-section="ideal"]')).toBeNull();
+
+    state.chatQuery.mockResolvedValueOnce({
+      answer: "Try the next sentence with its last words a little clearer.",
+      persisted: true, persisted_client_id: "practice-offer",
+      row_metadata: { take_session_id: "take-a", review_destination: { step: "practise" } },
+    });
+    enterAnswer("I liked that. What should I work on?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[0][0]).toMatchObject({
+      projectId: "arc-a", sessionId: "take-a",
+      presentationContext: { review_focus: { step: "feedback", snippet_id: "strength", slide_index: 0 } },
+    });
+    const reply = host.querySelector('[data-project-message="practice-offer"]')!;
+    await clickText(reply, "Practise");
+    expect(review.textContent).toContain("Land the final word");
+    await clickText(review, "Try it");
+    expect(review.querySelector('[data-testid="result"]')?.getAttribute("data-review-snippet")).toBe("fix");
   });
 
   it("reopens the selected Take and retries an anchored review question once after reload", async () => {

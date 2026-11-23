@@ -7,6 +7,7 @@ export type ReviewSummaryAsk = {
   practice: "better" | "not_yet" | null;
   helperWords: string[];
   coachNote: string | null;
+  inlineProjectReview?: boolean;
 };
 
 /** Ask for the Take's closing summary; the backend writes it into the
