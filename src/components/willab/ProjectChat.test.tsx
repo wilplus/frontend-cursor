@@ -672,6 +672,38 @@ describe("project conversation", () => {
     expect(onRecord).toHaveBeenCalledExactlyOnceWith("arc-a");
   });
 
+  it("shows live feedback as messages and unfolds the document when the coach offers it", async () => {
+    state.messages = [
+      { ...message("opening", "Your pause gave the decision room. How does this sound to you?", "bot", {
+        live_take_feedback: true, live_opening: true, step: "praise",
+      }), kind: "walk_step" },
+      { ...message("old-summary", "Your first text is in.", "bot", {}), kind: "cadence" },
+    ];
+    render(project, false, { initialReview: { take: project.takes[0], focus: { step: "feedback" }, live: true } });
+    await flush();
+    const conversation = host.querySelector<HTMLElement>("[data-live-take-feedback]")!;
+    expect(conversation.textContent).toContain("Your pause gave the decision room.");
+    expect(conversation.textContent).not.toContain("Your first text is in.");
+    expect(conversation.querySelector("[data-review-section=ideal]")).toBeNull();
+
+    state.chatQuery.mockResolvedValue({
+      answer: "Here is your Ideal Text. Keep the words that helped your decision land.",
+      persisted: true, persisted_client_id: "ideal-offer", suggested_action: "record_again",
+      row_metadata: { live_take_feedback: true, review_destination: { step: "ideal" },
+        after_ideal_text: "Your request is clear. The close could use another rehearsal. Want to try again?" },
+    });
+    enterAnswer("I think I'm done for now.");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[0][0].presentationContext)
+      .toMatchObject({ live_take_feedback: true, take_exchange: true });
+    const doc = conversation.querySelector("[data-review-section=ideal]")!;
+    const readiness = [...conversation.querySelectorAll("p")].find((node) => node.textContent?.includes("The close could use"))!;
+    const record = [...conversation.querySelectorAll("button")].find((node) => node.textContent?.includes("Record the next take"))!;
+    expect(before(doc, readiness)).toBe(true);
+    expect(before(readiness, record)).toBe(true);
+  });
+
   it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {
     const refreshed: TrainingArc = {
       ...project,

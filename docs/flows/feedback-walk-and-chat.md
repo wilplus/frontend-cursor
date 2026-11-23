@@ -181,7 +181,16 @@ and [Chat Builder](../chat-builder/flow.md).
   In a project chat, a reply keeps the same place as the message it answers
   when the thread reloads. An ordinary reply stays visible while the Take
   recap is folded.
-- **A2** The moment processing finishes, the walk opens by itself, with
+- **Live project feedback** continues in the project's conversation as soon
+  as the Take is ready. One supported strength and one question lead into a
+  typed or recorded reply. The coach follows requests for more moments and
+  attaches an exercise or a concrete rehearsal instruction to a moment
+  that needs work. When the coach offers the Ideal Text, it opens inline
+  after that reply. A brief assessment in words and the invitation to
+  rehearse follow the text. The existing next Take link comes with that
+  offer. The completed exchange can fold into its Take recap and reopen
+  with its saved messages and media (N685).
+- **A2** In the legacy review flow, the walk opens when processing finishes, with
   nothing in between: the waiting screen stays over it until the walk's
   first step is on screen and lifts then, so "done" never opens onto the
   walk still loading, also when the speaker had gone to the chat (founder

@@ -5,10 +5,13 @@ import { fetchArcFeedback, type FeedbackKeyMoment } from "@/services/api/arcFeed
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import { fetchIdealTextRevisions, type IdealTextRevision } from "@/services/api/blockVariants";
 import { fetchReviewTempo } from "@/services/api/reviewTempo";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { stableUuid } from "@/lib/willab/walkThread";
+import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { readReviewCopy, readReviewSteps, saveReviewCopy, type ReviewCopy, type ReviewRevision, type ReviewRun } from "@/services/api/takeReview";
 import type { TrainingArc, TrainingTake } from "@/services/api/trainings";
 import type { ChatQueryArgs } from "@/services/api/chatQuery";
-import type { LoungeMessage } from "@/services/api/loungeMessages";
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { mergeTakeExchange } from "@/lib/willab/takeExchange";
 import { isPersistedTerminalReplay, orderedProjectMessages } from "@/lib/willab/projectChat";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
@@ -32,6 +35,8 @@ export type TakeReviewTarget = {
   openWalk?: boolean;
   /** An archived exchange can be played back and discussed in the composer. */
   replay?: boolean;
+  /** The current Take is unfolding in the chat. */
+  live?: boolean;
   quote?: string;
 };
 export type ReviewExit = (afterSave: () => void) => void;
@@ -189,11 +194,95 @@ function useReviewOpening(takeId: string, evidence: ReviewEvidence | undefined, 
   const savedPraise = strength ? history.findLast((row) => row.role === "bot" && row.body.trim() &&
     row.metadata?.snippet_id === strength.snippetId && ["praise", "best"].includes(String(row.metadata?.step)))?.body : null;
   const praise = useBestSaid(takeId, savedPraise ? null : strength?.snippetId ?? null, voiceOn);
-  return { strength, moment, opening: savedPraise ?? praise.text ?? moment?.commentText ?? "" };
+  return { strength, moment, praise, opening: savedPraise ?? praise.text ?? moment?.commentText ?? "" };
+}
+
+function isLiveIdealOffer(row: LoungeMessage): boolean {
+  return row.metadata?.live_take_feedback === true &&
+    (row.metadata?.review_destination as Partial<ReviewFocus> | undefined)?.step === "ideal";
+}
+
+function liveFeedbackRows(rows: readonly LoungeMessage[]) {
+  return rows.filter((row) => row.kind !== "cadence" && row.metadata?.bridge !== true &&
+    (row.metadata?.next_take !== true || row.metadata?.live_take_feedback === true));
+}
+
+function liveOpening(
+  arc: string, take: TrainingTake, strength: FeedbackKeyMoment | null, praise: string | null, polish: boolean,
+): LoungeMessageDraft {
+  const asked = polish ? "Jak ci to brzmi?" : "How does this sound to you?";
+  const introduction = polish ? "Ten moment zabrzmiał pewnie." : "This moment came across confidently.";
+  const words = praise || introduction;
+  return {
+    clientId: stableUuid(`live-take-opening:${arc}:${take.sessionId}`),
+    kind: "walk_step", role: "bot",
+    body: strength ? (words.includes("?") ? words : words + "\n\n" + asked)
+      : polish ? "Do którego momentu chcesz wrócić?" : "Which moment would you like to go back to?",
+    metadata: { arc_id: arc, take_session_id: take.sessionId, take_index: take.takeIndex, take_exchange: true,
+      live_take_feedback: true, live_opening: true, project_chat: true, step: "praise",
+      ...(strength ? { snippet_id: strength.snippetId, coach_moment: {
+        arc_id: arc, take_session_id: take.sessionId, snippet_id: strength.snippetId, practise: false,
+      } } : {}) },
+  };
+}
+
+function useLiveOpening(
+  target: TakeReviewTarget, project: TrainingArc, artifact: Artifact | null,
+  rows: readonly LoungeMessage[], strength: FeedbackKeyMoment | null,
+  praise: ReturnType<typeof useBestSaid>, remember?: (draft: LoungeMessageDraft) => Promise<unknown>,
+) {
+  const locale = useUiLocale();
+  const sent = useRef(false);
+  useEffect(() => {
+    if (!target.live || !remember || !artifact || sent.current ||
+      rows.some((row) => row.metadata?.live_opening === true) || (strength && !praise.settled)) return;
+    sent.current = true;
+    void remember(liveOpening(project.arcId, target.take, strength, praise.text, locale === "pl")).catch(() => {
+      sent.current = false;
+    });
+  }, [target.live, target.take, project.arcId, artifact, rows, strength, praise, locale, remember]);
+}
+
+function reviewContextFocus(
+  focus: ReviewFocus, offer: LoungeMessage | undefined, lastMoment: LoungeMessage | undefined,
+  moment: FeedbackKeyMoment | null, opening: FeedbackKeyMoment | null,
+): ReviewFocus {
+  if (focus.step === "ideal") return focus;
+  if (offer && (!lastMoment || offer.client_created_at >= lastMoment.client_created_at)) return { step: "ideal" };
+  const selected = coachMomentFromMetadata(lastMoment?.metadata?.coach_moment);
+  if (selected) return { step: selected.practise ? "practise" : "feedback", snippet_id: selected.snippet_id };
+  return focusFor(focus.step, focus.step === "practise" ? moment : opening);
+}
+
+function TakeReviewDocument({
+  artifact, take, project, copy, draft, saveMessage, savingEdit, onPracticeEnded, onEdit, onSave,
+}: {
+  artifact: Artifact | null;
+  take: TrainingTake;
+  project: TrainingArc;
+  copy: ReviewRevision | null;
+  draft?: NonNullable<ReviewRevision["document"]["ideal_sections"]>;
+  saveMessage: string;
+  savingEdit: boolean;
+  onPracticeEnded: () => void;
+  onEdit: (sections: NonNullable<ReviewRevision["document"]["ideal_sections"]>) => void;
+  onSave: () => void;
+}) {
+  if (!artifact) return null;
+  if (artifact.live) return <div data-review-section="ideal">
+    <IdealTextOverlay key={take.sessionId} arcId={project.arcId} reviewTake={take.sessionId}
+      reviewTakeIndex={take.takeIndex} inlineDocument onClose={onPracticeEnded} />
+  </div>;
+  if (!artifact.revision) return null;
+  return <div data-review-section="ideal">
+    <ArchivedIdealText revision={artifact.revision} name={project.topic} take={take.takeIndex}
+      review={{ arcId: project.arcId, takeId: take.sessionId, copy, draft, status: saveMessage, saving: savingEdit, onEdit, onSave }} />
+  </div>;
 }
 
 export default function TakeReview({
   project, target, runs, messages, chat, recordingDock, exitRef, focusRef, onClose, onAsk, onPracticeEnded, renderFooter,
+  rememberOpening,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
@@ -207,6 +296,7 @@ export default function TakeReview({
   onAsk: (target: TakeReviewTarget) => void;
   onPracticeEnded: () => void;
   renderFooter?: (message: LoungeMessage) => ReactNode;
+  rememberOpening?: (draft: LoungeMessageDraft) => Promise<unknown>;
 }) {
   const { take } = target;
   const [artifact, setArtifact] = useState<Artifact | null>(null);
@@ -247,7 +337,11 @@ export default function TakeReview({
   const before = documentAt < 0 ? history : history.slice(0, documentAt);
   const after = documentAt < 0 ? [] : history.slice(documentAt);
   const moment = artifact?.evidence.moment ?? null;
-  const { moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
+  const { strength, moment: openingMoment, opening, praise } = useReviewOpening(take.sessionId, artifact?.evidence, history);
+  useLiveOpening(target, project, artifact, history, strength, praise, rememberOpening);
+  const inConversation = Boolean(target.live || history.some((item) => item.metadata?.live_take_feedback === true));
+  const idealOffer = history.find(isLiveIdealOffer);
+  const lastMoment = inConversation ? history.findLast((item) => item.metadata?.coach_moment != null) : undefined;
   const seenWalk = history.some((row) =>
     row.kind === "walk_step" && row.role === "bot" && (row.body.trim() || row.metadata?.clip),
   );
@@ -256,14 +350,13 @@ export default function TakeReview({
 
   useEffect(() => {
     if (!focusRef) return;
-    const step = target.focus.step;
-    const focus = step === "ideal" ? target.focus : focusFor(step, step === "practise" ? moment : openingMoment);
-    const active = { take, focus };
+    const focus = reviewContextFocus(target.focus, idealOffer, lastMoment, moment, openingMoment);
+    const active = { take, focus, live: inConversation };
     focusRef.current = active;
     return () => {
       if (focusRef.current === active) focusRef.current = null;
     };
-  }, [focusRef, target.focus, take, moment, openingMoment]);
+  }, [focusRef, target.focus, take, moment, openingMoment, idealOffer, lastMoment, inConversation]);
 
   useEffect(() => {
     article.current?.focus({ preventScroll: true });
@@ -293,11 +386,37 @@ export default function TakeReview({
     return true;
   }, Boolean(engine));
 
-  const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote });
-  const row = (message: LoungeMessage) => <TakeConversationMessage key={message.client_id} message={message}
+  const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote, live: inConversation });
+  const row = (message: LoungeMessage, footer = renderFooter?.(message)) => <TakeConversationMessage key={message.client_id} message={message}
     project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
     onRefer={(snippet, words) => refer({ step: "feedback", snippet_id: snippet }, words)}
-    footer={renderFooter?.(message)} />;
+    footer={footer} />;
+  const document = <TakeReviewDocument artifact={artifact} take={take} project={project} copy={copy}
+    draft={draft?.ideal_sections} saveMessage={saveMessage} savingEdit={savingEdit} onPracticeEnded={onPracticeEnded}
+    onEdit={(sections) => setDraft({ ideal_sections: sections })} onSave={() => void exit()} />;
+
+  if (inConversation) {
+    const rows = liveFeedbackRows(history);
+    const followUp = idealOffer?.metadata?.after_ideal_text;
+    return <div ref={article} tabIndex={-1} data-take-review data-live-take-feedback
+      className="flex w-full min-w-0 flex-col gap-2 outline-none">
+      {rows.map((message) => message === idealOffer ? <div key={message.client_id} className="contents">
+        {row(message, null)}
+        {document}
+        {typeof followUp === "string" ? <ConversationBubble><p className="whitespace-pre-wrap">{followUp}</p></ConversationBubble> : null}
+        <div className={WILLAB_CONTENT_RAIL}>{renderFooter?.(message)}</div>
+      </div> : row(message))}
+      {failed && !rows.length ? <div className={WILLAB_CONTENT_RAIL}>
+        <TakeReviewStatus project={project} take={take} replay failed loading={false} onRetry={() => setRefresh((v) => v + 1)} />
+      </div> : null}
+      {target.live && !failed && !rows.length ? <div className={WILLAB_CONTENT_RAIL}>
+        <TypingDots label="Will is replying" />
+      </div> : null}
+      {idealOffer && target.live ? <div className={WILLAB_CONTENT_RAIL + " flex justify-end"}>
+        <button type="button" className={LINK} onClick={onClose}>Minimise</button>
+      </div> : null}
+    </div>;
+  }
 
   return <div ref={article} tabIndex={-1} data-take-review aria-label={"Take " + take.takeIndex + " review"}
     className="flex w-full min-w-0 flex-col gap-2 outline-none">
@@ -308,23 +427,14 @@ export default function TakeReview({
     {engine ? <div className={WILLAB_CONTENT_RAIL} data-review-section={engine === "practise" ? "practise" : undefined}>
       <ReviewEngine arc={project.arcId} target={target} mode={engine} evidence={artifact?.evidence}
         recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closeEngine} />
-    </div> : before.map(row)}
+    </div> : before.map((message) => row(message))}
     {!engine ? <ReviewPracticeOffer evidence={artifact?.evidence} target={target} seenWalk={seenWalk}
       onTry={() => setEngine("practise")} /> : null}
     {!engine ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
       {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
     </ConversationBubble>) : null}
-    {!engine && artifact?.live ? <div data-review-section="ideal">
-      <IdealTextOverlay key={take.sessionId} arcId={project.arcId} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
-        inlineDocument onClose={onPracticeEnded} />
-    </div> : null}
-    {!engine && !artifact?.live && artifact?.revision ? <div data-review-section="ideal">
-      <ArchivedIdealText revision={artifact.revision} name={project.topic} take={take.takeIndex}
-        review={{ arcId: project.arcId, takeId: take.sessionId, copy, draft: draft?.ideal_sections,
-          status: saveMessage, saving: savingEdit, onEdit: (sections) => setDraft({ ideal_sections: sections }),
-          onSave: () => void exit() }} />
-    </div> : null}
-    {!engine ? after.map(row) : null}
+    {!engine ? document : null}
+    {!engine ? after.map((message) => row(message)) : null}
   </div>;
 }
 

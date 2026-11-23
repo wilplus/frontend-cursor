@@ -265,7 +265,7 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
       <PracticeDemo preview={preview} />
     </div> : <PracticeActions preview={preview} wording={kept} busy={saving} status={status}
       onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} /> : null}
-    engine={preview && practising ? <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history }}>
+    engine={preview && practising ? <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history, conversation: inline }}>
       <IdealTextOverlay arcId={reference.arc_id} reviewTake={reference.take_session_id} reviewTakeIndex={clip.takeIndex}
         initialMode="review" requireFeedbackWalk
         reviewAt={reviewAt}
