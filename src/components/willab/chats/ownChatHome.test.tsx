@@ -3,16 +3,16 @@
 STORY    As a host, I want to start my own chat from the list, pick its
          icon, and copy its link, so people I share it with can use it.
 OUTCOME
-  O1  Start your own chat sits at the bottom of the chat rows, above
-      Start a new project. Close leaves the list as it was.
+  O1  Start your own chat sits in the setup section below the chats.
+      Close leaves the list as it was.
   O2  Yes opens Build, pins the chat at the top under its name, and
-      hides the starter row. Back returns to that list.
+      turns the setup action into Edit your chat.
   O3  The share control copies /c/<id>, or the host's join path when
       one already exists, and says Link copied.
   O4  The circle starts as the initial, can be an emoji, and wears the
       three-dots badge at about 40% of the avatar.
-PROVES   O1 -> "the starter row sits above Start a new project, and Close changes nothing"
-         O2 -> "Yes pins the chat at the top and Back returns to the list"
+PROVES   O1 -> "the starter row sits in sidebar setup, and Close changes nothing"
+         O2 -> "Yes pins the chat and gives it a direct setup shortcut"
          O3 -> "Share copies the public link"
          O4 -> "the icon defaults to the initial and the badge is forty percent"
 */
@@ -78,7 +78,7 @@ function Door() {
 }
 
 describe("Start your own chat", () => {
-  it("the starter row sits above Start a new project, and Close changes nothing", async () => {
+  it("the starter row sits in sidebar setup, and Close changes nothing", async () => {
     const open = vi.fn();
     act(() => root.render(createElement(ProductHome, {
       knownProjects: [project],
@@ -88,10 +88,10 @@ describe("Start your own chat", () => {
       onOpenOwnChat: open,
     })));
     await flush();
-    expect(ids()).toEqual(["speaking-coach", "bro", "start-own-chat"]);
+    expect(ids()).toEqual(["speaking-coach", "bro", "set-up-speaking-coach", "start-own-chat"]);
     const row = host.querySelector("[data-home-row='start-own-chat']")!;
-    const action = host.querySelector("[data-start-new-project]")!;
-    expect(row.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row.closest("[data-chat-sidebar-setup]")).not.toBeNull();
+    expect(host.querySelector("[data-product-projects] [data-start-new-project]")).not.toBeNull();
     const starter = row.querySelector("button")!;
     starter.focus();
     await click("[data-home-row='start-own-chat'] button");
@@ -102,11 +102,11 @@ describe("Start your own chat", () => {
     expect(document.querySelector("[data-own-chat-sheet]")).toBeNull();
     expect(document.activeElement).toBe(starter);
     expect(readOwnChat().started).toBe(false);
-    expect(ids()).toEqual(["speaking-coach", "bro", "start-own-chat"]);
+    expect(ids()).toEqual(["speaking-coach", "bro", "set-up-speaking-coach", "start-own-chat"]);
     expect(open).not.toHaveBeenCalled();
   });
 
-  it("Yes pins the chat at the top and Back returns to the list", async () => {
+  it("Yes pins the chat and gives it a direct setup shortcut", async () => {
     act(() => root.render(createElement(Door)));
     await flush();
     await click("[data-home-row='start-own-chat'] button");
@@ -120,7 +120,10 @@ describe("Start your own chat", () => {
     expect(host.querySelector("[data-build-bar]")).toBeNull();
     expect(ids()[0]).toBe("own-chat");
     expect(host.querySelector("[data-home-row='own-chat']")?.textContent).toContain("Your chat");
-    expect(host.querySelector("[data-home-row='start-own-chat']")).toBeNull();
+    expect(host.querySelector("[data-home-row='start-own-chat']")?.textContent).toContain("Edit your chat");
+    await click("[data-home-row='start-own-chat'] button");
+    expect(host.querySelector("[data-build-bar]")).not.toBeNull();
+    expect(document.querySelector("[data-own-chat-sheet]")).toBeNull();
     rememberOwnName("Ask Artur");
     await flush();
     expect(host.querySelector("[data-home-row='own-chat']")?.textContent).toContain("Ask Artur");
@@ -150,7 +153,7 @@ describe("Start your own chat", () => {
     const badge = host.querySelector<HTMLElement>("[data-build-bar] [data-will-badge]")!;
     expect(badge.style.width).toBe(`${Math.round(36 * 0.4)}px`);
     const listed = host.querySelector<HTMLElement>("[data-home-row='own-chat'] [data-will-badge]")!;
-    expect(listed.style.width).toBe(`${Math.round(48 * 0.4)}px`);
+    expect(listed.style.width).toBe(`${Math.round(24 * 0.4)}px`);
     expect(host.querySelector("[data-chat-letter]")).not.toBeNull();
     await click("[data-icon-open]");
     expect(host.textContent).toContain("Pick a picture");

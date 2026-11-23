@@ -18,6 +18,7 @@ import {
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
+import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import {
   isRetiredLoungeMessage,
   loungeToHistory,
@@ -597,6 +598,7 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
+  coachSetup = 0,
   projectChatActive = false,
   onProjectTakeReady,
   onStartPlanRecording,
@@ -623,6 +625,7 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
+  coachSetup?: number;
   projectChatActive?: boolean;
   onProjectTakeReady?: (arcId: string, sessionId: string, scoped: boolean) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
@@ -656,6 +659,7 @@ export default function Lounge({
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
+  const sidebar = useWorkspaceSidebar();
   const ownsProjectConversations = onProjectTakeReady !== undefined;
   const openChat = useOpenChat();
   const composerScope = JSON.stringify(["lounge", userId, place, openChat]);
@@ -864,9 +868,7 @@ export default function Lounge({
       return;
     }
     if (action === "start_first_recording") {
-      // Same door as the empty Lounge's button; once a project exists, the
-      // projects, as the "+" opens them.
-      if (project) onStart();
+      if (project) (sidebar?.show ?? onStart)();
       else (onStartNewProject ?? onStart)();
       return;
     }
@@ -875,7 +877,8 @@ export default function Lounge({
       if (target) void answerFeedbackCheck(target, "skip");
       return;
     }
-    if (onOpenProject) onOpenProject(null);
+    if (sidebar) sidebar.show();
+    else if (onOpenProject) onOpenProject(null);
     else onStart();
   }
 
@@ -1832,6 +1835,14 @@ export default function Lounge({
     atBottomRef.current = true;
     pinBottom();
   }, [pinBottom]);
+  const seenCoachSetup = useRef(0);
+  useEffect(() => {
+    const rows = plan.rows;
+    if (place !== "speaking" || !coachSetup || coachSetup === seenCoachSetup.current || !rows?.plan) return;
+    seenCoachSetup.current = coachSetup;
+    if (rows.plan.onboarding) followAnswer();
+    else rows.onSeePlan();
+  }, [coachSetup, followAnswer, place, plan.rows]);
   // THE PROCESSING BUBBLE IS SHOWN (founder lock 2026-10-12, section 1):
   // it is not a message, so no new message brings it into view. When it
   // comes, and when the wait's ✕ shows the chat, the thread lands on it
@@ -2283,7 +2294,8 @@ export default function Lounge({
           openIdealText(arcId)
         }
         onOpenTranscripts={(arcId) => {
-          if (onOpenProject) onOpenProject(arcId ?? null);
+          if (!arcId && sidebar) sidebar.show();
+          else if (onOpenProject) onOpenProject(arcId ?? null);
           else onStart();
         }}
         // A GUEST'S WAY BACK TO THE TEXT (founder live test
@@ -2543,7 +2555,7 @@ export default function Lounge({
         nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
         held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
         busy={botThinking || !outbox.ready}
-        onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={onStart}
+        onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={sidebar?.show ?? onStart}
         onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
       />
 

@@ -14,7 +14,7 @@ flowchart TD
 
 The screen has the app's one top bar and its back arrow. Setup and visitor tests use the [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667). Setup fields can be typed. Visitor tests enable the files and mic actions the recipe accepts. Record, stop, and listen to a clip before sending, or discard it and try again.
 
-**Start your own chat** opens a centered confirmation dialog on a computer and a full-width bottom sheet with the Add someone handle on a phone (N668). The backdrop dims the whole viewport. Close, Escape, Back and tapping the backdrop return to the chat list. Confirming opens Chat Builder.
+**Start your own chat** sits at the bottom of the workspace sidebar (N671). It opens a centered confirmation dialog on a computer and a full-width bottom sheet with the Add someone handle on a phone (N668). The backdrop dims the whole viewport. Close, Escape, Back and tapping the backdrop return to the current chat. Confirming opens Chat Builder beside the sidebar and pins the chat by name. **Edit your chat** opens the builder again from the same place.
 
 The experiment's help chat uses the same composer throughout. The speaking prompt uses its voice-only state after consent, and the question field is enabled again at the rating step. Its optional case page is selected in Files before the session starts. In the default sample configuration, the recording preview is local and the readout is sample data.
 

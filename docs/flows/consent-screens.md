@@ -352,6 +352,10 @@ not app admission. The top row opens your profile (backend N366, /profile).
 The design: the locked prototype "One bar", version 12
 (<https://claude.ai/artifact/2v8jSi91F157WFR8tjX5E1>).
 
+In the signed-in chat workspace, the account menu opens upward from the
+bottom of the shared sidebar. Settings opens the same Data & consent page
+(N671).
+
 ### Amended 2026-11-04: by invitation (backend N471)
 
 Approved on the clickable prototype "Invite-Only Entry"

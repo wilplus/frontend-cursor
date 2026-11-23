@@ -1,194 +1,279 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
+import { Archive, Trash2 } from "lucide-react";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
+import type { Chat } from "@/services/api/chats";
 import type { TrainingArc } from "@/services/api/trainings";
-import LoadingState from "../LoadingState";
-import { useBackStop } from "../useBackDismiss";
-import { useSiteBarCovered } from "./siteBarCover";
-import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
-import ProductHome from "./ProductHome";
-import WillBuild from "./WillBuild";
-import { setOpenChat, setOpenPlace } from "./loungePlace";
-import { WillTopBar } from "./TopBar";
+import { fetchCoachDeletionProjects, type CoachProject, type Subchat } from "@/services/api/chatStructure";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText } from "@/lib/uiLocale";
-import type { Subchat } from "@/services/api/chatStructure";
-import BuiltChatSection from "./BuiltChatSection";
-import ProjectRowMenu from "../ProjectRowMenu";
-import { Archive, Trash2 } from "lucide-react";
-import { fetchCoachDeletionProjects, type CoachProject } from "@/services/api/chatStructure";
-import { useChatStructure } from "./useChatStructure";
 import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
-import type { TakeReviewTarget } from "../TakeReview";
+import LoadingState from "../LoadingState";
+import ProjectRowMenu from "../ProjectRowMenu";
+import { useBackStop } from "../useBackDismiss";
+import ProductHome from "./ProductHome";
+import WillBuild from "./WillBuild";
+import BuiltChatSection from "./BuiltChatSection";
+import { onAskedChatThread, setOpenChat, setOpenPlace } from "./loungePlace";
+import { TakesChatBar, TopBar } from "./TopBar";
+import { WillMark } from "./ChatList";
+import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
+import { useChatStructure } from "./useChatStructure";
 
-/* -------------------------------------------------------------------------- */
-/*  The speaking-coach door.                                                  */
-/*                                                                            */
-/*  People-chat reads remain mounted through useChatList: they continue to    */
-/*  support delivery, invitations, retries and other backend side effects.    */
-/*  They are intentionally not rendered as the speaking-coach home. The      */
-/*  product home has one coach destination, the active project conversations, */
-/*  and the new-project action.                                               */
-/* -------------------------------------------------------------------------- */
+const loading = () => <LoadingState placement="surface" />;
+const ChatThread = dynamic(() => import("./ChatThread"), { ssr: false, loading });
+const InquiryThread = dynamic(() => import("./InquiryThread"), { ssr: false, loading });
 
-export type ChatsDoor = {
-  back: ReactNode;
-  front: ReactNode;
-  navbar: boolean;
+type Destination =
+  | { kind: "coach" }
+  | { kind: "builder" }
+  | { kind: "built"; name: string; section: Subchat | "main" }
+  | { kind: "person"; chat: Chat; thread?: boolean };
+
+type Options = {
+  activeProject?: TrainingArc | null;
+  navigate?: (action: () => void) => void;
+  onLeaveProject?: () => void;
+  onOpenProject?: (project: TrainingArc) => void;
+  onStartNewProject?: () => void;
+  onRemoveProject?: (arcId: string) => void;
+};
+
+type ChatsDoor = {
+  enabled: boolean;
+  waiting: boolean;
+  activeChat: string;
+  sidebar: ReactNode;
+  heading: ReactNode;
+  pane: ReactNode;
   loungeCovered: boolean;
-  projects?: TrainingArc[];
-  speakingActive?: boolean;
-  openSpeaking?: () => void;
+  projects: TrainingArc[];
+  speakingActive: boolean;
+  coachSetup: number;
 };
 
-const WAITING: ChatsDoor = {
-  back: null,
-  navbar: true,
-  loungeCovered: true,
-  front: (
-    <div data-chats-front data-chats-waiting className="absolute inset-0 z-20 flex flex-col bg-background">
-      <LoadingState placement="surface" />
-    </div>
-  ),
-};
+function chatKey(destination: Destination): string {
+  if (destination.kind === "person") return `person:${destination.chat.id}`;
+  if (destination.kind === "built") return `built:${destination.section === "main" ? "main" : destination.section.id}`;
+  return destination.kind;
+}
 
-const CLOSED: ChatsDoor = { back: null, front: null, navbar: true, loungeCovered: false };
+function conversationStatus(destination: Destination, project: TrainingArc | null | undefined,
+  enabled: boolean, coachAvailable: boolean) {
+  const takesChat = destination.kind === "person" && destination.chat.takes && !destination.thread ? destination.chat : null;
+  const speakingActive = enabled && destination.kind === "coach" && coachAvailable;
+  const takesChatId = !project && enabled ? takesChat?.id ?? null : null;
+  return {
+    takesChat, takesChatId, speakingActive,
+    place: speakingActive || project || takesChatId ? "speaking" as const : null,
+    loungeCovered: Boolean(project) || (enabled && !speakingActive && !takesChat),
+    coachHeading: enabled && !project && destination.kind === "coach",
+  };
+}
 
-export function useChatsDoor(
-  willFirst: boolean,
-  _onRecordAnswer?: (answer: AnswerFor) => void,
-  options?: {
-    onOpenProject?: (project: TrainingArc, source?: "coach", target?: TakeReviewTarget) => void;
-    onStartNewProject?: () => void;
-  },
-): ChatsDoor {
+function availableDestination(destination: Destination, layout: NonNullable<ReturnType<typeof useChatStructure>["layout"]>) {
+  if (destination.kind === "builder") return layout.builder === "active";
+  if (destination.kind !== "built") return true;
+  if (layout.builder !== "active") return false;
+  const { section } = destination;
+  return section === "main" || layout.subchats.some((chat) => chat.id === section.id && !chat.archived);
+}
+
+export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, options?: Options): ChatsDoor {
   const decided = useChatsDecided();
-  const on = decided === true;
-  const barCovered = useSiteBarCovered();
+  const enabled = decided === true;
   const locale = useUiLocale();
-
-  // This read is deliberately retained even though its old rows no longer
-  // define the IA. It owns people-chat caches, invitation state and recurring
-  // refreshes that still feed delivery and related side effects.
-  useChatList(on);
+  const { chats: people, reload: reloadPeople } = useChatList(enabled);
   useForgetChatsSignedOut(decided);
 
-  const [speakingOpen, setSpeakingOpen] = useState(willFirst);
-  const [ownOpen, setOwnOpen] = useState(false);
-  const [ownSection, setOwnSection] = useState<{ name: string; section: Subchat | "main" } | null>(null);
+  const [destination, setDestination] = useState<Destination>({ kind: "coach" });
+  const [coachSetup, setCoachSetup] = useState(0);
+  const setupRequests = useRef(0);
   const [projects, setProjects] = useState<TrainingArc[]>([]);
-  const { layout, change } = useChatStructure();
-  const [deletionProjects, setDeletionProjects] = useState<CoachProject[] | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteFailed, setDeleteFailed] = useState(false);
-  const availableProjects = projects.filter((project) => !project.archived && !project.deletion);
-  useEffect(() => {
-    setOpenPlace(speakingOpen ? "speaking" : null);
-  }, [speakingOpen]);
-  useEffect(() => {
-    setOpenChat(null);
-    return () => {
-      setOpenPlace(null);
-      setOpenChat(null);
-    };
-  }, []);
-  useBackStop(speakingOpen);
+  const structure = useChatStructure();
+  const { layout, change } = structure;
+  const project = options?.activeProject;
+  const { takesChat, takesChatId, speakingActive, place, loungeCovered, coachHeading } =
+    conversationStatus(destination, project, enabled, layout?.coach !== "archived" && layout?.coach !== "deleted");
+  const takesChatName = takesChat?.title;
 
-  if (decided === null) return WAITING;
-  if (!on) return CLOSED;
+  useEffect(() => {
+    setOpenChat(takesChatId, takesChatName);
+    setOpenPlace(place);
+    return () => { setOpenPlace(null); setOpenChat(null); };
+  }, [takesChatId, takesChatName, place]);
+  useBackStop(enabled);
+
+  useEffect(() => {
+    if (layout && !availableDestination(destination, layout)) setDestination({ kind: "coach" });
+  }, [destination, layout]);
+
+  const navigate = options?.navigate ?? ((action: () => void) => action());
+  function open(next: Destination, setup = false) {
+    navigate(() => {
+      options?.onLeaveProject?.();
+      setDestination(next);
+      setCoachSetup(setup ? ++setupRequests.current : 0);
+    });
+  }
+  const openCoach = () => open({ kind: "coach" });
+  function openProject(arc: TrainingArc) {
+    if (arc.archived || arc.deletion || project?.arcId === arc.arcId) return;
+    navigate(() => {
+      setDestination({ kind: "coach" });
+      setCoachSetup(0);
+      options?.onOpenProject?.(arc);
+    });
+  }
+  function startProject() {
+    navigate(() => {
+      options?.onLeaveProject?.();
+      setDestination({ kind: "coach" });
+      setCoachSetup(0);
+      options?.onStartNewProject?.();
+    });
+  }
+  const openedPerson = (chat: Chat) => open({ kind: "person", chat });
+  const activeChat = project ? `project:${project.arcId}` : chatKey(destination);
+  const heading = coachHeading ?
+    <TopBar title={uiText(locale, "speakingCoach")} circle={<WillMark size={32} />} /> : null;
 
   return {
-    projects: availableProjects,
-    speakingActive: speakingOpen,
-    openSpeaking: () => setSpeakingOpen(true),
-    back: speakingOpen ? <>
-      <WillTopBar onBack={() => setSpeakingOpen(false)} place="speaking" right={<div className="flex items-center gap-1">{
-      availableProjects.length ? (
-        <select aria-label={uiText(locale, "chooseProject")} value="" className="min-h-10 max-w-[100px] truncate rounded-lg border border-border bg-background px-2 text-sm sm:max-w-[200px]"
-          onChange={(event) => {
-            const project = availableProjects.find((item) => item.arcId === event.target.value);
-            if (project) options?.onOpenProject?.(project, "coach");
-          }}>
-          <option value="">{uiText(locale, "chooseProject")}</option>
-          {availableProjects.map((project) => <option key={project.arcId} value={project.arcId}>{project.topic}</option>)}
-        </select>
-      ) : null}
-      {layout?.coach === "active" ? <ProjectRowMenu label={uiText(locale, "speakingCoach")} actions={[
-        { label: "Archive", icon: Archive, onRun: async () => {
-          const ok = await change({ action: "archive", section: "coach" });
-          if (ok) setSpeakingOpen(false);
-          return ok;
-        } },
-        { label: "Delete", icon: Trash2, destructive: true, onRun: async () => {
-          const affected = await fetchCoachDeletionProjects().catch(() => null);
-          if (!affected) return false;
-          setDeletionProjects(affected);
-          setDeleteFailed(false);
-          return true;
-        } },
-      ]} /> : null}
-      </div>} />
-      {deletionProjects ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-        <section role="alertdialog" aria-label="Delete Speaking coach?" aria-modal="true" className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-2xl bg-background p-4">
-          <h3 className="font-semibold">Delete Speaking coach?</h3>
-          <p className="text-sm">This deletes the Speaking coach conversation and requests deletion of these projects, including their chats and Takes.</p>
-          {deletionProjects.length ? <ul className="list-disc pl-5 text-sm">
-            {deletionProjects.map((project) => <li key={project.id}>{project.display_name}</li>)}
-          </ul> : null}
-          {deleteFailed ? <p role="alert" className="text-sm">The chat or project list changed. Review the list and try again.</p> : null}
-          <div className="flex justify-end gap-2">
-            <button type="button" className="min-h-11 px-3" disabled={deleting} onClick={() => setDeletionProjects(null)}>Cancel</button>
-            <button type="button" className="min-h-11 rounded-lg border border-border px-3 text-destructive" disabled={deleting} onClick={async () => {
-              setDeleting(true);
-              const ok = await change({ action: "delete", section: "coach", projects: deletionProjects.map((project) => project.id) });
-              if (ok) {
-                setDeletionProjects(null);
-                setSpeakingOpen(false);
-                setProjects([]);
-                void refreshProjectTrainings();
-                window.dispatchEvent(new Event("willab:speaking-chat-deleted"));
-              } else {
-                const affected = await fetchCoachDeletionProjects().catch(() => null);
-                if (affected) setDeletionProjects(affected);
-                setDeleteFailed(true);
-              }
-              setDeleting(false);
-            }}>Delete</button>
-          </div>
-        </section>
-      </div> : null}
-    </> : null,
-    navbar: !speakingOpen && !ownOpen && !ownSection && !barCovered,
-    loungeCovered: !speakingOpen,
-    // Keep the project index mounted behind Speaking coach. Returning is a
-    // local reveal, not a second network-backed boot of the same list.
-    // The host's own chat stays in this same front, so it is not hidden then.
-    front: (
-      <div
-        data-chats-front
-        aria-hidden={speakingOpen || undefined}
-        className={`${speakingOpen ? "hidden" : ""} absolute inset-0 z-20 overflow-hidden bg-background`}
-      >
-        <div className="contents" aria-hidden={Boolean(ownOpen || ownSection)}
-          ref={(element) => { if (element) element.inert = Boolean(ownOpen || ownSection); }}>
-          <ProductHome
-            onProjects={setProjects}
-            onOpenSpeaking={() => setSpeakingOpen(true)}
-            onOpenProject={(project) => options?.onOpenProject?.(project)}
-            onStartNewProject={() => options?.onStartNewProject?.()}
-            onOpenOwnChat={() => setOwnOpen(true)}
-            onOpenOwnSection={(name, section) => setOwnSection({ name, section })}
-          />
-        </div>
-        {ownOpen ? <WillBuild onBack={() => setOwnOpen(false)} onSaveChat={(doc) => {
-          const { spec, line, hello, questions, taps, send, who } = doc.chat;
-          return change({ action: "publish", chat: { name: doc.chat.name || doc.name,
-            spec, line, hello, questions: questions.map(({ q }) => q), taps, send, who } });
-        }} /> : null}
-        {ownSection ? <BuiltChatSection {...ownSection} mainId={layout?.main_chat_id} published={layout?.published_chat}
-          onBack={() => setOwnSection(null)} /> : null}
-      </div>
-    ),
+    enabled,
+    waiting: decided === null,
+    activeChat,
+    loungeCovered,
+    speakingActive,
+    coachSetup: speakingActive && !project ? coachSetup : 0,
+    projects: projects.filter((arc) => !arc.archived && !arc.deletion),
+    heading,
+    sidebar: enabled ? <ProductHome
+      activeChat={activeChat}
+      structure={structure}
+      people={people ?? []}
+      onProjects={setProjects}
+      onOpenPerson={openedPerson}
+      onOpenSpeaking={openCoach}
+      onSetUpSpeaking={() => open({ kind: "coach" }, true)}
+      coachActions={layout?.coach === "active" ? <CoachMenu change={change} onDelete={() => {
+        options?.onLeaveProject?.();
+        setProjects([]);
+      }} onArchive={() => { options?.onLeaveProject?.(); }} /> : null}
+      onOpenProject={openProject}
+      onRemoveProject={options?.onRemoveProject}
+      onStartNewProject={startProject}
+      onOpenOwnChat={() => open({ kind: "builder" })}
+      onOpenOwnSection={(name, section) => open({ kind: "built", name, section })}
+    /> : null,
+    pane: enabled && !project ? <ConversationPane
+      destination={destination}
+      takesChat={takesChat}
+      layout={layout}
+      change={change}
+      onBack={destination.kind === "person" && destination.thread ? () => openedPerson(destination.chat) : openCoach}
+      onOpenThread={(chat) => open({ kind: "person", chat, thread: true })}
+      onOpenPerson={(id) => {
+        const next = people?.find((chat) => chat.id === id);
+        if (next) openedPerson(next);
+      }}
+      onPersonGone={() => { reloadPeople(); openCoach(); }}
+      onRecordAnswer={onRecordAnswer}
+    /> : null,
   };
+}
+
+function ConversationPane({ destination, takesChat, layout, change, onBack, onOpenThread, onOpenPerson, onPersonGone, onRecordAnswer }: {
+  destination: Destination;
+  takesChat: Chat | null;
+  layout: ReturnType<typeof useChatStructure>["layout"];
+  change: ReturnType<typeof useChatStructure>["change"];
+  onBack: () => void;
+  onOpenThread: (chat: Chat) => void;
+  onOpenPerson: (id: string) => void;
+  onPersonGone: () => void;
+  onRecordAnswer?: (answer: AnswerFor) => void;
+}) {
+  useEffect(() => {
+    if (takesChat) return onAskedChatThread(() => onOpenThread(takesChat));
+  }, [takesChat, onOpenThread]);
+  if (destination.kind === "builder") return (
+    <WillBuild onBack={onBack} onSaveChat={(doc) => {
+      const { spec, line, hello, questions, taps, send, who } = doc.chat;
+      return change({ action: "publish", chat: { name: doc.chat.name || doc.name,
+        spec, line, hello, questions: questions.map(({ q }) => q), taps, send, who } });
+    }} />
+  );
+  if (destination.kind === "built") return (
+    <BuiltChatSection key={chatKey(destination)} {...destination} mainId={layout?.main_chat_id}
+      published={layout?.published_chat} onBack={onBack} />
+  );
+  if (destination.kind !== "person") return null;
+  const { chat } = destination;
+  if (takesChat) return <TakesChatBar chat={chat} onBack={onBack} onOpen={() => onOpenThread(chat)} />;
+  if (chat.inquiry) return <InquiryThread key={chat.id} chat={chat} inquiry={chat.inquiry}
+    onBack={onBack} onGone={onPersonGone} onRecordAnswer={onRecordAnswer} />;
+  return <ChatThread key={chat.id} chat={chat} onBack={onBack}
+    onOpenChat={onOpenPerson} onRecordAnswer={onRecordAnswer} />;
+}
+
+function CoachMenu({ change, onArchive, onDelete }: {
+  change: ReturnType<typeof useChatStructure>["change"];
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const locale = useUiLocale();
+  const [projects, setProjects] = useState<CoachProject[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function confirm() {
+    if (!projects || deleting) return;
+    setDeleting(true);
+    const ok = await change({ action: "delete", section: "coach", projects: projects.map((project) => project.id) });
+    if (ok) {
+      setProjects(null);
+      onDelete();
+      void refreshProjectTrainings();
+      window.dispatchEvent(new Event("willab:speaking-chat-deleted"));
+    } else {
+      const affected = await fetchCoachDeletionProjects().catch(() => null);
+      if (affected) setProjects(affected);
+      setFailed(true);
+    }
+    setDeleting(false);
+  }
+  return <>
+    <ProjectRowMenu label={uiText(locale, "speakingCoach")} actions={[
+      { label: "Archive", icon: Archive, onRun: async () => {
+        const ok = await change({ action: "archive", section: "coach" });
+        if (ok) onArchive();
+        return ok;
+      } },
+      { label: "Delete", icon: Trash2, destructive: true, onRun: async () => {
+        const affected = await fetchCoachDeletionProjects().catch(() => null);
+        if (!affected) return false;
+        setProjects(affected);
+        setFailed(false);
+        return true;
+      } },
+    ]} />
+    {projects ? createPortal(<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+      <section role="alertdialog" aria-label="Delete Speaking coach?" aria-modal="true"
+        className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-2xl border border-border bg-background p-4">
+        <h3 className="font-semibold">Delete Speaking coach?</h3>
+        <p className="text-sm">This deletes the Speaking coach conversation and requests deletion of these projects, including their chats and Takes.</p>
+        {projects.length ? <ul className="list-disc pl-5 text-sm">
+          {projects.map((project) => <li key={project.id}>{project.display_name}</li>)}
+        </ul> : null}
+        {failed ? <p role="alert" className="text-sm">The chat or project list changed. Review the list and try again.</p> : null}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="min-h-11 px-3" disabled={deleting} onClick={() => setProjects(null)}>Cancel</button>
+          <button type="button" className="min-h-11 rounded-lg border border-border px-3 text-destructive"
+            disabled={deleting} onClick={() => void confirm()}>Delete</button>
+        </div>
+      </section>
+    </div>, document.body) : null}
+  </>;
 }

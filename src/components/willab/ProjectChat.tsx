@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from "react";
 import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
 import {
   newestStamp,
@@ -57,7 +57,7 @@ import TakeReviewMessage, { readyForReview } from "./TakeReviewMessage";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
-import { ProjectChatNavigation, ProjectMenuToggle, type ProjectNavigation } from "./ProjectChatNavigation";
+import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
 
 type Opened = "walk" | "ideal" | "decision" | null;
@@ -456,11 +456,11 @@ function ProjectReviewContext({ topic, target, onReturn, onClear }: {
   </div>;
 }
 
-function ProjectChatHeader({ project, menuToggle, onBack }: {
-  project: TrainingArc; menuToggle: ReactNode; onBack: () => void;
+function ProjectChatHeader({ project, onBack }: {
+  project: TrainingArc; onBack?: () => void;
 }) {
   return <TopBar circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-    title={project.topic} subtitle="Project" beforeTitle={menuToggle} onBack={onBack} />;
+    title={project.topic} onBack={onBack} />;
 }
 
 function samePending(
@@ -508,7 +508,9 @@ export default function ProjectChat({
   recordingInProgress = false,
   handoffTake = null,
   initialReview = null,
-  navigation,
+  beforeLeaveRef,
+  initialDraft = "",
+  onDraftChange,
   onBack,
   onRecord,
   onRecordingSettled,
@@ -520,11 +522,14 @@ export default function ProjectChat({
   recordingInProgress?: boolean;
   handoffTake?: string | null;
   initialReview?: TakeReviewTarget | null;
-  navigation?: ProjectNavigation;
+  beforeLeaveRef?: MutableRefObject<ReviewExit | null>;
+  initialDraft?: string;
+  onDraftChange?: (draft: string) => void;
   onBack: () => void;
   onRecord: (arcId: string) => void;
   onRecordingSettled?: () => void;
 }) {
+  const workspace = useWorkspaceSidebar();
   const reviewExit = useRef<ReviewExit | null>(null);
   const leavingReview = useCallback((action: () => void) => (reviewExit.current ?? ((afterSave) => afterSave()))(action), []);
   const back = () => leavingReview(onBack);
@@ -553,9 +558,15 @@ export default function ProjectChat({
   const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
   const [takeReview, setTakeReview] = useState<TakeReviewTarget | null>(initialReview);
   const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
-  const [menuOpen, setMenuOpen] = useState(() =>
-    typeof window !== "undefined" && Boolean(window.matchMedia?.("(min-width: 768px)").matches));
-  const menuId = useId();
+  useEffect(() => {
+    if (!beforeLeaveRef) return;
+    beforeLeaveRef.current = (action) => {
+      if (recordingDock?.querySelector("[data-chat-capture]")) {
+        recordingDock.querySelector<HTMLButtonElement>("[data-chat-mic]")?.focus();
+      } else leavingReview(action);
+    };
+    return () => { beforeLeaveRef.current = null; };
+  }, [beforeLeaveRef, leavingReview, recordingDock]);
   const [askTarget, setAskTarget] = useState<TakeReviewTarget | null>(null);
   const slides = useUpdateSlides(activeProject.arcId, {
     hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
@@ -566,7 +577,8 @@ export default function ProjectChat({
     takeIndex: number;
   } | null>(null);
   const reviewSelection = projectReviewSelection(opened, openedPractice);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft);
+  useEffect(() => { onDraftChange?.(draft); }, [draft, onDraftChange]);
   const [sendingHere, setSending] = useState(false);
   const [typingQuestion, setTypingQuestion] = useState<string | null>(null);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["project", activeProject.arcId]));
@@ -781,16 +793,8 @@ export default function ProjectChat({
   }
 
   return (
-    <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
-      <ProjectChatHeader project={activeProject} onBack={back} menuToggle={navigation ?
-        <ProjectMenuToggle id={menuId} open={menuOpen} onClick={() => setMenuOpen((open) => !open)} /> : null} />
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        {navigation && menuOpen ? <ProjectChatNavigation id={menuId} active={activeProject}
-          projects={navigation.projects} onCoach={() => leavingReview(navigation.onCoach)}
-          onProject={(picked) => {
-            if (picked.arcId !== activeProject.arcId) leavingReview(() => navigation.onProject(picked));
-          }} /> : null}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+      <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
@@ -903,9 +907,6 @@ export default function ProjectChat({
         mic={{ label: recordLabel(coach, Boolean(hasPractice)), start: () => leavingReview(() => recordNext()), attrs: { "data-project-record": "" } }} />
       </div>
       {slides.layer}
-        </div>
-      </div>
-
       {opened ? (
         <IdealTextOverlay
           arcId={activeProject.arcId}

@@ -8,6 +8,7 @@ import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
 import { PageHeader } from "../PageHeader";
+import { useWorkspaceSidebar } from "./ChatWorkspace";
 import { W } from "./hostsetup/hostSetupCopy";
 
 /** Live or Build, the same switch on a chat and on the setup. */
@@ -49,19 +50,18 @@ export function TopBar({
   subtitle = null,
   onBack,
   onOpen = null,
-  beforeTitle = null,
   right = null,
 }: {
   circle: ReactNode;
   title: string;
   subtitle?: string | null;
-  onBack: () => void;
+  onBack?: () => void;
   /** On the right: one's own chat's Live · Build switch (backend N642 item 3). */
   right?: ReactNode;
   /** A person's chat: their circle and name open their profile (N366). */
   onOpen?: (() => void) | null;
-  beforeTitle?: ReactNode;
 }) {
+  const sidebar = useWorkspaceSidebar();
   const who = (
     <>
       {circle}
@@ -77,18 +77,17 @@ export function TopBar({
     <PageHeader
       data-chat-header
       safeArea
-      divider="viewport"
-      contentClassName="h-[60px] gap-1 px-[15px]"
+      divider={sidebar === null ? "viewport" : "container"}
+      contentClassName={`h-[60px] gap-1 px-[15px]${sidebar ? " !w-full" : ""}${sidebar?.needsSpace ? " pl-[58px]" : ""}`}
     >
-      <button
+      {onBack ? <button
         type="button"
         onClick={onBack}
         aria-label={CHUNK_SHEET_COPY.pagerBack}
         className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
       >
         <ChevronLeft className="h-6 w-6" aria-hidden />
-      </button>
-      {beforeTitle}
+      </button> : null}
       {onOpen ? (
         <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
           {who}

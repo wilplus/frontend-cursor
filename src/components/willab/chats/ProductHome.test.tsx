@@ -169,11 +169,11 @@ describe("Speaking coach home", () => {
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ arcId: "b" }));
   });
 
-  it("aligns project icons with the logo gutter and keeps the system row fixed", async () => {
+  it("keeps project controls within the coach group and floats the menu above the sidebar", async () => {
     await renderHome([arc("a", "Board pitch")]);
 
     const projectButton = host.querySelector('[data-chat-row="a"]');
-    expect(projectButton?.className).toContain("pl-0");
+    expect(projectButton?.closest("[data-product-projects]")).not.toBeNull();
     expect(button("More options for Speaking coach")).toBeUndefined();
     expect(button("More options for Board pitch")).toBeDefined();
     expect(button("More options for Board pitch")?.parentElement?.parentElement?.classList.contains("isolate"))
