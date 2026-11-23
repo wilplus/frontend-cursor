@@ -7,6 +7,7 @@ import { DashboardAccountMenu } from "@/components/dashboard/DashboardHeader";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText } from "@/lib/uiLocale";
 import DumpPullBar from "../DumpPullBar";
+import { ChatArtifactScope } from "./ChatArtifact";
 
 const WorkspaceSidebar = createContext<{ needsSpace: boolean; show: () => void } | null>(null);
 
@@ -80,7 +81,7 @@ export default function ChatWorkspace({ sidebar, viewKey, suspended = false, chi
       <div data-chat-main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         aria-hidden={drawer || undefined} ref={(element) => { element?.toggleAttribute("inert", drawer); }}>
         <WorkspaceSidebar.Provider value={{ needsSpace: !open && !suspended, show: () => desktop ? setDesktopOpen(true) : setMobileOpen(true) }}>
-          {children}
+          <ChatArtifactScope.Provider value={viewKey}>{children}</ChatArtifactScope.Provider>
         </WorkspaceSidebar.Provider>
       </div>
     </div>

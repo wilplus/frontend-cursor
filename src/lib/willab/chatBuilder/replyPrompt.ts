@@ -1,3 +1,5 @@
+import { chatArtifactContent } from "@/lib/willab/chatArtifact";
+
 /* How a visitor's message becomes a reply. The OpenAI call stays on the
    backend. This module is the rule the patch copies: who answers, the
    prompt, and what the visitor is allowed to see. No key lives here. */
@@ -119,6 +121,7 @@ export type ServerReply = {
   reply?: string | null;
   error?: "too-big" | "unreadable" | "too-long" | null;
   walk?: { key: string; text: string; at: number | null }[];
+  artifact?: unknown;
 };
 
 export type VisitorKind = "preview" | "reply" | "held" | "host" | "wait" | "too-big" | "unreadable" | "too-long";
@@ -132,6 +135,6 @@ export function visitorKind(body: ServerReply | null): VisitorKind {
   if (body.held) return "held";
   if (body.quiet) return "host";
   if (body.wait) return "wait";
-  if (body.shown && body.reply?.trim()) return "reply";
+  if (body.shown && (body.reply?.trim() || body.walk?.length || chatArtifactContent(body.artifact))) return "reply";
   return "preview";
 }

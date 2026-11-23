@@ -11,15 +11,19 @@ OUTCOME
       one already exists, and says Link copied.
   O4  The circle starts as the initial, can be an emoji, and wears the
       three-dots badge at about 40% of the avatar.
+  O5  A new specialist chat can reopen its saved structured reply in place.
 PROVES   O1 -> "the starter row sits in sidebar setup, and Close changes nothing"
          O2 -> "Yes pins the chat and gives it a direct setup shortcut"
          O3 -> "Share copies the public link"
          O4 -> "the icon defaults to the initial and the badge is forty percent"
+         O5 -> "a specialist reply keeps its artifact through a legacy save and reload"
 */
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrainingArc } from "@/services/api/trainings";
+import { bffFetch } from "@/lib/api/bffFetch";
+import type { BuiltChatTurn } from "@/services/api/chatStructure";
 import { OWN_CHAT_KEY, publicChatHref, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { speakingCoachSeed } from "@/lib/willab/chatBuilder/seed";
 import { clearTalkDraft, markTalkReady, saveTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
@@ -32,6 +36,7 @@ vi.mock("../useUserProfile", () => ({ useUserProfile: () => ({ profile: { first_
 
 import ProductHome from "./ProductHome";
 import WillBuild from "./WillBuild";
+import VisitorTry from "./hostsetup/VisitorTry";
 import { forgetSetup } from "./hostsetup/hostSetupDoor";
 import { forgetHostWork } from "./hostsetup/hostWork";
 
@@ -47,6 +52,7 @@ beforeEach(() => {
   clearTalkDraft();
   clearTileSteps();
   localStorage.clear();
+  sessionStorage.clear();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -78,6 +84,62 @@ function Door() {
 }
 
 describe("Start your own chat", () => {
+  it("a specialist reply keeps its artifact through a legacy save and reload", async () => {
+    const content = {
+      version: 1, title: "Consultation notes", preview: "Appointment details",
+      moment: "You asked about appointment availability.",
+      intervention: "Pick a day that suits you.", output: "Tuesday was confirmed.",
+    } as const;
+    const requests: BuiltChatTurn[] = [];
+    let history: BuiltChatTurn[] = [];
+    const api = vi.mocked(bffFetch);
+    api.mockImplementation(async (path, request) => {
+      if (path.endsWith("/reply")) return {
+        kind: "response", ok: true, status: 200, body: { shown: true, reply: "Here are the details.", artifact: content },
+      };
+      if (request?.method === "POST") {
+        const receipt = request.json as BuiltChatTurn;
+        requests.push(receipt);
+        const olderWriter = requests.length === 1;
+        history = [olderWriter ? { ...receipt, artifact: null } : receipt];
+        return { kind: "response", ok: true, status: 200, body: { saved: true, artifact_saved: !olderWriter } };
+      }
+      return { kind: "response", ok: true, status: 200, body: { turns: history } };
+    });
+    const preview = "[data-chat-artifact-preview]";
+    const doc = speakingCoachSeed();
+    const page = (key: string) => <VisitorTry key={key} name="Ask a trichologist" doc={doc} sends={["text"]}
+      onBack={() => undefined} section={{ id: "main", owner: "fixture" }} />;
+    try {
+      await act(async () => root.render(page("first")));
+      const input = host.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(input, "When can I come in?");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => host.querySelector("[data-chat-box]")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      await flush();
+      expect(requests[0]?.artifact).toEqual(content);
+      await click(preview);
+      expect(host.textContent).toContain("Tuesday was confirmed.");
+
+      await act(async () => root.render(page("again")));
+      expect(host.querySelectorAll(preview)).toHaveLength(1);
+      expect(host.querySelector("[data-chat-artifact-open]")).toBeNull();
+      const retry = [...host.querySelectorAll("button")].find((button) => button.textContent === "Try again");
+      expect(retry).toBeTruthy();
+      await act(async () => retry?.click());
+      expect(requests[1]).toEqual(requests[0]);
+      await act(async () => root.render(page("stored")));
+      await click(preview);
+      expect(host.querySelector("[data-artifact-section='moment']")?.textContent).toBe(content.moment);
+      expect(host.querySelector("[data-artifact-section='intervention']")?.textContent).toBe(content.intervention);
+      expect(host.querySelector("[data-artifact-section='output']")?.textContent).toBe(content.output);
+    } finally {
+      api.mockImplementation(async () => ({ kind: "response", ok: false, status: 404, body: { code: "NOT_FOUND" } }));
+    }
+  });
+
   it("the starter row sits in sidebar setup, and Close changes nothing", async () => {
     const open = vi.fn();
     act(() => root.render(createElement(ProductHome, {

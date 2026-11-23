@@ -627,6 +627,18 @@ export function practiceKey(source: FeedbackWalkModel<DocumentSuggestion>, step:
   return exercise ? `${step.key}:${exercise.exerciseId}:${exercise.version}` : step.key;
 }
 
+function afterSavedRewrite(
+  source: FeedbackWalkModel<DocumentSuggestion>, steps: WalkStep[], target: WalkStepTarget,
+): WalkStep[] {
+  const first = steps[0];
+  if (!target.settledRewrite || first?.key !== "clearer" || first.moment == null) return steps;
+  const clearer = source.moments[first.moment]?.clearer;
+  if (clearer?.decided !== target.settledRewrite || !steps.some((step) => step.key === "practise")) return steps;
+  return steps.slice(1).map((step) => step.key === "practise"
+    ? { ...step, kind: clearer.decided === "keep" ? "keep" : "words" }
+    : step);
+}
+
 /** The span to save on the paragraph as it is now: the walk's own span when
  *  the words have not changed under it, else the same words found again;
  *  null when they cannot be found once (nothing is guessed). Pure. */
@@ -1224,7 +1236,11 @@ export function useDeckFeedbackWalk(args: {
     (event: TempoEvent, one = false) => {
       if (!tempo) return;
       const say = (key: string, author: "app" | "speaker", body: string, attempt: number | null = null, extra?: Record<string, unknown>) =>
-        post({ key, moment: null, attempt, author, body, extra });
+        post({ key, moment: null, attempt, author, body, extra: {
+          ...extra,
+          snippet_id: tempo.snippetId,
+          ...(attempt !== null && tempoRunId.current ? { practice_run_id: tempoRunId.current } : {}),
+        } });
       if (event.kind === "opened") {
         const words = one ? tempoWords : null;
         // The stretch's clip, as the speaker's, before Will's line, as the
@@ -1238,7 +1254,6 @@ export function useDeckFeedbackWalk(args: {
       } else if (event.kind === "try") {
         say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, {
           path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000),
-          ...(tempoRunId.current ? { practice_run_id: tempoRunId.current } : {}),
         });
         // The Sniper as the One thing walk's fix says its own words (N309).
         const lines = one ? oneThingTempoLines(event.landed, event.n, tryCopy(publishedCoach)) : afterTry(event.result, event.landed, event.n);
@@ -1503,7 +1518,7 @@ export function useDeckFeedbackWalk(args: {
     if (target.practiceKey && target.practiceKey !== practiceKey(source, first)) return false;
     tempoRunId.current = first.key === "tempo" ? globalThis.crypto.randomUUID() : null;
     setReplaying({ ...source, scroll: false, plan: [
-      { key: "page", overlay: false }, ...steps, { key: "end", overlay: false },
+      { key: "page", overlay: false }, ...afterSavedRewrite(source, steps, target), { key: "end", overlay: false },
     ] });
     return openAt(1, true);
   }, [liveAll, model, tempo, openAt]);
@@ -1764,14 +1779,18 @@ export function useDeckFeedbackWalk(args: {
     const io = walkPractiseIO<DocumentSuggestion>(suggestionSource);
     // The moment each practice was opened on, so its tries name their
     // paragraph (a tap in the chat finds the exercise by it).
-    const openedOn = new Map<string, { moment: number | null; part_id: string | null }>();
+    const openedOn = new Map<string, { moment: number | null; part_id: string | null; snippet_id: string | null }>();
     const open: typeof io.open = async (item, passage) => {
       const practiceId = await io.open(item, passage);
       if (practiceId) {
         const moment = walkModelRef.current.moments.find(
           (m) => m.exercise?.item.id === item.id || m.practiseItem?.id === item.id || m.clearer?.item.id === item.id,
         );
-        openedOn.set(practiceId, { moment: moment?.index ?? null, part_id: moment?.partId ?? null });
+        openedOn.set(practiceId, {
+          moment: moment?.index ?? null,
+          part_id: moment?.partId ?? null,
+          snippet_id: item.snippetId ?? moment?.clip?.snippetId ?? null,
+        });
       }
       return practiceId;
     };
@@ -1784,15 +1803,16 @@ export function useDeckFeedbackWalk(args: {
       const sent = await io.upload(practiceId, audio, durationSec, stoppedAtMs, words);
       // A try the server could not hear is no try: nothing in the chat.
       if (sent && !("unheard" in sent)) {
-        const on = openedOn.get(practiceId) ?? { moment: null, part_id: null };
+        const on = openedOn.get(practiceId);
         post({
           key: `try:${practiceId}`,
-          moment: on.moment,
+          moment: on?.moment ?? null,
           attempt: sent.attempt,
           author: "speaker",
           body: words || WALK_COPY.practiseN(sent.attempt),
           extra: {
-            part_id: on.part_id,
+            part_id: on?.part_id ?? null,
+            snippet_id: on?.snippet_id ?? null,
             ...(sent.audio
               ? {
                   clip: {
@@ -2196,13 +2216,18 @@ export function useDeckFeedbackWalk(args: {
  *  One thing walk's fix its tip, for "Last time" next Take (N309). Pure. */
 function chatPartOf(
   step: WalkStep,
-  moment: { partId: string } | null,
+  moment: Pick<FeedbackWalkMoment, "partId" | "clip"> | null,
   ai: { line: string } | null | undefined,
   noClipTip: string | null = null,
-): { part_id: string | null; fix_tip?: string } {
+): { part_id: string | null; snippet_id?: string; fix_tip?: string } {
   // With no AI clip, the tip the fix said in words (N370).
   const tip = step.one ? (fixTipOf(step, ai ?? null) ?? noClipTip) : null;
-  return tip ? { part_id: moment?.partId ?? null, fix_tip: tip } : { part_id: moment?.partId ?? null };
+  const snippet = moment?.clip?.snippetId;
+  return {
+    part_id: moment?.partId ?? null,
+    ...(snippet ? { snippet_id: snippet } : {}),
+    ...(tip ? { fix_tip: tip } : {}),
+  };
 }
 
 /** The tip the One thing walk's fix gave (N309 item 1), kept with its step

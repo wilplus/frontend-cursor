@@ -882,6 +882,7 @@ export default function ProjectChat({
                 {reviewLink(message)}
               </div>
                 {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
+                  artifact={message.metadata?.chat_artifact}
                   project={activeProject.arcId} recordingDock={recordingDock} />}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>

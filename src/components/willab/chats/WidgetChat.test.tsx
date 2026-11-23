@@ -292,6 +292,10 @@ describe("the website chat on someone's site", () => {
     await openWidget();
     expect(container.querySelector("[data-widget-sign-up]")).toBeNull();
     expect(container.querySelector("[data-widget-signed-up]")?.textContent).toBe("Signed up. The first notice of the answer comes to your phone.");
+    expect(container.querySelector("[data-widget-voice]")).toBeNull();
+    const [firstReply, secondReply] = [...container.querySelectorAll("[data-chat-artifact-preview]")];
+    await tap(firstReply);
+    await tap(secondReply);
     const [spoken, silent] = [...container.querySelectorAll("[data-widget-voice]")];
     expect(spoken).toBeTruthy();
     expect(spoken.textContent).not.toContain("We work in Polish and English.");
@@ -306,6 +310,8 @@ describe("the website chat on someone's site", () => {
     await tap(container.querySelector("[data-widget-close]"));
     await tap(container.querySelector("[data-widget-pill]"));
     expect(container.querySelector("[data-widget-signed-up]")?.textContent).toBe("Signed up. The first notice of the answer comes to your email.");
+    expect(container.querySelector("[data-chat-artifact-preview]")).not.toBeNull();
+    expect(container.querySelector("[data-widget-voice]")).toBeNull();
   });
 
   it("WID-25: every call carries my secret, and a chat the backend forgot is forgotten here", async () => {
@@ -313,6 +319,7 @@ describe("the website chat on someone's site", () => {
     read = { messages: [VOICE], signed_up: true };
     await openWidget();
     expect(calls.length).toBeGreaterThan(0);
+    await tap(container.querySelector("[data-chat-artifact-preview]"));
     for (const c of calls) expect(c.guest).toBe("g1.secret");
     expect(calls.some((c) => c.url === `/api/v2/chats/widget/${TOKEN}/messages/v1/audio`)).toBe(true);
     read = null;

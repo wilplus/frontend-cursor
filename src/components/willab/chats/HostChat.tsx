@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getHost, markOf, type Host, type Mark } from "@/services/api/assistants";
 import type { ChatMessage } from "@/services/api/chats";
 import { AssistantMark } from "./ChatList";
+import { isRecordedReply } from "./ReplyArtifact";
 
 /* -------------------------------------------------------------------------- */
 /*  A host's own chat, as the person who joined it meets it (backend N578     */
@@ -79,7 +80,10 @@ export function MarkDot({ mark }: { mark: Mark | null }) {
 /** One recording sent to everyone who asked the same thing (backend N584
  *  item 3): in each person's own chat, under their own question quoted,
  *  with the match's colour. Any other message as it is. */
-export function AnswerQuote({ message, children }: { message: ChatMessage; children: ReactNode }) {
+export function AnswerQuote({ message, children, insideArtifact = false }: {
+  message: ChatMessage; children: ReactNode; insideArtifact?: boolean;
+}) {
+  if (!insideArtifact && isRecordedReply(message)) return <>{children}</>;
   const quote = message.meta?.quote as { words?: unknown } | undefined;
   const words = typeof quote?.words === "string" ? quote.words.trim() : "";
   if (!words) return <>{children}</>;

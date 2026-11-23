@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import type { ServerReply } from "@/lib/willab/chatBuilder/replyPrompt";
 
 /* -------------------------------------------------------------------------- */
 /*  A host's blank setup and what a visitor meets in that chat (backend       */
@@ -230,16 +231,7 @@ export async function sharedModels(): Promise<SharedModel[]> {
   return list<SharedModel>(body?.models);
 }
 
-export type AskReply = {
-  preview?: boolean;
-  shown?: boolean;
-  held?: boolean;
-  quiet?: boolean;
-  wait?: boolean;
-  reply?: string | null;
-  error?: "too-big" | "unreadable" | "too-long" | null;
-  walk?: { key: string; text: string; at: number | null }[];
-};
+export type AskReply = ServerReply;
 
 /** The host's chat, answered from their setup. Null or preview: use today's lines. */
 /** A Test answer the host keeps, for Training. The reply route stores it. */

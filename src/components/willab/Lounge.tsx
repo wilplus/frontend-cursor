@@ -18,6 +18,7 @@ import {
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
+import { chatArtifactContent } from "@/lib/willab/chatArtifact";
 import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
@@ -459,6 +460,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
   const suggestedActions = coerceSuggestedActions(response.suggested_actions);
   const productAction = productActionFromMetadata({ product_action: response.product_action });
   const moment = coachMomentFromMetadata(response.row_metadata?.coach_moment);
+  const artifact = chatArtifactContent(response.row_metadata?.chat_artifact);
   return {
     ...(suggestedActions.length > 0
       ? { suggested_actions: suggestedActions }
@@ -467,6 +469,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
         : {}),
     ...(productAction ? { product_action: productAction } : {}),
     ...(moment ? { coach_moment: moment } : {}),
+    ...(artifact ? { chat_artifact: artifact } : {}),
   };
 }
 
@@ -3180,7 +3183,7 @@ function BubbleBody({
           chunks={splitBotMessage(withoutCoachTranscriptFooter(message.body))}
           animate={animate}
         />
-        <CoachMoment raw={message.metadata?.coach_moment} recordingDock={recordingDock} />
+        <CoachMoment raw={message.metadata?.coach_moment} artifact={message.metadata?.chat_artifact} recordingDock={recordingDock} />
         <BotWays
           metadata={message.metadata}
           onChip={onChip}

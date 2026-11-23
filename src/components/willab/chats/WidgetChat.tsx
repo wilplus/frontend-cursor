@@ -28,6 +28,7 @@ import {
   widgetSignedUp,
 } from "@/components/willab/chats/joinCopy";
 import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
+import { ChatMessageWithArtifact } from "./ReplyArtifact";
 
 /* -------------------------------------------------------------------------- */
 /*  The website chat (backend N591, N595, N606, N610; rules: docs/flows/      */
@@ -456,7 +457,10 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
             ))
           : null}
         {messages.map((m) => (
-          <Bubble key={m.id} token={token} guest={guest ?? ""} message={m} />
+          <ChatMessageWithArtifact key={m.id} message={m}
+            recordedReply={!m.mine && m.kind === "voice" && m.meta?.question !== true}>
+            <Bubble token={token} guest={guest ?? ""} message={m} />
+          </ChatMessageWithArtifact>
         ))}
         {state.signedUp && state.noticeTo ? (
           <p data-widget-signed-up="" className="mx-auto mt-1 max-w-[86%] rounded-[10px] bg-muted px-2.5 py-1.5 text-center text-[12.5px] text-muted-foreground">

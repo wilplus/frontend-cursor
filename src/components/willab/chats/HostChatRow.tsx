@@ -47,7 +47,7 @@ export default function HostChatRow({ chatId, name, message, all, onOpen }: {
             onOpen();
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") onOpen();
+            if (e.target === e.currentTarget && e.key === "Enter") onOpen();
           }}
         >
           {row}

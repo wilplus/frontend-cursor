@@ -506,6 +506,8 @@ export type WalkStepTarget = {
   practise?: boolean;
   snippet?: string | null;
   practiceKey?: string;
+  /** An already saved choice made from the reply artifact. */
+  settledRewrite?: "accept" | "keep";
 };
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;

@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { TapRow } from "@/components/willab/WillQuestion";
+import WalkPlayer from "@/components/willab/walk/WalkPlayer";
+import { chatArtifactContent, type ChatArtifactContent } from "@/lib/willab/chatArtifact";
 import ChatComposer, { type ComposerFileAction } from "../ChatComposer";
+import { StructuredReplyArtifact } from "../ReplyArtifact";
 import { useComposerVoice } from "../useComposerVoice";
 import { OwnAvatar } from "./ChatIconPicker";
 import { TopBar } from "../TopBar";
 import { W } from "./hostSetupCopy";
-import type { SendKind } from "@/services/api/hostSetup";
+import type { AskReply, SendKind } from "@/services/api/hostSetup";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { askReply, keepReplyExample } from "@/services/api/hostSetup";
 import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
@@ -20,7 +24,47 @@ import { fetchBuiltChatTurns, keepBuiltChatTurn, type BuiltChatTurn } from "@/se
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
 
-type Bubble = { who: "them" | "me"; text: string; at?: number | null };
+type ReplayPoint = { source: string; at: number };
+type Bubble = { who: "them" | "me"; text: string; artifact?: ChatArtifactContent | null; replay?: ReplayPoint };
+type Recording = { id: string; src: string };
+
+function ownsReceipt(stored: BuiltChatTurn, receipt: BuiltChatTurn) {
+  return stored.client_id === receipt.client_id && (!receipt.artifact ||
+    JSON.stringify(chatArtifactContent(stored.artifact)) === JSON.stringify(chatArtifactContent(receipt.artifact)));
+}
+
+function shownReply(remote: AskReply, title: string, source?: string): Bubble {
+  const beats = remote.walk ?? [];
+  const best = beats.find((beat) => beat.key === "best");
+  const fix = beats.find((beat) => beat.key === "fix");
+  const words = beats.find((beat) => beat.key === "words");
+  const repair = [fix?.text, words?.text].filter(Boolean).join("\n\n");
+  const artifact = chatArtifactContent(remote.artifact) ?? chatArtifactContent({
+    version: 1, title, moment: best?.text, intervention: repair,
+  });
+  // These older replies supply a jump point in the upload. The preview
+  // keeps the point tied to the same file for as long as that file is held.
+  const at = best?.at ?? fix?.at;
+  const replay = source && typeof at === "number" && Number.isFinite(at) && at >= 0 ? { source, at } : undefined;
+  const text = remote.reply?.trim() || artifact?.preview || artifact?.moment || artifact?.intervention || artifact?.output || "";
+  return { who: "them", text, artifact, replay };
+}
+
+function VisitorLine({ line, recording }: { line: Bubble; recording: Recording | null }) {
+  const locale = useUiLocale();
+  const { text, artifact, replay } = line;
+  const repeated = artifact && [artifact.moment, artifact.intervention, artifact.output].includes(text);
+  const jump = recording && replay?.source === recording.id ? replay.at : null;
+  const player = recording && jump !== null ? <WalkPlayer seed={recording.id} src={recording.src}
+    label={locale === "pl" ? "Odtwórz od tego momentu" : "Play from this moment"}
+    startOffsetMs={Math.round(jump * 1000)} look="bare" /> : null;
+  return <div data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] self-end" : "min-w-0 space-y-2"}>
+    {text && !repeated ? <p className={line.who === "me"
+      ? "w-fit break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground"
+      : "w-fit max-w-[86%] break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{text}</p> : null}
+    <StructuredReplyArtifact content={artifact} momentControl={player} />
+  </div>;
+}
 
 function fileData(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -54,6 +98,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
   onWorks?: () => void;
   section?: { id: string; question?: string; owner: string };
 }) {
+  const locale = useUiLocale();
   const hello = section?.question ?? doc.chat.hello;
   const taps = section?.question ? [] : doc.chat.taps;
   const sectionId = section?.id;
@@ -66,6 +111,10 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
   const [historyReady, setHistoryReady] = useState(!section);
   const [historyFailed, setHistoryFailed] = useState(false);
   const [retryRead, setRetryRead] = useState(0);
+  const [recording, setRecording] = useState<Recording | null>(null);
+  useEffect(() => () => {
+    if (recording) URL.revokeObjectURL(recording.src);
+  }, [recording]);
   const pendingSend = useRef(false);
   useEffect(() => {
     if (!sectionId || !pendingKey) return;
@@ -77,15 +126,16 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
       if (!turns) return;
       let pending: BuiltChatTurn | null = null;
       try { pending = JSON.parse(sessionStorage.getItem(pendingKey) ?? "null"); } catch { /* private window */ }
-      if (pending && turns.some((turn) => turn.client_id === pending?.client_id)) {
+      const receipt = pending;
+      if (receipt && turns.some((turn) => ownsReceipt(turn, receipt))) {
         try { sessionStorage.removeItem(pendingKey); } catch { /* private window */ }
         pending = null;
       }
       setUnsaved(pending);
       setLines([
         ...(hello ? [{ who: "them" as const, text: hello }] : []),
-        ...(pending ? [...turns, pending] : turns).flatMap((turn): Bubble[] =>
-          [{ who: "me", text: turn.question }, { who: "them", text: turn.answer }]),
+        ...(pending ? [...turns.filter((turn) => turn.client_id !== pending?.client_id), pending] : turns).flatMap((turn): Bubble[] =>
+          [{ who: "me", text: turn.question }, { who: "them", text: turn.answer, artifact: chatArtifactContent(turn.artifact) }]),
       ]);
     }).catch(() => { if (active) setHistoryFailed(true); });
     return () => { active = false; };
@@ -98,16 +148,16 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
     });
     return () => { live = false; };
   }, [sectionId]);
-  const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>): Promise<Bubble[]> => {
+  const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>, source?: string): Promise<Bubble[]> => {
     const remote = await askReply(readOwnChat().id || "your-chat", {
       text: words, kind, ...extra, ...(sectionId ? { section_id: sectionId } : {}),
     });
     const seen = visitorKind(remote);
-    if (seen === "reply" && remote?.shown && remote.walk?.length && !remote.held) {
-      return remote.walk.map((beat) => ({ who: "them" as const, text: beat.text, at: beat.at }));
+    if (seen === "reply" && remote) {
+      const bubble = shownReply(remote, locale === "pl" ? "Informacja zwrotna" : "Feedback", source);
+      if (bubble.text) return [bubble];
     }
-    const text = seen === "reply" && remote?.reply ? remote.reply
-      : seen === "held" ? W.replyHeld
+    const text = seen === "held" ? W.replyHeld
       : seen === "host" ? W.replyHost
       : seen === "wait" ? W.replyWait
       : seen === "too-big" ? W.fileTooBig
@@ -130,7 +180,8 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
     if (!pendingKey) return;
     const answer = reply.map((bubble) => bubble.text).join("\n\n");
     if (!answer) return;
-    const receipt = { client_id: globalThis.crypto.randomUUID(), question, answer };
+    const artifact = reply.find((bubble) => bubble.artifact)?.artifact;
+    const receipt: BuiltChatTurn = { client_id: globalThis.crypto.randomUUID(), question, answer, ...(artifact ? { artifact } : {}) };
     try { sessionStorage.setItem(pendingKey, JSON.stringify(receipt)); } catch { /* private window */ }
     await save(receipt);
   };
@@ -175,8 +226,9 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
           return false;
         }
       }
-      const reply = await replyLines(words, isAudio ? "rec" : "text", { kind, data, mime: file.type, name: file.name });
-      if (isAudio) installReplay(file);
+      const source = isAudio ? globalThis.crypto.randomUUID() : undefined;
+      const reply = await replyLines(words, isAudio ? "rec" : "text", { kind, data, mime: file.type, name: file.name }, source);
+      if (source) setRecording({ id: source, src: URL.createObjectURL(file) });
       markTileStep("test", true);
       setLines((was) => [...was, { who: "me", text: words }, ...reply]);
       await keep(words, reply);
@@ -189,18 +241,6 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
       setBusy(false);
     }
   };
-  const sound = useRef<HTMLAudioElement | null>(null);
-  function installReplay(blob: Blob) {
-    clearReplay();
-    sound.current = new Audio(URL.createObjectURL(blob));
-  }
-  function clearReplay() {
-    if (!sound.current) return;
-    sound.current.pause();
-    URL.revokeObjectURL(sound.current.src);
-    sound.current = null;
-  }
-  useEffect(() => clearReplay, []);
   const voice = useComposerVoice({
     maxSeconds: AUDIO_MAX_SECONDS,
     enabled: sends.includes("rec"),
@@ -211,25 +251,13 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
   const files: ComposerFileAction[] = [];
   if (sends.includes("photo")) files.push({ label: "Send a photo", accept: "image/*", sendFile: (file) => sendMedia(file, "photo") });
   if (sends.includes("file")) files.push({ label: "Send a file", sendFile: (file) => sendMedia(file, "file") });
-  const replay = (at: number) => {
-    const audio = sound.current;
-    if (!audio) return;
-    audio.currentTime = at;
-    void audio.play().catch(() => undefined);
-  };
   return (
     <div data-visitor-try="" className="flex min-h-0 flex-1 flex-col bg-background">
       <TopBar circle={<OwnAvatar id={`visit-${name}`} name={name} size={36} />} title={name} onBack={onBack} />
       <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
         {historyFailed ? <button type="button" className="self-start underline" onClick={() => setRetryRead((n) => n + 1)}>Try again</button> : null}
         {note ? <p data-voice-note="" className="m-0 text-[15px] text-muted-foreground">{note}</p> : null}
-        {lines.map((line, n) => (
-          line.at != null ? (
-            <button key={n} type="button" data-visitor-line={line.who} data-walk-at={line.at} className="max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[16px]" onClick={() => replay(line.at ?? 0)}>{line.text}</button>
-          ) : (
-            <p key={n} data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] min-w-0 self-end break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground" : "max-w-[86%] min-w-0 self-start break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{line.text}</p>
-          )
-        ))}
+        {lines.map((line, n) => <VisitorLine key={n} line={line} recording={recording} />)}
       </div>
       {unsaved ? <button type="button" className="min-h-11 self-start px-4 text-sm underline" onClick={() => void save(unsaved)}>Try again</button> : null}
       {historyReady && (taps.length || onWorks) ? (

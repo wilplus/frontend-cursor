@@ -55,6 +55,7 @@ import { markChatOpened } from "./chatOpened";
 import { SEND_PICKED, askName, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
 import { MonthGrid } from "../plan/MonthGrid";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
+import { ChatMessageWithArtifact, isRecordedReply } from "./ReplyArtifact";
 
 /* -------------------------------------------------------------------------- */
 /*  A chat with someone (backend N298, N302, N306, N311, N321, N322; rules:   */
@@ -418,20 +419,24 @@ export function PhotoFull({ src, onClose }: { src: string; onClose: () => void }
  *  on the right, its time inside, bottom right; an emoji large, with its
  *  meaning and time under it; a voice note with its player; a photo or a
  *  file (N351). */
-export function ChatRow({
-  chatId,
-  message,
-  onPhoto,
-  sentLine,
-  name = "",
-}: {
+type ChatRowProps = {
   chatId: string;
   message: ChatMessage;
   onPhoto: (src: string) => void;
   sentLine: string;
   /** The other person, for a Take they sent ("{name} sent you Take {n}"). */
   name?: string;
-}) {
+};
+
+export function ChatRow(props: ChatRowProps) {
+  const { message } = props;
+  return <ChatMessageWithArtifact message={message}
+    quote={isRecordedReply(message) ? <AnswerQuote insideArtifact message={message}>{null}</AnswerQuote> : undefined}>
+    <ChatRowBody {...props} />
+  </ChatMessageWithArtifact>;
+}
+
+function ChatRowBody({ chatId, message, onPhoto, sentLine, name = "" }: ChatRowProps) {
   const time = clockTime(message.created_at);
   const card = message.meta?.setup_card as { rows?: { k: string; v: string }[] } | undefined;
   if (card) return <SetupCard name={firstName(name)} rows={card.rows ?? []} />;
