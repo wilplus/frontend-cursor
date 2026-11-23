@@ -90,6 +90,7 @@ import {
   clearPracticeResume,
   PRACTICE_CHUNK_SECONDS,
   readPracticeResume,
+  practiceSlideRange,
   type PracticeResumeSelection,
   writePracticeCheckpoint,
 } from "@/lib/willab/practiceResume";
@@ -673,14 +674,12 @@ export default function LabOverlay({
       // already flipped to lab_recording on the Setup submit (optimistic), so
       // there is no dispatch here — this only pins t=0 to the real recording start.
       recordStartRef.current = performance.now();
-      const chosenSlide = Math.min(
-        practiceResumeRef.current?.slideIndex ?? 0,
-        Math.max(recordingSlides.length - 1, 0),
-      );
+      const chosenSlide = practiceSlideRange(practiceResumeRef.current, recordingSlides.length).first;
       setCurrentSlide(chosenSlide);
       slideAdvancesRef.current = [{ index: chosenSlide, tMs: 0 }];
       clearPracticeResume(userId, arcId);
-      practiceResumeRef.current = null;
+      // Consume the persisted choice once, but keep this Take's bounds until
+      // recording ends. Navigation and the timer read this same selection.
     }
     // BE-2/R6-FE5 — no minimum-time gate: every stop submits. The BE analyzes
     // whatever arrived (its min-content 422 is retired server-side too).
@@ -1326,8 +1325,9 @@ export default function LabOverlay({
     // default one — their taps are real slide events either way.
     const total = recordingDeck.slides.length;
     if (total === 0) return;
+    const range = practiceSlideRange(practiceResumeRef.current, total);
     setCurrentSlide((c) => {
-      const next = Math.min(Math.max(index, 0), total - 1);
+      const next = Math.min(Math.max(index, range.first), range.last);
       if (next !== c) {
         slideAdvancesRef.current.push({
           index: next,
@@ -1458,6 +1458,9 @@ export default function LabOverlay({
   }
 
   function startNextTakeHere() {
+    // A new Take must not inherit the previous Take's consumed fragment.
+    // Retrying a rejected recording keeps its choice in onRecordAgain instead.
+    practiceResumeRef.current = null;
     // A re-read is just the next take on THIS presentation: keep the
     // deck (context) and arc (arcTakeIndex was already advanced on the
     // prior upload), drop the current take's readout/session/blob, and
@@ -1640,7 +1643,7 @@ export default function LabOverlay({
   retryProcessingRef.current = () => void retryProcessing();
 
   const look = answerLook(answer, state, uploadError, context?.target_length_seconds);
-  usePracticeChunkEnds(!answer, state, mic.state.status, elapsed, mic.stop);
+  usePracticeChunkEnds(!answer, state, mic.state.status, elapsed, mic.stop, practiceResumeRef.current);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -1845,8 +1848,9 @@ export default function LabOverlay({
               lastWasUploadRef.current = false;
               startPendingRef.current = false;
               recordStartRef.current = performance.now();
-              setCurrentSlide(0);
-              slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
+              const first = practiceSlideRange(practiceResumeRef.current, recordingSlides.length).first;
+              setCurrentSlide(first);
+              slideAdvancesRef.current = [{ index: first, tMs: 0 }];
               void mic.start();
             }}
             slides={recordingSlides}
@@ -1856,6 +1860,7 @@ export default function LabOverlay({
                 : (context?.presentationRef ?? null)
             }
             currentSlide={currentSlide}
+            practiceSelection={practiceResumeRef.current}
             roots={recordingRoots}
             onSlideChange={selectSlide}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
@@ -1995,6 +2000,7 @@ export function RecordingPhase({
   roots,
   onSlideChange,
   asks = null,
+  practiceSelection = null,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   /** The host draws "Getting your mic ready" itself, as one element across
@@ -2023,6 +2029,7 @@ export function RecordingPhase({
   /** An answer's person: the slide reads "{name} asks" over the question
    *  (backend N441 item 7). */
   asks?: string | null;
+  practiceSelection?: PracticeResumeSelection | null;
 }) {
   const uiLocale = useUiLocale();
   if (rejectedMsg) {
@@ -2064,7 +2071,7 @@ export function RecordingPhase({
     <ChatComposer recording={{
       elapsedMs: elapsed * 1000,
       targetSeconds: targetSec,
-      stop: currentSlide >= slides.length - 1 ? onStop : undefined,
+      stop: currentSlide >= practiceSlideRange(practiceSelection, slides.length).last ? onStop : undefined,
       discard: onDiscard,
       stopLabel,
       attrs: { "data-finish-take": "" },
@@ -2077,6 +2084,7 @@ export function RecordingPhase({
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
       <RecordingRoadmap
+        practiceSelection={practiceSelection}
         slides={slides}
         asks={asks}
         presentationRef={presentationRef}
@@ -2293,19 +2301,21 @@ function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: u
   };
 }
 
-/** Presentation Takes are practised in short chunks. The target duration in
- * setup remains the whole presentation's limit, not the recorder timer. */
+/** Only chunk practice auto-stops. Explicit whole rehearsal and answers are
+ * uncapped; setup's target duration remains an informational clock. */
 export function usePracticeChunkEnds(
   enabled: boolean,
   state: WillabState,
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
   elapsed: number,
   stop: () => unknown,
+  selection: PracticeResumeSelection | null = null,
 ) {
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const over =
     enabled &&
+    selection?.scope !== "whole" &&
     state === "lab_recording" &&
     micStatus === "recording" &&
     elapsed >= PRACTICE_CHUNK_SECONDS;

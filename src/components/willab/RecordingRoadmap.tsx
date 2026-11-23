@@ -12,6 +12,7 @@ import {
   recordingSlidesInLocale,
 } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
+import { practiceSlideRange, type PracticeResumeSelection } from "@/lib/willab/practiceResume";
 
 export interface RecordingRoot {
   slideIndex: number;
@@ -58,6 +59,7 @@ export default function RecordingRoadmap({
   onSlideChange,
   composer,
   asks = null,
+  practiceSelection = null,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
@@ -67,7 +69,9 @@ export default function RecordingRoadmap({
   composer: ReactNode;
   /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
   asks?: string | null;
+  practiceSelection?: PracticeResumeSelection | null;
 }) {
+  const { first, last: lastSlide } = practiceSlideRange(practiceSelection, slides.length);
   const locale = useUiLocale();
   const copy = recordingCopy(locale);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -103,9 +107,9 @@ export default function RecordingRoadmap({
   const canGo = useCallback(
     (dir: Dir) => {
       const next = currentSlideRef.current + dir;
-      return next >= 0 && next < slides.length;
+      return next >= first && next <= lastSlide;
     },
-    [slides.length]
+    [first, lastSlide]
   );
 
   const { glide, enter } = useRecordingGestures({
@@ -125,7 +129,7 @@ export default function RecordingRoadmap({
 
   const goToSlide = useCallback(
     (index: number) => {
-      const next = Math.min(Math.max(index, 0), slides.length - 1);
+      const next = Math.min(Math.max(index, first), lastSlide);
       if (slides.length === 0 || next === currentSlideRef.current) return;
       const dir: Dir = next < currentSlideRef.current ? -1 : 1;
       glide(dir, () => {
@@ -134,7 +138,7 @@ export default function RecordingRoadmap({
         onSlideChangeRef.current(next);
       });
     },
-    [glide, slides.length]
+    [glide, slides.length, first, lastSlide]
   );
 
   /** Back / Next slide. After a mouse click the focus goes back to the page,
@@ -153,7 +157,7 @@ export default function RecordingRoadmap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const last = currentSlide >= slides.length - 1;
+  const last = currentSlide >= lastSlide;
   const { poster, tall } = stageLook(slides, presentationRef, asks, roots);
 
   return (
@@ -220,11 +224,11 @@ export default function RecordingRoadmap({
         className="relative z-10 -mx-3 shrink-0 bg-background pt-2"
       >
         <div className="flex gap-2.5 px-2">
-          {slides.length > 1 ? (
+          {lastSlide > first ? (
             <button
               type="button"
               onClick={press(currentSlide - 1)}
-              disabled={currentSlide === 0}
+              disabled={currentSlide === first}
               className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
             >
               {copy.back}

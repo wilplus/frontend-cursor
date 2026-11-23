@@ -542,20 +542,23 @@ O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
 O4  Every route to the current Ideal Text preserves the decision to
-continue to the next fragment or repeat this fragment.
+rehearse the whole presentation or repeat the selected fragment.
 O5  The project-card CTAs keep the selected Take and route distinct:
 Feedback opens its exact Feedback Walk range; Ideal Text stays
 on Ideal Text.
 O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
 O7  A refused quick choice remains one durable user turn with one
-recoverable error instead of disappearing.","O1 -> ""puts the result before the project conversation""
+recoverable error instead of disappearing.
+O8  After my first full Take, both rehearsal choices stay available;
+an unavailable fragment span falls back to the whole presentation.","O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""keeps the fragment decision when Ideal Text opens from the card""
 O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
 O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
-O7 -> ""keeps a refused quick choice once with one recoverable error""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
+O7 -> ""keeps a refused quick choice once with one recoverable error""
+O8 -> ""as a speaker after my first full Take, I can rehearse even before a fragment span is available""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.
@@ -1253,8 +1256,11 @@ is up, and its line reads ""Only me"" (in the people shape with sending
 on, so the line opens ""Who hears this Take"" with nobody ticked; in the
 community shape with sending off). A choice kept on the phone from
 before is dropped, never applied. Nobody in my list: no line. A read
-that does not answer still records within 1.5 s.","O1 -> ""is ● Record Take N and a grey Close, the one way out""
-O2 -> ""records at once with nothing sent, whatever was chosen before; its line is Only me""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2: founder 2026-11-10, backend N626 (""I don't want to send it to others now""; ""Nothing by default""), replacing the remembered choice of N309 item 5, N470 and N479 item 5."
+that does not answer still records within 1.5 s.
+O3  Both rehearsal choices follow the active UI language and invoke their
+own action, while the served readiness label and its dot stay intact.","O1 -> ""is ● Record Take N and a grey Close, the one way out""
+O2 -> ""records at once with nothing sent, whatever was chosen before; its line is Only me""
+O3 -> ""as a Polish-speaking user, I can choose either rehearsal scope in my UI language""","Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen. O2: founder 2026-11-10, backend N626 (""I don't want to send it to others now""; ""Nothing by default""), replacing the remembered choice of N309 item 5, N470 and N479 item 5."
 src/components/willab/idealTextCantLoad.test.tsx,Story,"As a speaker whose Ideal Text could not load, I want the page to try again by itself and give me Try again, so that I never have to close and reopen it to see my words.","O1  The line shows with ""Try again"" under it; the page reads again by
 itself 3 s and 10 s after the failed load, the line staying on screen
 while it reads, and then stops.
@@ -1320,9 +1326,13 @@ keeps tracking it.
 O3  The ✕ on the processing screen while the Take is still going up
 closes the screens, and the chat says at once that the Take is on its
 way; once the server has it the chat still gets it: its ""Your
-Recording"" line and the marker the chat follows.","O1 -> ""Back while recording asks first, and the Take keeps recording""
+Recording"" line and the marker the chat follows.
+O4  My fragment reaches the real recorder and upload with original page indices.
+O5  My whole-presentation rehearsal is not stopped at five minutes.","O1 -> ""Back while recording asks first, and the Take keeps recording""
 O2 -> ""after Record again, Try processing again sends the new Take, never the old one""
-O3 -> ""the ✕ while the Take goes up still brings it to the chat""","Founder 2026-11-09, backend N560 items 1 and 2 (""Ask, like the ✕""; ""Yes, fix it""): Back threw the Take away without asking, and the retry could restart the old Take (Never 3, Never 5). O3: founder 2026-11-10, ""the takes are not being displayed on the chat and when I click to close the processing screen it must not invent a processing bubble before the upload is accepted (Never 3)."
+O3 -> ""the ✕ while the Take goes up still brings it to the chat""
+O4 -> ""as a speaker, my selected fragment reaches the recorder and upload with its original slide index""
+O5 -> ""as a speaker, my whole-presentation rehearsal keeps recording beyond five minutes""","Founder 2026-11-09, backend N560 items 1 and 2 (""Ask, like the ✕""; ""Yes, fix it""): Back threw the Take away without asking, and the retry could restart the old Take (Never 3, Never 5). O3: founder 2026-11-10, ""the takes are not being displayed on the chat and when I click to close the processing screen it must not invent a processing bubble before the upload is accepted (Never 3)."
 src/components/willab/labEntryOpensAtOnce.test.tsx,Story,"As a speaker, I want ""How do you feel?"" on screen the moment I tap ""Record Take N"", so that the next Take never makes me wait on a screen I already passed (founder 2026-11-09, backend N549).","O1  Once this tab has read ""authorized"", the Lab's first screen draws on
 the first render, while the Lab's own read is still out.
 O2  The door still holds: until that read answers the entry is not
@@ -1724,11 +1734,16 @@ changes; only the slide and its helper words change.
 O5  An answer (N441): the top bar is the person's name alone, its one
 slide is drawn as ""{name} asks"" over the question, and Finish take
 stands alone in the row; it has no five-minute cap (N486 item 4), so
-half an hour in, it is still recording until Finish take.","O1 -> ""reads Take N · Slide n of m, and nothing above the slide repeats it""
+half an hour in, it is still recording until Finish take.
+O6  A chosen fragment keeps its original deck pages and helper words;
+Back and keyboard navigation cannot leave it; Finish take ends it.
+O7  Whole-presentation rehearsal starts on slide 1 and can pass five minutes.","O1 -> ""reads Take N · Slide n of m, and nothing above the slide repeats it""
 O2 -> ""turns Next slide into the red Finish take on the last slide, which ends the Take""
 O3 -> ""goes forward, never presses the clicked Back again""
 O4 -> ""keeps the top bar, the strip and the buttons through a slide change""
-O5 -> ""an answer: the name alone, the asker on its one slide, Finish take alone, no five-minute cap""",Founder lock 2026-10-12 (N70); locked recording screen.
+O5 -> ""an answer: the name alone, the asker on its one slide, Finish take alone, no five-minute cap""
+O6 -> ""as a speaker repeating slides 2–3, I stay within that fragment and finish on its last slide""
+O7 -> ""as a speaker rehearsing the whole presentation after Take 1, I start on slide 1 and can record beyond five minutes""",Founder lock 2026-10-12 (N70); locked recording screen.
 src/components/willab/saveBehind.test.tsx,Story,"As a speaker, I want my taps saved in the background, with one notice and a Retry if a save fails, so that I never wait and never silently lose an answer.","O1  A failed save shows the notice; Retry sends the same save again and
 the notice goes away.
 O2  Using helper words first locks the paragraph, then saves the words.","O1 -> ""a failure shows the notice, and Retry sends the same write again""
@@ -2413,9 +2428,9 @@ src/lib/willab/paragraphOverlay.test.ts,Story,"As a speaker, I want the paragrap
 O2  With helper words already saved, Next does not open the word picker.","O1 -> a moment that needed work opens on its exercise, else its rewrite, else itself
 O2 -> Next opens the helper words on unsaved words only",
 src/lib/willab/partsFromCorePieces.test.ts,Story,"As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.",O1  Paragraphs built from the server's pieces keep the server's paragraph identities.,O1 -> keeps the core's Paragraph identity,Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
-src/lib/willab/practiceResume.test.ts,Story,"As a speaker continuing a project, I want my chosen fragment and time to apply to one Take, so that later practices keep their own choices.","O1  The choice is scoped to account and project.
+src/lib/willab/practiceResume.test.ts,Story,"As a speaker continuing a project, I want my chosen fragment to apply to one Take, so that later practices keep their own choices.","O1  The choice is scoped to account and project.
 O2  The durable checkpoint is the slide where recording actually
-stopped, not the slide where it began.","O1 -> ""keeps duration and slide scoped to the account and project""
+stopped, not the slide where it began.","O1 -> ""keeps my fragment private to my account and project""
 O2 -> ""keeps the actual stopping slide after consuming the selection""",Founder 2026-11-15: timer and fragment choice belong to continuation.
 src/lib/willab/praiseLane.test.ts,Story,"As a speaker, I want praise to compare me only to myself and never show a number, so that feedback is personal and in words.","O1  No praise line compares me to others (""than most/others/average""); the
 lines that compare say ""you usually"".

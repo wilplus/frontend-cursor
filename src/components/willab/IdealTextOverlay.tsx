@@ -99,7 +99,7 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { PageHeader } from "./PageHeader";
-import type { PracticeDeliveryLabel } from "@/services/api/trainings";
+import type { PracticeDecision } from "@/lib/willab/practiceResume";
 
 type IdealTextSaveStatus = "saved" | "authority" | "error" | null;
 
@@ -195,11 +195,7 @@ export default function IdealTextOverlay({
   onReadAloud,
 }: {
   arcId: string;
-  practiceDecision?: {
-    deliveryLabel?: PracticeDeliveryLabel;
-    onFragment: () => void;
-    onWholePresentation: () => void;
-  };
+  practiceDecision?: PracticeDecision;
   /** With "review": the Lounge step tapped, where the walk opens. */
   reviewAt?: WalkStepTarget | null;
   takeReviewEdit?: boolean;

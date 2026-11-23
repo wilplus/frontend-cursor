@@ -27,12 +27,6 @@ export const IDEAL_EDIT_COPY = {
      so any specific line here would be a guess presented as fact. */
   recordUnavailable: "Recording another take is not available right now.",
 
-  /* Project practice's two scopes (founder-approved continuation handoff,
-     2026-11-18). Keep these here so the paired CTA cannot introduce a second
-     copy path or drift from the app's localized-copy boundary. */
-  practiceRepeatFragment: "Repeat this fragment",
-  practiceWholePresentation: "Rehearse whole presentation",
-
   /* --- failures ---------------------------------------------------------- */
   /* --- V3 could not make the Feedback (Phase 2; signed off 2026-10-04) --- */
   feedbackFailed:

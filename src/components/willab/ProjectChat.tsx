@@ -44,7 +44,7 @@ import { recordLabel } from "@/lib/willab/chatBuilder/screenCopy";
 import { useUserId } from "./useUserId";
 import { refreshLiveIdealDoc } from "./ReportCard";
 import {
-  PRACTICE_CHUNK_SECONDS,
+  practiceSelection,
   readPracticeCheckpoint,
   writePracticeResume,
 } from "@/lib/willab/practiceResume";
@@ -714,17 +714,8 @@ export default function ProjectChat({
 
   function startPractice(scope: "fragment" | "whole"): void {
     const latest = openedPractice ?? practiceChunks.at(-1) ?? null;
-    const startSlide = scope === "whole" ? 1 : latest?.startSlide ?? 1;
-    const endSlide = scope === "whole"
-      ? slideCount ?? undefined
-      : latest?.endSlide ?? slideCount ?? undefined;
-    writePracticeResume(userId, activeProject.arcId, {
-      durationSeconds: PRACTICE_CHUNK_SECONDS,
-      slideIndex: Math.max(0, startSlide - 1),
-      scope,
-      startSlide,
-      ...(endSlide === undefined ? {} : { endSlide }),
-    });
+    const span = activeProject.practiceChunks.find((chunk) => chunk.latestSessionId === latest?.latestSessionId);
+    writePracticeResume(userId, activeProject.arcId, practiceSelection(scope, span));
     setOpened(null);
     startRecording();
     onRecord(activeProject.arcId);

@@ -7,7 +7,7 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
              and, once released, follows the answer instead of jumping ahead.
          O3  The project uses one chat top bar and the standard answer controls.
          O4  Every route to the current Ideal Text preserves the decision to
-             continue to the next fragment or repeat this fragment.
+             rehearse the whole presentation or repeat the selected fragment.
          O5  The project-card CTAs keep the selected Take and route distinct:
              Feedback opens its exact Feedback Walk range; Ideal Text stays
              on Ideal Text.
@@ -15,6 +15,8 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
              reply or recoverable error are always brought into view.
          O7  A refused quick choice remains one durable user turn with one
              recoverable error instead of disappearing.
+         O8  After my first full Take, both rehearsal choices stay available;
+             an unavailable fragment span falls back to the whole presentation.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
@@ -22,6 +24,7 @@ PROVES   O1 -> "puts the result before the project conversation"
          O5 -> "keeps the selected Take and range on Feedback while Ideal Text remains separate"
          O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
          O7 -> "keeps a refused quick choice once with one recoverable error"
+         O8 -> "as a speaker after my first full Take, I can rehearse even before a fragment span is available"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -280,6 +283,17 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("project conversation", () => {
+  it("as a speaker after my first full Take, I can rehearse even before a fragment span is available", async () => {
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "4");
+    render({ ...project, practiceChunks: [] });
+    await act(async () => { await Promise.resolve(); });
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.querySelectorAll("[data-choice]")).toHaveLength(2);
+    act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toEqual({ scope: "whole" });
+    expect(onRecord).toHaveBeenCalledWith("arc-a");
+  });
+
   it("reopens the selected Take and retries an anchored review question once after reload", async () => {
     const twoTakes = {
       ...project,
@@ -419,10 +433,7 @@ describe("project conversation", () => {
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
-      durationSeconds: 300,
-      slideIndex: 0,
       scope: "whole",
-      startSlide: 1,
     });
   });
 
@@ -451,8 +462,6 @@ describe("project conversation", () => {
     act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
     expect(onRecord).toHaveBeenCalledTimes(1);
     expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
-      durationSeconds: 300,
-      slideIndex: 2,
       scope: "fragment",
       startSlide: 3,
       endSlide: 5,
@@ -477,7 +486,7 @@ describe("project conversation", () => {
       (button) => button.textContent === "Repeat this fragment",
     )!.click());
     expect(onRecord).toHaveBeenCalledWith("arc-a");
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"startSlide":1');
   });
 
   it("keeps the selected Take and range on Feedback while Ideal Text remains separate", () => {
@@ -539,16 +548,13 @@ describe("project conversation", () => {
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(onRecord).toHaveBeenNthCalledWith(1, "arc-a");
     expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
-      slideIndex: 0,
       scope: "whole",
-      startSlide: 1,
     });
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Repeat this fragment")!.click());
     expect(onRecord).toHaveBeenNthCalledWith(2, "arc-a");
     expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
-      slideIndex: 0,
       scope: "fragment",
       startSlide: 1,
       endSlide: 2,
@@ -566,7 +572,7 @@ describe("project conversation", () => {
     expect(host.textContent).not.toContain("Finish presentation");
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(onRecord).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toEqual({ scope: "whole" });
   });
 
   it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {
