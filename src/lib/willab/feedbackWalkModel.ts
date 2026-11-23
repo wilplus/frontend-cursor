@@ -229,6 +229,23 @@ export type FeedbackWalkModel<R = unknown> = {
   scroll?: boolean;
 };
 
+const PRACTICE_STEPS = new Set(["tempo", "clearer", "exVideo", "practise", "processing", "improved", "encourage", "thanks", "late"]);
+
+/** The practice this plan serves on the nominated clip. */
+export function pickedPracticeSteps(
+  source: FeedbackWalkModel, snippet: string | null | undefined, tempoSnippet: string | null | undefined,
+): WalkStep[] {
+  const actions = source.plan.filter((step) => PRACTICE_STEPS.has(step.key));
+  const first = actions.find((step) => !snippet || (
+    step.key === "tempo" ? tempoSnippet === snippet
+      : step.moment != null && source.moments[step.moment]?.clip?.snippetId === snippet
+  ));
+  if (!first) return [];
+  return actions.filter((step) => first.key === "tempo"
+    ? step.key === "tempo"
+    : step.key !== "tempo" && step.moment === first.moment);
+}
+
 /** The tries a moment's practise already had, as the replay plays them
  *  (founder 2026-10-14, walk first: "an exercise already done plays its
  *  tries"): the machine's answer per try in order, each try's voice by its
@@ -488,6 +505,7 @@ export type WalkStepTarget = {
   step?: string | null; moment?: number | null; take?: string | null; part?: string | null;
   practise?: boolean;
   snippet?: string | null;
+  practiceKey?: string;
 };
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;

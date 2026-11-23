@@ -9,6 +9,7 @@ import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
+import CoachMoment from "./CoachMoment";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   ChatQueryRequestError,
@@ -16,6 +17,7 @@ import {
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
+import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
@@ -23,6 +25,7 @@ import {
   isRetiredLoungeMessage,
   loungeToHistory,
   splitBotMessage,
+  withoutCoachTranscriptFooter,
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
@@ -455,6 +458,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
   const suggested = coerceSuggestedAction(response.suggested_action);
   const suggestedActions = coerceSuggestedActions(response.suggested_actions);
   const productAction = productActionFromMetadata({ product_action: response.product_action });
+  const moment = coachMomentFromMetadata(response.row_metadata?.coach_moment);
   return {
     ...(suggestedActions.length > 0
       ? { suggested_actions: suggestedActions }
@@ -462,6 +466,7 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
         ? { suggested_action: suggested }
         : {}),
     ...(productAction ? { product_action: productAction } : {}),
+    ...(moment ? { coach_moment: moment } : {}),
   };
 }
 
@@ -667,6 +672,7 @@ export default function Lounge({
   const { messages } = outbox;
   const { reload } = thread;
   const draft = useLoungeDraft(composerScope);
+  const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
   const { value: draftText, setDraft: setDraftText, focus: focusComposer } = draft;
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
@@ -2288,6 +2294,7 @@ export default function Lounge({
       <Bubble
         key={item.reactKey}
         message={item.message}
+        recordingDock={recordingDock}
         shareLine={shares.get(item.message.client_id) ?? null}
         shareChange={shareChange?.recording === item.message.client_id ? shareChange : null}
         onOpenBestPresentation={(arcId) =>
@@ -2550,14 +2557,17 @@ export default function Lounge({
         {plan.sheets}
         {plan.barMiddle}
       </PlaceOnly>
-      <LoungeComposer key={composerScope}
-        place={place} openChat={openChat} draft={draft} plan={plan} keyLine={keyLine} notebook={notebook}
-        nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
-        held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
-        busy={botThinking || !outbox.ready}
-        onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={sidebar?.show ?? onStart}
-        onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
-      />
+      <div ref={setRecordingDock} className="peer empty:hidden" />
+      <div className="peer-[:not(:empty)]:hidden">
+        <LoungeComposer key={composerScope}
+          place={place} openChat={openChat} draft={draft} plan={plan} keyLine={keyLine} notebook={notebook}
+          nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
+          held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
+          busy={botThinking || !outbox.ready}
+          onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={sidebar?.show ?? onStart}
+          onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
+        />
+      </div>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
@@ -3051,6 +3061,7 @@ function Bubble(props: Parameters<typeof BubbleBody>[0]) {
 
 function BubbleBody({
   message,
+  recordingDock,
   onViewInsights,
   onOpenBestPresentation,
   onOpenTranscripts,
@@ -3077,6 +3088,7 @@ function BubbleBody({
   onOpenPastIdealText,
 }: {
   message: LoungeMessage;
+  recordingDock?: HTMLDivElement | null;
   /** An older Ideal Text card opens its own version, read only (backend N375). */
   onOpenPastIdealText?: (arcId: string, past: IdealTextPast) => void;
   /** A recording's line: who heard the Take (G1, N192). */
@@ -3165,9 +3177,10 @@ function BubbleBody({
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
         <SequentialBotBubbles
-          chunks={splitBotMessage(message.body)}
+          chunks={splitBotMessage(withoutCoachTranscriptFooter(message.body))}
           animate={animate}
         />
+        <CoachMoment raw={message.metadata?.coach_moment} recordingDock={recordingDock} />
         <BotWays
           metadata={message.metadata}
           onChip={onChip}
