@@ -247,7 +247,7 @@ export default function TakeReview({
   const before = documentAt < 0 ? history : history.slice(0, documentAt);
   const after = documentAt < 0 ? [] : history.slice(documentAt);
   const moment = artifact?.evidence.moment ?? null;
-  const { strength, moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
+  const { moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
   const seenWalk = history.some((row) =>
     row.kind === "walk_step" && row.role === "bot" && (row.body.trim() || row.metadata?.clip),
   );
@@ -293,8 +293,6 @@ export default function TakeReview({
     return true;
   }, Boolean(engine));
 
-  const practice = artifact?.evidence.activity ? artifact.evidence : null;
-  const invitedToPractise = target.focus.step === "practise";
   const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote });
   const row = (message: LoungeMessage) => <TakeConversationMessage key={message.client_id} message={message}
     project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
@@ -306,25 +304,13 @@ export default function TakeReview({
     <div className={WILLAB_CONTENT_RAIL}>
       <TakeReviewStatus project={project} take={take} replay={target.replay} loading={!artifact} failed={failed} onRetry={() => setRefresh((v) => v + 1)} />
     </div>
-    {!seenWalk && openingMoment && !engine ? <div data-review-section="feedback">
-      <ConversationBubble>
-        {copy?.document.feedback || opening ? <p className="whitespace-pre-wrap">{copy?.document.feedback ?? opening}</p> : null}
-        {openingMoment.transcript ? <button type="button" onClick={() => refer(focusFor("feedback", openingMoment), openingMoment.transcript)}
-          className="min-h-11 whitespace-pre-wrap text-left hover:underline" title="Refer to this moment">{openingMoment.transcript}</button> : null}
-        {openingMoment.audioRef ? <WalkPlayer seed={openingMoment.snippetId} label="Original moment" src={openingMoment.audioRef}
-          startOffsetMs={openingMoment.startOffsetMs} durationMs={openingMoment.durationMs || null} look="bare" /> : null}
-      </ConversationBubble>
-    </div> : null}
+    {!seenWalk && !engine ? <ReviewOpening moment={openingMoment} text={copy?.document.feedback ?? opening} onRefer={refer} /> : null}
     {engine ? <div className={WILLAB_CONTENT_RAIL} data-review-section={engine === "practise" ? "practise" : undefined}>
       <ReviewEngine arc={project.arcId} target={target} mode={engine} evidence={artifact?.evidence}
         recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closeEngine} />
     </div> : before.map(row)}
-    {!engine && !target.replay && practice && (invitedToPractise || !seenWalk && !strength && practice.instruction) ?
-      <div data-review-section="practise"><ConversationBubble>
-        {practice.activity ? <p className="font-medium">{practice.activity}</p> : null}
-        {practice.instruction ? <p>{practice.instruction}</p> : null}
-        <button type="button" className={LINK} onClick={() => setEngine("practise")}>{invitedToPractise ? "Try it" : "Practise"}</button>
-      </ConversationBubble></div> : null}
+    {!engine ? <ReviewPracticeOffer evidence={artifact?.evidence} target={target} seenWalk={seenWalk}
+      onTry={() => setEngine("practise")} /> : null}
     {!engine ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
       {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
     </ConversationBubble>) : null}
@@ -339,6 +325,40 @@ export default function TakeReview({
           onSave: () => void exit() }} />
     </div> : null}
     {!engine ? after.map(row) : null}
+  </div>;
+}
+
+function ReviewOpening({ moment, text, onRefer }: {
+  moment: FeedbackKeyMoment | null;
+  text: string;
+  onRefer: (focus: ReviewFocus, quote: string) => void;
+}) {
+  if (!moment) return null;
+  return <div data-review-section="feedback">
+    <ConversationBubble>
+      {text ? <p className="whitespace-pre-wrap">{text}</p> : null}
+      {moment.transcript ? <button type="button" onClick={() => onRefer(focusFor("feedback", moment), moment.transcript)}
+        className="min-h-11 whitespace-pre-wrap text-left hover:underline" title="Refer to this moment">{moment.transcript}</button> : null}
+      {moment.audioRef ? <WalkPlayer seed={moment.snippetId} label="Original moment" src={moment.audioRef}
+        startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs || null} look="bare" /> : null}
+    </ConversationBubble>
+  </div>;
+}
+
+function ReviewPracticeOffer({ evidence, target, seenWalk, onTry }: {
+  evidence: ReviewEvidence | undefined;
+  target: TakeReviewTarget;
+  seenWalk: boolean;
+  onTry: () => void;
+}) {
+  const invited = target.focus.step === "practise";
+  if (!evidence?.activity || target.replay || (!invited && (seenWalk || evidence.strength || !evidence.instruction))) return null;
+  return <div data-review-section="practise">
+    <ConversationBubble>
+      <p className="font-medium">{evidence.activity}</p>
+      {evidence.instruction ? <p>{evidence.instruction}</p> : null}
+      <button type="button" className={LINK} onClick={onTry}>{invited ? "Try it" : "Practise"}</button>
+    </ConversationBubble>
   </div>;
 }
 
