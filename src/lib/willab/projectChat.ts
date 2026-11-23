@@ -44,8 +44,16 @@ export function projectIdOf(message: Pick<LoungeMessage, "metadata">): string | 
   return null;
 }
 
+/** Strengths and weekly principles are speaker-wide, including older rows tagged with an arc. */
+export function isSpeakingCoachFeature(message: Pick<LoungeMessage, "metadata">): boolean {
+  const meta = message.metadata ?? {};
+  return meta.offer === "strengths" || meta.offer === "sunday_note" ||
+    [meta.strength_id, meta.strength_talk, meta.sunday_note_id, meta.sunday_step, meta.sunday_empty].some(Boolean);
+}
+
 export function isProjectMessage(message: Pick<LoungeMessage, "metadata">): boolean {
-  return message.metadata?.project_chat === true || projectIdOf(message) !== null;
+  return !isSpeakingCoachFeature(message) &&
+    (message.metadata?.project_chat === true || projectIdOf(message) !== null);
 }
 
 /** Shared Coach history is longitudinal across projects, but project chat
@@ -115,7 +123,7 @@ export function typedProjectErrorMetadata({
 }
 
 export function messagesForProject(messages: readonly LoungeMessage[], arcId: string): LoungeMessage[] {
-  return messages.filter((message) => projectIdOf(message) === arcId);
+  return messages.filter((message) => projectIdOf(message) === arcId && !isSpeakingCoachFeature(message));
 }
 
 /** The model reads the project conversation in the same order as the person.

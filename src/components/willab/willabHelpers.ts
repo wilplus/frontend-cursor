@@ -1,5 +1,6 @@
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ChatHistoryEntry } from "@/services/api/chatQuery";
+import { coachWording } from "@/services/api/coachWording";
 import { speakingCoachMessages } from "@/lib/willab/projectChat";
 
 /* -------------------------------------------------------------------------- */
@@ -75,6 +76,18 @@ export function loungeToHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
 export function withoutCoachTranscriptFooter(body: string): string {
   const footer = /^Transcript https?:\/\/(?:www\.)?willpowerlab\.com\/chat\/take\/[\da-f-]{36}(?:\?slide=\d+)?$/i;
   return body.split("\n").filter((line) => !footer.test(line.trim())).join("\n").trimEnd();
+}
+
+/** Older Coach replies saved project document links as automatic footer lines. */
+export function speakingCoachReplyText(message: Pick<LoungeMessage, "body" | "metadata">): string {
+  const footer = /^(?:Feedback|Ideal Text) https?:\/\/(?:www\.)?willpowerlab\.com\/chat\?idealArc=[\da-f-]{36}(?:&\S+)?$/i;
+  const body = withoutCoachTranscriptFooter(message.body).split("\n")
+    .filter((line) => !footer.test(line.trim())).join("\n").trimEnd();
+  const wording = coachWording(message.metadata?.coach_wording);
+  const comparable = (text: string) => text.toLowerCase().replace(/\s+/g, " ").trim();
+  const lines = [wording?.words, wording?.delivery]
+    .filter((line): line is string => Boolean(line && !comparable(body).includes(comparable(line))));
+  return [body, ...lines].filter(Boolean).join("\n\n");
 }
 
 export function splitBotMessage(body: string): string[] {

@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { isSpeakingCoachFeature } from "@/lib/willab/projectChat";
 import { TYPE_YOUR_ANSWER } from "../WillQuestion";
 
 /* -------------------------------------------------------------------------- */
@@ -33,6 +34,7 @@ export function rememberPlace(clientId: string, place: LoungePlace | null): void
  *  GET /v2/user/lounge/messages, backend #1926); else where it was just
  *  written; null when neither. */
 export function placeOf(message: Placed): LoungePlace | null {
+  if (isSpeakingCoachFeature(message)) return "speaking";
   const raw = message.place ?? (message.metadata as Record<string, unknown> | null | undefined)?.place;
   if (typeof raw === "string" && (PLACES as readonly string[]).includes(raw)) return raw as LoungePlace;
   return (message.client_id && written.get(message.client_id)) || null;
@@ -63,6 +65,7 @@ export function inPlace(message: Placed, place: LoungePlace): boolean {
  *  a host's chat that takes Takes (`chat`), every row read for it, since
  *  the read itself is that chat's (?chat=, N648 item 8). */
 export function shownIn(message: Placed, place: LoungePlace | null, chat: string | null = null): boolean {
+  if (isSpeakingCoachFeature(message)) return !chat && (!place || place === "speaking");
   const own = chatOfRow(message);
   if (chat) return own === null || own === chat;
   if (own !== null) return false;

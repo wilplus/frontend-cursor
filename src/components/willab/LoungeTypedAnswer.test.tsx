@@ -9,10 +9,13 @@ OUTCOME  O1  The open project question keeps its composer, uses contextual
          O3  The accepted bubble and reply are scrolled into view, structured
              replies cannot replace the turn, and stale terminal walk copy is
              rejected as a new answer.
+         O4  The general coach keeps old advice as text and shows the weekly
+             note while project artifacts stay inside the project.
 PROVES   O1 -> "uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once"
          O2 -> "keeps a refused quick choice once with an explicit recoverable error"
          O3 -> "keeps a structured contextual turn ordered through refresh and scrolls both sides into view"
          O3 -> "does not replay an old terminal walk line as the answer to a new message"
+         O4 -> "keeps old suggested words as text and puts the weekly note in Speaking Coach"
 WHY      Founder lock N655, 2026-11-16; release-blocking chat audit,
          2026-11-17.
 */
@@ -205,6 +208,23 @@ describe("typed answer in the main Will/Lounge chat", () => {
     send(field);
     await flush();
     expect(harness.query.mock.calls[0][0].history).toEqual([{ role: "assistant", content: "A deliberate pause helps." }]);
+  });
+
+  it("keeps old suggested words as text and puts the weekly note in Speaking Coach", async () => {
+    const doc = "https://www.willpowerlab.com/chat?idealArc=00000000-0000-4000-8000-000000000001";
+    harness.rows.push({
+      ...QUESTION, client_id: "old-wording", body: `Say it directly.\n\nIdeal Text ${doc}`,
+      metadata: { place: "speaking", coach_wording: { words: "I recommend the pilot.", delivery: "Pause before the request." } },
+    }, {
+      ...QUESTION, client_id: "weekly-note", body: "A theme for this week is to state your ask early.",
+      metadata: { place: "principles", arc_id: "arc-a", sunday_step: "suggested", sunday_note_id: "week-a" },
+    });
+    await renderLounge(true, true);
+    expect(host.textContent).toContain("I recommend the pilot.");
+    expect(host.textContent).toContain("Pause before the request.");
+    expect(host.textContent).toContain("A theme for this week is to state your ask early.");
+    expect(host.querySelector("[data-coach-wording]")).toBeNull();
+    expect(host.querySelector(`a[href="${doc}"]`)).toBeNull();
   });
 
   it("retries the guest's local write after refresh without generating the answer again", async () => {
