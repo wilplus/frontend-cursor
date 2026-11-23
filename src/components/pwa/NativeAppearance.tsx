@@ -12,7 +12,7 @@ import {
 } from "@/lib/phone/appearance";
 
 /** Follows the iPhone's light or dark setting inside the app (backend N678
- *  item 2, N679), while the ring row `dark_mode` is on. Renders nothing. The
+ *  item 2, N680), while the ring row `dark_mode` is on. Renders nothing. The
  *  website and an app without the Appearance plugin stay light, and never
  *  read the ring state for it. */
 export default function NativeAppearance() {

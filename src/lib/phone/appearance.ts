@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 
 /* -------------------------------------------------------------------------- */
-/*  Dark mode in the iPhone app (backend N678 item 2, N679).                  */
+/*  Dark mode in the iPhone app (backend N678 item 2, N680).                  */
 /*                                                                            */
 /*  The app is pinned to light, so its web view cannot see the iPhone's own   */
 /*  setting. Its Appearance plugin (app version 1.1, ios/App/App/              */

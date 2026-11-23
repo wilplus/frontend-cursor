@@ -2,7 +2,7 @@
 /*
 STORY    As the founder trying dark mode first, I want the app dark only when
          my iPhone is dark and dark mode is switched on for me, and everyone
-         else's app exactly as it is (backend N678 item 2, N679).
+         else's app exactly as it is (backend N678 item 2, N680).
 OUTCOME
   O1  Dark only with the ring row on and the iPhone set to dark; any other
       case, or an iPhone that did not answer, stays light.
