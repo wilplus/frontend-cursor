@@ -1,4 +1,15 @@
 // @vitest-environment jsdom
+/*
+STORY    As a chat user, I want files, typing, and recording in the same
+         composer so I can switch input without losing a draft.
+OUTCOME
+  O1  Recording keeps the mic position and restores the typed and file drafts.
+  O2  A refusal leaves a draft available for retry and an in-flight send is not duplicated.
+  O3  A queued attachment can be sent only in its original question scope.
+PROVES   O1 -> "keeps a typed draft and an attachment during recording, then submits each once"
+         O2 -> "keeps a refused message available and coalesces clicks while a send is pending"
+         O3 -> "will only send an attachment in its original question scope"
+*/
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

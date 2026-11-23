@@ -360,7 +360,15 @@ export function useVoiceNote({
     startedRef.current = Date.now();
     savedAtRef.current = Date.now();
     setElapsedMs(0);
-    recorder.start(1000);
+    try {
+      recorder.start(1000);
+    } catch {
+      recorderRef.current = null;
+      release();
+      setPhase("idle");
+      unavailableRef.current?.();
+      return;
+    }
     liveRef.current = notebook;
     liveMsRef.current = 0;
     if (notebook) {

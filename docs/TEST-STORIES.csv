@@ -648,6 +648,11 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/chats/ChatComposer.test.tsx,Story,"As a chat user, I want files, typing, and recording in the same composer so I can switch input without losing a draft.","O1  Recording keeps the mic position and restores the typed and file drafts.
+O2  A refusal leaves a draft available for retry and an in-flight send is not duplicated.
+O3  A queued attachment can be sent only in its original question scope.","O1 -> ""keeps a typed draft and an attachment during recording, then submits each once""
+O2 -> ""keeps a refused message available and coalesces clicks while a send is pending""
+O3 -> ""will only send an attachment in its original question scope""",
 src/components/willab/chats/InquiryThread.test.tsx,Story,"As someone suggested for a Take, I want ""Read it"" in the asking chat to open the Take's words under its player, one paragraph per slide, so that I can read what the speaker said before I answer.","O1  Before ""Open Take"" the asking chat shows no words and no ""Read it"";
 after it, the Take's player with ""Read it"" under it, its words
 closed; ""Read it"" opens them under the player, one paragraph per
