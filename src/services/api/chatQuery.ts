@@ -69,6 +69,8 @@ export interface ChatQueryArgs {
     has_current_project: boolean;
     completed_takes: number;
     has_pdf: boolean;
+    /** Where a project chat turn should appear after it has been saved. */
+    take_exchange?: boolean;
     review_focus?: {
       step: "feedback" | "practise" | "ideal";
       slide_index?: number;

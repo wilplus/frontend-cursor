@@ -10,6 +10,29 @@ export function takeSessionOf(message: Pick<LoungeMessage, "metadata">): string 
   return typeof id === "string" && id ? id : null;
 }
 
+function plainProjectTurn(message: LoungeMessage): boolean {
+  const meta = message.metadata;
+  if (typeof meta?.take_exchange === "boolean") return !meta.take_exchange;
+  if (meta?.review_focus || message.kind !== "text") return false;
+  if (meta?.[TYPED_PROJECT_TURN] === true) return meta.reply_to === "";
+  return meta?.project_chat === true && !meta.offer && !meta.will_question_step;
+}
+
+/** Older persisted replies only have a link to the user's turn. Use that
+ * turn's placement so a reload keeps the reply with the visible question. */
+export function withProjectChatPlacement(messages: readonly LoungeMessage[]): LoungeMessage[] {
+  const plainTurns = new Set(messages.filter((row) => row.role === "user" && plainProjectTurn(row))
+    .map((row) => row.client_id));
+  if (!plainTurns.size) return [...messages];
+  return messages.map((row) => {
+    const meta = row.metadata;
+    if (typeof meta?.take_exchange === "boolean" || meta?.review_focus) return row;
+    const parent = row.role === "user" ? row.client_id : meta?.reply_to_client_id;
+    if (typeof parent !== "string" || !plainTurns.has(parent)) return row;
+    return { ...row, metadata: { ...meta, take_exchange: false } };
+  });
+}
+
 /** The recording and the document have their own rows in the exchange. */
 export function isTakeExchangeMessage(message: LoungeMessage): boolean {
   const meta = message.metadata;
@@ -23,9 +46,9 @@ export function mergeTakeExchange(
   loaded: readonly LoungeMessage[], live: readonly LoungeMessage[], arc: string, take: string,
 ): LoungeMessage[] {
   // Use the Take-scoped read's freshly resolved media when both copies exist.
-  const rows = new Map([...live, ...loaded].filter((row) =>
-    takeSessionOf(row) === take && projectIdOf(row) === arc && isTakeExchangeMessage(row),
-  ).map((row) => [row.client_id, row]));
+  const scoped = [...live, ...loaded].filter((row) => takeSessionOf(row) === take && projectIdOf(row) === arc);
+  const rows = new Map(withProjectChatPlacement(scoped).filter(isTakeExchangeMessage)
+    .map((row) => [row.client_id, row]));
   return [...rows.values()].sort((a, b) => a.client_created_at.localeCompare(b.client_created_at));
 }
 
