@@ -473,6 +473,35 @@ the native scrollbar without disabling wheel, trackpad, touch, keyboard or
 programmatic scrolling; the page owns one scroll area at a time. Below 1080px,
 the rail remains fluid and keeps each screen's existing side padding.
 
+### Project rehearsal choices (2026-11-23)
+
+This section supersedes the older continuation-footer change notes below.
+From the project conversation, Ideal Text offers white **Repeat this fragment**
+and black **Rehearse whole presentation** side by side. The selected Feedback
+Walk span is used, otherwise the newest span. Without a proven span, recording
+uses the complete text. The served readiness label and its shared colored dot
+are retained; the UI never recalculates readiness.
+
+The only persisted choice (`practiceResume.ts`) is `{scope: "whole"}` or
+`{scope: "fragment", startSlide, endSlide}` with inclusive 1-based deck pages.
+There is no second start index or configurable duration in that choice.
+`ProjectChat` writes it; `LabOverlay` consumes storage once at microphone start
+and retains the active choice for navigation and timer behavior throughout the
+Take. `RecordingRoadmap` uses the same bounds, retaining original PDF-page,
+helper-word and upload-timeline indices. The recorder contract is described in
+[recording-screens.md](recording-screens.md).
+
+Both fixed labels use the reactive UI locale (`uiLocale.ts`):
+
+| English | Polish |
+| --- | --- |
+| Repeat this fragment | Powtórz ten fragment |
+| Rehearse whole presentation | Przećwicz całą prezentację |
+
+Speaker text and served feedback retain their content language. The business
+tests are `ProjectChat.test.tsx` (choice routing), `idealTextActions.test.tsx`
+(localized actions), and the recording stories linked on the recording page.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -524,6 +553,8 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/8heRv4BC6fGg7EzuzuTo4A>
 
 ## 6. Changes
+
+- 2026-11-23 · continuation-scope repair · one consumed scope contract replaces redundant start/time fields; fragment bounds reach the real recorder and whole rehearsal can pass five minutes; EN/PL fixed labels use the active UI locale. Tests exercise actual recording navigation and the microphone/upload boundary. Earlier continuation-footer entries are historical; §1's project rehearsal choices describe current behavior. Requested in this chat; no deployment.
 
 - 2026-11-18 · On a paragraph opened for its saved helper words, “Edit the helper words” opens the helper-word editor with the saved cue selected on the Take that contains it. A replacement from an earlier Take is saved with its source Take and handed to the next recording.
 - 2026-11-18 · History protection · the retired strengths client stays removed. App Model SET-07's stable `src/services/api/strengths.test.ts` story now exercises the surviving authenticated Take-deletion BFF and proves that its 409 `TAKE_HAS_LINEAGE` explanation reaches the caller unchanged.

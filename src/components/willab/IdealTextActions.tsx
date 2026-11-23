@@ -15,7 +15,9 @@ import {
 } from "@/lib/willab/nextTakeShare";
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
-import type { PracticeDeliveryLabel } from "@/services/api/trainings";
+import type { PracticeDecision } from "@/lib/willab/practiceResume";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
 import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 /* -------------------------------------------------------------------------- */
@@ -82,12 +84,9 @@ export default function IdealTextActions({
    *  the current project, which never asks (Never 3). */
   confirmFirst?: ((go: () => void) => void) | null;
   /** Project practice: the text is the decision point before recording. */
-  practiceDecision?: {
-    deliveryLabel?: PracticeDeliveryLabel;
-    onFragment: () => void;
-    onWholePresentation: () => void;
-  } | null;
+  practiceDecision?: PracticeDecision | null;
 }) {
+  const locale = useUiLocale();
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
    * feedback", with the next Take one tap away underneath. J4: the walk's end
@@ -145,7 +144,7 @@ export default function IdealTextActions({
             onClick={practiceDecision.onFragment}
             className="min-h-[56px] rounded-full border border-border bg-background px-3 text-[15px] font-semibold text-foreground"
           >
-            {IDEAL_EDIT_COPY.practiceRepeatFragment}
+            {uiText(locale, "practiceRepeatFragment")}
           </button>
           <button
             type="button"
@@ -153,7 +152,7 @@ export default function IdealTextActions({
             onClick={practiceDecision.onWholePresentation}
             className="min-h-[56px] rounded-full bg-foreground px-3 text-[15px] font-semibold text-background"
           >
-            {IDEAL_EDIT_COPY.practiceWholePresentation}
+            {uiText(locale, "practiceWholePresentation")}
           </button>
         </div>
       </div>

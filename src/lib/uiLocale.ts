@@ -10,6 +10,8 @@ export const UI_LOCALES = ["en", "pl"] as const;
 export type UiLocale = (typeof UI_LOCALES)[number];
 
 export type UiCopyKey =
+  | "practiceRepeatFragment"
+  | "practiceWholePresentation"
   | "footerAbout"
   | "footerBlog"
   | "footerPrivacy"
@@ -86,6 +88,8 @@ export type UiCopyKey =
  */
 const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
   en: {
+    practiceRepeatFragment: "Repeat this fragment",
+    practiceWholePresentation: "Rehearse whole presentation",
     footerAbout: "About us",
     footerBlog: "Blog",
     footerPrivacy: "Privacy",
@@ -155,6 +159,8 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     newSlides: "New slides",
   },
   pl: {
+    practiceRepeatFragment: "Powtórz ten fragment",
+    practiceWholePresentation: "Przećwicz całą prezentację",
     loading: "Wczytywanie",
     close: "Zamknij",
     cancel: "Anuluj",

@@ -434,6 +434,31 @@ green); the app shows the speaker's own slides, unchanged.
   (`labAudioName`) and the one line in `LabOverlay.tsx`.
 
 
+### Fragment and whole rehearsal (2026-11-23)
+
+The project Ideal Text's two choices share `PracticeResumeSelection` in
+`src/lib/willab/practiceResume.ts`. A fragment is an inclusive 1-based slide
+span. On mic start `LabOverlay` resolves it against the loaded deck, starts on
+its first page and clears the one-shot stored choice. The active choice stays
+in memory until this Take ends. Both the overlay's timestamped slide setter
+and `RecordingRoadmap` honor its bounds; Back/keyboard cannot leave them, and
+the fragment's last slide shows Finish take even with more deck pages left.
+PDF pages, helper words and uploaded `slideAdvances` retain original deck
+indices. A rejected recording retries from the same first page.
+
+Explicit whole rehearsal starts on slide 1, includes the complete deck and
+has no five-minute auto-stop. The target-length clock remains informational.
+Fragment practice and ordinary chunk recordings retain their five-minute cap;
+answers to other people retain their existing uncapped behavior. Old saved
+resume shapes are read at the storage boundary, then normalized to the same
+scope contract. An old start-only resume becomes a single-slide fragment.
+
+`recordingStillFrame.test.tsx` drives the real recorder's buttons and keyboard
+against a fragment ending before the deck does. `labBackAndRetry.test.tsx`
+mounts `LabOverlay` with a simulated mic, consumes the saved choice, verifies
+the upload's original slide index, and advances the whole-rehearsal clock
+past five minutes. These tests do not call a live microphone or provider.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -582,6 +607,8 @@ warnings a locale-aware contract; the frontend does not guess translations for
 unknown server text.
 
 ## 6. Changes
+
+- 2026-11-23 · continuation-scope repair · the real recorder retains and enforces the selected fragment through Finish/retry, and whole-presentation rehearsal is uncapped. Added user-story checks at the recording UI and mic/upload boundary; §1 documents the one scope contract and original-page provenance.
 
 One line each, newest first: `date · N · what changed · PR`.
 

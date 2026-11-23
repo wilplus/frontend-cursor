@@ -16,9 +16,13 @@ OUTCOME
       closes the screens, and the chat says at once that the Take is on its
       way; once the server has it the chat still gets it: its "Your
       Recording" line and the marker the chat follows.
+  O4  My fragment reaches the real recorder and upload with original page indices.
+  O5  My whole-presentation rehearsal is not stopped at five minutes.
 PROVES   O1 -> "Back while recording asks first, and the Take keeps recording"
          O2 -> "after Record again, Try processing again sends the new Take, never the old one"
          O3 -> "the ✕ while the Take goes up still brings it to the chat"
+         O4 -> "as a speaker, my selected fragment reaches the recorder and upload with its original slide index"
+         O5 -> "as a speaker, my whole-presentation rehearsal keeps recording beyond five minutes"
 WHY      Founder 2026-11-09, backend N560 items 1 and 2 ("Ask, like the ✕";
          "Yes, fix it"): Back threw the Take away without asking, and the
          retry could restart the old Take (Never 3, Never 5). O3: founder
@@ -109,6 +113,7 @@ import LabOverlay from "./LabOverlay";
 import { transition, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import { readProcessingTake } from "@/lib/willab/processingTake";
+import { readPracticeResume, writePracticeResume } from "@/lib/willab/practiceResume";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -170,6 +175,7 @@ beforeEach(() => {
   localStorage.clear();
   closed.mockClear();
   mic.start.mockClear();
+  mic.stop.mockClear();
   mic.cancel.mockClear();
   api.submitLabRecording.mockReset();
   api.retryLabProcessing.mockClear();
@@ -189,6 +195,30 @@ afterEach(async () => {
 });
 
 describe("the recording screens never lose a Take by mistake (backend N560)", () => {
+  it("as a speaker, my selected fragment reaches the recorder and upload with its original slide index", async () => {
+    writePracticeResume(null, "arc-1", { scope: "fragment", startSlide: 2, endSlide: 2 });
+    api.submitLabRecording.mockResolvedValue({ kind: "error", status: 0, message: "Offline" });
+    await openLaterTake();
+    expect(host.querySelector('[data-testid="recording-where"]')?.textContent).toContain("Slide 2 of 3");
+    expect(readPracticeResume(null, "arc-1")).toBeNull();
+    expect(button("Next slide")).toBeUndefined();
+    await act(async () => button("Finish take")!.click());
+    expect(mic.stop).toHaveBeenCalledTimes(1);
+    await act(async () => void mic.finish());
+    await settle();
+    expect(api.submitLabRecording.mock.calls[0][0].slideAdvances).toEqual([{ index: 1, tMs: 0 }]);
+  });
+
+  it("as a speaker, my whole-presentation rehearsal keeps recording beyond five minutes", async () => {
+    vi.useFakeTimers({ toFake: ["performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    writePracticeResume(null, "arc-1", { scope: "whole" });
+    await openLaterTake();
+    expect(host.querySelector('[data-testid="recording-where"]')?.textContent).toContain("Slide 1 of 3");
+    await act(async () => { vi.advanceTimersByTime(301_000); });
+    expect(recording()).toBe(true);
+    expect(mic.stop).not.toHaveBeenCalled();
+  });
+
   it("Back while recording asks first, and the Take keeps recording", async () => {
     await openLaterTake();
     mic.cancel.mockClear();

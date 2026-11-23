@@ -2502,6 +2502,8 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-23 · project rehearsal handoff · the selected Feedback Walk's proven server slide span passes through the one `PracticeResumeSelection` contract to the real recorder. A provisional card cannot invent a practice span from a local checkpoint. Both localized Ideal Text rehearsal choices remain available after Take 1. Current behavior and business-test ownership: [Ideal Text, project rehearsal choices](ideal-text.md#project-rehearsal-choices-2026-11-23) and [recording scope](recording-screens.md#fragment-and-whole-rehearsal-2026-11-23).
+
 - 2026-11-18 · C3, F5 · On the standalone helper-words step, pressing “Edit the helper words” before changing the selection opens the paragraph’s current and earlier Take choices. “Keep these” leaves the saved cue in place. Saving a replacement keeps the edit in the walk history.
 - 2026-11-18 · Founder-approved project Feedback card correction · the project conversation is positioned inside its scrollable app canvas above the global footer, so Feedback and Ideal text remain fully visible and operable on desktop and mobile. The card shows no delivery-status dot or text; internal delivery evidence and the recording decision keep their existing behavior. No new copy (`WillabSurface.tsx`, `FeedbackWalkCard.tsx`). Founder-Approved: contact-point chat, 2026-11-18.
 
