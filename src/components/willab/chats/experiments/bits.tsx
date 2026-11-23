@@ -10,7 +10,6 @@ type FrameProps = ComponentPropsWithoutRef<"div"> & {
   help?: HelpStep;
   kicker?: string;
   foot?: ReactNode;
-  wide?: boolean;
 };
 
 /** A new step opens at the top with its own question thread. */
@@ -18,8 +17,7 @@ export function Frame({ screen, help = screen, ...props }: FrameProps) {
   return <Conversation key={`${screen}/${help}`} screen={screen} help={help} {...props} />;
 }
 
-function Conversation({ screen, help = screen, kicker, title, children, foot, wide = false, ...attributes }: FrameProps) {
-  const width = wide ? "max-w-5xl" : screen === "ai" ? "" : "max-w-3xl";
+function Conversation({ screen, help = screen, kicker, title, children, foot, ...attributes }: FrameProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const [turns, setTurns] = useState<{ question: string; answer: string; topic: number }[]>([]);
 
@@ -41,7 +39,7 @@ function Conversation({ screen, help = screen, kicker, title, children, foot, wi
   return (
     <div {...attributes} data-experiments="" data-exp-screen={screen} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div ref={scroller} data-experiment-thread="" className="no-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
-        <div className={`mx-auto flex w-full ${width} flex-col gap-3 px-4 py-4`}>
+        <div className="flex flex-col gap-3 px-4 py-4">
           {kicker || title ? (
             <div className="flex flex-col gap-1">
               {kicker ? <p className="m-0 text-[14px] text-muted-foreground">{kicker}</p> : null}
@@ -59,8 +57,8 @@ function Conversation({ screen, help = screen, kicker, title, children, foot, wi
           </div>
         </div>
       </div>
-      {foot ? <div className={`mx-auto w-full ${width} shrink-0 px-4 pt-2`}>{foot}</div> : null}
-      <ChatBarRow data-experiment-composer="" className={`mx-auto w-full ${width}`}>
+      {foot ? <div className="shrink-0 px-4 pt-2">{foot}</div> : null}
+      <ChatBarRow data-experiment-composer="">
         <BarBox hint="Ask a question" onSend={ask} />
       </ChatBarRow>
     </div>
@@ -74,8 +72,8 @@ export function Bubble({ mine = false, className, ...props }: ComponentPropsWith
       data-row={mine ? "me" : "app"}
       data-bubble=""
       className={cn(
-        "min-w-0 max-w-[min(88%,38rem)] self-start whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-[16px] leading-relaxed",
-        mine ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground",
+        "min-w-0 self-start whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-[16px] leading-relaxed",
+        mine ? "ml-auto max-w-[85%] bg-primary text-primary-foreground" : "max-w-[88%] bg-muted text-foreground",
         className,
       )}
     />

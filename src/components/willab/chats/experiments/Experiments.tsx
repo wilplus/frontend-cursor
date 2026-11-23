@@ -8,14 +8,16 @@ import { readingFor } from "@/lib/willab/experiments/sample";
 import {
   beginAnalysis,
   deleteMine,
+  EXPERIMENTS_USE_MOCKS,
   openSession,
+  previewPromptSchema,
   promptSchema,
   readAnalysis,
   readInterventions,
   saveTake,
 } from "@/services/api/experiments";
 import type { AnalyzeTake } from "@/lib/willab/experiments/types";
-import { Analysis, Consent, Delete, Export, Library, Menu, Pick, PromptStep, Reading, Upload, type View } from "./screens";
+import { Analysis, Consent, Delete, Export, Library, Menu, Pick, PreviewComplete, PromptStep, Reading, Upload, type View } from "./screens";
 
 /* The private experiment area. One screen at a time, under the builder's
    bar. Results stay with the volunteer. The prompt file supplies the order,
@@ -24,6 +26,8 @@ import { Analysis, Consent, Delete, Export, Library, Menu, Pick, PromptStep, Rea
 export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => boolean) | null) => void }) {
   useExperimentVersion();
   const file = promptSchema();
+  const sample = EXPERIMENTS_USE_MOCKS;
+  const sessionFile = sample ? previewPromptSchema() : file;
   const [view, setView] = useState<View>({ name: "menu", page: 0 });
   const [menuPage, setMenuPage] = useState(0);
   const bind = useRef(onBindBack);
@@ -75,7 +79,7 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   if (view.name === "prompt") {
     return (
       <PromptStep
-        file={file}
+        file={sessionFile}
         view={view}
         onSkip={() => advance(view.sessionId, view.index)}
         onSaid={() => setView({ ...view, said: true })}
@@ -117,6 +121,7 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
     );
   }
   if (view.name === "export") return <Export />;
+  if (view.name === "preview-complete") return <PreviewComplete onDone={() => setView({ name: "menu", page: menuPage })} />;
   return (
     <Delete
       step={view.name === "delete" ? view.step : "ask"}
@@ -129,7 +134,8 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
 
   async function agree() {
     const session = await openSession({});
-    if (session) setView({ name: "upload", sessionId: session.id });
+    if (!session) return;
+    setView(sample ? promptView(session.id, 0) : { name: "upload", sessionId: session.id });
   }
   async function attachPage(sessionId: string, name: string) {
     await openSession({ sessionId, businessCaseName: name });
@@ -140,14 +146,19 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   }
   function advance(sessionId: string, index: number) {
     const next = index + 1;
-    setView(next >= file.prompts.length ? { name: "export" } : promptView(sessionId, next));
+    if (next < sessionFile.prompts.length) setView(promptView(sessionId, next));
+    else setView(sample ? { name: "preview-complete" } : { name: "export" });
   }
   async function keepTake(current: Extract<View, { name: "prompt" }>) {
-    const prompt = file.prompts[current.index];
+    const prompt = sessionFile.prompts[current.index];
     const rating = current.rating;
     if (!prompt || !rating.energy || !rating.feeling) return;
     const take = await saveTake({ sessionId: current.sessionId, prompt, selfRating: { energy: rating.energy, feeling: rating.feeling } });
     if (!take) return;
+    if (sample && prompt.tag === "baseline_calm") {
+      advance(current.sessionId, current.index);
+      return;
+    }
     setView({ name: "reading", sessionId: current.sessionId, index: current.index, takeId: take.id, rating });
     await beginAnalysis(take.id);
     const ready = await waitForReading(take.id);

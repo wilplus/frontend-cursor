@@ -6,6 +6,7 @@ import { readingFor } from "@/lib/willab/experiments/sample";
 import {
   deletePrompt,
   downloadExport,
+  EXPERIMENTS_USE_MOCKS,
   exportMine,
   openSession,
   readInterventions,
@@ -28,12 +29,15 @@ export type View =
   | { name: "analysis"; sessionId: string; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rating: Rating }
   | { name: "pick"; sessionId: string | null; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rules: boolean; slot: number; cell: number }
   | { name: "library"; index: number; editing: boolean; adding: boolean }
+  | { name: "preview-complete" }
   | { name: "export" }
   | { name: "delete"; step: "ask" | "sure" | "gone" };
 
 const MENU = [
   [
-    { id: "session", title: "Start a session", line: "Try the speaking questions in order." },
+    EXPERIMENTS_USE_MOCKS
+      ? { id: "session", title: "Preview five questions", line: "See the order and try sample feedback." }
+      : { id: "session", title: "Start a session", line: "Try the speaking questions in order." },
     { id: "library", title: "Prompt library", line: "See and edit the speaking questions." },
   ],
   [
@@ -73,6 +77,19 @@ export function Menu({ page, onPage, onOpen }: { page: number; onPage: (page: nu
 }
 
 export function Consent({ onNo, onYes }: { onNo: () => void; onYes: () => void }) {
+  if (EXPERIMENTS_USE_MOCKS) {
+    return (
+      <Frame
+        screen="consent"
+        help="preview-start"
+        title="Preview the five questions"
+        foot={<ActionPair name="consent" no="Back" yes="Open preview" onNo={onNo} onYes={onYes} />}
+      >
+        <Note>Start with three calm questions. Then try one positive question and one challenging question.</Note>
+        <Note>This walkthrough uses sample readings. Invited participants record after they choose to take part in the shared test chat.</Note>
+      </Frame>
+    );
+  }
   return (
     <Frame screen="consent" title="Before you start" foot={<ActionPair name="consent" no="Not now" yes="I agree" onNo={onNo} onYes={onYes} />}>
       <Bubble data-ai-disclosure="">An AI reads this session. It looks at how you speak. It does not name a feeling.</Bubble>
@@ -111,23 +128,26 @@ export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave
   const prompt = file.prompts[view.index];
   if (!prompt) return null;
   const opening = isOpeningPrompt(prompt, file);
+  const sample = EXPERIMENTS_USE_MOCKS;
   const ready = Boolean(view.rating.energy && view.rating.feeling);
   const against = referenceLine(prompt.reference);
   return (
     <Frame
       key={prompt.id}
       screen={opening ? "baseline" : "take"}
-      help={view.said ? "rating" : undefined}
-      kicker={`${view.index + 1} of ${file.prompts.length}`}
+      help={sample ? (view.said ? "preview-rating" : "preview-question") : view.said ? "rating" : undefined}
+      kicker={`${sample ? "Preview · " : ""}${view.index + 1} of ${file.prompts.length}`}
       title={opening ? "Your usual way" : "A take"}
       foot={view.said
-        ? <ActionPair name="save" no="Say it again" yes="Save this take" onNo={onAgain} onYes={onSave} />
-        : <ActionPair name="said" no="Skip this one" yes="I said it" onNo={onSkip} onYes={onSaid} />}
+        ? <ActionPair name="save" no={sample ? "Choose again" : "Say it again"} yes={sample ? "Continue" : "Save this take"} onNo={onAgain} onYes={onSave} />
+        : <ActionPair name="said" no="Skip this one" yes={sample ? "Use sample answer" : "I said it"} onNo={onSkip} onYes={onSaid} />}
     >
-      <p className="m-0 text-[13px] font-medium text-muted-foreground">{tagWords(prompt.tag)}</p>
+      {!opening ? <p className="m-0 text-[13px] font-medium text-muted-foreground">{tagWords(prompt.tag)}</p> : null}
       <Bubble data-prompt-text="" data-prompt-id={prompt.id} lang={file.language}>{prompt.text}</Bubble>
       {against ? <Note>{against}</Note> : null}
-      {view.said ? <RatingFields file={file} rating={view.rating} onRate={onRate} ready={ready} /> : <Note>A recording will be kept with your private session. This sample does not send audio yet.</Note>}
+      {view.said
+        ? <RatingFields file={file} rating={view.rating} onRate={onRate} ready={ready} />
+        : <Note>{sample ? "Use a sample answer to see the rating step. Recording happens in the shared test chat." : "A recording will be kept with your private session."}</Note>}
     </Frame>
   );
 }
@@ -136,7 +156,7 @@ function RatingFields({ file, rating, onRate, ready }: { file: PromptFile; ratin
   const fields = ["energy", "feeling"] as const;
   return (
     <div data-rating="" className="flex flex-col gap-2">
-      <p className="m-0 text-[16px] font-medium">How was that take?</p>
+      <p className="m-0 text-[16px] font-medium">{EXPERIMENTS_USE_MOCKS ? "Choose ratings for the sample answer" : "How was that take?"}</p>
       {fields.map((key) => (
         <div key={key} className="flex flex-col gap-1">
           <span className="text-[13px] text-muted-foreground">{reportLabel(key)}</span>
@@ -154,6 +174,9 @@ function RatingFields({ file, rating, onRate, ready }: { file: PromptFile; ratin
 }
 
 export function Reading() {
+  if (EXPERIMENTS_USE_MOCKS) {
+    return <Frame screen="reading" help="preview-reading" title="Loading sample feedback"><Note>This reading uses an example.</Note></Frame>;
+  }
   return (
     <Frame screen="reading" title="Reading your take...">
       <Bubble data-ai-disclosure="">An AI is reading how you spoke. Only you will see it.</Bubble>
@@ -178,15 +201,15 @@ export function Analysis({ view, onMoment, onTry, onNext }: {
   const moment = analysis?.moments[view.moment];
   if (!analysis || !moment) return <Frame screen="analysis" help="no-reading" title="No reading yet"><Note>Save a take first.</Note></Frame>;
   const order = analysis.order;
+  const sample = EXPERIMENTS_USE_MOCKS || view.source !== "saved";
   return (
     <Frame
       screen="analysis"
-      wide
-      kicker={view.source === "saved" ? "This take" : "A saved example"}
-      title="The reading"
+      kicker={sample ? "Example" : "This take"}
+      title={sample ? "Sample feedback" : "The reading"}
       foot={<ActionPair name="next" no={view.source === "saved" ? "Next prompt" : "Done"} yes="What to try" onNo={onNext} onYes={onTry} />}
     >
-      <Bubble data-ai-disclosure="">An AI made this reading. Only you can see it.</Bubble>
+      <Bubble data-ai-disclosure="">{sample ? "This is an example of the feedback a participant sees." : "An AI made this reading. Only you can see it."}</Bubble>
       <p data-research-note="" className="m-0 text-[14px] text-muted-foreground">This is an early research version.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-[14px] text-muted-foreground">{moment.t_start} s to {moment.t_end} s · {view.moment + 1} of {analysis.moments.length}</p>
@@ -440,6 +463,18 @@ export function Export() {
       />
       {audience === "researcher" ? <p data-researcher-consent="" className="m-0 text-[14px]">You said a researcher may have a copy.</p> : <Note>A researcher gets a copy only if you say yes.</Note>}
       {note ? <p data-export-note="" className="m-0 text-[14px]">{note}</p> : null}
+    </Frame>
+  );
+}
+
+export function PreviewComplete({ onDone }: { onDone: () => void }) {
+  return (
+    <Frame
+      screen="preview-complete"
+      title="Preview complete"
+      foot={<div className="flex justify-end"><button type="button" className={choiceBubble(true)} onClick={onDone}>Done</button></div>}
+    >
+      <Note>This was the five-question outline. In the shared test chat, invited participants record their answers and see their own feedback.</Note>
     </Frame>
   );
 }

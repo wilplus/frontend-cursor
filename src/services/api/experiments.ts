@@ -92,6 +92,18 @@ export function promptSchema(): PromptFile {
   return store.file;
 }
 
+export function previewPromptSchema(): PromptFile {
+  const prompts = BUNDLED.prompts;
+  return {
+    ...BUNDLED,
+    prompts: [
+      ...prompts.filter((prompt) => prompt.tag === "baseline_calm").slice(0, 3),
+      ...prompts.filter((prompt) => prompt.tag === "positive").slice(0, 1),
+      ...prompts.filter((prompt) => prompt.tag === "challenging").slice(0, 1),
+    ],
+  };
+}
+
 export function peekVolunteerId(): string | null {
   try {
     return sessionStorage.getItem(VOLUNTEER_KEY) ?? memoryVolunteer;
