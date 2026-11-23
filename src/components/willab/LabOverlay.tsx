@@ -88,7 +88,9 @@ import { deckNewsOf, laterTakePresentation, type DeckNews } from "./presentation
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
-import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
+import { keepTakeAtFinish, prepareTakeUpload, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
+import { outboxOwner } from "@/lib/willab/voiceNoteOutbox";
+import type { PendingProjectTake } from "./usePendingProjectTakes";
 import {
   clearPracticeResume,
   PRACTICE_CHUNK_SECONDS,
@@ -139,6 +141,10 @@ async function uploadForProcessing(
   return new Promise(() => undefined);
 }
 
+function reportUnwatchedFailure(result: LabUploadResult, report: (message: string) => void): void {
+  if (result.kind === "error" || result.kind === "rejected") report(result.message);
+}
+
 /** Per-recording context (§4 step A). Shape matches the BE intake-context
  *  fields; HOW it's persisted (with-upload vs draft id) is BE confirm ②. */
 export interface LabSessionContext {
@@ -167,6 +173,9 @@ export default function LabOverlay({
   dispatch,
   onClose,
   onWaitHandedOver,
+  onProjectRecordingHandoff,
+  onProjectRecordingFailure,
+  onProjectRecordingAccepted,
   onRecordingProgress,
 }: {
   state: WillabState;
@@ -178,11 +187,17 @@ export default function LabOverlay({
    *  wait at once (founder 2026-10-21: "make it stay"). Called just before
    *  `onClose`. */
   onWaitHandedOver?: (sessionId: string) => void;
+  onProjectRecordingHandoff?: (take: PendingProjectTake, keepWait: boolean) => boolean;
+  onProjectRecordingFailure?: (key: string, error: string) => void;
+  onProjectRecordingAccepted?: (key: string, sessionId: string) => void;
   onRecordingProgress?: (
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
   ) => void;
 }) {
   const uiLocale = useUiLocale();
+  const projectTakeCallbacks = useRef({ onProjectRecordingHandoff, onProjectRecordingFailure, onProjectRecordingAccepted });
+  projectTakeCallbacks.current = { onProjectRecordingHandoff, onProjectRecordingFailure, onProjectRecordingAccepted };
+  const handoffProjectTake = useRef<((keepWait: boolean, sessionId?: string) => boolean) | null>(null);
   // AN ANSWER IN A CHAT (backend N363, founder-approved for this lock): the
   // screens opened from "Record an answer" record it as any Take, with the
   // person's name above "Take 1 · Slide 1 of 1" (N334 item 2); Finish take
@@ -348,8 +363,10 @@ export default function LabOverlay({
     result: Awaited<ReturnType<typeof uploadForProcessing>>,
     run: {
       discarded: boolean;
+      key: string;
       projectId: string | null;
       waitStartedAt: number;
+      projectChat: boolean;
       carried: (arc: string | null, take: number | null) => { returnedArcId: string; nextIdx: number; deck: ExploreArcDeck | undefined } | undefined;
     },
   ): void {
@@ -359,19 +376,22 @@ export default function LabOverlay({
     const takeArc = result.arcId ?? run.projectId;
     if (!sessionId || !takeArc) return;
     appendRecordingSummary(sessionId, result.arcId, run.projectId);
+    if (run.projectChat) projectTakeCallbacks.current.onProjectRecordingAccepted?.(run.key, sessionId);
     const takeIndex = result.takeIndex ?? recordedTakeRef.current ?? arcTakeIndex;
     const base = { sessionId, arcId: takeArc, takeIndex, startedAt: run.waitStartedAt, phaseStartedAt: Date.now() };
+    if (run.projectChat && (readProcessingTake(userId)?.startedAt ?? 0) > run.waitStartedAt) return;
+    const scope = run.projectChat ? { projectChat: true as const } : {};
     if (result.kind === "ideal_text_unconfirmed") {
-      writeProcessingTake(userId, { ...base, phase: "analysis", status: "failed_ideal_text_unconfirmed", progress: { stage: "ideal_text", percent: null } });
+      writeProcessingTake(userId, { ...base, ...scope, phase: "analysis", status: "failed_ideal_text_unconfirmed", progress: { stage: "ideal_text", percent: null } });
       return;
     }
     if (result.kind === "processing") {
-      writeProcessingTake(userId, { ...base, progress: { stage: "processing_recording", percent: 5 } });
+      writeProcessingTake(userId, { ...base, ...scope, progress: { stage: "processing_recording", percent: 5 } });
       return;
     }
     const carried = run.carried(result.arcId, result.takeIndex);
     if (carried) writeExploreArc(userId, carried.returnedArcId, carried.nextIdx, carried.deck, sessionId);
-    writeProcessingTake(userId, { ...base, phase: "document", progress: { stage: "document_assembly", percent: null } });
+    writeProcessingTake(userId, { ...base, ...scope, phase: "document", progress: { stage: "document_assembly", percent: null } });
   }
   // R4-5 — the Pre-record screen was removed: the Setup "Start recording" submit
   // now starts the mic directly and flips to lab_recording optimistically. This
@@ -762,6 +782,9 @@ export default function LabOverlay({
     // advice and the job's marker share the moment the wait began, so the
     // Lounge's view of this same wait opens on the advice already showing.
     const waitStartedAt = Date.now();
+    const key = uploadKeyFor(blob);
+    const releasePreparation = prepareTakeUpload(key);
+    const slideClockOffsetMs = measureSlideClockOffset(mic.getAudioStartedAt(), recordStartRef.current);
     setProcessingCycleStartedAt(waitStartedAt);
     recordedTakeRef.current = arcTakeIndex;
     // C7 — capture the named feeling for this take, then clear the active value.
@@ -778,7 +801,7 @@ export default function LabOverlay({
     // at once. An answer in a chat and a picked file are not kept.
     keepTakeAtFinish({
       blob,
-      key: uploadKeyFor(blob),
+      key,
       ownerId: userId,
       answer,
       picked: lastWasUploadRef.current,
@@ -789,7 +812,7 @@ export default function LabOverlay({
       takeIndex: arcTakeIndex,
       durationSec: durationRef.current,
       slideAdvances: slideAdvancesRef.current,
-      slideClockOffsetMs: measureSlideClockOffset(mic.getAudioStartedAt(), recordStartRef.current),
+      slideClockOffsetMs,
       feeling: recordedFeelingRef.current,
     });
     let active = true;
@@ -797,6 +820,30 @@ export default function LabOverlay({
     // (the ✕, an unmount) still lands it (`landUnwatched`).
     let discarded = false;
     let answered = false;
+    let projectId = arcId;
+    let handedToChat = false;
+    let failure: string | undefined;
+    const uploadCancelled = () => discarded || (!active && !handedToChat);
+    const ownerStillSignedIn = () => handedToChat
+      ? outboxOwner().then((owner) => owner?.id === userId) : true;
+    const reportFailure = (message: string) => {
+      failure = message;
+      if (active) setUploadError(message);
+      if (handedToChat) projectTakeCallbacks.current.onProjectRecordingFailure?.(key, message);
+    };
+    const rememberProject = (id: string) => rememberTakeProject(key, id).then(() => {
+      if (active) {
+        setArcId(id);
+        setExploreEnabled(true);
+      }
+    });
+    handoffProjectTake.current = (keepWait, sessionId) => {
+      const handoff = projectTakeCallbacks.current.onProjectRecordingHandoff;
+      if (!handoff || !userId || answer || discarded) return false;
+      handedToChat = handoff({ key, ownerId: userId, topic: context.topic, projectId, takeIndex: arcTakeIndex,
+        startedAt: waitStartedAt, audio: blob, sessionId, error: failure }, keepWait);
+      return handedToChat;
+    };
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
     // a result it has nothing to do with. Cleared alongside `active` below so
@@ -810,7 +857,7 @@ export default function LabOverlay({
       // write the returned arc + next take_index (+ deck) to localStorage so the
       // next LabOverlay session picks the arc up.
       const carryArc = (rArcId: string | null, rTakeIdx: number | null) => {
-        const returnedArcId = rArcId ?? arcId;
+        const returnedArcId = rArcId ?? projectId;
         // An answer's project is never carried as the current one (N363).
         if (!returnedArcId || answer) return;
         const nextIdx =
@@ -839,7 +886,6 @@ export default function LabOverlay({
           : initArc?.deck;
         return { returnedArcId, nextIdx, deck };
       };
-      let projectId = arcId;
       let uploadGuestOwnerToken =
         signedIn === false ? readGuestOwnerToken() : null;
 
@@ -874,18 +920,16 @@ export default function LabOverlay({
             presentation_mode: recordingDeck.isDefault ? "deckless" : "pdf",
           },
         });
-        if (!active) return;
+        if (uploadCancelled()) return;
         if (created.kind === "error") {
-          setUploadError(created.message);
+          reportFailure(created.message);
           return;
         }
         projectId = created.projectId;
         uploadGuestOwnerToken = created.guestOwnerToken;
         // The kept copy learns its project before the Take goes up, so a send
         // again never makes a second one (N556; at most 300 ms).
-        await rememberTakeProject(uploadKeyFor(blob), projectId);
-        setArcId(projectId);
-        setExploreEnabled(true);
+        await rememberProject(projectId);
       }
       // The real talk's slides become the project's new slides from this
       // Take (backend N449 item 1, N257), so the Take is kept on them.
@@ -893,15 +937,16 @@ export default function LabOverlay({
         slides: recordingSlides,
         presentationRef: servedRef,
       });
-      if (!active) return;
+      if (uploadCancelled() || !await ownerStillSignedIn()) return;
       const abort = new AbortController();
       uploadAbortRef.current = abort;
       setUploadInFlight(true);
+      releasePreparation();
       const result = await uploadForProcessing({
         audioBlob: blob,
         projectId,
         guestOwnerToken: uploadGuestOwnerToken,
-        uploadIdempotencyKey: uploadKeyFor(blob),
+        uploadIdempotencyKey: key,
         durationSec: durationRef.current,
         topic: context.topic,
         audience: context.audience || undefined,
@@ -928,10 +973,7 @@ export default function LabOverlay({
         // taps were measured from, so it stays correct whichever of the two
         // lands first (recordStartRef is set from a React effect, so its
         // ordering against the recorder's start event is not guaranteed).
-        slideClockOffsetMs: measureSlideClockOffset(
-          mic.getAudioStartedAt(),
-          recordStartRef.current,
-        ),
+        slideClockOffsetMs,
         feeling: recordedFeelingRef.current ?? undefined,
       }, abort.signal);
       answered = true;
@@ -951,7 +993,10 @@ export default function LabOverlay({
       // deliberate: it is deterministic (not "the dispatch probably re-ran the
       // effect first"), and it keeps this already-grandfathered function from
       // growing — the ratchet's own instruction.
-      if (!active) return landUnwatched(result, { discarded, projectId, waitStartedAt, carried: carryArc });
+      if (!active) {
+        reportUnwatchedFailure(result, reportFailure);
+        return landUnwatched(result, { discarded, key, projectId, waitStartedAt, projectChat: handedToChat, carried: carryArc });
+      }
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take
@@ -977,7 +1022,7 @@ export default function LabOverlay({
         setUploadStillProcessing(false);
         onRecordingProgress?.(result.recordingProgress);
         const completedTake = {
-          arcId: result.arcId ?? arcId,
+          arcId: result.arcId ?? projectId,
           takeIndex:
             result.takeIndex ?? recordedTakeRef.current ?? arcTakeIndex,
         };
@@ -1049,18 +1094,19 @@ export default function LabOverlay({
         // restart the mic. cancelMic resets to idle; the rejection guard shows
         // the message rather than a connecting spinner.
         cancelMic();
+        failure = result.message;
         setRejectedMsg(result.message);
         dispatch("upload_rejected");
         answerRejected();
       } else {
-        setUploadError(result.message);
+        reportFailure(result.message);
         // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
         // failure — the calm panel replaces the destructive retry one.
         setUploadStillProcessing(result.code === "PROCESSING_TIMEOUT");
         // An out-of-date acceptance: the update prompt, then this Take again.
         policyUpdateRef.current?.refused(result.code, () => retryProcessingRef.current());
       }
-    })();
+    })().catch(() => reportFailure("We couldn’t upload your recording.")).finally(releasePreparation);
     return () => {
       active = false;
       // NOT an abort. An unmount or a dependency change must never throw a
@@ -1068,6 +1114,7 @@ export default function LabOverlay({
       // run's interest in the answer ends. Dropping the canceller with it
       // keeps a stale handle from reaching into the next run.
       uploadCancelRef.current = null;
+      handoffProjectTake.current = null;
     };
   }, [state, blob, context, dispatch, cancelMic, retryNonce, userId]);
 
@@ -1521,7 +1568,7 @@ export default function LabOverlay({
     }
     if (!go || !takeSessionId || signedIn !== true) return;
     mic.cancel();
-    onWaitHandedOver?.(takeSessionId);
+    if (!handoffProjectTake.current?.(true, takeSessionId)) onWaitHandedOver?.(takeSessionId);
     onClose();
   };
 
@@ -1549,6 +1596,7 @@ export default function LabOverlay({
     // background worker. Closing is only a view change: do not invoke the mic
     // teardown path here, which must never be mistaken for cancelling the job.
     if (state === "lab_processing") {
+      handoffProjectTake.current?.(false, labSessionId ?? undefined);
       onClose();
       return;
     }

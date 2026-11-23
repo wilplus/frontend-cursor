@@ -43,7 +43,13 @@ export default function ProcessingResumeOverlay({
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const previousFocus = document.activeElement;
     dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
   }, []);
 
   const keepFocusInside = (event: KeyboardEvent<HTMLDivElement>) => {

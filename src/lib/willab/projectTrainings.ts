@@ -24,6 +24,11 @@ function publish(next: Snapshot): void {
   snapshot = next;
   listeners.forEach((listen) => listen());
 }
+
+/** Share the authoritative list from an in-flight Take poll with the sidebar. */
+export function publishProjectTrainings(projects: TrainingArc[]): void {
+  publish({ projects, status: "ready" });
+}
 /** Read the active project list once per in-flight request. All project-list
  * surfaces use this same seam, so a revalidation cannot be stranded in one
  * component's local state. */
@@ -32,11 +37,8 @@ export function refreshProjectTrainings(): Promise<TrainingArc[] | null> {
   publish({ projects: null, status: "loading" });
   pending = fetchTrainings()
     .then((projects) => {
-      publish(
-        projects === null
-          ? { projects: null, status: "error" }
-          : { projects, status: "ready" },
-      );
+      if (projects === null) publish({ projects: null, status: "error" });
+      else publishProjectTrainings(projects);
       return projects;
     })
     .catch(() => {
