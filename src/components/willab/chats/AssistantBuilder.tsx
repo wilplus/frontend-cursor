@@ -152,7 +152,7 @@ function BuilderForm({ builder }: { builder: Builder }) {
       </div>
       <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3">
         {state.at === "refused" ? (
-          <p role="alert" data-builder-refused="" className="text-[13.5px] text-[#B42318]">
+          <p role="alert" data-builder-refused="" className="text-[13.5px] text-[#B42318] dark:text-[#ff6b5f]">
             {state.why}
           </p>
         ) : null}

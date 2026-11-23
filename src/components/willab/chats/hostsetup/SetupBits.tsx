@@ -277,7 +277,7 @@ export function Opt({ title, sub, on = false, tick, disabled = false, onClick, b
         <i aria-hidden className={`mt-0.5 block h-5 w-5 shrink-0 rounded-md border-[1.5px] ${tick ? "border-foreground bg-foreground" : "border-border"}`} />
       )}
       <span className="flex flex-col gap-0.5">
-        {badge ? <span className="self-start rounded-full bg-[#E2F4EB] px-2 py-0.5 text-[12px] font-semibold text-[#2F9E6E]">{badge}</span> : null}
+        {badge ? <span className="self-start rounded-full bg-[#E2F4EB] dark:bg-[#12271d] px-2 py-0.5 text-[12px] font-semibold text-[#2F9E6E]">{badge}</span> : null}
         {under ? <span className="text-[16px] text-foreground">{under}</span> : null}
         <b className="text-[16px] font-semibold text-foreground">{title}</b>
         {sub ? <span className="text-[16px] text-foreground">{sub}</span> : null}

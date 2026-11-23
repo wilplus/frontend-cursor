@@ -21,7 +21,7 @@ import ModelsOverlay, { type ModelsScreen } from "./ModelsOverlay";
 
 function QueueIcon() {
   return (
-    <span aria-hidden className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-1 rounded-full bg-[#FFF1E7]">
+    <span aria-hidden className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-1 rounded-full bg-[#FFF1E7] dark:bg-accent">
       {[0, 1, 2].map((i) => (
         <i key={i} className="block h-[2.5px] w-5 rounded-sm bg-[#C2410C]" />
       ))}
@@ -31,7 +31,7 @@ function QueueIcon() {
 
 function JarIcon() {
   return (
-    <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F4EB]">
+    <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F4EB] dark:bg-[#12271d]">
       <i
         className="block h-[22px] w-[18px] rounded-[2px_2px_7px_7px] border-[2.5px] border-t-0 border-[#2F9E6E]"
         style={{ background: "linear-gradient(transparent 45%, #2F9E6E 45%)" }}

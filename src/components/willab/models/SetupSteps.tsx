@@ -58,7 +58,7 @@ export function SetupFrame({ screen, onBack, onClose, refused, footer, children 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-3.5">
           {children}
           {refused ? (
-            <p role="alert" data-setup-refused className="m-0 text-[14px] font-semibold text-[#C2410C]">
+            <p role="alert" data-setup-refused className="m-0 text-[14px] font-semibold text-[#C2410C] dark:text-[#ff8a4c]">
               {refused}
             </p>
           ) : null}

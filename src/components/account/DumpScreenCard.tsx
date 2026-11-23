@@ -39,7 +39,7 @@ export default function DumpScreenCard() {
           aria-checked={on}
           aria-label={COPY.switchLabel}
           onClick={flip}
-          className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors ${on ? "bg-foreground" : "bg-[#d9d9d9]"}`}
+          className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors ${on ? "bg-foreground" : "bg-[#d9d9d9] dark:bg-white/15"}`}
         >
           <span
             className={`absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-[18px]" : ""}`}

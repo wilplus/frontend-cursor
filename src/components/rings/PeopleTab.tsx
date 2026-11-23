@@ -92,7 +92,7 @@ export default function PeopleTab() {
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
         <input
           aria-label="Search people"
-          className="rounded-md border border-black/10 bg-background px-2 py-1 text-sm"
+          className="rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 text-sm"
           placeholder="search name or email"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -101,7 +101,7 @@ export default function PeopleTab() {
           <select
             key={key}
             aria-label={`Filter by ${key}`}
-            className="rounded-md border border-black/10 bg-background px-2 py-1 text-sm"
+            className="rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 text-sm"
             value={filters[key] ?? ""}
             onChange={(event) => setFilters((prev) => ({ ...prev, [key]: event.target.value }))}
           >
@@ -121,7 +121,7 @@ export default function PeopleTab() {
           Apply to selected
         </button>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-black/10">
+      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-foreground/60">

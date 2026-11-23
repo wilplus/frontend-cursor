@@ -15,7 +15,7 @@ function RuleEditor({ row, onSave }: { row: FeatureRing; onSave: (rule: Record<s
     <div>
       <input
         aria-label={`rule for ${row.feature}`}
-        className="w-44 rounded-md border border-black/10 bg-background px-2 py-1 font-mono text-xs"
+        className="w-44 rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 font-mono text-xs"
         placeholder="none"
         value={text}
         disabled={locked}
@@ -171,17 +171,17 @@ export default function FeaturesTab() {
         <span className="ml-auto flex items-center gap-2">
           <input
             aria-label="new feature name"
-            className="rounded-md border border-black/10 bg-background px-2 py-1 font-mono text-xs"
+            className="rounded-md border border-black/10 dark:border-white/10 bg-background px-2 py-1 font-mono text-xs"
             placeholder="new_feature_name"
             value={newFeature}
             onChange={(event) => setNewFeature(event.target.value)}
           />
-          <button type="button" className="rounded-md border border-black/10 px-2 py-1 text-xs" onClick={() => void create()}>
+          <button type="button" className="rounded-md border border-black/10 dark:border-white/10 px-2 py-1 text-xs" onClick={() => void create()}>
             Add row
           </button>
         </span>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-black/10">
+      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-foreground/60">

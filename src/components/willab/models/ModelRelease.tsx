@@ -51,9 +51,9 @@ export default function ModelRelease({ model, release, onRelease, onNotYet, onBa
         {counts.map((n, i) => (
           <span
             key={release.exam.labels[i]}
-            className={cn("flex flex-col gap-0.5 rounded-[14px] bg-muted p-2.5 text-[12.5px] leading-tight text-muted-foreground", i === 0 && release.release && "bg-[#E2F4EB]")}
+            className={cn("flex flex-col gap-0.5 rounded-[14px] bg-muted p-2.5 text-[12.5px] leading-tight text-muted-foreground", i === 0 && release.release && "bg-[#E2F4EB] dark:bg-[#12271d]")}
           >
-            <b className={cn("text-[22px] font-extrabold text-foreground", i === 0 && release.release && "text-[#1F7A55]")}>{n}</b>
+            <b className={cn("text-[22px] font-extrabold text-foreground", i === 0 && release.release && "text-[#1F7A55] dark:text-[#4cc38a]")}>{n}</b>
             {release.exam.labels[i]}
           </span>
         ))}

@@ -32,7 +32,7 @@ export default function AuditTab() {
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-lg border border-black/10">
+      <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-foreground/60">

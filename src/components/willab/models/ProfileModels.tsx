@@ -133,16 +133,16 @@ export default function ProfileModels({ userId, mine = true }: {
     setVersion((v) => v + 1);
   };
   return (
-    <div data-profile-models className="bg-white px-[18px] py-3.5">
-      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">{section.title}</p>
+    <div data-profile-models className="bg-white dark:bg-card px-[18px] py-3.5">
+      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A] dark:text-muted-foreground">{section.title}</p>
       {section.models.map((m) => (
-        <div key={m.id ?? m.name} data-profile-model className="flex flex-col gap-[5px] border-b border-[#F0F0F0] py-2 last:border-b-0">
+        <div key={m.id ?? m.name} data-profile-model className="flex flex-col gap-[5px] border-b border-[#F0F0F0] dark:border-border py-2 last:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <b className="text-[15.5px] font-semibold">{m.name}</b>
             <Badge text={m.badge} />
           </div>
           <Bar line={m.line} />
-          <small className="text-[13px] text-[#8A8A8A]">{m.line}</small>
+          <small className="text-[13px] text-[#8A8A8A] dark:text-muted-foreground">{m.line}</small>
           <Actions
             row={m}
             ways={m.id ? ownerWays[m.id] : undefined}

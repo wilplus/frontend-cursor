@@ -73,7 +73,7 @@ export function MonthGrid({
       </div>
       <div className={`grid grid-cols-7 text-center ${large ? "gap-1" : "gap-0.5"}`}>
         {HEAD.map((h) => (
-          <div key={h} className="py-1 text-[12px] text-[#8A8A8A]">
+          <div key={h} className="py-1 text-[12px] text-[#8A8A8A] dark:text-muted-foreground">
             {h}
           </div>
         ))}
@@ -88,8 +88,8 @@ export function MonthGrid({
               className={[
                 "relative rounded-full font-medium disabled:cursor-default disabled:text-[#CFCFCF]",
                 large ? "h-[42px] text-[15px]" : "h-[34px] text-[14px]",
-                sameDay(day, picked) ? "bg-[#121212] text-white" : "hover:bg-[#F2F2F2]",
-                sameDay(day, deadline ?? null) ? "font-bold text-[#C2410C] shadow-[inset_0_0_0_2px_#FF640A]" : "",
+                sameDay(day, picked) ? "bg-[#121212] dark:bg-cta dark:text-cta-foreground text-white" : "hover:bg-[#F2F2F2]",
+                sameDay(day, deadline ?? null) ? "font-bold text-[#C2410C] dark:text-[#ff8a4c] shadow-[inset_0_0_0_2px_#FF640A]" : "",
                 sameDay(day, today) && !sameDay(day, picked) ? "shadow-[inset_0_0_0_1px_#D0D0D0]" : "",
               ].join(" ")}
             >

@@ -420,7 +420,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
           type="button"
           data-widget-pill=""
           onClick={openChat}
-          className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-[18px] text-[15px] font-semibold text-[#121212] shadow-[0_10px_30px_rgba(0,0,0,0.22)]"
+          className="flex items-center gap-2.5 rounded-full bg-white dark:bg-card py-1.5 pl-1.5 pr-[18px] text-[15px] font-semibold text-[#121212] dark:text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.22)]"
         >
           <LetterCircle id={token} name={name} size={36} />
           {askName(name)}

@@ -125,7 +125,7 @@ export default function JoinPage({
     <main data-join-page className="mx-auto flex min-h-full w-full max-w-[480px] flex-col gap-5 bg-background px-5 pb-8 pt-12">
       <span
         aria-hidden
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FFE9DB] text-[26px] font-semibold text-[#A33A00]"
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FFE9DB] text-[26px] font-semibold text-[#A33A00] dark:text-[#ff9a5c]"
       >
         {(Array.from(name.trim())[0] ?? "").toUpperCase()}
       </span>

@@ -230,11 +230,11 @@ function Day({
   const sel = sameDay(day, picked);
   const isDeadline = sameDay(day, deadline);
   const tone = sel
-    ? "bg-[#121212] font-semibold text-white"
+    ? "bg-[#121212] dark:bg-cta dark:text-cta-foreground font-semibold text-white"
     : isDeadline
-      ? "font-bold text-[#C2410C] shadow-[inset_0_0_0_2px_#FF640A]"
+      ? "font-bold text-[#C2410C] dark:text-[#ff8a4c] shadow-[inset_0_0_0_2px_#FF640A]"
       : ok
-        ? "font-semibold text-[#121212]"
+        ? "font-semibold text-[#121212] dark:text-foreground"
         : "font-normal text-[#C6C6C6]";
   return (
     <div className="flex h-[58px] items-center justify-center">
@@ -386,10 +386,10 @@ function useCallSheet({ which, onDraw }: { which: CallWhich | null; onDraw: (whi
 function SheetTop({ dl, booked, onLeave }: { dl: boolean; booked: number; onLeave: () => void }) {
   return (
     <div className="flex h-[54px] flex-none items-center justify-between px-2">
-      <button type="button" onClick={onLeave} data-plan-skip className="h-11 px-3 text-[17px] text-[#121212]">
+      <button type="button" onClick={onLeave} data-plan-skip className="h-11 px-3 text-[17px] text-[#121212] dark:text-foreground">
         {dl ? PLAN_COPY.back : PLAN_COPY.skip}
       </button>
-      {dl ? null : <span className="px-3 text-[14px] tabular-nums text-[#6B6B6B]">{PLAN_COPY.booked(booked)}</span>}
+      {dl ? null : <span className="px-3 text-[14px] tabular-nums text-[#6B6B6B] dark:text-muted-foreground">{PLAN_COPY.booked(booked)}</span>}
     </div>
   );
 }
@@ -415,7 +415,7 @@ function MonthHeader({
   const name = (
     <>
       <span>{heading.slice(0, cut)}</span>
-      <span className="font-medium text-[#9A9A9A]">{heading.slice(cut + 1)}</span>
+      <span className="font-medium text-[#9A9A9A] dark:text-muted-foreground">{heading.slice(cut + 1)}</span>
     </>
   );
   return (
@@ -474,14 +474,14 @@ function MonthHeader({
 
 function DeadlineLine({ deadline, kickoff, onEdit }: { deadline: Date | null; kickoff: boolean; onEdit: () => void }) {
   return (
-    <div className="mt-2 flex min-h-[44px] flex-wrap items-center gap-x-[18px] pl-5 pr-3 text-[14px] text-[#6B6B6B]">
+    <div className="mt-2 flex min-h-[44px] flex-wrap items-center gap-x-[18px] pl-5 pr-3 text-[14px] text-[#6B6B6B] dark:text-muted-foreground">
       <span className="inline-flex items-center">
         <i className="mr-2 inline-block h-2.5 w-2.5 rounded-full shadow-[inset_0_0_0_2px_#FF640A]" aria-hidden />
         {PLAN_COPY.yourDeadline}: {deadline ? fmtShort(deadline) : ""}
         <button
           type="button"
           onClick={onEdit}
-          className="ml-1 h-11 px-2 font-semibold text-[#121212] underline underline-offset-[3px]"
+          className="ml-1 h-11 px-2 font-semibold text-[#121212] dark:text-foreground underline underline-offset-[3px]"
           data-plan-edit-deadline
         >
           {PLAN_COPY.edit}
@@ -510,7 +510,7 @@ function Times({ times, time, onPick }: { times: string[]; time: string | null; 
           onClick={() => onPick(t)}
           style={{ animationDelay: `${40 + i * 16}ms` }}
           className={`h-12 rounded-full border text-[16px] font-medium tabular-nums transition-colors duration-150 motion-safe:animate-fade-in-up ${
-            time === t ? "border-[#121212] bg-[#121212] text-white" : "border-[#E2E2E2] bg-white text-[#121212]"
+            time === t ? "border-[#121212] dark:border-foreground bg-[#121212] dark:bg-cta dark:text-cta-foreground text-white" : "border-[#E2E2E2] dark:border-border bg-white dark:bg-card text-[#121212] dark:text-foreground"
           }`}
         >
           {hhmm(t)}
@@ -530,7 +530,7 @@ function ActButton({ label, can, onAct }: { label: string; can: boolean; onAct: 
         disabled={!can}
         data-plan-act
         className={`flex h-[58px] w-full items-center justify-center rounded-full text-[17px] font-semibold transition-[background-color,color,transform] duration-200 active:scale-[.985] ${
-          can ? "bg-[#121212] text-white" : "bg-[#F0F0F0] text-[#A3A3A3]"
+          can ? "bg-[#121212] dark:bg-cta dark:text-cta-foreground text-white" : "bg-[#F0F0F0] text-[#A3A3A3] dark:text-muted-foreground"
         }`}
       >
         {label}
@@ -616,7 +616,7 @@ function SheetFrame({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)_+_12px)] mx-auto flex max-w-md select-none flex-col overflow-hidden rounded-t-[14px] bg-white text-[#121212] outline-none"
+        className="absolute inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)_+_12px)] mx-auto flex max-w-md select-none flex-col overflow-hidden rounded-t-[14px] bg-white dark:bg-card text-[#121212] dark:text-foreground outline-none"
         style={{
           transform: up ? "translateY(0)" : "translateY(105%)",
           transition: still ? "none" : `transform ${SLIDE_MS}ms ${SHEET_EASE}`,
@@ -800,7 +800,7 @@ export default function PlanCalendar({
           onUnfold={unfold}
           onStep={step}
         />
-        <div className="mt-2.5 grid grid-cols-7 px-5 text-center text-[13px] font-medium leading-6 text-[#8A8A8A]" aria-hidden>
+        <div className="mt-2.5 grid grid-cols-7 px-5 text-center text-[13px] font-medium leading-6 text-[#8A8A8A] dark:text-muted-foreground" aria-hidden>
           {HEAD.map((h) => (
             <span key={h}>{h}</span>
           ))}
