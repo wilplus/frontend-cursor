@@ -111,11 +111,12 @@ composer keeps touch-sized controls and accounts for the phone's safe area.
   when the chat allows it, with the draft still there. Files picked for an
   ordinary message stay queued during a voice-only answer in that chat.
 - Drafts follow the chat in which they were entered. Files and recordings
-  that need confirmation appear above the row. In Builder tests and the
-  experiment prompt, Stop prepares a local clip. Play, discard or record
-  again before sending. Send submits the next eligible draft, starting with
-  a ready recording, then an attachment, then text. A refused send keeps
-  that draft available for retry.
+  that need confirmation appear above the row. In Builder tests and live
+  experiments, Stop prepares a local clip. Play, discard or record again
+  before sending it. The experiment preview uses sample answers and keeps
+  the composer available for questions. Send submits the next eligible
+  draft, starting with a ready recording, then an attachment, then text.
+  A refused send keeps that draft available for retry.
 - Guided answers, exercises and official Takes keep their existing completion
   paths. Stop sends a guided answer or submits the attempt for checking.
   Discard uses that flow's existing exit or Skip. An official Take enables

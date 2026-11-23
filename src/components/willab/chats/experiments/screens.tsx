@@ -9,7 +9,6 @@ import {
   deletePrompt,
   EXPERIMENTS_USE_MOCKS,
   downloadExport,
-  EXPERIMENTS_USE_MOCKS,
   exportMine,
   openSession,
   readInterventions,
