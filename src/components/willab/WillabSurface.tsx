@@ -28,7 +28,7 @@ import {
   readExploreArc,
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
-import { readProcessingTake } from "@/lib/willab/processingTake";
+import { readProcessingTake, writeProcessingTake } from "@/lib/willab/processingTake";
 import { retryTakeSends } from "@/lib/willab/nextTakeShare";
 import {
   coachLinkLogin,
@@ -50,9 +50,7 @@ import {
 } from "@/lib/willab/setupDraft";
 import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 import ProjectChat from "./ProjectChat";
-import { CoachProjectUpdate } from "./TakeReviewMessage";
-import type { TakeReviewTarget } from "./TakeReview";
-import type { TrainingArc } from "@/services/api/trainings";
+import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
 
 /** A project recording has not begun in these screens. Closing one cancels
@@ -121,12 +119,11 @@ export default function WillabSurface({
   // that project, which is its ideal text. Only "Start a new project" (or
   // resuming its draft) goes into the recording onboarding.
   const [pickedProject, setPickedProject] = useState<TrainingArc | null>(null);
-  // A Take started inside a project returns to THAT project's conversation
-  // after the Lab's source Feedback walk and Ideal Text sequence closes. Will
-  // is the cross-project coach, never the destination for a project Take.
+  // The recorder hands the accepted Take back to its owning conversation.
   const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
-  const [coachProject, setCoachProject] = useState(false);
-  const [initialReview, setInitialReview] = useState<TakeReviewTarget | null>(null);
+  const [handoffTake, setHandoffTake] = useState<string | null>(null);
+  const projectOpenSequence = useRef(0);
+  const pendingProjectHandoff = useRef<string | null>(null);
   const [recordingInProgress, setRecordingInProgress] = useState(false);
   const labWasOpenRef = useRef(false);
   useEffect(() => {
@@ -136,16 +133,8 @@ export default function WillabSurface({
     }
     if (!labWasOpenRef.current || !returnProject) return;
     labWasOpenRef.current = false;
-    const returning = returnProject;
-    let active = true;
-    void refreshProjectTrainings().then((projects) => {
-      if (!active) return;
-      setPickedProject(projects?.find((project) => project.arcId === returning.arcId) ?? returning);
-      setReturnProject(null);
-    });
-    return () => {
-      active = false;
-    };
+    setPickedProject(returnProject);
+    setReturnProject(null);
   }, [flow.labOverlayOpen, returnProject]);
   // The Take whose wait the Lab just handed to the Lounge, until the Lounge
   // shows it (founder 2026-10-21: "make it stay"; useWaitScreen).
@@ -200,20 +189,23 @@ export default function WillabSurface({
     [],
   );
   const userId = useUserId();
-  const openProject = useCallback((arcId: string | null) => {
+  const openProject = useCallback((arcId: string | null, sessionId: string | null = null) => {
+    const sequence = ++projectOpenSequence.current;
     if (!arcId) {
       flow.startRecording();
       return;
     }
-    void refreshProjectTrainings().then((projects) => {
+    const readProjects = sessionId ? fetchTrainings({ force: true }) : refreshProjectTrainings();
+    void readProjects.then((projects) => {
+      if (sequence !== projectOpenSequence.current) return;
       const project = projects?.find((candidate) => candidate.arcId === arcId);
       if (!project) {
-        flow.startRecording();
+        if (!sessionId) flow.startRecording();
         return;
       }
+      pendingProjectHandoff.current = null;
       setPickedProject(project);
-      setCoachProject(false);
-      setInitialReview(null);
+      setHandoffTake(sessionId);
       flow.closeLab();
     });
   }, [flow]);
@@ -290,15 +282,17 @@ export default function WillabSurface({
     (answer: AnswerFor) => void startAnswer(answer, userId, startAnswerSetup),
     [userId, startAnswerSetup],
   );
-  const openProjectChat = (arc: TrainingArc, source?: "coach", target?: TakeReviewTarget) => {
+  const openProjectChat = (arc: TrainingArc) => {
+    projectOpenSequence.current++;
+    pendingProjectHandoff.current = null;
     clearActiveSetupDraft(userId);
     const cached = readExploreArc(userId);
     if (cached?.arcId !== arc.arcId) {
       const latest = [...arc.takes].sort((a, b) => a.takeIndex - b.takeIndex).pop();
       writeExploreArc(userId, arc.arcId, (latest?.takeIndex ?? arc.takeCount) + 1, undefined, latest?.sessionId);
     }
-    setCoachProject(source === "coach");
-    setInitialReview(target ?? null);
+    setHandoffTake(null);
+    setRecordingInProgress(false);
     setPickedProject(arc);
   };
   const chats = useChatsDoor(
@@ -313,6 +307,38 @@ export default function WillabSurface({
       onOpenProject: openProjectChat,
     },
   );
+
+  function leaveProject() {
+    projectOpenSequence.current++;
+    pendingProjectHandoff.current = null;
+    setRecordingInProgress(false);
+    setHandoffTake(null);
+    setPickedProject(null);
+  }
+
+  function handoffRecording(sessionId: string) {
+    const marker = readProcessingTake(userId);
+    const owner = returnProject?.arcId ?? (chats.speakingActive ? marker?.arcId : null);
+    if (!owner) {
+      setWaitHandedOver(sessionId);
+      return;
+    }
+    if (marker?.sessionId === sessionId && marker.arcId === owner) {
+      writeProcessingTake(userId, { ...marker, projectChat: true });
+    }
+    if (returnProject) {
+      setHandoffTake(sessionId);
+      return;
+    }
+    const known = chats.projects?.find((project) => project.arcId === owner);
+    if (known) {
+      openProjectChat(known);
+      setHandoffTake(sessionId);
+      return;
+    }
+    pendingProjectHandoff.current = sessionId;
+    openProject(owner, sessionId);
+  }
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
@@ -412,10 +438,10 @@ export default function WillabSurface({
           flow.startRecordingSetup();
         }}
         onOpenProject={openProject}
-        projectUpdate={!pickedProject && chats.coachProjects?.length ? (
-          <CoachProjectUpdate projects={chats.coachProjects}
-            onOpen={(project, target) => openProjectChat(project, "coach", target)} />
-        ) : null}
+        projectChatActive={Boolean(pickedProject || returnProject)}
+        onProjectTakeReady={(arcId, sessionId, scoped) => {
+          if (!scoped || pendingProjectHandoff.current === sessionId) openProject(arcId, sessionId);
+        }}
         onStartPlanRecording={(topic, start) => {
           // After the first Take, the real talk is that project's Take 2
           // (backend N449 item 1): "How do you feel?" with its Skip, then
@@ -509,9 +535,8 @@ export default function WillabSurface({
                 latest?.sessionId
               );
             }
-            setCoachProject(false);
-            setInitialReview(null);
-            setPickedProject(arc);
+            setHandoffTake(null);
+            openProjectChat(arc);
             flow.closeLab(); // dismiss the picker; the project chat takes over
           }}
           // Nothing to choose (no projects, or the list is unreachable) →
@@ -532,16 +557,15 @@ export default function WillabSurface({
         <ProjectChat
           key={pickedProject.arcId}
           project={pickedProject}
-          coachContext={coachProject}
-          initialReview={initialReview}
+          handoffTake={handoffTake}
+          navigation={chats.openSpeaking ? {
+            projects: chats.projects ?? [],
+            onProject: openProjectChat,
+            onCoach: () => { leaveProject(); chats.openSpeaking?.(); },
+          } : undefined}
           analysisPending={pickerSettle.pending}
           recordingInProgress={recordingInProgress}
-          onBack={() => {
-            setRecordingInProgress(false);
-            setCoachProject(false);
-            setInitialReview(null);
-            setPickedProject(null);
-          }}
+          onBack={leaveProject}
           onRecord={(arcId) => {
             // Repeat/continue is allowed to arrive here from a remounted
             // project chat. Seed the selected arc again at the recorder
@@ -565,13 +589,14 @@ export default function WillabSurface({
               );
             }
             setRecordingInProgress(true);
-            setInitialReview(null);
+            setHandoffTake(null);
             setReturnProject(pickedProject);
             setPickedProject(null);
             flow.startRecordingSetup();
           }}
           onRecordingSettled={() => {
             setRecordingInProgress(false);
+            setHandoffTake(null);
             void refreshProjectTrainings();
           }}
         />
@@ -589,7 +614,7 @@ export default function WillabSurface({
             // An answer's project was never the speaker's current one.
             endAnswer();
           }}
-          onWaitHandedOver={setWaitHandedOver}
+          onWaitHandedOver={handoffRecording}
           onRecordingProgress={setRecordingProgress}
         />
       )}

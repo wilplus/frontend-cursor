@@ -127,6 +127,7 @@ export function useDocumentSettle({
         prev?.sessionId === m?.sessionId &&
         prev?.phase === m?.phase &&
         prev?.status === m?.status &&
+        prev?.projectChat === m?.projectChat &&
         prev?.progress?.stage === m?.progress?.stage &&
         prev?.progress?.percent === m?.progress?.percent
           ? prev

@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
 import {
   newestStamp,
   stampLoungeMessage,
@@ -24,6 +24,7 @@ import {
   retryLabProcessing,
 } from "@/services/api/labRecording";
 import {
+  clearProcessingTake,
   readProcessingTake,
   writeProcessingTake,
   type ProcessingTake,
@@ -47,14 +48,19 @@ import {
   practiceSelection,
   readPracticeCheckpoint,
   writePracticeResume,
+  type PracticeDecision,
 } from "@/lib/willab/practiceResume";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import TakeReview, { type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
-import TakeReviewMessage from "./TakeReviewMessage";
+import TakeReview, { type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
+import TakeReviewMessage, { readyForReview } from "./TakeReviewMessage";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
+import { ProjectChatNavigation, ProjectMenuToggle, type ProjectNavigation } from "./ProjectChatNavigation";
+import { scrollWithinProject } from "./walk/InlineWalkHost";
+
+const SPEAKER_BUBBLE = "bg-[#f8f1ea] text-foreground dark:bg-[#3c3028]";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -263,7 +269,7 @@ function projectVersion(project: TrainingArc): string {
     takeCount: project.takeCount,
     progress: project.practiceProgress,
     latest: latest
-      ? [latest.sessionId, latest.takeIndex, latest.feedbackAvailable]
+      ? [latest.sessionId, latest.takeIndex, latest.feedbackAvailable, latest.reviewAvailable]
       : null,
     chunks: project.practiceChunks,
   });
@@ -274,32 +280,37 @@ function useProjectRecordingLifecycle({
   userId,
   thread,
   recordingInProgress,
+  handoffTake,
   onRecordingSettled,
 }: {
   project: TrainingArc;
   userId: string | null;
   thread: ReturnType<typeof useLoungeThreadCtx>;
   recordingInProgress: boolean;
+  handoffTake: string | null;
   onRecordingSettled?: () => void;
 }) {
   const [liveProject, setLiveProject] = useState(project);
-  const [recordingActive, setRecordingActive] = useState(recordingInProgress);
+  const [recordingActive, setRecordingActive] = useState(recordingInProgress || handoffTake !== null);
+  const [freshReview, setFreshReview] = useState<TrainingTake | null>(null);
   const [processingMarker, setProcessingMarker] = useState<ProcessingTake | null>(null);
   const [retrying, setRetrying] = useState(false);
   const threadRef = useRef(thread);
   const candidateSessionRef = useRef<string | null>(null);
+  const settledSession = useRef<string | null>(null);
+  const returnToReview = useRef(recordingInProgress || handoffTake !== null);
   threadRef.current = thread;
   const activeProject = liveProject.arcId === project.arcId ? liveProject : project;
 
   useEffect(() => {
     setLiveProject(project);
-    setRecordingActive(recordingInProgress);
-  }, [project, recordingInProgress]);
+    setRecordingActive(recordingInProgress || (handoffTake !== null && handoffTake !== settledSession.current));
+  }, [project, recordingInProgress, handoffTake]);
 
   useEffect(() => {
     const sync = () => {
       const marker = readProcessingTake(userId);
-      if (marker?.arcId === activeProject.arcId) {
+      if (marker?.arcId === activeProject.arcId && marker.sessionId !== settledSession.current) {
         setProcessingMarker(marker);
         setRecordingActive(true);
       } else if (!recordingActive) {
@@ -343,11 +354,13 @@ function useProjectRecordingLifecycle({
       setLiveProject((current) =>
         projectVersion(current) === projectVersion(next) ? current : next,
       );
-      if (
-        latest &&
-        latest.sessionId === candidateSessionRef.current &&
-        latest.feedbackAvailable
-      ) {
+      const expectedSession = handoffTake ?? processingMarker?.sessionId ?? candidateSessionRef.current;
+      const completed = next.takes.find((take) => take.sessionId === expectedSession && readyForReview(take));
+      if (completed && completed.sessionId !== settledSession.current) {
+        settledSession.current = completed.sessionId;
+        if (returnToReview.current) setFreshReview(completed);
+        returnToReview.current = false;
+        clearProcessingTake(userId, completed.sessionId);
         setRecordingActive(false);
         setProcessingMarker(null);
         refreshLiveIdealDoc(activeProject.arcId);
@@ -361,7 +374,7 @@ function useProjectRecordingLifecycle({
       active = false;
       window.clearInterval(id);
     };
-  }, [activeProject, onRecordingSettled, recordingActive]);
+  }, [activeProject, handoffTake, onRecordingSettled, processingMarker?.sessionId, recordingActive, userId]);
 
   const failed =
     recordingActive &&
@@ -378,11 +391,13 @@ function useProjectRecordingLifecycle({
         : retryLabProcessing(marker.sessionId)
     ).catch(() => false);
     if (restarted) {
+      returnToReview.current = true;
       const now = Date.now();
-      const next = {
+      const next: ProcessingTake = {
         ...marker,
-        status: "processing" as const,
-        phase: "analysis" as const,
+        projectChat: true,
+        status: "processing",
+        phase: "analysis",
         startedAt: now,
         phaseStartedAt: now,
         progress: { stage: "processing_recording", percent: 0 },
@@ -396,6 +411,7 @@ function useProjectRecordingLifecycle({
 
   return {
     activeProject,
+    freshReview,
     failed,
     processingMarker,
     recordingActive,
@@ -403,6 +419,7 @@ function useProjectRecordingLifecycle({
     retryProcessing,
     startRecording: () => {
       candidateSessionRef.current = null;
+      returnToReview.current = true;
       setRecordingActive(true);
     },
   };
@@ -411,7 +428,7 @@ function useProjectRecordingLifecycle({
 function useProjectPracticeHistory(project: TrainingArc, messages: readonly LoungeMessage[]) {
   const [runs, setRuns] = useState<ReviewRuns>({});
   const [refresh, setRefresh] = useState(0);
-  const enabled = project.practiceCoverage !== undefined;
+  const enabled = project.takes.some(readyForReview);
   const receipts = messages.filter((message) =>
     message.kind === "walk_step" && message.role === "user" &&
     message.metadata?.arc_id === project.arcId &&
@@ -441,11 +458,11 @@ function ProjectReviewContext({ topic, target, onReturn, onClear }: {
   </div>;
 }
 
-function ProjectChatHeader({ project, coach, onBack }: {
-  project: TrainingArc; coach: boolean; onBack: () => void;
+function ProjectChatHeader({ project, menuToggle, onBack }: {
+  project: TrainingArc; menuToggle: ReactNode; onBack: () => void;
 }) {
   return <TopBar circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-    title={coach ? "Speaking coach" : project.topic} subtitle={coach ? project.topic : "Project"} onBack={onBack} />;
+    title={project.topic} subtitle="Project" beforeTitle={menuToggle} onBack={onBack} />;
 }
 
 function samePending(
@@ -491,8 +508,9 @@ export default function ProjectChat({
   project,
   analysisPending = false,
   recordingInProgress = false,
-  coachContext = false,
+  handoffTake = null,
   initialReview = null,
+  navigation,
   onBack,
   onRecord,
   onRecordingSettled,
@@ -502,18 +520,23 @@ export default function ProjectChat({
   /** Set when this chat returns from its own recorder. It bridges the short
    *  gap before the accepted Take has a session/processing marker. */
   recordingInProgress?: boolean;
-  coachContext?: boolean;
+  handoffTake?: string | null;
   initialReview?: TakeReviewTarget | null;
+  navigation?: ProjectNavigation;
   onBack: () => void;
   onRecord: (arcId: string) => void;
   onRecordingSettled?: () => void;
 }) {
-  useBackDismiss(onBack);
+  const reviewExit = useRef<ReviewExit | null>(null);
+  const leavingReview = useCallback((action: () => void) => (reviewExit.current ?? ((afterSave) => afterSave()))(action), []);
+  const back = () => leavingReview(onBack);
+  useBackDismiss(back);
   const coach = usePublishedCoach();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const {
     activeProject,
+    freshReview,
     failed,
     processingMarker,
     recordingActive,
@@ -525,11 +548,16 @@ export default function ProjectChat({
     userId,
     thread,
     recordingInProgress,
+    handoffTake,
     onRecordingSettled,
   });
   const [opened, setOpened] = useState<Opened>(null);
   const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
   const [takeReview, setTakeReview] = useState<TakeReviewTarget | null>(initialReview);
+  const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(() =>
+    typeof window !== "undefined" && Boolean(window.matchMedia?.("(min-width: 768px)").matches));
+  const menuId = useId();
   const [askTarget, setAskTarget] = useState<TakeReviewTarget | null>(null);
   const slides = useUpdateSlides(activeProject.arcId, {
     hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
@@ -557,7 +585,7 @@ export default function ProjectChat({
     [outbox.messages, thread.messages, activeProject.arcId],
   );
   const visibleMessages = messages.filter(
-    (message) => message.kind !== "walk_step" && message.kind !== "ideal_text" && message.kind !== "recording_summary",
+    (message) => !["walk_step", "ideal_text", "recording_summary", "feedback", "transcript_ready"].includes(message.kind),
   );
   const question = openProjectQuestion(messages);
   const failedTurns = new Map(outbox.turns.filter((t) => !outbox.isSending(t)).map((t) => [t.user.client_id, t]));
@@ -577,6 +605,9 @@ export default function ProjectChat({
   const recordingTakes = [...activeProject.takes].sort(
     (a, b) => a.takeIndex - b.takeIndex,
   );
+  useEffect(() => {
+    if (freshReview) leavingReview(() => setTakeReview({ take: freshReview, focus: { step: "feedback" } }));
+  }, [freshReview, leavingReview]);
   const pinBottom = useProjectChatScroll(
     scrollRef,
     activeProject.arcId,
@@ -696,9 +727,21 @@ export default function ProjectChat({
   };
 
   function finishReview() {
+    const closed = takeReview?.take.sessionId;
     setTakeReview(null);
     refreshRuns();
     void thread.reload();
+    if (closed) window.requestAnimationFrame(() => {
+      const entry = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>("[data-project-take]") ?? [])
+        .find((item) => item.dataset.projectTake === closed);
+      const preview = entry?.querySelector<HTMLButtonElement>("[data-take-review-message]");
+      scrollWithinProject(preview);
+      preview?.focus({ preventScroll: true });
+    });
+  }
+
+  function openReview(target: TakeReviewTarget) {
+    leavingReview(() => setTakeReview(target));
   }
 
   function reviewLink(message: LoungeMessage) {
@@ -707,18 +750,26 @@ export default function ProjectChat({
     const take = recordingTakes.find((part) => part.sessionId === message.metadata?.take_session_id);
     if (!take) return null;
     const label = typeof coords.slide_index === "number" ? ` · Slide ${coords.slide_index + 1}` : "";
-    return <button type="button" className="block min-h-8 text-xs underline" onClick={() => setTakeReview({
+    return <button type="button" className="block min-h-8 text-xs underline" onClick={() => openReview({
       take, focus: coords as ReviewFocus,
     })}>Take {take.takeIndex}{label} · Back to review</button>;
   }
 
-  function startPractice(scope: "fragment" | "whole"): void {
-    const latest = openedPractice ?? practiceChunks.at(-1) ?? null;
-    const span = activeProject.practiceChunks.find((chunk) => chunk.latestSessionId === latest?.latestSessionId);
+  function startPractice(scope: "fragment" | "whole", chunk: FeedbackWalkChunk | undefined): void {
+    const span = activeProject.practiceChunks.find((item) => item.latestSessionId === chunk?.latestSessionId);
     writePracticeResume(userId, activeProject.arcId, practiceSelection(scope, span));
     setOpened(null);
     startRecording();
     onRecord(activeProject.arcId);
+  }
+
+  function practiceDecisionFor(chunk: FeedbackWalkChunk | undefined): PracticeDecision | undefined {
+    if (!hasPractice) return undefined;
+    return {
+      deliveryLabel: chunk?.deliveryLabel ?? undefined,
+      onFragment: () => { finishReview(); startPractice("fragment", chunk); },
+      onWholePresentation: () => { finishReview(); startPractice("whole", chunk); },
+    };
   }
 
   function recordNext(chunk: FeedbackWalkChunk | null = null) {
@@ -733,18 +784,28 @@ export default function ProjectChat({
 
   return (
     <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
-      <div className="contents" aria-hidden={Boolean(takeReview)}
-        ref={(element) => { if (element) element.inert = Boolean(takeReview); }}>
-      <ProjectChatHeader project={activeProject} coach={coachContext} onBack={onBack} />
+      <ProjectChatHeader project={activeProject} onBack={back} menuToggle={navigation ?
+        <ProjectMenuToggle id={menuId} open={menuOpen} onClick={() => setMenuOpen((open) => !open)} /> : null} />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {navigation && menuOpen ? <ProjectChatNavigation id={menuId} active={activeProject}
+          projects={navigation.projects} onCoach={() => leavingReview(navigation.onCoach)}
+          onProject={(picked) => {
+            if (picked.arcId !== activeProject.arcId) leavingReview(() => navigation.onProject(picked));
+          }} /> : null}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
-          {recordingTakes.map((take) => (
-            <div
-              key={`recording:${take.sessionId}`}
-              data-project-recording={take.sessionId}
-              className="ml-auto max-w-[86%] rounded-[18px] bg-primary px-4 py-3 text-primary-foreground"
-            >
+          {recordingTakes.map((take) => {
+            const chunk = practiceChunks.find((entry) => entry.latestSessionId === take.sessionId);
+            const range = chunk && !chunk.pendingStatus ? { startSlide: chunk.startSlide, endSlide: chunk.endSlide } : undefined;
+            const selected = takeReview?.take.sessionId === take.sessionId ? { ...takeReview, walkRange: range } : null;
+            const forTake = messages.filter((message) => message.metadata?.take_session_id === take.sessionId);
+            const preview = forTake.find((message) => message.kind === "walk_step" && message.body.trim() &&
+              ["praise", "best", "fix", "tempo:open"].includes(String(message.metadata?.step)))?.body ?? null;
+            return <div key={take.sessionId} data-project-take={take.sessionId} className="flex flex-col gap-2">
+              <div data-project-recording={take.sessionId}
+                className={SPEAKER_BUBBLE + " ml-auto max-w-[86%] rounded-[18px] px-4 py-3"}>
               <p className="text-[15px] font-semibold">Your recording · Take {take.takeIndex}</p>
               <button
                 type="button"
@@ -756,16 +817,31 @@ export default function ProjectChat({
               >
                 Open raw transcript
               </button>
-            </div>
-          ))}
-          {takeReviewEnabled ? (
-            <TakeReviewMessage project={activeProject} runs={runs} onOpen={setTakeReview} />
-          ) : hasPractice ? (
+              </div>
+              {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
+                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit}
+                practiceDecision={practiceDecisionFor(chunk)}
+                onAsk={setAskTarget} onClose={finishReview}
+                onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
+                onNextTake={() => {
+                  finishReview();
+                  recordNext(chunk);
+                }} /> : readyForReview(take) ? <TakeReviewMessage take={take} preview={preview}
+                  count={runs[take.sessionId]?.length ?? 0}
+                  onOpen={() => openReview({ take, focus: { step: "feedback" } })} /> : null}
+            </div>;
+          })}
+          {!takeReviewEnabled && hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
                 progress={activeProject.practiceProgress}
                 chunks={practiceChunks}
                 onFeedback={(chunk) => {
+                  const take = recordingTakes.find((item) => item.sessionId === chunk.latestSessionId);
+                  if (take && !chunk.pendingStatus) {
+                    openReview({ take, focus: { step: "feedback" }, openWalk: true });
+                    return;
+                  }
                   setOpenedPractice(chunk);
                   setOpened("walk");
                 }}
@@ -794,7 +870,7 @@ export default function ProjectChat({
                 data-project-message={message.client_id}
                 className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed ${
                   message.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
+                    ? "ml-auto " + SPEAKER_BUBBLE
                     : "mr-auto bg-muted text-foreground"
                 }`}
               >
@@ -818,14 +894,18 @@ export default function ProjectChat({
       </div>
 
       {askTarget ? <ProjectReviewContext topic={activeProject.topic} target={askTarget}
-        onReturn={() => setTakeReview(askTarget)} onClear={() => setAskTarget(null)} /> : null}
+        onReturn={() => openReview(askTarget)} onClear={() => setAskTarget(null)} /> : null}
+      <div ref={setRecordingDock} data-project-walk-capture className={WILLAB_CONTENT_RAIL + " peer empty:hidden"} />
+      <div className="peer-[:not(:empty)]:hidden">
       <ChatComposer key={activeProject.arcId} className={WILLAB_CONTENT_RAIL}
         formAttrs={{ "data-project-question-composer": "" }} placeholder={activeQuestion ? TYPE_YOUR_ANSWER : "Message about this project"}
         inputLabel="Answer about this take" sendLabel="Send answer" value={draft} onValue={setDraft} onSend={() => answerText()}
         autoFocus={typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
-        mic={{ label: recordLabel(coach, Boolean(hasPractice)), start: () => recordNext(), attrs: { "data-project-record": "" } }} />
+        mic={{ label: recordLabel(coach, Boolean(hasPractice)), start: () => leavingReview(() => recordNext()), attrs: { "data-project-record": "" } }} />
+      </div>
       {slides.layer}
+        </div>
       </div>
 
       {opened ? (
@@ -841,27 +921,8 @@ export default function ProjectChat({
             startRecording();
             onRecord(activeProject.arcId);
           }}
-          practiceDecision={hasPractice ? {
-            deliveryLabel:
-              openedPractice?.deliveryLabel ??
-              practiceChunks.at(-1)?.deliveryLabel ??
-              undefined,
-            onFragment: () => startPractice("fragment"),
-            onWholePresentation: () => startPractice("whole"),
-          } : undefined}
+          practiceDecision={practiceDecisionFor(openedPractice ?? practiceChunks.at(-1))}
         />
-      ) : null}
-      {takeReview ? (
-        <TakeReview key={takeReview.take.sessionId + ":" + takeReview.focus.step}
-          project={activeProject} target={takeReview} runCount={runs[takeReview.take.sessionId]?.length ?? 0}
-          onAsk={(target) => { setAskTarget(target); finishReview(); }}
-          onClose={() => { setAskTarget(null); finishReview(); }}
-          onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
-          onNextTake={() => {
-            const chunk = practiceChunks.find((entry) => entry.latestSessionId === takeReview.take.sessionId);
-            finishReview();
-            recordNext(chunk);
-          }} />
       ) : null}
       {openedTranscript ? (
         <TakeTranscriptSheet

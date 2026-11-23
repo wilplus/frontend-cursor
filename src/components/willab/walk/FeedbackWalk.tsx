@@ -8,6 +8,7 @@ import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, ONE_THING_COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
+import { useInlineWalkHost } from "./InlineWalkHost";
 import WalkThread, { WalkEdited, WalkLanding, WalkPart, WalkSpeakerBubble, WalkThreadMark, WalkTyping, useMountedAsPast, useWalkHeld, useWalkPart } from "./WalkThread";
 import { useBestSaid, useWalkSaid, walkVoiceSaidNow, type WalkVoiceRequest, type WalkVoiceSaid } from "./useWalkVoice";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
@@ -410,6 +411,7 @@ export default function FeedbackWalk<R = unknown>({
   helperWordsOf = null,
   onLessonDone,
 }: Props<R>) {
+  const inlineHost = useInlineWalkHost();
   const liveModel = useRef(model);
   liveModel.current = model;
   const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
@@ -906,7 +908,8 @@ export default function FeedbackWalk<R = unknown>({
       const here = plan.indexOf(s);
       // The recorder never gives way (B9): moving off it stops the mic. The
       // tempo step's recorder is its own, so the dock is asked too.
-      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key) || recorderDocked(frame.current)) return false;
+      if (here < 0 || here === at || s.readOnly || RECORDER.has(step.key) || recorderDocked(frame.current) ||
+        inlineHost?.recordingDock?.querySelector("[data-chat-capture]")) return false;
       // Back up the thread, their buttons bring the walk back to where it
       // stood; further down, the walk goes on from them.
       setResume((r) => {
@@ -1046,25 +1049,21 @@ export default function FeedbackWalk<R = unknown>({
     seq,
   };
 
+  const renderWalk = (s: typeof stage, ghost?: boolean) => (
+    <WalkThread ghost={ghost} frame={frame} opening={s.seq} current={s.at}
+      buttons={!scroll || editing !== null} onClose={close}>
+      {renderThread(ctx, s.head, s.seq, backFromPractise, s.at, s.seq !== null && s.seq === helloSeq.current ? walkTop(helloSaid ?? hello, last) : [])}
+    </WalkThread>
+  );
+  if (inlineHost) {
+    return seq === null || stage.overlay === false ? null :
+      <div data-feedback-walk data-walk-step={step.key}>{renderWalk(stage)}</div>;
+  }
   return (
     <div data-feedback-walk data-walk-step={step.key}>
       {/* The whole window on a wide screen, the words in the Lounge's
           column (globals.css, "The lens on a computer"). */}
-      <WalkStage
-        screen={stage}
-        render={(s, ghost) => (
-          <WalkThread
-            ghost={ghost}
-            frame={frame}
-            opening={s.seq}
-            current={s.at}
-            buttons={!scroll || editing !== null}
-            onClose={close}
-          >
-            {renderThread(ctx, s.head, s.seq, backFromPractise, s.at, s.seq !== null && s.seq === helloSeq.current ? walkTop(helloSaid ?? hello, last) : [])}
-          </WalkThread>
-        )}
-      />
+      <WalkStage screen={stage} render={renderWalk} />
     </div>
   );
 }

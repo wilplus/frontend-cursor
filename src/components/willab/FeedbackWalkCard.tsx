@@ -19,7 +19,7 @@ export type FeedbackWalkChunk = Omit<
   pendingStatus?: string;
 };
 
-function EditableText({ value, label, onCommit, className }: {
+export function EditableText({ value, label, onCommit, className }: {
   value: string;
   label: string;
   onCommit: (value: string) => void;

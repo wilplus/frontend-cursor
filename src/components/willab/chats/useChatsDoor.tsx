@@ -37,7 +37,9 @@ export type ChatsDoor = {
   front: ReactNode;
   navbar: boolean;
   loungeCovered: boolean;
-  coachProjects?: TrainingArc[];
+  projects?: TrainingArc[];
+  speakingActive?: boolean;
+  openSpeaking?: () => void;
 };
 
 const WAITING: ChatsDoor = {
@@ -97,7 +99,9 @@ export function useChatsDoor(
   if (!on) return CLOSED;
 
   return {
-    coachProjects: speakingOpen ? availableProjects : undefined,
+    projects: availableProjects,
+    speakingActive: speakingOpen,
+    openSpeaking: () => setSpeakingOpen(true),
     back: speakingOpen ? <>
       <WillTopBar onBack={() => setSpeakingOpen(false)} place="speaking" right={<div className="flex items-center gap-1">{
       availableProjects.length ? (

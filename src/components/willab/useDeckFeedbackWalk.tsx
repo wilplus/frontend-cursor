@@ -14,6 +14,7 @@ import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
 import { tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkLastTime, type FeedbackWalkRequest, type FeedbackWalkTempoWords, type WalkAiShown } from "./walk/FeedbackWalk";
 import { useWalkVoiceOn } from "./walk/useWalkVoice";
+import { useInlineWalkHost } from "./walk/InlineWalkHost";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
@@ -1162,13 +1163,19 @@ export function useDeckFeedbackWalk(args: {
      what the walk shows and what the speaker answers, stored once, behind
      the screen. A failed post never stops the walk. */
   const thread = useLoungeThreadMaybe();
+  const savedSteps = useInlineWalkHost()?.savedSteps;
+  const threadMessages = useMemo(() => {
+    if (!savedSteps?.length) return thread?.messages;
+    const byId = new Map([...(thread?.messages ?? []), ...savedSteps].map((row) => [row.client_id, row]));
+    return [...byId.values()].sort((a, b) => a.client_created_at.localeCompare(b.client_created_at));
+  }, [savedSteps, thread?.messages]);
   const live = useRef(args);
   live.current = args;
   const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
   threadRef.current = { thread, take, arcId: args.arcId ?? null };
   const persistedWalkState = useMemo(
-    () => feedbackWalkStateFromMessages(thread?.messages ?? [], pageTake),
-    [thread?.messages, pageTake],
+    () => feedbackWalkStateFromMessages(threadMessages ?? [], pageTake),
+    [threadMessages, pageTake],
   );
   const walkStateRef = useRef<FeedbackWalkState>(persistedWalkState);
   const persistedEntry = feedbackWalkEntryFor(persistedWalkState);
@@ -1305,7 +1312,6 @@ export function useDeckFeedbackWalk(args: {
      thread (each "Practise N" and the answer it got); where the thread has
      none for a practice the walk knows, from the practice itself, read
      once. Nothing is written. */
-  const threadMessages = thread?.messages;
   const threadLoaded = thread !== null && !thread.loading;
   const triedByPart = useMemo(
     () => (threadMessages && take ? threadTries(threadMessages, take) : new Map<string, ReplayTries>()),

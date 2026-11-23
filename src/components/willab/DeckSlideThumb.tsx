@@ -20,12 +20,15 @@ export default function DeckSlideThumb({
   presentationRef,
   pageIndex,
   slideTitle = null,
+  compact = false,
   label,
 }: {
   presentationRef: string | null;
   pageIndex: number;
   /** The slide's own title, for a deckless deck in its own words (backend N401). */
   slideTitle?: string | null;
+  /** A message leaves room for the text beside the small slide tile. */
+  compact?: boolean;
   /** The slide's kicker ("Slide 2"), used as the tile's accessible name. */
   label: string;
 }) {
@@ -44,7 +47,7 @@ export default function DeckSlideThumb({
         type="button"
         onClick={() => setEnlarged(true)}
         aria-label={`Show ${label} larger`}
-        className="w-1/2 shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:w-full"
+        className={(compact ? "w-[76px]" : "w-1/2 md:w-full") + " shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"}
       >
         <DeckSlidePreview
           presentationRef={presentationRef}
