@@ -17,6 +17,7 @@ import { ArchivedIdealText } from "./IdealTextPastVersion";
 import TypingDots from "./TypingDots";
 import { useBackDismiss } from "./useBackDismiss";
 import WalkPlayer from "./walk/WalkPlayer";
+import { useBestSaid, useWalkVoiceOn } from "./walk/useWalkVoice";
 import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
 import { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
 import { ConversationBubble } from "./chats/TakeConversation";
@@ -35,12 +36,18 @@ export type TakeReviewTarget = {
 };
 export type ReviewExit = (afterSave: () => void) => void;
 type Step = ReviewFocus["step"];
+export const REVIEW_STEPS = [
+  { step: "feedback", label: "Feedback" },
+  { step: "practise", label: "Practise" },
+  { step: "ideal", label: "Ideal text" },
+] as const;
 
 const BUTTON = "min-h-11 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted";
 const LINK = "min-h-11 text-sm text-muted-foreground hover:underline";
 
 type ReviewEvidence = {
   moment: FeedbackKeyMoment | null;
+  strength?: FeedbackKeyMoment | null;
   activity: string | null;
   instruction?: string | null;
 };
@@ -64,6 +71,15 @@ function momentFromSuggestion(item: DocumentSuggestion): FeedbackKeyMoment | nul
   };
 }
 
+function strongestMoment(items: DocumentSuggestion[]): FeedbackKeyMoment | null {
+  const best = items.find((item) => item.snippetId && (item.highestMoment || item.walkSlot === "strongest") &&
+    (item.bookmarkTier ? item.bookmarkTier === "confident" :
+      item.feedbackFamily === "great_formulation" || item.openCard === "praise"));
+  if (!best) return null;
+  const moment = momentFromSuggestion(best);
+  return moment ? { ...moment, commentText: best.praiseReason?.paragraphs.join("\n\n") ?? best.praiseLine } : null;
+}
+
 async function tempoEvidence(project: string, take: string, snippet?: string): Promise<ReviewEvidence | null> {
   const tempo = await fetchReviewTempo(project, take);
   if (!tempo || tempo === "failed" || !tempo.snippetId || (snippet && tempo.snippetId !== snippet)) return null;
@@ -83,13 +99,15 @@ async function latestEvidence(
 ): Promise<ReviewEvidence> {
   if (result.kind !== "single") return { moment: null, activity: null };
   const items = (result.suggestions ?? []).filter((item) => item.takeSessionId === take);
+  const strength = snippet ? null : strongestMoment(items);
   const tempo = items.some((item) => item.oneFix === "tempo") ? await tempoEvidence(project, take, snippet) : null;
-  if (tempo) return tempo;
+  if (tempo) return { ...tempo, strength };
   const candidates = snippet ? items.filter((item) => item.snippetId === snippet) : items;
   const candidate = candidates.find((item) => item.walkSlot === "weakest" || item.walkSlot === "between");
   const strongest = candidates.find((item) => item.highestMoment || item.walkSlot === "strongest") ?? candidates[0];
   const clip = result.ideal.keyMoments.find((item) => item.takeSessionId === take && (!snippet || item.snippetId === snippet));
   return {
+    strength,
     moment: (candidate ? momentFromSuggestion(candidate) : strongest ? momentFromSuggestion(strongest) : null) ??
       (clip ? { snippetId: clip.snippetId, slideIndex: null, recordingKind: "spoken", transcript: clip.anchor,
         audioRef: clip.snippetAudioRef ?? null, startOffsetMs: clip.startOffsetMs ?? 0,
@@ -164,8 +182,18 @@ function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, 
   </InlineWalkHost.Provider>;
 }
 
+function useReviewOpening(takeId: string, evidence: ReviewEvidence | undefined, history: readonly LoungeMessage[]) {
+  const strength = evidence?.strength ?? null;
+  const moment = strength ?? evidence?.moment ?? null;
+  const voiceOn = useWalkVoiceOn();
+  const savedPraise = strength ? history.findLast((row) => row.role === "bot" && row.body.trim() &&
+    row.metadata?.snippet_id === strength.snippetId && ["praise", "best"].includes(String(row.metadata?.step)))?.body : null;
+  const praise = useBestSaid(takeId, savedPraise ? null : strength?.snippetId ?? null, voiceOn);
+  return { strength, moment, opening: savedPraise ?? praise.text ?? moment?.commentText ?? "" };
+}
+
 export default function TakeReview({
-  project, target, runs, messages, chat, recordingDock, exitRef, onClose, onAsk, onPracticeEnded, renderFooter,
+  project, target, runs, messages, chat, recordingDock, exitRef, focusRef, onClose, onAsk, onPracticeEnded, renderFooter,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
@@ -174,6 +202,7 @@ export default function TakeReview({
   chat?: string;
   recordingDock: HTMLDivElement | null;
   exitRef: MutableRefObject<ReviewExit | null>;
+  focusRef?: MutableRefObject<TakeReviewTarget | null>;
   onClose: () => void;
   onAsk: (target: TakeReviewTarget) => void;
   onPracticeEnded: () => void;
@@ -218,6 +247,7 @@ export default function TakeReview({
   const before = documentAt < 0 ? history : history.slice(0, documentAt);
   const after = documentAt < 0 ? [] : history.slice(documentAt);
   const moment = artifact?.evidence.moment ?? null;
+  const { strength, moment: openingMoment, opening } = useReviewOpening(take.sessionId, artifact?.evidence, history);
   const seenWalk = history.some((row) =>
     row.kind === "walk_step" && row.role === "bot" && (row.body.trim() || row.metadata?.clip),
   );
@@ -225,10 +255,25 @@ export default function TakeReview({
   const undrawnRuns = runs.filter((run) => !hasAttempt.has(run.id));
 
   useEffect(() => {
+    if (!focusRef) return;
+    const step = target.focus.step;
+    const focus = step === "ideal" ? target.focus : focusFor(step, step === "practise" ? moment : openingMoment);
+    const active = { take, focus };
+    focusRef.current = active;
+    return () => {
+      if (focusRef.current === active) focusRef.current = null;
+    };
+  }, [focusRef, target.focus, take, moment, openingMoment]);
+
+  useEffect(() => {
     article.current?.focus({ preventScroll: true });
     scrollWithinProject(article.current);
   }, [take.sessionId]);
   useEffect(() => {
+    if (target.focus.step === "practise" && artifact) {
+      scrollWithinProject(article.current?.querySelector('[data-review-section="practise"]'));
+      return;
+    }
     if (target.focus.step !== "ideal" || !artifact) return;
     const slide = target.focus.slide_index;
     const node = Array.from(article.current?.querySelectorAll<HTMLElement>("[data-review-slide]") ?? [])
@@ -248,6 +293,8 @@ export default function TakeReview({
     return true;
   }, Boolean(engine));
 
+  const practice = artifact?.evidence.activity ? artifact.evidence : null;
+  const invitedToPractise = target.focus.step === "practise";
   const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote });
   const row = (message: LoungeMessage) => <TakeConversationMessage key={message.client_id} message={message}
     project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
@@ -259,21 +306,25 @@ export default function TakeReview({
     <div className={WILLAB_CONTENT_RAIL}>
       <TakeReviewStatus project={project} take={take} replay={target.replay} loading={!artifact} failed={failed} onRetry={() => setRefresh((v) => v + 1)} />
     </div>
-    {!seenWalk && moment && !engine ? <ConversationBubble>
-      {copy?.document.feedback || moment.commentText ? <p className="whitespace-pre-wrap">{copy?.document.feedback ?? moment.commentText}</p> : null}
-      {moment.transcript ? <button type="button" onClick={() => refer(focusFor("feedback", moment), moment.transcript)}
-        className="min-h-11 whitespace-pre-wrap text-left hover:underline" title="Refer to this moment">{moment.transcript}</button> : null}
-      {moment.audioRef ? <WalkPlayer seed={moment.snippetId} label="Original moment" src={moment.audioRef}
-        startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs || null} look="bare" /> : null}
-    </ConversationBubble> : null}
-    {engine ? <div className={WILLAB_CONTENT_RAIL}>
+    {!seenWalk && openingMoment && !engine ? <div data-review-section="feedback">
+      <ConversationBubble>
+        {copy?.document.feedback || opening ? <p className="whitespace-pre-wrap">{copy?.document.feedback ?? opening}</p> : null}
+        {openingMoment.transcript ? <button type="button" onClick={() => refer(focusFor("feedback", openingMoment), openingMoment.transcript)}
+          className="min-h-11 whitespace-pre-wrap text-left hover:underline" title="Refer to this moment">{openingMoment.transcript}</button> : null}
+        {openingMoment.audioRef ? <WalkPlayer seed={openingMoment.snippetId} label="Original moment" src={openingMoment.audioRef}
+          startOffsetMs={openingMoment.startOffsetMs} durationMs={openingMoment.durationMs || null} look="bare" /> : null}
+      </ConversationBubble>
+    </div> : null}
+    {engine ? <div className={WILLAB_CONTENT_RAIL} data-review-section={engine === "practise" ? "practise" : undefined}>
       <ReviewEngine arc={project.arcId} target={target} mode={engine} evidence={artifact?.evidence}
         recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closeEngine} />
     </div> : before.map(row)}
-    {!seenWalk && !engine && artifact?.evidence.instruction ? <ConversationBubble>
-      <p>{artifact.evidence.instruction}</p>
-      {!target.replay ? <button type="button" className={LINK} onClick={() => setEngine("practise")}>Practise</button> : null}
-    </ConversationBubble> : null}
+    {!engine && !target.replay && practice && (invitedToPractise || !seenWalk && !strength && practice.instruction) ?
+      <div data-review-section="practise"><ConversationBubble>
+        {practice.activity ? <p className="font-medium">{practice.activity}</p> : null}
+        {practice.instruction ? <p>{practice.instruction}</p> : null}
+        <button type="button" className={LINK} onClick={() => setEngine("practise")}>{invitedToPractise ? "Try it" : "Practise"}</button>
+      </ConversationBubble></div> : null}
     {!engine ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
       {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
     </ConversationBubble>) : null}

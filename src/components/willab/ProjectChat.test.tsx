@@ -16,7 +16,13 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O7  A refused quick choice remains one durable user turn with one
              recoverable error instead of disappearing.
          O8  The mic sends a spoken answer in its own project chat.
-PROVES   O1 -> "puts the result before the project conversation"
+         O9  Feedback opens on the Take's published strength. I can type
+             my reaction without a separate action, then open the selected
+             practice from the reply and read the same Take's Ideal Text.
+         O10 The sayable line and its controls are visible in chat. Saving
+             keeps one copy in this project and it can be opened again.
+PROVES   O10 -> "saves the proposed wording and shows it when the project reopens"
+         O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "starts another Take only from the served chat action"
@@ -24,6 +30,7 @@ PROVES   O1 -> "puts the result before the project conversation"
          O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
          O7 -> "keeps a refused quick choice once with one recoverable error"
          O8 -> "sends a spoken answer in the current project before its first Take"
+         O9 -> "opens feedback on the published strength and keeps practice on the selected fix"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -47,6 +54,11 @@ const state = vi.hoisted(() => ({
   willQuestion: vi.fn(),
   transcribeChatAnswer: vi.fn(),
   startVoice: vi.fn(),
+}));
+const wordingApi = vi.hoisted(() => ({ save: vi.fn() }));
+vi.mock("@/services/api/coachWording", async (load) => ({
+  ...await load<typeof import("@/services/api/coachWording")>(),
+  saveCoachWording: wordingApi.save,
 }));
 const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
 const reviewApi = vi.hoisted(() => ({
@@ -120,6 +132,7 @@ vi.mock("./IdealTextOverlay", () => ({
     initialMode,
     coachTake,
     reviewTake,
+    reviewAt,
     reviewSlideRange,
     inlineDocument,
     requireFeedbackWalk,
@@ -129,6 +142,7 @@ vi.mock("./IdealTextOverlay", () => ({
     initialMode?: string;
     coachTake?: string | null;
     reviewTake?: string | null;
+    reviewAt?: { snippet?: string | null } | null;
     reviewSlideRange?: { startSlide: number; endSlide: number } | null;
     inlineDocument?: boolean;
     requireFeedbackWalk?: boolean;
@@ -143,6 +157,7 @@ vi.mock("./IdealTextOverlay", () => ({
         "data-overlay-mode": initialMode ?? "notebook",
         "data-coach-take": coachTake ?? "",
         "data-review-take": reviewTake ?? "",
+        "data-review-snippet": reviewAt?.snippet ?? "",
         "data-review-range": reviewSlideRange
           ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
           : "",
@@ -329,6 +344,93 @@ describe("project conversation", () => {
       projectId: "arc-a", question: "That was my intention.", presentationContext: { completed_takes: 0 },
     });
     expect(onRecord).not.toHaveBeenCalled();
+  });
+
+  it("opens feedback on the published strength and keeps practice on the selected fix", async () => {
+    reviewApi.idealText.mockResolvedValue({
+      kind: "single", latestTakeSessionId: "take-a", ideal: { text: "The current opening.", keyMoments: [] },
+      suggestions: [{
+        takeSessionId: "take-a", walkSlot: "weakest", bookmarkTier: "weak", snippetId: "fix",
+        quote: "The next sentence runs together.", rewriteMove: "Give the end room.",
+        evidence: { slideIndex: 1 }, practiceExercise: { title: "Land the final word" },
+      }, {
+        takeSessionId: "take-a", walkSlot: "strongest", highestMoment: true, bookmarkTier: "confident", snippetId: "strength",
+        quote: "I want a clear decision today.", praiseLine: "The pause gives your request room.",
+        evidence: { slideIndex: 0 },
+      }, {
+        takeSessionId: "another-take", walkSlot: "strongest", bookmarkTier: "confident", snippetId: "wrong-take",
+        quote: "This is from another recording.", praiseLine: "This is from another recording.",
+      }],
+    });
+    render();
+    await flush();
+    const review = await openTake("take-a");
+    const feedback = review.querySelector('[data-review-section="feedback"]');
+    expect(feedback?.textContent).toContain("The pause gives your request room.");
+    expect(feedback?.textContent).toContain("I want a clear decision today.");
+    expect(feedback?.textContent).not.toContain("The next sentence runs together.");
+    expect(feedback?.textContent).not.toContain("another recording");
+    expect(review.textContent).not.toContain("Land the final word");
+    expect(review.querySelector('[data-review-section="ideal"]')?.textContent).toContain("The current opening.");
+
+    state.chatQuery.mockResolvedValueOnce({
+      answer: "Try the next sentence with its last words a little clearer.",
+      persisted: true, persisted_client_id: "practice-offer",
+      row_metadata: { take_session_id: "take-a", review_destination: { step: "practise" } },
+    });
+    enterAnswer("I liked that. What should I work on?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[0][0]).toMatchObject({
+      projectId: "arc-a", sessionId: "take-a",
+      presentationContext: { review_focus: { step: "feedback", snippet_id: "strength", slide_index: 0 } },
+    });
+    const actions = host.querySelector('[data-take-message-actions="practice-offer"]')!;
+    await clickText(actions, "Practise");
+    expect(review.textContent).toContain("Land the final word");
+    await clickText(review, "Try it");
+    expect(review.querySelector('[data-testid="result"]')?.getAttribute("data-review-snippet")).toBe("fix");
+  });
+
+  it("saves the proposed wording and shows it when the project reopens", async () => {
+    const words = "Jeśli dostaniemy zgodę, kto z was chciałby poprowadzić pilotaż?";
+    const wording = { words, arc_id: "arc-a", take_session_id: "take-a" };
+    state.messages = [
+      message("proposal", "Zakończ jednym pytaniem.", "bot", { coach_wording: wording }),
+      message("elsewhere", "Other project.", "bot", {
+        coach_wording: { ...wording, words: "A different project's wording.", arc_id: "arc-b" },
+      }),
+    ];
+    wordingApi.save.mockImplementationOnce(async () => {
+      state.messages = [...state.messages, {
+        ...message("saved-proposal", words, "bot", {
+          coach_wording: wording, coach_wording_saved: true, wording_reply_id: "proposal",
+        }),
+        role: "system",
+      }];
+      return true;
+    });
+
+    render();
+    await flush();
+    await openTake("take-a");
+    const offer = host.querySelector("[data-coach-wording]")!;
+    expect(offer.textContent).toContain(words);
+    expect(offer.textContent).toContain("Practise");
+    expect(host.textContent).not.toContain("A different project's wording.");
+    await clickText(offer, "Save wording");
+    expect(wordingApi.save).toHaveBeenCalledWith("arc-a", "proposal");
+    expect(offer.textContent).toContain("Saved wording");
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    await flush();
+    await openTake("take-a");
+    const saved = [...host.querySelectorAll("[data-coach-wording]")].find((node) => node.textContent?.includes("Saved wording"));
+    expect(saved?.textContent).toContain(words);
+    expect(host.querySelectorAll("[data-coach-wording]")).toHaveLength(1);
+    expect(host.querySelector("[data-coach-wording]")?.textContent).not.toContain("Save wording");
   });
 
   it("reopens the selected Take and retries an anchored review question once after reload", async () => {

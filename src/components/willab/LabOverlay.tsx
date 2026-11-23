@@ -59,6 +59,8 @@ import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import { gateStateFor } from "./Phase1AcceptanceGate";
 import ChatComposer from "./chats/ChatComposer";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
+import { SavedCoachWording, useSavedCoachWording } from "./CoachWordingCard";
+import type { CoachWording } from "@/services/api/coachWording";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
 import { answerWhere, recordingText, recordingWhere } from "./recordingCopy";
@@ -468,6 +470,9 @@ export default function LabOverlay({
     takeIndex: arcTakeIndex,
     signedIn,
     entering: enteringRecording(state),
+  });
+  const savedWording = useSavedCoachWording({
+    arcId, initArc, account: userId, signedIn, takeIndex: arcTakeIndex, entering: enteringRecording(state),
   });
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
@@ -1839,6 +1844,7 @@ export default function LabOverlay({
             currentSlide={currentSlide}
             practiceSelection={practiceResumeRef.current}
             roots={recordingRoots}
+            savedWording={savedWording}
             onSlideChange={selectSlide}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
             // (the context is already deckless-standalone, so just re-submit
@@ -1974,6 +1980,7 @@ export function RecordingPhase({
   presentationRef,
   currentSlide,
   roots,
+  savedWording,
   onSlideChange,
   asks = null,
   practiceSelection = null,
@@ -2001,6 +2008,7 @@ export function RecordingPhase({
   currentSlide: number;
   /** Static roadmap for every slide; never synchronized to audio. */
   roots: RecordingRoot[];
+  savedWording?: CoachWording | null;
   onSlideChange: (slideIndex: number) => void;
   /** An answer's person: the slide reads "{name} asks" over the question
    *  (backend N441 item 7). */
@@ -2044,7 +2052,7 @@ export function RecordingPhase({
   const hasDeck = slides.length > 0;
   const stopLabel = recordingText("finishTake", uiLocale);
   const composer = (
-    <ChatComposer recording={{
+    <ChatComposer above={savedWording ? <SavedCoachWording wording={savedWording} /> : null} recording={{
       elapsedMs: elapsed * 1000,
       targetSeconds: targetSec,
       stop: currentSlide >= practiceSlideRange(practiceSelection, slides.length).last ? onStop : undefined,

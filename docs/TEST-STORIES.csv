@@ -561,14 +561,21 @@ O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
 O7  A refused quick choice remains one durable user turn with one
 recoverable error instead of disappearing.
-O8  The mic sends a spoken answer in its own project chat.","O1 -> ""puts the result before the project conversation""
+O8  The mic sends a spoken answer in its own project chat.
+O9  Feedback opens on the Take's published strength. I can type
+my reaction without a separate action, then open the selected
+practice from the reply and read the same Take's Ideal Text.
+O10 The sayable line and its controls are visible in chat. Saving
+keeps one copy in this project and it can be opened again.","O10 -> ""saves the proposed wording and shows it when the project reopens""
+O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""starts another Take only from the served chat action""
 O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
 O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
 O7 -> ""keeps a refused quick choice once with one recoverable error""
-O8 -> ""sends a spoken answer in the current project before its first Take""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
+O8 -> ""sends a spoken answer in the current project before its first Take""
+O9 -> ""opens feedback on the published strength and keeps practice on the selected fix""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
 src/components/willab/ProjectPicker.archive.test.tsx,Story,"As a speaker, I want to archive a project from the picker, never delete it there, with pending deletions locked, so that I tidy my list without risk.","O1  Every project row's ⋯ offers Archive and never Delete.
 O2  Archive runs at once (that project only) and the row leaves.
 O3  A failed archive says so and keeps the row.

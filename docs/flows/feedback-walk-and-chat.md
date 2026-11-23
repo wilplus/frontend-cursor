@@ -86,9 +86,19 @@ On 23 November 2026, the sidebar's separate Speaking Coach setup shortcut was re
 
 A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The live review opens in the active project as soon as its Take is ready. Leaving folds the exchange into a single preview below its recording. Opening the preview restores the conversation, including saved messages and practices across storage pages.
 
+The inline review opens on the strongest published praise for this Take when it has one. Its clip is playable beside the coach's reaction. The existing Walk writer uses the Take's words, its available delivery evidence and its recorded setup. Published praise is available while the writer is pending or unavailable. The other review buttons remain open to the speaker. The project composer can continue from the section and recording moment being reviewed without first tapping Ask coach. A reply can open the Take's selected practice or its Ideal Text inline. Leaving the optional practice or skipping it leads to the Ideal Text and its available helper words.
+
+When the speaker names the main audience, the coach can give advice for those listeners, including when another group will make the decision. Ask one question when the missing information would change the advice. A reply about another strength uses published evidence from the same Take. When only the reviewed strength is available, Will says it needs to hear more to point to another. It plays the same clip and explains one more precise thing supported by its words or delivery.
+
 In the inline Walk, the speaker's messages and recordings use the project conversation's soft orange bubble. The Walk's bubbles use the same text size as the project conversation.
 
 When a Speaking Coach or project chat reply points to an exact recording moment, it can play that fragment beside the reply (N672). Automatic transcript footers are hidden. If the current Picker serves practice for the same moment, the reply presents its instruction and available demonstration. Practise opens only that activity in the conversation and uses the shared microphone. Reopening the chat resolves the recording against current project access and recording permissions.
+
+#### Speakable wording in coaching replies
+
+When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. The line is visible in the chat with **Practise** and **Save wording** when it has a project. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take as a project-chat entry. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
+
+When asked about the last two recordings, Speaking Coach compares those authorised Takes and attaches the example to the Take it is meant for. If the recording clip is unavailable, the coach can demonstrate with the supported words and a delivery direction. A project-free example can still be tried in the chat.
 
 #### Shared Take exchanges
 
@@ -1202,7 +1212,9 @@ praised moment:
   and the form opens on the code step with that number's code already sent
   (backend N235). A number another account signs in with gets "That number
   already has an account."
-- **E2** Will asks only when something is off or missing, once per Take,
+- **E2** For the inline project review, Will checks this project's conversation and the current Take's opening and closing words before choosing a context question. An expressly named audience or request can guide this exchange and remains a heard observation until the speaker confirms it. The inline exchange leaves out the stock bridge, unrelated Walk quote, key-line question and automatic rotation of deeper questions. A missing transcript leaves the carry-over check open. Other questions in the existing closing flow follow the rules below.
+
+- **E2, earlier Walk** Will asks only when something is off or missing, once per Take,
   the first that holds (`services/will_question.py`, N82): a breather when
   the practice did not land or the voice dipped two Takes running (never two
   Takes running); "On purpose?" when the clearer line practised last Take

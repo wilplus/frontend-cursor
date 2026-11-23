@@ -15,6 +15,7 @@ export async function postReviewSummaryText(arcId: string, ask: ReviewSummaryAsk
         practice: ask.practice,
         helper_words: ask.helperWords.slice(0, 2),
         coach_note: ask.coachNote,
+        ...(ask.inlineProjectReview ? { inline_project_review: true } : {}),
       },
     });
     if (result.kind !== "response" || !result.ok) return null;

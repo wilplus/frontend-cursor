@@ -1184,7 +1184,8 @@ export function useDeckFeedbackWalk(args: {
      what the walk shows and what the speaker answers, stored once, behind
      the screen. A failed post never stops the walk. */
   const thread = useLoungeThreadMaybe();
-  const savedSteps = useInlineWalkHost()?.savedSteps;
+  const inlineHost = useInlineWalkHost();
+  const savedSteps = inlineHost?.savedSteps;
   const threadMessages = useMemo(() => {
     if (!savedSteps?.length) return thread?.messages;
     const byId = new Map([...(thread?.messages ?? []), ...savedSteps].map((row) => [row.client_id, row]));
@@ -1192,8 +1193,8 @@ export function useDeckFeedbackWalk(args: {
   }, [savedSteps, thread?.messages]);
   const live = useRef(args);
   live.current = args;
-  const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
-  threadRef.current = { thread, take, arcId: args.arcId ?? null };
+  const threadRef = useRef({ thread, take, arcId: args.arcId ?? null, inlineProjectReview: inlineHost !== null });
+  threadRef.current = { thread, take, arcId: args.arcId ?? null, inlineProjectReview: inlineHost !== null };
   const persistedWalkState = useMemo(
     () => feedbackWalkStateFromMessages(threadMessages ?? [], pageTake),
     [threadMessages, pageTake],
@@ -1842,7 +1843,7 @@ export function useDeckFeedbackWalk(args: {
   // once per Take (`summaryAsks`); a failed ask is asked again at the
   // walk's next end.
   const summary = useCallback((): Promise<string | null> => {
-    const { thread: to, take: on, arcId } = threadRef.current;
+    const { thread: to, take: on, arcId, inlineProjectReview } = threadRef.current;
     if (!on || !arcId) return Promise.resolve(null);
     const asked = summaryAsks.get(on);
     if (asked) return asked;
@@ -1860,6 +1861,7 @@ export function useDeckFeedbackWalk(args: {
           practice,
           helperWords,
           coachNote: live.current.coachMessage?.text ?? null,
+          inlineProjectReview,
         });
         if (text === null) summaryAsks.delete(on);
         return text;

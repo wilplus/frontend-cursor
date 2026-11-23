@@ -46,7 +46,7 @@ import { clearPracticeResume, readPracticeCheckpoint } from "@/lib/willab/practi
 import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import TakeReview, { type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
+import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
@@ -57,6 +57,7 @@ import { useUpdateSlides } from "./UpdateSlides";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
 import CoachMoment from "./CoachMoment";
+import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
 type Opened = "walk" | "ideal" | null;
@@ -584,6 +585,7 @@ export default function ProjectChat({
   }, [beforeLeaveRef, leavingReview, recordingDock]);
   const [askTarget, setAskTarget] = useState<TakeReviewTarget | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const reviewFocusRef = useRef<TakeReviewTarget | null>(null);
   const slides = useUpdateSlides(activeProject.arcId, {
     hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
   });
@@ -610,6 +612,7 @@ export default function ProjectChat({
     ),
     [outbox.messages, thread.messages, activeProject.arcId],
   );
+  const linkedWording = linkedSavedWordings(messages);
   const visibleMessages = messages.filter(
     (message) => !["walk_step", "ideal_text", "recording_summary", "feedback", "transcript_ready"].includes(message.kind),
   );
@@ -722,7 +725,7 @@ export default function ProjectChat({
     const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
     const review = reviewContext;
     const questionInView = questionInTakeView(activeQuestion, review, reviewedTakeIds);
-    const target = askTarget ?? (questionInView ? null : takeReview);
+    const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview);
     const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, questionInView, target, retry);
     const arc = activeProject.arcId;
     if (!answer || sending || sendingRef.current || !outbox.ready) return false;
@@ -803,14 +806,17 @@ export default function ProjectChat({
   }
 
   function reviewLink(message: LoungeMessage) {
-    const coords = message.metadata?.review_focus as Partial<ReviewFocus> | null;
+    const destination = message.role === "bot" ? message.metadata?.review_destination as Partial<ReviewFocus> | undefined : undefined;
+    const offeredStep = REVIEW_STEPS.find(({ step }) => step === destination?.step);
+    const coords = offeredStep ? destination : message.metadata?.review_focus as Partial<ReviewFocus> | null;
     if (!coords || !["feedback", "practise", "ideal"].includes(coords.step ?? "")) return null;
     const take = recordingTakes.find((part) => part.sessionId === message.metadata?.take_session_id);
     if (!take) return null;
     const label = typeof coords.slide_index === "number" ? ` · Slide ${coords.slide_index + 1}` : "";
-    return <button type="button" className="block min-h-8 text-xs underline" onClick={() => openReview({
+    const title = offeredStep?.label ?? "Take " + take.takeIndex + label + " · Back to review";
+    return <button type="button" className="block min-h-11 text-xs underline" onClick={() => openReview({
       take, focus: coords as ReviewFocus,
-    })}>Take {take.takeIndex}{label} · Back to review</button>;
+    })}>{title}</button>;
   }
 
   function recordNext() {
@@ -826,6 +832,16 @@ export default function ProjectChat({
   function recordOffer(message: LoungeMessage) {
     return message.role === "bot" && offersNextTake(message.metadata)
       ? <RecordNextTakeLink offer={message.metadata} onRecord={recordNext} /> : null;
+  }
+
+  function replyActions(message: LoungeMessage, inReview = false) {
+    if (message.role !== "bot") return null;
+    const destination = inReview && message.metadata?.review_destination ? reviewLink(message) : null;
+    const offer = recordOffer(message);
+    const wording = message.metadata?.coach_wording ? <CoachWordingCard message={message}
+      project={activeProject.arcId} recordingDock={recordingDock}
+      savedReply={linkedWording.has(message.client_id)} onSaved={() => { void thread.reload(); }} /> : null;
+    return destination || offer || wording ? <>{destination}{offer}{wording}</> : null;
   }
 
   return (
@@ -864,7 +880,7 @@ export default function ProjectChat({
                   else leavingReview(finishReview);
                 }}>
                 {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
-                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit}
+                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit} focusRef={reviewFocusRef}
                 onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
                 onClose={finishReview}
                 onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
@@ -872,7 +888,7 @@ export default function ProjectChat({
                   const retry = failedTurns.get(message.client_id);
                   return retry ? <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(retry)} />
-                  </div> : recordOffer(message);
+                  </div> : replyActions(message, true);
                 }} /> : null}
               </TakeConversation> : null}
             </div>;
@@ -901,7 +917,10 @@ export default function ProjectChat({
           ) : null}
 
           {ordinaryMessages.map((message) => (
-            message.client_id === activeQuestion?.client_id ? (
+            message.role === "system" && message.metadata?.coach_wording_saved === true ? (
+              linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
+                <CoachWordingCard key={message.client_id} message={message} project={activeProject.arcId} recordingDock={recordingDock} />
+            ) : message.client_id === activeQuestion?.client_id ? (
               <div key={message.client_id} data-project-message={message.client_id} className="contents">
                 <WillQuestionBubble
                   body={message.body}
@@ -927,7 +946,7 @@ export default function ProjectChat({
                 {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
                   artifact={message.metadata?.chat_artifact}
                   project={activeProject.arcId} recordingDock={recordingDock} />}
-                {recordOffer(message)}
+                {replyActions(message)}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />

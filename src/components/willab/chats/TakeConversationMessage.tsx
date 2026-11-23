@@ -46,7 +46,7 @@ export default function TakeConversationMessage({ message, project, recordingDoc
     </ConversationBubble> : null}
     {document && artifact ? <ConversationDocument title={artifact.title}><ArtifactText text={document} /></ConversationDocument> : null}
     </div>
-    {footer ? <div className={WILLAB_CONTENT_RAIL}>{footer}</div> : null}
+    {footer ? <div data-take-message-actions={message.client_id} className={WILLAB_CONTENT_RAIL}>{footer}</div> : null}
   </>;
 }
 
