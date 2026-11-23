@@ -8,9 +8,10 @@ PROVES   O1 -> "the experiment screens"
 */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import AiDoor from "./AiDoor";
 import Experiments from "./Experiments";
-import { resetExperimentStore } from "@/services/api/experiments";
+import { readInterventions, resetExperimentStore } from "@/services/api/experiments";
 import { loadPromptFile } from "@/lib/willab/experiments/promptsYaml";
 import { leaksHiddenWord, optionLabel } from "@/lib/willab/experiments/words";
 import promptText from "@/lib/willab/experiments/prompts_v1.yaml?raw";
@@ -33,20 +34,66 @@ describe("the experiment screens", () => {
     root = createRoot(container);
   });
 
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  const click = async (selector: string) => {
+    const node = container.querySelector<HTMLButtonElement>(selector);
+    if (!node) throw new Error(`missing ${selector}`);
+    await act(async () => node.click());
+    await flush();
+  };
+  const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
+  const question = async (words: string) => {
+    const input = container.querySelector<HTMLInputElement>("[data-experiment-composer] input");
+    if (!input?.form) throw new Error("missing question box");
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    await act(async () => {
+      set?.call(input, words);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => input.form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+  };
+  const lastReply = () => [...container.querySelectorAll('[role="log"] [data-row="app"]')].at(-1)?.textContent;
+
+  it("explains the current choice and its follow-ups, then waits for a tap", async () => {
+    await act(async () => {
+      root.render(createElement(AiDoor, { onBindBack: (fn) => { back = fn; } }));
+    });
+    await question("Experiments");
+    expect(screen()).toBe("ai");
+    expect(lastReply()).toContain("Tap Training or Experiments so I know which one to open.");
+
+    await click("[data-ai-choice='experiments']");
+    await click("[data-pair='pages'] [data-choice='yes']");
+    await click("[data-exp-go='rules']");
+    expect(screen()).toBe("rules");
+    const threshold = readInterventions()[0].threshold;
+
+    await question("What is the minimum match?");
+    expect(lastReply()).toContain("how close a clip must be");
+    await question("Tell me more");
+    expect(lastReply()).toContain("A looser rule accepts weaker matches");
+    expect(lastReply()).toContain("The pick");
+    await question("Stricter");
+    expect(readInterventions()[0].threshold).toBe(threshold);
+    await click("[data-pair='threshold'] [data-choice='yes']");
+    expect(readInterventions()[0].threshold).toBeGreaterThan(threshold);
+    await click("[data-pair='mode'] [data-choice='pick']");
+    expect(screen()).toBe("pick");
+  });
+
   it("walks a session in the file's order, rates with the file's words, and keeps the reading private", async () => {
     await act(async () => {
       root.render(createElement(Experiments, { onBindBack: (fn) => { back = fn; } }));
     });
-    const click = async (selector: string) => {
-      const node = container.querySelector(selector) as HTMLButtonElement | null;
-      if (!node) throw new Error(`missing ${selector}`);
-      await act(async () => node.click());
-      await flush();
-    };
-    const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
-
     await click("[data-exp-go='session']");
     expect(container.querySelector("[data-ai-disclosure]")?.textContent).toContain("does not name a feeling");
+    await question("I agree");
+    expect(screen()).toBe("consent");
+    expect(lastReply()).toContain("That choice tells me what you allow.");
     await click("[data-pair='consent'] [data-choice='yes']");
     await click("[data-pair='page'] [data-choice='no']");
     expect(screen()).toBe("baseline");

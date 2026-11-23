@@ -13,9 +13,9 @@ import {
   saveIntervention,
   savePrompt,
 } from "@/services/api/experiments";
-import type { AnalyzeStep, AnalyzeTake, Prompt, PromptFile, StepSummary } from "@/lib/willab/experiments/types";
+import type { AnalyzeStep, AnalyzeTake, Intervention, Prompt, PromptFile, StepSummary } from "@/lib/willab/experiments/types";
 import { axisTitle, axisWords, comparisonWords, cueWords, formatCue, gateSentence, isOpeningPrompt, optionLabel, referenceLine, reportLabel, tagWords } from "@/lib/willab/experiments/words";
-import { ActionPair, ChoicePair, Frame, Note } from "./bits";
+import { ActionPair, Bubble, choiceBubble, ChoicePair, Frame, Note } from "./bits";
 
 export type Rating = { energy?: string; feeling?: string };
 
@@ -33,12 +33,12 @@ export type View =
 
 const MENU = [
   [
-    { id: "session", title: "Start a session", line: "You record. Only you see it." },
-    { id: "library", title: "Prompt library", line: "Lines you can say." },
+    { id: "session", title: "Start a session", line: "Try the speaking questions in order." },
+    { id: "library", title: "Prompt library", line: "See and edit the speaking questions." },
   ],
   [
-    { id: "sample", title: "See a sample reading", line: "A filled-in grid." },
-    { id: "rules", title: "Interventions", line: "What to try next." },
+    { id: "sample", title: "See a sample reading", line: "See what the app hears in an example." },
+    { id: "rules", title: "Practice rules", line: "See how the app picks an exercise." },
   ],
   [
     { id: "export", title: "Export my data", line: "A file of your sessions." },
@@ -53,16 +53,21 @@ export function Menu({ page, onPage, onOpen }: { page: number; onPage: (page: nu
       screen="menu"
       kicker={`${page + 1} of ${MENU.length}`}
       title="Experiments"
-      foot={<ActionPair name="pages" no="Previous page" yes="Next page" onNo={() => onPage(Math.max(0, page - 1))} onYes={() => onPage(Math.min(MENU.length - 1, page + 1))} />}
+      foot={
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            {items.map((item) => (
+              <button key={item.id} type="button" data-exp-go={item.id} onClick={() => onOpen(item.id)} className={`${choiceBubble(false)} rounded-2xl text-left`}>
+                <span className="block">{item.title}</span>
+                <span className="block text-[14px] font-normal text-foreground">{item.line}</span>
+              </button>
+            ))}
+          </div>
+          <ActionPair name="pages" no="Previous page" yes="Next page" onNo={() => onPage(Math.max(0, page - 1))} onYes={() => onPage(Math.min(MENU.length - 1, page + 1))} />
+        </div>
+      }
     >
-      <div className="grid grid-cols-2 gap-3">
-        {items.map((item) => (
-          <button key={item.id} type="button" data-exp-go={item.id} onClick={() => onOpen(item.id)} className="flex min-h-32 flex-col items-start justify-center gap-2 rounded-2xl border border-border bg-background px-4 text-left">
-            <span className="text-[16px] font-medium text-foreground">{item.title}</span>
-            <span className="text-[14px] leading-snug text-muted-foreground">{item.line}</span>
-          </button>
-        ))}
-      </div>
+      <Note>Try a speaking session or look at an example of how the app suggests practice.</Note>
     </Frame>
   );
 }
@@ -70,7 +75,7 @@ export function Menu({ page, onPage, onOpen }: { page: number; onPage: (page: nu
 export function Consent({ onNo, onYes }: { onNo: () => void; onYes: () => void }) {
   return (
     <Frame screen="consent" title="Before you start" foot={<ActionPair name="consent" no="Not now" yes="I agree" onNo={onNo} onYes={onYes} />}>
-      <p data-ai-disclosure="" className="m-0 text-[16px] leading-snug">An AI reads this session. It looks at how you speak. It does not name a feeling.</p>
+      <Bubble data-ai-disclosure="">An AI reads this session. It looks at how you speak. It does not name a feeling.</Bubble>
       <Note>Only you can see the result. No employer, and no one else.</Note>
       <Note>Nothing is sent to a server yet. It stays on this device.</Note>
     </Frame>
@@ -110,7 +115,9 @@ export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave
   const against = referenceLine(prompt.reference);
   return (
     <Frame
+      key={prompt.id}
       screen={opening ? "baseline" : "take"}
+      help={view.said ? "rating" : undefined}
       kicker={`${view.index + 1} of ${file.prompts.length}`}
       title={opening ? "Your usual way" : "A take"}
       foot={view.said
@@ -118,7 +125,7 @@ export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave
         : <ActionPair name="said" no="Skip this one" yes="I said it" onNo={onSkip} onYes={onSaid} />}
     >
       <p className="m-0 text-[13px] font-medium text-muted-foreground">{tagWords(prompt.tag)}</p>
-      <p data-prompt-text="" data-prompt-id={prompt.id} lang={file.language} className="m-0 text-[20px] font-medium leading-snug">{prompt.text}</p>
+      <Bubble data-prompt-text="" data-prompt-id={prompt.id} lang={file.language}>{prompt.text}</Bubble>
       {against ? <Note>{against}</Note> : null}
       {view.said ? <RatingFields file={file} rating={view.rating} onRate={onRate} ready={ready} /> : <Note>A recording will be kept with your private session. This sample does not send audio yet.</Note>}
     </Frame>
@@ -149,7 +156,7 @@ function RatingFields({ file, rating, onRate, ready }: { file: PromptFile; ratin
 export function Reading() {
   return (
     <Frame screen="reading" title="Reading your take...">
-      <p data-ai-disclosure="" className="m-0 text-[16px] leading-snug">An AI is reading how you spoke. Only you will see it.</p>
+      <Bubble data-ai-disclosure="">An AI is reading how you spoke. Only you will see it.</Bubble>
       <p data-research-note="" className="m-0 text-[14px] text-muted-foreground">This is an early research version.</p>
     </Frame>
   );
@@ -169,7 +176,7 @@ export function Analysis({ view, onMoment, onTry, onNext }: {
 }) {
   const analysis = loadTake(view.source, view.takeId);
   const moment = analysis?.moments[view.moment];
-  if (!analysis || !moment) return <Frame screen="analysis" title="No reading yet"><Note>Save a take first.</Note></Frame>;
+  if (!analysis || !moment) return <Frame screen="analysis" help="no-reading" title="No reading yet"><Note>Save a take first.</Note></Frame>;
   const order = analysis.order;
   return (
     <Frame
@@ -179,21 +186,21 @@ export function Analysis({ view, onMoment, onTry, onNext }: {
       title="The reading"
       foot={<ActionPair name="next" no={view.source === "saved" ? "Next prompt" : "Done"} yes="What to try" onNo={onNext} onYes={onTry} />}
     >
-      <p data-ai-disclosure="" className="m-0 text-[13px] leading-snug">An AI made this reading. Only you can see it.</p>
-      <p data-research-note="" className="m-0 text-[13px] text-muted-foreground">This is an early research version.</p>
-      <div className="flex items-center justify-between gap-3">
-        <p className="m-0 text-[13px] text-muted-foreground">{moment.t_start} s to {moment.t_end} s · {view.moment + 1} of {analysis.moments.length}</p>
-        <div className="flex gap-2">
-          <button type="button" data-moment="prev" onClick={() => onMoment(Math.max(0, view.moment - 1))} className="min-h-10 rounded-full border border-border px-3 text-[14px] font-semibold">Earlier</button>
-          <button type="button" data-moment="next" onClick={() => onMoment(Math.min(analysis.moments.length - 1, view.moment + 1))} className="min-h-10 rounded-full border border-border px-3 text-[14px] font-semibold">Later</button>
+      <Bubble data-ai-disclosure="">An AI made this reading. Only you can see it.</Bubble>
+      <p data-research-note="" className="m-0 text-[14px] text-muted-foreground">This is an early research version.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-[14px] text-muted-foreground">{moment.t_start} s to {moment.t_end} s · {view.moment + 1} of {analysis.moments.length}</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" data-moment="prev" onClick={() => onMoment(Math.max(0, view.moment - 1))} className={choiceBubble(false)}>Earlier</button>
+          <button type="button" data-moment="next" onClick={() => onMoment(Math.min(analysis.moments.length - 1, view.moment + 1))} className={choiceBubble(true)}>Later</button>
         </div>
       </div>
-      <div data-analysis-grid="" className="flex flex-col gap-1">
+      <div data-analysis-grid="" className="flex flex-col gap-2">
         {order.map((step) => (
           <StepRow key={step} step={step} cells={moment.grid.filter((cell) => cell.step === step)} />
         ))}
       </div>
-      <div data-summary="" className="grid grid-cols-4 gap-1.5">
+      <div data-summary="" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {order.map((step) => <SummaryCell key={step} step={step} row={analysis.summary[step]} />)}
       </div>
       <p data-gate={analysis.gate?.step ?? ""} className="m-0 text-[14px] leading-snug">{gateSentence(analysis.gate)}</p>
@@ -203,14 +210,14 @@ export function Analysis({ view, onMoment, onTry, onNext }: {
 
 function StepRow({ step, cells }: { step: AnalyzeStep; cells: AnalyzeTake["moments"][number]["grid"] }) {
   return (
-    <div data-step={step} className="grid grid-cols-[6.2rem_1fr] items-stretch gap-1.5">
-      <span className="self-center text-[12px] font-medium leading-tight">{axisTitle(step)}</span>
-      <div className="grid grid-cols-4 gap-1">
+    <div data-step={step} className="flex min-w-0 flex-col gap-2 rounded-2xl bg-muted p-3">
+      <span className="text-[15px] font-medium leading-snug">{axisTitle(step)}</span>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cells.map((cell) => (
-          <span key={cell.cue} data-cue={cell.cue} data-vs={cell.vs} className="rounded-lg border border-border px-1.5 py-1">
-            <small className="block truncate text-[10px] leading-tight text-muted-foreground">{cueWords(cell.cue)}</small>
-            <b className="block text-[13px] leading-tight">{cell.value === null ? "not measured" : formatCue(cell.value)}</b>
-            <small className="block truncate text-[10px] leading-tight text-muted-foreground">{comparisonWords(cell.vs)}</small>
+          <span key={cell.cue} data-cue={cell.cue} data-vs={cell.vs} className="min-w-0 rounded-xl bg-background px-2.5 py-2">
+            <small className="block break-words text-[13px] leading-snug text-muted-foreground">{cueWords(cell.cue)}</small>
+            <b className="block text-[15px] leading-snug">{cell.value === null ? "not measured" : formatCue(cell.value)}</b>
+            <small className="block break-words text-[13px] leading-snug text-muted-foreground">{comparisonWords(cell.vs)}</small>
           </span>
         ))}
       </div>
@@ -221,20 +228,19 @@ function StepRow({ step, cells }: { step: AnalyzeStep; cells: AnalyzeTake["momen
 function SummaryCell({ step, row }: { step: AnalyzeStep; row: StepSummary }) {
   const locked = !row.unlocked;
   return (
-    <div data-summary-step={step} data-locked={locked ? "" : undefined} className="rounded-xl border border-border px-2 py-1">
-      <span className="block text-[11px] leading-tight text-muted-foreground">{axisTitle(step)}</span>
+    <div data-summary-step={step} data-locked={locked ? "" : undefined} className="rounded-xl border border-border px-3 py-2">
+      <span className="block text-[13px] leading-snug text-muted-foreground">{axisTitle(step)}</span>
       {locked ? <b className="text-[14px]">Locked</b> : (
         <>
           <b className="text-[14px]">{row.score === null ? "not measured" : formatCue(row.score)}</b>
-          <span className="block text-[11px] leading-tight text-muted-foreground">{row.confidence >= 0.5 ? "Sure enough" : "Not sure yet"}</span>
+          <span className="block text-[13px] leading-snug text-muted-foreground">{row.confidence >= 0.5 ? "Sure enough" : "Not sure yet"}</span>
         </>
       )}
     </div>
   );
 }
 
-export function Pick({ file, view, onRules, onChoose, onEdit }: {
-  file: PromptFile;
+export function Pick({ view, onRules, onChoose, onEdit }: {
   view: Extract<View, { name: "pick" }>;
   onRules: (rules: boolean) => void;
   onChoose: (id: string | null) => void;
@@ -242,35 +248,39 @@ export function Pick({ file, view, onRules, onChoose, onEdit }: {
 }) {
   const analysis = loadTake(view.source, view.takeId);
   const moment = analysis?.moments[view.moment];
-  const pick = analysis && moment ? pickInterventions(moment, readInterventions(), analysis.order, view.takeId, analysis.gate) : null;
+  const items = readInterventions();
+  const pick = analysis && moment ? pickInterventions(moment, items, analysis.order, view.takeId, analysis.gate) : null;
   const shown = pick?.shown ?? [];
   return (
     <Frame
       screen={view.rules ? "rules" : "pick"}
+      help={!view.rules && !shown.length ? "pick-empty" : undefined}
       title={view.rules ? "The rules" : "What to try next"}
-      foot={view.rules ? <RulesFoot view={view} onEdit={onEdit} /> : <PickFoot shown={shown} onChoose={onChoose} />}
+      foot={!view.rules && <PickFoot shown={shown} onChoose={onChoose} />}
     >
-      <ChoicePair
-        name="mode"
-        value={view.rules ? "rules" : "pick"}
-        options={[{ value: "pick", label: "The pick" }, { value: "rules", label: "The rules" }]}
-        onPick={(value) => onRules(value === "rules")}
-      />
-      {view.rules ? <RuleEditor view={view} /> : <PickList shown={shown} />}
+      <div className="sticky top-0 z-10 bg-background py-1">
+        <ChoicePair
+          name="mode"
+          value={view.rules ? "rules" : "pick"}
+          options={[{ value: "pick", label: "The pick" }, { value: "rules", label: "The rules" }]}
+          onPick={(value) => onRules(value === "rules")}
+        />
+      </div>
+      {view.rules ? <RuleEditor items={items} view={view} onEdit={onEdit} /> : <PickList shown={shown} />}
     </Frame>
   );
 }
 
 function PickList({ shown }: { shown: { id: string; name: string; step: string }[] }) {
-  if (shown.length === 0) return <Note>Nothing matches strongly enough. You can loosen the rule.</Note>;
+  if (shown.length === 0) return <Note>No exercise matches this clip closely enough. Open The rules to see what the picker looks for.</Note>;
   return (
     <div className="flex flex-col gap-2">
-      <Note>At most two. The earlier step wins.</Note>
+      <Note>Here’s what the app would suggest practising for this clip.</Note>
       {shown.map((hit) => (
-        <p key={hit.id} data-hit={hit.id} className="m-0 rounded-2xl border border-border px-3 py-2 text-[16px]">
-          {hit.name}
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">For {axisWords(hit.step)}.</span>
-        </p>
+        <Bubble key={hit.id} data-hit={hit.id}>
+          <strong>{hit.name}</strong>
+          <span className="block text-[14px] text-muted-foreground">For {axisWords(hit.step)}.</span>
+        </Bubble>
       ))}
     </div>
   );
@@ -282,35 +292,49 @@ function PickFoot({ shown, onChoose }: { shown: { id: string; name: string }[]; 
   return <ActionPair name="use" no="Not this time" yes="Keep looking" onNo={() => onChoose(null)} onYes={() => undefined} />;
 }
 
-function RuleEditor({ view }: { view: Extract<View, { name: "pick" }> }) {
-  const items = readInterventions();
+function RuleEditor({ items, view, onEdit }: {
+  items: Intervention[];
+  view: Extract<View, { name: "pick" }>;
+  onEdit: (slot: number, cell: number) => void;
+}) {
   const item = items[view.slot] ?? items[0];
   const cell = item?.grid[view.cell];
-  if (!item || !cell) return null;
-  const move = (delta: number) => void saveIntervention({ ...item, threshold: Math.max(0, Math.min(2, Math.round((item.threshold + delta) * 10) / 10)) });
-  return (
-    <div className="flex flex-col gap-2">
-      <input data-rule-name="" value={item.name} onChange={(event) => void saveIntervention({ ...item, name: event.target.value })} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-[16px]" />
-      <p className="m-0 text-[14px]">Fire when the match is at least {item.threshold.toFixed(1)}.</p>
-      <ActionPair name="threshold" no="Looser" yes="Stricter" onNo={() => move(-0.1)} onYes={() => move(0.1)} />
-      <p data-rule-cell="" className="m-0 text-[14px]">{axisTitle(cell.step)} · {cueWords(cell.cue)} · {formatCue(cell.value)}</p>
-    </div>
-  );
-}
-
-function RulesFoot({ view, onEdit }: { view: Extract<View, { name: "pick" }>; onEdit: (slot: number, cell: number) => void }) {
-  const items = readInterventions();
-  const item = items[view.slot] ?? items[0];
+  if (!item || !cell) return <Note>There’s no practice rule to edit here yet.</Note>;
+  const move = (delta: number) => {
+    const threshold = Math.max(0, Math.min(2, Math.round((item.threshold + delta) * 10) / 10));
+    void saveIntervention({ ...item, threshold });
+  };
   const nudge = (by: number) => {
-    if (!item) return;
     const grid = item.grid.map((cell, index) => index === view.cell ? { ...cell, value: clamp(cell.value + by) } : cell);
     void saveIntervention({ ...item, grid });
   };
   return (
-    <div className="flex flex-col gap-2">
-      <ActionPair name="cell-value" no="Lower" yes="Higher" onNo={() => nudge(-0.2)} onYes={() => nudge(0.2)} />
-      <ActionPair name="cell-step" no="Previous cell" yes="Next cell" onNo={() => onEdit(view.slot, Math.max(0, view.cell - 1))} onYes={() => onEdit(view.slot, Math.min((item?.grid.length ?? 1) - 1, view.cell + 1))} />
-      <ActionPair name="rule-step" no="Previous rule" yes="Next rule" onNo={() => onEdit(Math.max(0, view.slot - 1), 0)} onYes={() => onEdit(Math.min(items.length - 1, view.slot + 1), 0)} />
+    <div data-rule-editor="" className="flex w-full flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <Bubble className="w-full">
+          <label className="flex flex-col gap-1.5">
+            <span className="font-semibold">Exercise name</span>
+            <input data-rule-name="" value={item.name} onChange={(event) => void saveIntervention({ ...item, name: event.target.value })} className="h-11 min-w-0 rounded-xl border border-border bg-background px-3" />
+          </label>
+        </Bubble>
+        <ActionPair name="rule-step" no="Previous rule" yes="Next rule" onNo={() => onEdit(Math.max(0, view.slot - 1), 0)} onYes={() => onEdit(Math.min(items.length - 1, view.slot + 1), 0)} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Bubble>
+          <strong>Minimum match · {item.threshold.toFixed(1)}</strong>
+          <p className="m-0">A stricter rule needs the clip to match more closely before it suggests this exercise.</p>
+        </Bubble>
+        <ActionPair name="threshold" no="Looser" yes="Stricter" onNo={() => move(-0.1)} onYes={() => move(0.1)} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Bubble data-rule-cell="">
+          <strong>{cueWords(cell.cue)} · {formatCue(cell.value)}</strong>
+          <p className="m-0 text-muted-foreground">{axisTitle(cell.step)}</p>
+          <p className="m-0">This is one thing the rule listens for. Lower and Higher change the value it looks for.</p>
+        </Bubble>
+        <ActionPair name="cell-value" no="Lower" yes="Higher" onNo={() => nudge(-0.2)} onYes={() => nudge(0.2)} />
+        <ActionPair name="cell-step" no="Previous cue" yes="Next cue" onNo={() => onEdit(view.slot, Math.max(0, view.cell - 1))} onYes={() => onEdit(view.slot, Math.min(item.grid.length - 1, view.cell + 1))} />
+      </div>
     </div>
   );
 }
@@ -341,7 +365,7 @@ export function Library({ file, view, onIndex, onEdit }: {
       )}
     >
       <p className="m-0 text-[13px] font-medium text-muted-foreground">{tagWords(prompt.tag)}</p>
-      <p data-prompt-text="" data-prompt-id={prompt.id} lang={file.language} className="m-0 text-[20px] font-medium leading-snug">{prompt.text}</p>
+      <Bubble data-prompt-text="" data-prompt-id={prompt.id} lang={file.language}>{prompt.text}</Bubble>
     </Frame>
   );
 }

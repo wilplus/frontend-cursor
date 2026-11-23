@@ -99,7 +99,6 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   if (view.name === "pick") {
     return (
       <Pick
-        file={file}
         view={view}
         onRules={(rules) => setView({ ...view, rules })}
         onChoose={(id) => choose(view, id)}
