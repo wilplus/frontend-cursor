@@ -59,7 +59,7 @@ afterEach(() => {
 const flush = async () => { for (let i = 0; i < 4; i += 1) await act(async () => { await Promise.resolve(); }); };
 const ids = () => [...host.querySelectorAll("[data-home-row]")].map((row) => row.getAttribute("data-home-row"));
 const click = async (selector: string) => {
-  await act(async () => (host.querySelector(selector) as HTMLButtonElement).click());
+  await act(async () => (document.querySelector(selector) as HTMLElement).click());
   await flush();
 };
 
@@ -92,10 +92,15 @@ describe("Start your own chat", () => {
     const row = host.querySelector("[data-home-row='start-own-chat']")!;
     const action = host.querySelector("[data-start-new-project]")!;
     expect(row.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const starter = row.querySelector("button")!;
+    starter.focus();
     await click("[data-home-row='start-own-chat'] button");
-    expect(host.querySelector("[data-own-chat-sheet]")?.textContent).toContain("Make your own chat. You choose what it does. People you share it with can use it.");
+    const prompt = document.querySelector('[data-own-chat-sheet] [role="dialog"]')!;
+    expect(prompt.textContent).toContain("Make your own chat. You choose what it does. People you share it with can use it.");
+    expect(document.activeElement).toBe(prompt.querySelector("[data-own-chat-close]"));
     await click("[data-own-chat-close]");
-    expect(host.querySelector("[data-own-chat-sheet]")).toBeNull();
+    expect(document.querySelector("[data-own-chat-sheet]")).toBeNull();
+    expect(document.activeElement).toBe(starter);
     expect(readOwnChat().started).toBe(false);
     expect(ids()).toEqual(["speaking-coach", "bro", "start-own-chat"]);
     expect(open).not.toHaveBeenCalled();
