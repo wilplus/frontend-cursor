@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
+import ChatComposer from "@/components/willab/chats/ChatComposer";
 import { LetterCircle } from "../ChatList";
 import { TopBar } from "../TopBar";
 import { W } from "./hostSetupCopy";
@@ -78,8 +78,7 @@ function CodeTell({ onReady, onTrouble }: { onReady: () => void; onTrouble: (tex
       <div className="flex min-h-0 flex-1 flex-col px-4 py-4">
         <p className="m-0 text-[18px] font-semibold leading-snug">{W.codeDescribe}</p>
       </div>
-      <ChatBarRow>
-        <BarBox hint={W.codeDescribe} open grow onSend={async (words) => {
+      <ChatComposer placeholder={W.codeDescribe} autoFocus maxLength={400} onSend={async (words) => {
           if (!words.trim()) return false;
           const checked = await checkPlugin(WRITTEN_PASTE);
           if (checked.status !== "checked" || !checked.manifest) {
@@ -89,7 +88,6 @@ function CodeTell({ onReady, onTrouble }: { onReady: () => void; onTrouble: (tex
           onReady();
           return true;
         }} />
-      </ChatBarRow>
     </>
   );
 }
@@ -117,8 +115,7 @@ function CodePaste({ trouble, onSave, onTrouble }: {
         <p className="m-0 text-[18px] font-semibold leading-snug">{W.codePaste}</p>
         {trouble ? <p className="m-0 text-[16px]">{trouble}</p> : null}
       </div>
-      <ChatBarRow>
-        <BarBox hint={W.codePaste} open grow onSend={async (words) => {
+      <ChatComposer placeholder={W.codePaste} autoFocus maxLength={400} onSend={async (words) => {
           const checked = await checkPlugin(words);
           if (checked.status !== "checked" || !checked.manifest) {
             onTrouble(W.codeMissing);
@@ -127,7 +124,6 @@ function CodePaste({ trouble, onSave, onTrouble }: {
           onSave(words, W.codePasted);
           return true;
         }} />
-      </ChatBarRow>
     </>
   );
 }

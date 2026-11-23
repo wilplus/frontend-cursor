@@ -5,8 +5,8 @@ import { TapRow } from "@/components/willab/WillQuestion";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { LetterCircle } from "@/components/willab/chats/ChatList";
 import { VoiceWords, setupWaits } from "@/components/willab/chats/ChatThread";
-import AskSheet from "@/components/willab/chats/AskSheet";
-import { BarMiddle, BarPlus, ThanksTaps, middleOf, plusRows, takesFromSend, thanksDue } from "@/components/willab/chats/ChatBar";
+import ChatComposer, { type ComposerFileAction } from "./ChatComposer";
+import { RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, ThanksTaps, takesFromSend, thanksDue } from "@/components/willab/chats/ChatBar";
 import type { ChatEmoji, ChatMessage } from "@/services/api/chats";
 import {
   answerWidgetSetup,
@@ -36,11 +36,8 @@ import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 /*  on the public side. No consent card (N595 item 1): the visitor writes at  */
 /*  once, and their first message makes their chat, with the host's welcome  */
 /*  (the host's own words, with no assistant's mark) and the host's own       */
-/*  questions (N590 item 2), tapped above the bar. The bar is the locked two  */
-/*  places (N610, ChatBar.tsx): the "+" on the left, which never moves, and   */
-/*  "Ask {name}" in the middle, a box where the chat takes typing, a black    */
-/*  button where it does not. After asking, they sign up to get the answer    */
-/*  (N591 item 4, N595's signed words): every question waits for the host    */
+/*  questions (N590 item 2), tapped above the shared composer. After asking, */
+/*  they sign up to get the answer. Every question waits for the host        */
 /*  (N606: no assistant answers at once), and until the sign-up the host's   */
 /*  answers are held back by the backend. The sign-up opens the join page in */
 /*  a new tab with the visitor's secret; once signed up, the answers show    */
@@ -173,51 +170,31 @@ function SignUpCard({ name, onSignUp, onLater }: { name: string; onSignUp: () =>
   );
 }
 
-/** The visitor's bar: the locked two places (N610, drawn by ChatBar.tsx as
- *  in a host's chat). The "+" on the left, always there. In the middle the
- *  one thing to do now, "Ask {name}": a box where the host's recipe takes
- *  typing, a black button where it does not; never grey. A question of the
- *  host's that waits is answered by the taps above the bar, so the middle
- *  stays "Ask {name}" (item 4: the widget's typed words are a question, not
- *  an answer to it). No emoji in the bar and no mic on the right. */
-function WriteBar({ name, writes, send, onType, onAsk, onPlus }: {
+/** Media actions open the app's sign-up or existing signed-in handoff. */
+function WriteBar({ name, writes, send, onType, onAsk, onPlus, busy }: {
   name: string;
   writes: WidgetWrites;
-  /** They send, when the widget read has it. Null keeps `writes`. */
   send: string[] | null;
   onType: (words: string) => Promise<boolean>;
   onAsk: () => void;
   onPlus: () => void;
+  busy: boolean;
 }) {
-  const [sheet, setSheet] = useState(false);
-  const takes = send ? takesFromSend(send) : { tap: writes.tap, type: writes.type, record: writes.record, photo: false, file: false };
-  const asked = { answer: false, taps: false, photo: false };
-  const middle = middleOf(takes ?? writes, asked);
-  // No `send`: the "+" keeps its own path (the app, or the sign-up).
-  const rows = send && takes ? plusRows(takes, asked, false) : [];
+  const takes = takesFromSend(send);
+  const files: ComposerFileAction[] = [];
+  if (!takes) files.push({ label: "Add files in the app", open: onPlus });
+  if (takes?.photo) files.push({ label: SEND_A_PHOTO, open: onPlus });
+  if (takes?.file) files.push({ label: SEND_A_FILE, open: onPlus });
+  const canRecord = takes?.record ?? (writes.record || !writes.type);
   return (
-    <div data-widget-bar="" className="flex items-center gap-2 px-3 pb-1.5">
-      <BarPlus fresh={false} onClick={() => (rows.length ? setSheet(true) : onPlus())} />
-      <BarMiddle
-        middle={middle}
-        name={name}
-        typing={false}
-        onAsk={onAsk}
-        onRecordAnswer={onAsk}
-        onPhoto={onPlus}
-        onType={onType}
-        onTypingDone={() => undefined}
+    <div data-widget-bar="">
+      <ChatComposer
+        placeholder={askName(name)}
+        onSend={(takes?.type ?? writes.type) ? onType : undefined}
+        mic={canRecord ? { label: RECORD_YOUR_QUESTION, start: onAsk, disabled: busy } : undefined}
+        files={files}
+        busy={busy}
       />
-      {sheet && takes ? (
-        <AskSheet
-          name={name}
-          firstTime={false}
-          onClose={() => setSheet(false)}
-          onRecord={takes.record ? () => { setSheet(false); onPlus(); } : undefined}
-          onPhoto={takes.photo ? () => { setSheet(false); onPlus(); } : undefined}
-          onFile={takes.file ? () => { setSheet(false); onPlus(); } : undefined}
-        />
-      ) : null}
     </div>
   );
 }
@@ -510,6 +487,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
           onType={(words) => send("text", words.trim())}
           onAsk={state.signedUp ? () => void inTheApp() : signUpToAsk}
           onPlus={plus}
+          busy={busy}
         />
       </div>
       <Foot signUpLater={signUpDue && later} onSignUp={signUp} />

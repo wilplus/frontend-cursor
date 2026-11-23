@@ -1,6 +1,6 @@
 # UI, before and after
 
-> **Label: Reference.** The chats' header (`TopBar` in `src/components/willab/chats/TopBar.tsx`) and the locked bar (`ChatBar.tsx`) are the source. Widths follow the thread's `px-4`.
+> **Label: Reference.** The chats' header (`TopBar` in `src/components/willab/chats/TopBar.tsx`) and the shared composer (`ChatComposer.tsx`) are the source. Widths follow the thread's `px-4`.
 
 ## Header
 
@@ -14,9 +14,7 @@ Your chat stays `px-4 py-4`, the same inset as a chat thread. Search is `h-11 ro
 
 ## A row's bar
 
-Before: `h-12 px-2`.
-
-After: the shared `ChatBarRow` (`min-h-[60px]`, 8px around the controls, and the phone's home-bar inset when that is larger). Back, the place in the list, and Next sit in the header's right slot. The bottom of a visitor chat, the talk, and a setup step is that same row (the + on the left when the chat takes it, one thing in the middle). A button footer that is not the composer uses `bar-space`. `docs/flows/feedback-walk-and-chat.md` J9 names `bar-space` for every bottom bar; the chat thread's own row is this shared row, which keeps J9's 8px and adds the home-bar inset.
+A setup step, the talk and the visitor chat use the [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667). Files, the flexible message field and the mic stay in place. Send appears next to the mic once there is a draft. The row accounts for the phone's home indicator.
 
 ## AI models
 

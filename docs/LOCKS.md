@@ -10,4 +10,6 @@ screen has its rules page in this repo: [the Feedback walk and the chat](flows/f
 [the recording screens](flows/recording-screens.md), [the consent screens](flows/consent-screens.md) and
 [the AI voice in practice](flows/ai-voice-practice.md) (backend N107).
 
+The [shared composer](flows/feedback-walk-and-chat.md#shared-composer-n667) is the current lock for the bottom bar across chat and capture (backend N667).
+
 Backend N111 (2026-10-21) added both prototypes the mirror listed to [the consent screens' rules](flows/consent-screens.md), §1 and §5: the policy update prompt <https://claude.ai/artifact/GPRRXaivyrZE2UjrRZY93K> (version 2), as unified with every Lounge ask <https://claude.ai/artifact/CzVL6JWK85tZDVpU9JRtgY> (version 2).

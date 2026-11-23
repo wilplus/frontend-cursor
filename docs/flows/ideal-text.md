@@ -41,6 +41,8 @@ the surface is mounted inside the desktop canvas.
 
 ## 1. The rules
 
+Ask coach from a Take review returns to the scoped project and uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The Ideal text page keeps its document and practice actions.
+
 ### Ideal text in Take review (N666)
 
 Ideal text is the third step of the selected Take's review. It opens under the shared page header with the slide images, readable text, and orange helper words. Each slide can send a question to the same Take's project conversation. The conversation keeps a link back to the slide.

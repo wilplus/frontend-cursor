@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useComposerVoice } from "../useComposerVoice";
+import { AUDIO_MAX_SECONDS } from "@/lib/willab/chatBuilder/voiceMeasures";
 import { pickInterventions } from "@/lib/willab/experiments/overlap";
 import { readingFor } from "@/lib/willab/experiments/sample";
 import {
   deletePrompt,
+  EXPERIMENTS_USE_MOCKS,
   downloadExport,
   EXPERIMENTS_USE_MOCKS,
   exportMine,
@@ -23,8 +26,8 @@ export type Rating = { energy?: string; feeling?: string };
 export type View =
   | { name: "menu"; page: number }
   | { name: "consent" }
-  | { name: "upload"; sessionId: string }
-  | { name: "prompt"; sessionId: string; index: number; said: boolean; rating: Rating }
+  | { name: "upload" }
+  | { name: "prompt"; sessionId: string; index: number; said: boolean; rating: Rating; audio?: Blob; takeId?: string }
   | { name: "reading"; sessionId: string; index: number; takeId: string; rating: Rating }
   | { name: "analysis"; sessionId: string; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rating: Rating }
   | { name: "pick"; sessionId: string | null; index: number; takeId: string; moment: number; source: "saved" | "open" | "gate"; rules: boolean; slot: number; cell: number }
@@ -94,41 +97,64 @@ export function Consent({ onNo, onYes }: { onNo: () => void; onYes: () => void }
     <Frame screen="consent" title="Before you start" foot={<ActionPair name="consent" no="Not now" yes="I agree" onNo={onNo} onYes={onYes} />}>
       <Bubble data-ai-disclosure="">An AI reads this session. It looks at how you speak. It does not name a feeling.</Bubble>
       <Note>Only you can see the result. No employer, and no one else.</Note>
-      <Note>Nothing is sent to a server yet. It stays on this device.</Note>
+      <Note>{EXPERIMENTS_USE_MOCKS ? "This sample stays on this device." : "Your recording and any page you attach are kept with your private session."}</Note>
     </Frame>
   );
 }
 
-export function Upload({ onSkip, onUse }: { onSkip: () => void; onUse: (name: string) => void }) {
-  const [name, setName] = useState<string | null>(null);
+export function Upload({ onStart }: { onStart: (page?: File) => Promise<boolean> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  const start = async (file?: File) => {
+    if (busy) return false;
+    setBusy(true);
+    setError(false);
+    try {
+      const started = await onStart(file);
+      if (!started) setError(true);
+      return started;
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <Frame
-      screen="upload"
-      title="Add one page?"
-      foot={name
-        ? <ActionPair name="page" no="Leave it out" yes="Use this page" onNo={onSkip} onYes={() => onUse(name)} />
-        : <ActionPair name="page" no="Skip" yes="Add a page" onNo={onSkip} onYes={() => document.getElementById("exp-page")?.click()} />}
+    <Frame screen="upload" title="Add one page?"
+      composer={{
+        files: [{ label: "Add a page", accept: ".pdf,.png,.jpg,.jpeg,.ppt,.pptx,.txt", sendFile: start }],
+        busy,
+        status: error ? <p role="alert" className="px-2 text-sm text-destructive">Could not start the session. Try again.</p> : null,
+      }}
+      foot={
+        <div data-pair="page" className="flex justify-end">
+          <button type="button" data-choice="no" disabled={busy} onClick={() => void start()} className={choiceBubble(false)}>Skip</button>
+        </div>
+      }
     >
-      <Note>A slide or a one-page case. It stays with this session. You can skip.</Note>
-      {name ? <p data-page-name="" className="m-0 truncate text-[16px]">{name}</p> : null}
-      <input id="exp-page" data-page-file="" type="file" accept=".pdf,.png,.jpg,.jpeg,.ppt,.pptx,.txt" className="hidden" onChange={(event) => setName(event.target.files?.[0]?.name ?? null)} />
+      <Note>A slide or a one-page case. You can skip.</Note>
     </Frame>
   );
 }
 
-export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave }: {
+export function PromptStep({ file, view, saving, saveError, onSkip, onSaid, onRate, onAgain, onSave }: {
   file: PromptFile;
   view: Extract<View, { name: "prompt" }>;
+  saving: boolean;
+  saveError: string | null;
   onSkip: () => void;
-  onSaid: () => void;
+  onSaid: (audio?: Blob) => void;
   onRate: (rating: Rating) => void;
   onAgain: () => void;
   onSave: () => void;
 }) {
+  const sample = EXPERIMENTS_USE_MOCKS;
+  const { mic, recording, voiceDraft, error } = useComposerVoice({
+    enabled: !sample && !view.said,
+    maxSeconds: AUDIO_MAX_SECONDS,
+    onSend: (audio) => { onSaid(audio); return true; },
+  });
   const prompt = file.prompts[view.index];
   if (!prompt) return null;
   const opening = isOpeningPrompt(prompt, file);
-  const sample = EXPERIMENTS_USE_MOCKS;
   const ready = Boolean(view.rating.energy && view.rating.feeling);
   const against = referenceLine(prompt.reference);
   return (
@@ -138,9 +164,19 @@ export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave
       help={sample ? (view.said ? "preview-rating" : "preview-question") : view.said ? "rating" : undefined}
       kicker={`${sample ? "Preview · " : ""}${view.index + 1} of ${file.prompts.length}`}
       title={opening ? "Your usual way" : "A take"}
+      composer={sample || view.said ? undefined : {
+        voiceRequired: true, mic, recording, voiceDraft,
+        status: error ? <p role="alert" className="px-2 text-sm text-destructive">{error}</p> : null,
+      }}
       foot={view.said
-        ? <ActionPair name="save" no={sample ? "Choose again" : "Say it again"} yes={sample ? "Continue" : "Save this take"} onNo={onAgain} onYes={onSave} />
-        : <ActionPair name="said" no="Skip this one" yes={sample ? "Use sample answer" : "I said it"} onNo={onSkip} onYes={onSaid} />}
+        ? <ActionPair name="save" no={sample ? "Choose again" : "Say it again"}
+            yes={saving ? "Saving…" : sample ? "Continue" : "Save this take"} onNo={onAgain} onYes={onSave} disabled={saving} />
+        : sample ? <ActionPair name="said" no="Skip this one" yes="Use sample answer" onNo={onSkip} onYes={() => onSaid()} />
+        : recording ? null : (
+          <div data-pair="said" className="flex flex-wrap justify-end gap-2">
+            <button type="button" data-choice="no" className={choiceBubble(false)} onClick={onSkip}>Skip this one</button>
+          </div>
+        )}
     >
       {!opening ? <p className="m-0 text-[13px] font-medium text-muted-foreground">{tagWords(prompt.tag)}</p> : null}
       <Bubble data-prompt-text="" data-prompt-id={prompt.id} lang={file.language}>{prompt.text}</Bubble>
@@ -148,6 +184,7 @@ export function PromptStep({ file, view, onSkip, onSaid, onRate, onAgain, onSave
       {view.said
         ? <RatingFields file={file} rating={view.rating} onRate={onRate} ready={ready} />
         : <Note>{sample ? "Use a sample answer to see the rating step. Recording happens in the shared test chat." : "A recording will be kept with your private session."}</Note>}
+      {saveError ? <p role="alert" className="text-sm text-destructive">{saveError}</p> : null}
     </Frame>
   );
 }

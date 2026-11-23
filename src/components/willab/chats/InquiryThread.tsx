@@ -8,15 +8,17 @@ import { onAnswerSent, usePendingAnswer, type AnswerFor } from "@/lib/willab/cha
 import type { Chat } from "@/services/api/chats";
 import { acceptInquiry, declineInquiry, getInquiry, inquiryAudioSrc, type Inquiry, type InquiryTake } from "@/services/api/takeMatches";
 import { OPEN_TAKE } from "./ChatList";
+import ChatComposer from "./ChatComposer";
+import { RECORD_YOUR_ANSWER } from "./ChatBar";
 import { askingForWhatYouKnow, itsAbout } from "./joinCopy";
-import { BackIsThisChats, ChatTopBar, FileBubble, JoinedLine, RecordAnswerButton, SendingPill, TakeTile, VoiceWords } from "./ChatThread";
+import { BackIsThisChats, ChatTopBar, FileBubble, JoinedLine, SendingPill, TakeTile, VoiceWords } from "./ChatThread";
 
 /* -------------------------------------------------------------------------- */
 /*  An asking chat: a matched Take that reached me (backend N477, N478, N485, */
 /*  N486, N493, N504; #1712). Rules: docs/flows/customer-requests.md C1.      */
 /*                                                                            */
 /*    before Open Take  who asks (a pseudonym and their role) and what it is  */
-/*                      about, never a name; "Open Take" in the bar's middle, */
+/*                      about, never a name; "Open Take" in the composer, */
 /*                      black with no dot (it opens something first, N483     */
 /*                      item 1); "Not now" under the question.                */
 /*    after Open Take   the asker's name and the Take, open: its recording    */
@@ -125,22 +127,24 @@ export default function InquiryThread({
           {pending ? null : <TapRow labels={[NOT_NOW]} onTap={() => void decline()} dataAttr={{ "data-chat-not-now": "" }} />}
         </div>
       </div>
-      <div data-chat-bar className="flex shrink-0 items-end gap-1 px-4 pb-2">
-        {pending ? (
-          <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} />
-        ) : accepted ? (
-          onRecordAnswer ? <RecordAnswerButton onClick={record} /> : null
-        ) : (
-          <button
-            type="button"
-            data-inquiry-open-take=""
-            onClick={() => void accept()}
-            className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-full bg-foreground text-[15px] font-medium text-background"
-          >
-            {OPEN_TAKE}
-          </button>
-        )}
-      </div>
+      {accepted || pending ? (
+        <ChatComposer
+          voiceRequired
+          mic={accepted && onRecordAnswer ? {
+            start: record, label: RECORD_YOUR_ANSWER, disabled: Boolean(pending), attrs: { "data-chat-record-answer": "" },
+          } : undefined}
+          above={pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null}
+        />
+      ) : (
+        <button
+          type="button"
+          data-inquiry-open-take=""
+          onClick={() => void accept()}
+          className="mx-4 mb-2 h-12 shrink-0 rounded-full bg-foreground text-[15px] font-medium text-background"
+        >
+          {OPEN_TAKE}
+        </button>
+      )}
     </div>
   );
 }

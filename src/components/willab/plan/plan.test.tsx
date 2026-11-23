@@ -96,7 +96,8 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan } from "@/services/api/plan";
 import { feelingsDue, rememberPlan } from "@/services/api/plan";
 import { loadRingState, resetRingStateCache } from "@/services/api/rings";
-import { PlanAsk, WillBarMiddle, type PlanActions } from "./PlanDock";
+import { PlanAsk, willComposerMic, type PlanActions } from "./PlanDock";
+import ChatComposer from "../chats/ChatComposer";
 import { planRowFor, type PlanRowCtx } from "./PlanRows";
 import { ChangePlanSheet, SeePlanSheet } from "./PlanSheet";
 import { dayLinesFor } from "./dayLines";
@@ -230,10 +231,10 @@ function Lounge({
     <>
       <div data-thread="">{plan.asks}</div>
       {plan.dock}
-      <form data-bar="" className={plan.composerDisplay("flex")}>
-        <button type="button" aria-label="Your projects" />
-        <WillBarMiddle hear={plan.hear} next={plan.one} held={false} onRecord={onRecordNext} onFirst={plan.startFirst ?? (() => {})} />
-      </form>
+      <ChatComposer formAttrs={{ "data-bar": "" }}
+        mic={willComposerMic({ hear: plan.hear, next: plan.one, held: false, onRecord: onRecordNext, onFirst: plan.startFirst ?? (() => {}) })}
+        voiceRequired={Boolean(plan.hear)} onSend={() => true} recording={plan.recording} />
+
     </>
   );
 }
@@ -252,7 +253,7 @@ async function showLounge(
 
 const bar = () => host.querySelector("[data-bar]") as HTMLFormElement;
 /** The bar's one black button, its words. */
-const middle = () => bar().querySelector("button:not([aria-label='Your projects'])")?.textContent;
+const middle = () => bar().querySelector("[data-chat-mic]")?.getAttribute("aria-label");
 const taps = (scope: ParentNode = host) => [...scope.querySelectorAll("[data-thread] button")].map((b) => b.textContent);
 const tapOn = async (label: string) => {
   const button = [...host.querySelectorAll("[data-thread] button")].find((b) => b.textContent === label) as HTMLButtonElement;
@@ -270,9 +271,9 @@ it("a choice is taps in the thread, and the bar keeps its one button", async () 
   // The bar stays under it: the stack and its one black button; no box to
   // type in (N319 item 3, N483 item 2).
   expect(bar().className).not.toContain("hidden");
-  expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
+  expect(host.querySelector("[data-chat-files]")).not.toBeNull();
   expect(middle()).toBe("Start your first recording");
-  expect(host.querySelector("textarea")).toBeNull();
+  expect(bar().querySelector("textarea")?.disabled).toBe(false);
   await tapOn("No date yet");
   expect(posted("/api/v2/plan/deadline")[0][1]).toMatchObject({ json: { date: null } });
 
@@ -307,15 +308,13 @@ it("a choice is taps in the thread, and the bar keeps its one button", async () 
 /** The one recording bar: the trash on the left, then the strip with Stop
  *  inside it, no send (backend N314). */
 function oneBar() {
-  const recording = host.querySelector("[data-plan-voice-recording] [data-recording-bar]");
-  expect(recording).not.toBeNull();
-  const trash = recording!.querySelector('button[aria-label="Throw it away"]') as HTMLButtonElement;
-  const strip = recording!.querySelector("[data-walk-recording-strip]")!;
-  const stop = strip.querySelector('button[aria-label="Stop"]') as HTMLButtonElement;
-  expect(stop?.textContent).toBe("Stop");
-  expect(trash.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const stop = bar().querySelector<HTMLButtonElement>("[data-plan-voice-recording][data-chat-mic]");
+  const trash = bar().querySelector<HTMLButtonElement>('button[aria-label="Throw it away"]')!;
+  expect(stop?.getAttribute("aria-label")).toBe("Stop");
+  expect(bar().querySelector("[data-chat-files]")).not.toBeNull();
+  expect(trash.compareDocumentPosition(stop!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(host.querySelector('button[aria-label="Send"]')).toBeNull();
-  return { trash, stop };
+  return { trash, stop: stop! };
 }
 
 it("a spoken question: Record your answer records it, Not now leaves it", async () => {
@@ -334,11 +333,11 @@ it("a spoken question: Record your answer records it, Not now leaves it", async 
     // under the question, a grey word; no box, no mic.
     expect(bar().className).not.toContain("hidden");
     const hear = () => host.querySelector("[data-will-hear]") as HTMLButtonElement | null;
-    expect(hear()?.textContent).toBe("Record your answer");
-    expect(hear()?.querySelector(".bg-red-500")).not.toBeNull();
+    expect(hear()?.getAttribute("aria-label")).toBe("Record your answer");
+    expect(hear()?.querySelector("svg.lucide-mic")).not.toBeNull();
     expect(taps()).toEqual(["Not now"]);
     expect(host.querySelector("[data-plan-not-now] [data-quiet]")).not.toBeNull();
-    expect(host.querySelector("textarea")).toBeNull();
+    expect(bar().querySelector("textarea")?.disabled).toBe(true);
     expect(host.querySelector("[data-testid='voice-note-mic']")).toBeNull();
 
     // A tap records with the one bar, in the bar's place.
@@ -347,7 +346,7 @@ it("a spoken question: Record your answer records it, Not now leaves it", async 
       await act(async () => new Promise((done) => setTimeout(done, 0)));
     };
     await record();
-    expect(bar().className).toContain("hidden");
+    expect(bar().querySelector("textarea")?.hidden).toBe(true);
     // The trash throws it away: nothing is sent, the bar comes back.
     await act(async () => oneBar().trash.click());
     await act(async () => new Promise((done) => setTimeout(done, 0)));
@@ -369,7 +368,7 @@ it("a spoken question: Record your answer records it, Not now leaves it", async 
     expect(taps()).toEqual([]);
     expect(middle()).toBe("Start your first recording");
     await showLounge([why]);
-    expect(hear()?.textContent).toBe("Record your answer");
+    expect(hear()?.getAttribute("aria-label")).toBe("Record your answer");
   } finally {
     vi.unstubAllGlobals();
   }
@@ -406,9 +405,9 @@ it("the plan's questions never cover Start your first recording", async () => {
   now = { ...PLAN, status: "active", step: "done" };
   await showLounge([row({ plan_card: true })], start);
   const button = host.querySelector("[data-start-first]") as HTMLButtonElement;
-  expect(button.textContent).toBe("Start your first recording");
+  expect(button.getAttribute("aria-label")).toBe("Start your first recording");
   expect(bar().className).not.toContain("hidden");
-  expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
+  expect(host.querySelector("[data-chat-files]")).not.toBeNull();
   expect(taps()).toEqual([]);
   await act(async () => button.click());
   expect(start).toHaveBeenCalledWith("Our Q3 board pitch");
@@ -429,7 +428,7 @@ it("a first-Take plan: the bar's button at once, and it starts the five slides",
   const start = vi.fn();
   await showLounge([row({}, "Your first Take is a short introduction: five questions, one slide each. Answer out loud, as you'd explain it to a friend. At the end, you'll get a few words on how you came across.")], start);
   const button = host.querySelector("[data-start-first]") as HTMLButtonElement;
-  expect(button.textContent).toBe("Start your first recording");
+  expect(button.getAttribute("aria-label")).toBe("Start your first recording");
   expect(taps()).toEqual([]); // no deadline asked in the chat
   expect(bar().className).not.toContain("hidden");
   await act(async () => button.click());
@@ -548,9 +547,9 @@ it("a practice day's Record Take N is the bar's middle", async () => {
   const record = vi.fn();
   await showLounge([closing, one], undefined, record);
   const button = host.querySelector("[data-record-next]") as HTMLButtonElement;
-  expect(button.textContent).toBe("Record Take 2");
+  expect(button.getAttribute("aria-label")).toBe("Record Take 2");
   expect(bar().className).not.toContain("hidden");
-  expect(host.querySelector("[aria-label='Your projects']")).not.toBeNull();
+  expect(host.querySelector("[data-chat-files]")).not.toBeNull();
   expect(host.querySelector("[aria-label='Close']")).toBeNull();
   await act(async () => button.click());
   expect(record).toHaveBeenCalledWith("arc-1", 1);

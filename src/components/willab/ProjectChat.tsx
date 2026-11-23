@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Send } from "lucide-react";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import {
   newestStamp,
@@ -54,6 +53,8 @@ import { usePinThreadBottom } from "./usePinThreadBottom";
 import TakeReview, { type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import TakeReviewMessage from "./TakeReviewMessage";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
+import ChatComposer from "./chats/ChatComposer";
+import { useUpdateSlides } from "./UpdateSlides";
 
 type Opened = "walk" | "ideal" | "decision" | null;
 
@@ -407,37 +408,6 @@ function useProjectRecordingLifecycle({
   };
 }
 
-function ProjectChatComposer({ draft, sending, typingAnswer, chipCount, failed, onDraft, onSend }: {
-  draft: string; sending: boolean; typingAnswer: boolean; chipCount: number; failed: boolean;
-  onDraft: (value: string) => void; onSend: () => void;
-}) {
-  return (
-    <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
-      <form data-project-question-composer onSubmit={(event) => { event.preventDefault(); onSend(); }}
-        className={`${WILLAB_CONTENT_RAIL} relative flex items-end`}>
-        <textarea
-          autoFocus={typingAnswer || chipCount === 0 || failed}
-          rows={1} disabled={sending} value={draft} onChange={(event) => onDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
-          placeholder={TYPE_YOUR_ANSWER} aria-label="Answer about this take"
-          autoComplete="off" autoCorrect="on" autoCapitalize="sentences" spellCheck
-          className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary ${draft.trim() ? "pr-11" : "pr-4"}`}
-        />
-        {draft.trim() ? (
-          <button type="submit" disabled={sending} aria-label="Send answer" className="absolute bottom-[5px] right-[5px] flex h-8 w-8 items-center justify-center rounded-full text-foreground disabled:text-muted-foreground">
-            <Send className="h-5 w-5" aria-hidden />
-          </button>
-        ) : null}
-      </form>
-    </div>
-  );
-}
-
 function useProjectPracticeHistory(project: TrainingArc, messages: readonly LoungeMessage[]) {
   const [runs, setRuns] = useState<ReviewRuns>({});
   const [refresh, setRefresh] = useState(0);
@@ -458,11 +428,6 @@ function useProjectPracticeHistory(project: TrainingArc, messages: readonly Loun
   return { enabled, runs, refreshRuns: () => setRefresh((n) => n + 1) };
 }
 
-function projectBar(question: boolean, anchored: boolean, compose: boolean) {
-  const composer = question || anchored || compose;
-  return { composer, toggle: !question && !anchored, record: !composer };
-}
-
 function ProjectReviewContext({ topic, target, onReturn, onClear }: {
   topic: string; target: TakeReviewTarget; onReturn: () => void; onClear: () => void;
 }) {
@@ -476,15 +441,11 @@ function ProjectReviewContext({ topic, target, onReturn, onClear }: {
   </div>;
 }
 
-function ProjectChatHeader({ project, coach, toggle, composing, onToggle, onBack }: {
-  project: TrainingArc; coach: boolean; toggle: boolean; composing: boolean;
-  onToggle: () => void; onBack: () => void;
+function ProjectChatHeader({ project, coach, onBack }: {
+  project: TrainingArc; coach: boolean; onBack: () => void;
 }) {
   return <TopBar circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-    title={coach ? "Speaking coach" : project.topic} subtitle={coach ? project.topic : "Project"}
-    right={toggle ? <button type="button" className="min-h-11 px-2 text-sm text-muted-foreground" onClick={onToggle}>
-      {composing ? "Record" : "Ask coach"}
-    </button> : null} onBack={onBack} />;
+    title={coach ? "Speaking coach" : project.topic} subtitle={coach ? project.topic : "Project"} onBack={onBack} />;
 }
 
 function samePending(
@@ -570,7 +531,9 @@ export default function ProjectChat({
   const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
   const [takeReview, setTakeReview] = useState<TakeReviewTarget | null>(initialReview);
   const [askTarget, setAskTarget] = useState<TakeReviewTarget | null>(null);
-  const [compose, setCompose] = useState(coachContext);
+  const slides = useUpdateSlides(activeProject.arcId, {
+    hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
+  });
   const { enabled: takeReviewEnabled, runs, refreshRuns } = useProjectPracticeHistory(activeProject, thread.messages);
   const [openedTranscript, setOpenedTranscript] = useState<{
     sessionId: string;
@@ -614,7 +577,6 @@ export default function ProjectChat({
   const recordingTakes = [...activeProject.takes].sort(
     (a, b) => a.takeIndex - b.takeIndex,
   );
-  const bar = projectBar(Boolean(activeQuestion), Boolean(askTarget), compose);
   const pinBottom = useProjectChatScroll(
     scrollRef,
     activeProject.arcId,
@@ -782,8 +744,7 @@ export default function ProjectChat({
     <div data-project-chat className="absolute inset-0 z-30 flex flex-col bg-background">
       <div className="contents" aria-hidden={Boolean(takeReview)}
         ref={(element) => { if (element) element.inert = Boolean(takeReview); }}>
-      <ProjectChatHeader project={activeProject} coach={coachContext} toggle={bar.toggle}
-        composing={compose} onToggle={() => setCompose((mode) => !mode)} onBack={onBack} />
+      <ProjectChatHeader project={activeProject} coach={coachContext} onBack={onBack} />
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className={`${WILLAB_CONTENT_RAIL} flex min-h-full flex-col justify-end gap-2`}>
@@ -865,24 +826,15 @@ export default function ProjectChat({
         </div>
       </div>
 
-      {bar.composer ? (
-        <>
-          {askTarget ? <ProjectReviewContext topic={activeProject.topic} target={askTarget}
-            onReturn={() => setTakeReview(askTarget)} onClear={() => setAskTarget(null)} /> : null}
-          <ProjectChatComposer draft={draft} sending={sending} typingAnswer={typingAnswer || askTarget !== null}
-            chipCount={chips.length} failed={pendingTyped?.phase === "send_failed"}
-            onDraft={setDraft} onSend={() => void answerText()} />
-        </>
-      ) : null}
-      {bar.record ? (
-        <div className="shrink-0 bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-          <button type="button" data-project-record onClick={() => recordNext()}
-            className={`${WILLAB_CONTENT_RAIL} flex h-[58px] items-center justify-center gap-3 rounded-full bg-foreground text-[16px] font-semibold text-background`}>
-            <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[#ff4d3d]" />
-            {recordLabel(coach, Boolean(hasPractice))}
-          </button>
-        </div>
-      ) : null}
+      {askTarget ? <ProjectReviewContext topic={activeProject.topic} target={askTarget}
+        onReturn={() => setTakeReview(askTarget)} onClear={() => setAskTarget(null)} /> : null}
+      <ChatComposer key={activeProject.arcId} className={WILLAB_CONTENT_RAIL}
+        formAttrs={{ "data-project-question-composer": "" }} placeholder={activeQuestion ? TYPE_YOUR_ANSWER : "Message about this project"}
+        inputLabel="Answer about this take" sendLabel="Send answer" value={draft} onValue={setDraft} onSend={() => answerText()}
+        autoFocus={typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending}
+        files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
+        mic={{ label: recordLabel(coach, Boolean(hasPractice)), start: () => recordNext(), attrs: { "data-project-record": "" } }} />
+      {slides.layer}
       </div>
 
       {opened ? (

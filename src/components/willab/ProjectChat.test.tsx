@@ -315,7 +315,7 @@ describe("project conversation", () => {
     const bubble = host.querySelector("[data-take-review-message]")!;
     expect(bubble.textContent).toContain("2 of 8 slides");
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
-    expect(host.querySelector("[data-project-question-composer]")).toBeNull();
+    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
     await click(bubble, "2 Takes · 1 practice run");
     await click(bubble, "Take 1 · 1 practice run");
     await click(bubble, "Feedback");
@@ -328,7 +328,7 @@ describe("project conversation", () => {
     expect(review.textContent).toContain("An early decision.");
     expect(review.textContent).not.toContain("The newest words.");
     await click(review, "Ask coach");
-    expect(host.querySelector("[data-project-record]")).toBeNull();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
     enterAnswer("How should I open this slide?");
     submitAnswer();
     await flush();
@@ -362,9 +362,7 @@ describe("project conversation", () => {
     });
     render();
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
-    const askCoach = [...host.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Ask coach")!;
-    act(() => askCoach.click());
-    expect(host.querySelector("[data-project-record]")).toBeNull();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
     enterAnswer("How should I finish this talk?");
     submitAnswer();
     await flush();
@@ -412,8 +410,8 @@ describe("project conversation", () => {
     expect(host.textContent).not.toContain("Almost");
     expect(host.textContent).toContain("Feedback");
     expect(host.textContent).toContain("Ideal text");
-    expect(host.textContent).toContain("Continue recording");
-    expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelector("[data-project-record]")?.getAttribute("aria-label")).toBe("Continue recording");
+    expect(host.querySelector("[data-chat-input]")).not.toBeNull();
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
@@ -653,7 +651,7 @@ describe("project conversation", () => {
     expect(before(summary, bridge)).toBe(true);
     expect(before(bridge, question)).toBe(true);
     expect(host.textContent).not.toContain("Good job. See you next time.");
-    expect(host.querySelector("[data-project-record]")).toBeNull();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
     expect(host.querySelector("[data-chat-header]")).not.toBeNull();
     expect(host.querySelector("[data-will-answers]")).not.toBeNull();
     expect(host.querySelector('textarea[aria-label="Answer about this take"]')).not.toBeNull();
@@ -844,7 +842,8 @@ describe("project conversation", () => {
     submitAnswer();
     await flush();
 
-    expect(field.disabled).toBe(true);
+    expect(field.disabled).toBe(false);
+    expect(host.querySelector("[data-project-question-composer]")?.getAttribute("aria-busy")).toBe("true");
     expect(state.chatQuery).toHaveBeenCalledTimes(1);
     expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
     expect([...host.querySelectorAll("[data-project-message]")].filter(

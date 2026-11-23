@@ -1,5 +1,7 @@
 # Usability rounds
 
+> Historical layout audit. The [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667) defines the current bottom bar.
+
 > **Label: Reference.** Founder-Approved: Artur, 17 November 2026, score the builder. The method is the Presentation Builder's: drive the flow and score from what the run did (`audit-log.md` on `cursor/presentation-builder-reference`). These scores are the assertions in `src/components/willab/chats/hostsetup/talkAudit.test.tsx`. An earlier draft of this page scored 9.6 by hand. That number is withdrawn.
 
 ## How a point is earned

@@ -28,6 +28,7 @@ import { CopyLinkLine } from "@/components/willab/chats/JoinSetup";
 import { SEND_PICKED } from "@/components/willab/chats/joinCopy";
 import { TypingGlyph } from "@/components/willab/TypingDots";
 import { answerCommunityOffer, getCommunityOffer, type CommunityOffer } from "@/services/api/communityOffer";
+import type { ComposerRecording } from "../chats/ChatComposer";
 import { DatePickSheet, usePlanVoice } from "./PlanDock";
 
 /* -------------------------------------------------------------------------- */
@@ -271,9 +272,7 @@ export type WayIn = {
   barMiddle: ReactNode;
   /** "Tell me what to change." waits: "Record your answer" records it. */
   hear: { onTap: () => void } | null;
-  /** The recording bar while that answer is said. */
-  voiceBar: ReactNode;
-  recording: boolean;
+  recording?: ComposerRecording;
   /** Words wait: "Something else" picked, or Will's last question after the
    *  walk; the box stays open. */
   wordsWait: boolean;
@@ -391,7 +390,6 @@ export function useWayIn({
         </button>
       ) : null,
     hear: voice.waiting,
-    voiceBar: voice.bar,
     recording: voice.recording,
     wordsWait: typed || ask?.kind === "words",
     say: (words) => {

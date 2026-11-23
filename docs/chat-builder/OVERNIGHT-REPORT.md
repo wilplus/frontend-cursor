@@ -1,5 +1,7 @@
 # Overnight report
 
+> Historical layout audit. The [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667) defines the current bottom bar.
+
 > **Label: Reference.** Branch `cursor/chat-builder-phase1-027f`, pull request 1427. Nothing here was merged, and nothing was written to the production backend.
 
 ## What was built

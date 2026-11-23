@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { useRouter } from "next/navigation";
@@ -30,8 +30,6 @@ import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
-  coerceTargetSeconds,
-  formatRecordingClock,
   measureSlideClockOffset,
 } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -58,7 +56,7 @@ import RecordingSetup, { setupSteps } from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import { gateStateFor } from "./Phase1AcceptanceGate";
-import FinishTakeButton from "./FinishTakeButton";
+import ChatComposer from "./chats/ChatComposer";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
@@ -1832,6 +1830,7 @@ export default function LabOverlay({
             asks={look.asks}
             rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
+            onDiscard={handleClose}
             onRecordAgain={() => {
               // Not asked again (N28): the rejected recording never became a
               // Take and a mic error never started one, so this retries the
@@ -1868,13 +1867,14 @@ export default function LabOverlay({
                     const err = validateAudioUpload(file);
                     if (err) {
                       setRejectedMsg(err);
-                      return;
+                      return false;
                     }
                     setRejectedMsg(null);
                     slideAdvancesRef.current = [];
                     durationRef.current = 0; // the BE backfills duration
                     setBlob(file);
                     dispatch("upload_submitted");
+                    return true;
                   }
                 : null
             }
@@ -1987,6 +1987,7 @@ export function RecordingPhase({
   rejectedMsg,
   uploadRetry,
   onStop,
+  onDiscard,
   onRecordAgain,
   slides,
   presentationRef,
@@ -2009,8 +2010,9 @@ export function RecordingPhase({
   rejectedMsg: string | null;
   /** R4-5 fix — when the rejected take was an UPLOAD, submit a different file
    *  instead of forcing a live re-record. null for live-recorded rejections. */
-  uploadRetry: ((file: File) => void) | null;
+  uploadRetry: ((file: File) => boolean) | null;
   onStop: () => void;
+  onDiscard?: () => void;
   onRecordAgain: () => void;
   slides: PresentationSlide[];
   presentationRef: string | null;
@@ -2023,52 +2025,8 @@ export function RecordingPhase({
   asks?: string | null;
 }) {
   const uiLocale = useUiLocale();
-  const retryFileRef = useRef<HTMLInputElement | null>(null);
-  // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
-  // setup context and let the user re-record without re-entering Setup. This
-  // wins over the connecting/idle spinner (cancelMic left the mic idle). When
-  // the take came from a file upload, lead with "upload a different file"
-  // (the old Pre-record recovery) and keep live recording as the alternative.
   if (rejectedMsg) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="max-w-sm text-[15px] text-destructive">{rejectedMsg}</p>
-        {uploadRetry ? (
-          <>
-            <input
-              ref={retryFileRef}
-              type="file"
-              accept="audio/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) uploadRetry(f);
-              }}
-              className="hidden"
-            />
-            <div className="flex flex-col items-center gap-2">
-              <Button
-                onClick={() => retryFileRef.current?.click()}
-                className="rounded-full px-6"
-              >
-                Upload a different file
-              </Button>
-              <button
-                type="button"
-                onClick={onRecordAgain}
-                className="text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                or record instead
-              </button>
-            </div>
-          </>
-        ) : (
-          <Button onClick={onRecordAgain} className="rounded-full px-6">
-            Record again
-          </Button>
-        )}
-      </div>
-    );
+    return <CaptureRecovery message={rejectedMsg} onRecordAgain={onRecordAgain} uploadRetry={uploadRetry ?? undefined} />;
   }
 
   // R4-5 — with the Pre-record screen gone, RecordingPhase is what shows while
@@ -2089,107 +2047,33 @@ export function RecordingPhase({
     // doesn't open app settings from the web, so it was a dead button.)
     const openInSafari = micState.code === "needs_safari";
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="max-w-sm text-[15px] text-destructive">
-          {micState.message}
-        </p>
-        {openInSafari ? (
-          <a
-            href={typeof window !== "undefined" ? window.location.href : "/"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-border px-6 py-2.5 text-[15px] text-foreground"
-          >
-            Open in Safari
-          </a>
-        ) : (
-          <Button
-            onClick={onRecordAgain}
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            Try again
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  // R5 — Apple-style clock: count DOWN from the setup target, read 0:00 at the
-  // target, then count UP as a negative red overrun (never auto-stopping — the
-  // red is only a nudge). No/invalid target → count up raw elapsed, never red.
-  const { label: clockLabel, overrun } = formatRecordingClock(
-    elapsed,
-    targetSec,
-  );
-  const target = coerceTargetSeconds(targetSec); // for the bar fill only
-  const hasDeck = slides.length > 0;
-
-  /* THE RECORDING STRIP (respec §4) — ONE line: pulsing dot → clock →
-     progress. Finish take left it for the last slide's button (N70). It used to be a four-storey tower (the word
-     "Recording", a 40px clock, a bar, then an 80px button) that pushed the
-     slide off the top of a phone. Everything in it still says exactly what
-     it said before; it says it across instead of down.
-
-     The clock keeps its semantics (R5): it counts DOWN to the setup target,
-     reads 0:00 there, then counts UP as a negative overrun. The bar is
-     NUMBERLESS — no digits, no percentage (AC-9) — and both turn to the
-     record red past the target, which is a nudge, never an error. */
-  const strip = (
-    <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3">
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-full bg-record/50 motion-safe:animate-pulse"
-        aria-hidden
+      <CaptureRecovery
+        message={micState.message}
+        onRecordAgain={openInSafari ? undefined : onRecordAgain}
+        workaround={openInSafari ? (
+          <a href={typeof window !== "undefined" ? window.location.href : "/"} target="_blank" rel="noopener noreferrer"
+            className="rounded-full border border-border px-6 py-2.5 text-[15px]">Open in Safari</a>
+        ) : undefined}
       />
-      <span
-        className={`font-mono text-[17px] font-semibold tabular-nums ${
-          overrun ? "text-record" : "text-foreground"
-        }`}
-      >
-        {clockLabel}
-      </span>
-      <div
-        className="h-1 flex-1 overflow-hidden rounded-full bg-border"
-        aria-hidden
-      >
-        <div
-          className={`h-full rounded-full transition-[width] duration-200 ${
-            overrun
-              ? "motion-safe:animate-pulse bg-record"
-              : target == null
-                ? "motion-safe:animate-pulse bg-muted-foreground/40"
-                : "bg-primary"
-          }`}
-          style={{
-            width:
-              target == null
-                ? "100%"
-                : `${Math.min(100, (elapsed / target) * 100)}%`,
-          }}
-        />
-      </div>
-    </div>
-  );
-
-  if (!hasDeck) {
-    // No deck at all is a state the product no longer produces (a speaker
-    // who uploaded nothing presents the default deck), but a take with an
-    // empty slide list must still be stoppable.
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end gap-2.5 pb-[env(safe-area-inset-bottom)]">
-        {strip}
-        <FinishTakeButton onClick={onStop} className="h-12 w-full rounded-2xl text-[15px]" />
-      </div>
     );
   }
 
-  /* THE COLUMN: the slide takes the room that is going spare; the strip and
-     the Back / Next slide pair stay pinned above the home indicator.
+  const hasDeck = slides.length > 0;
+  const stopLabel = recordingText("finishTake", uiLocale);
+  const composer = (
+    <ChatComposer recording={{
+      elapsedMs: elapsed * 1000,
+      targetSeconds: targetSec,
+      stop: currentSlide >= slides.length - 1 ? onStop : undefined,
+      discard: onDiscard,
+      stopLabel,
+      attrs: { "data-finish-take": "" },
+    }} />
+  );
+  if (!hasDeck) {
+    return <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end">{composer}</div>;
+  }
 
-     THE STILL FRAME (founder lock 2026-10-12, N70): only the slide and its
-     helper words move, sideways. The strip, the buttons and the top bar's
-     "Take · Slide" line keep their elements through a slide change. No line
-     above the strip. */
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
       <RecordingRoadmap
@@ -2199,8 +2083,29 @@ export function RecordingPhase({
         currentSlide={currentSlide}
         roots={roots}
         onSlideChange={onSlideChange}
-        strip={strip}
-        onFinish={onStop}
+        composer={composer}
+      />
+    </div>
+  );
+}
+
+function CaptureRecovery({ message, onRecordAgain, uploadRetry, workaround }: {
+  message: string;
+  onRecordAgain?: () => void;
+  uploadRetry?: (file: File) => boolean;
+  workaround?: ReactNode;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <p role="alert" className="max-w-sm text-[15px] text-destructive">{message}</p>
+        {workaround}
+      </div>
+      <ChatComposer
+        voiceRequired={!uploadRetry}
+        placeholder="Choose a recording"
+        mic={onRecordAgain ? { start: onRecordAgain, label: "Record again" } : undefined}
+        files={uploadRetry ? [{ label: "Upload a different file", accept: "audio/*", sendFile: uploadRetry }] : undefined}
       />
     </div>
   );

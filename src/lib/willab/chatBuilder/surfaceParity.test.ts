@@ -30,10 +30,9 @@ describe("speaking coach parity", () => {
   it("They send puts the box, the recorder and Add a photo in the right states", () => {
     const face = faceFromDefinition(speakingCoachSeed());
     expect(face.chat.send).toEqual(["rec", "text"]);
-    expect(face.bars.nothing).toEqual({ middle: "ask-box", plus: ["Record your question"], thanks: false });
-    expect(face.bars.asks.middle).toBe("record-answer");
-    expect(face.bars.asks.plus).toEqual(["Type your answer"]);
-    expect(face.bars.photo.middle).toBe("add-photo");
+    expect(face.bars.nothing).toEqual({ text: true, mic: true, photo: false, file: false });
+    expect(face.bars.asks).toEqual(face.bars.nothing);
+    expect(face.bars.photo).toEqual({ text: false, mic: false, photo: true, file: false });
     expect(face.chat.hello).toBe("Hi. Record a short talk, and I'll tell you what worked.");
     expect(face.chat.questions.map((q) => q.q)).toEqual([
       "What talk are you getting ready for?",

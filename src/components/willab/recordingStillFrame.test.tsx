@@ -152,7 +152,7 @@ describe("the top bar", () => {
     render();
     expect(where().textContent).toBe("Take 2 · Slide 1 of 3");
     expect(host.querySelectorAll('[data-testid="recording-where"]').length).toBe(1);
-    expect(host.textContent).not.toMatch(/Recording/);
+    expect(host.querySelector("[data-chat-capture]")).not.toBeNull();
     // A question to someone names them in its place.
     act(() => root.render(createElement(RecordingWhere, { show: true, micStatus: "recording", to: "Sarah", takeNumber: 1, slide: 0, slideCount: 3 })));
     expect(where().textContent).toBe("To Sarah · Slide 1 of 3");
@@ -181,8 +181,8 @@ describe("Back and Next slide (N70)", () => {
     click("Next slide");
     expect(button("Next slide")).toBeUndefined();
     const finish = button("Finish take")!;
-    expect(finish.className).toMatch(/bg-record/);
-    expect(finish.querySelector('[data-testid="finish-square"]')).not.toBeNull();
+    expect(finish.disabled).toBe(false);
+    expect(finish.hasAttribute("data-chat-mic")).toBe(true);
     expect(stops).toBe(0);
     click("Finish take");
     expect(stops).toBe(1);

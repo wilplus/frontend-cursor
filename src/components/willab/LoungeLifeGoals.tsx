@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Mic } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import { afterChatBoot } from "@/lib/chatBoot";
@@ -48,7 +48,7 @@ import {
 import OverlayCloseButton from "./OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { useVoiceNote } from "./useVoiceNote";
-import RecordingBar from "./RecordingBar";
+import ChatComposer from "./chats/ChatComposer";
 import LoadingState from "./LoadingState";
 import WalkStage from "./walk/WalkStage";
 import WalkMessage from "./walk/WalkMessage";
@@ -191,46 +191,23 @@ export function WordsDock({ onAnswer }: { onAnswer: (text: string | null) => voi
       if (words) onAnswer(words);
     },
   });
-  if (note.phase === "recording" || sending) {
-    return (
-      <DockColumn>
-        {/* The one recording bar (backend N314): the trash, the walk's strip
-            with Stop inside it; while the words are written, the dots. */}
-        <div data-life-goals-recording>
-          {sending ? (
-            <div className="flex h-10 items-center px-3.5">
-              <TypingGlyph />
-            </div>
-          ) : (
-            <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
-          )}
-        </div>
-        <WalkLink action={{ label: COPY.typeInstead, onClick: note.cancel, disabled: sending }} />
-      </DockColumn>
-    );
-  }
   return (
     <DockColumn>
-      <div className="relative">
-        <textarea
-          rows={3}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={COPY.field}
-          aria-label={COPY.field}
-          className={cn(FIELD, "pr-14")}
-        />
-        <button
-          type="button"
-          onClick={() => void note.start()}
-          aria-label="Voice note"
-          className="absolute bottom-2 right-2 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-foreground text-background"
-        >
-          <Mic className="h-5 w-5" aria-hidden />
-        </button>
-      </div>
-      <WalkPill action={{ label: COPY.next, onClick: () => onAnswer(text.trim()), disabled: !text.trim() }} />
-      <WalkLink action={{ label: COPY.skip, onClick: () => onAnswer(null) }} />
+      <ChatComposer
+        placeholder={COPY.field}
+        value={text}
+        onValue={setText}
+        onSend={(words) => onAnswer(words.trim())}
+        sendLabel={COPY.next}
+        busy={sending}
+        mic={{ label: "Voice note", start: () => void note.start(), disabled: sending }}
+        recording={note.phase === "recording" ? {
+          elapsedMs: note.elapsedMs, discard: note.cancel, stop: note.send,
+          attrs: { "data-life-goals-recording": "" },
+        } : undefined}
+        status={sending ? <p role="status" className="px-3 py-1"><TypingGlyph /></p> : null}
+      />
+      {note.phase !== "recording" && !sending ? <WalkLink action={{ label: COPY.skip, onClick: () => onAnswer(null) }} /> : null}
     </DockColumn>
   );
 }

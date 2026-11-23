@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Clock, Send, X } from "lucide-react";
+import { Check, Clock, X } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { TapRow } from "./WillQuestion";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/services/api/voiceNotebook";
 import type { OfferType } from "./loungeOffers";
 import { useVoiceNote } from "./useVoiceNote";
-import RecordingBar from "./RecordingBar";
+import ChatComposer from "./chats/ChatComposer";
 import { dropNote, outboxOwner, waitingNotes, type OutboxNote } from "@/lib/willab/voiceNoteOutbox";
 import { usePolicyUpdate } from "./PolicyUpdate";
 import { wordsOf, type LiveWord } from "@/lib/willab/liveNoteWords";
@@ -203,9 +203,6 @@ export function useVoiceNotebook({
     held,
     note,
     recording: note.phase === "recording",
-    /** The message box's display: it gives way to the recording bar, and to
-     *  a note's words while they are fixed. */
-    composerDisplay: note.phase === "recording" || fixing ? "hidden" : "flex",
     /** Notes on the phone, not yet kept; the one on its way; those waiting
      *  for a connection; the notes kept since the Lounge opened. */
     waiting,
@@ -219,7 +216,7 @@ export function useVoiceNotebook({
     fix: (clientId: string, body: string) => setFixing({ clientId, draft: body.replace(/^#\s*/, "") }),
     editFix: (draft: string) => setFixing((now) => (now ? { ...now, draft } : now)),
     closeFix: () => setFixing(null),
-    saveFix: () => void saveFix(),
+    saveFix,
     answer: (choice: "yes" | "not_now") => void answer(choice),
     /** A tap on one of the sale's four steps (backend N241 P2). */
     answerSales: (noteId: string | null, step: SalesStep) => void answerSales(noteId, step),
@@ -270,19 +267,6 @@ export function SalesSteps({ onPick }: { onPick: (step: SalesStep) => void }) {
   );
 }
 
-
-/** The note on its way: the one recording bar (backend N314, N304), the
- *  trash, then the walk's strip with Stop inside it; Stop sends. Was the
- *  WhatsApp-style bar (founder 2026-10-20): the time in a bordered pill and
- *  a black send. */
-export function VoiceNoteBar({ notebook }: { notebook: VoiceNotebook }) {
-  if (!notebook.recording) return null;
-  return (
-    <div data-testid="voice-note-recording">
-      <RecordingBar elapsedMs={notebook.note.elapsedMs} onTrash={notebook.note.cancel} onStop={notebook.note.send} />
-    </div>
-  );
-}
 
 /** The note while it is said, then the notes on the phone not yet kept,
  *  then Will's typing dots while one is on its way (backend N194, N199).
@@ -375,46 +359,23 @@ function Wave({ levels, waiting, live = false }: { levels: readonly number[]; wa
   );
 }
 
-/** A voice note's words in the box to fix one (backend N194): close on the
- *  left, the words, send on the right. Will does not answer again. */
+/** Editing a kept note uses the same message field with a local close action. */
 export function VoiceNoteFixBar({ notebook }: { notebook: VoiceNotebook }) {
-  const fixing = notebook.fixing;
-  const boxRef = useRef<HTMLTextAreaElement | null>(null);
-  const open = fixing !== null;
-  useEffect(() => {
-    if (open) boxRef.current?.focus();
-  }, [open]);
-  if (!fixing) return null;
+  if (!notebook.fixing) return null;
   return (
-    <div className="flex items-end gap-1" data-testid="voice-note-fix">
-      <button
-        type="button"
-        onClick={notebook.closeFix}
-        aria-label="Close"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
-      <textarea
-        ref={boxRef}
-        rows={3}
-        value={fixing.draft}
-        onChange={(e) => notebook.editFix(e.target.value)}
-        aria-label="Message Will"
-        autoCorrect="on"
-        autoCapitalize="sentences"
-        spellCheck
-        className="scrollbar-none block max-h-40 min-h-[40px] flex-1 resize-none overflow-x-hidden rounded-3xl border border-primary bg-background px-3.5 py-2 text-[15px] leading-snug outline-none"
+    <div data-testid="voice-note-fix">
+      <ChatComposer
+        placeholder="Message Will"
+        value={notebook.fixing.draft}
+        onValue={notebook.editFix}
+        onSend={notebook.saveFix}
+        autoFocus
+        above={
+          <button type="button" onClick={notebook.closeFix} aria-label="Close" className="ml-auto flex size-11 items-center justify-center rounded-full hover:bg-muted">
+            <X className="size-5" aria-hidden />
+          </button>
+        }
       />
-      <button
-        type="button"
-        onClick={notebook.saveFix}
-        disabled={!fixing.draft.trim()}
-        aria-label="Send"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40"
-      >
-        <Send className="h-5 w-5" aria-hidden />
-      </button>
     </div>
   );
 }

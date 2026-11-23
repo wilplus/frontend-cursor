@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { postWillQuestionVoice } from "@/services/api/willQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
+import type { ComposerRecording } from "./chats/ChatComposer";
 import { usePlanVoice } from "./plan/PlanDock";
 import { TapRow, willWaiting, type WillQuestionTarget } from "./WillQuestion";
 
@@ -12,7 +13,7 @@ import { TapRow, willWaiting, type WillQuestionTarget } from "./WillQuestion";
 /*  as the thread keeps it: the speaker's bubble with the words Will heard.  */
 /*  Since N483 Will's questions are answered with a tap or written words,    */
 /*  except the key line, which asks to be said (backend N544): while it      */
-/*  waits the bar's middle is "Record your answer", its tap records in the   */
+/*  waits the composer is "Record your answer", its tap records in the   */
 /*  plan's small recording bar (N314), never the recording screens, and      */
 /*  "Not now" under it gives the bar back to the next Take.                  */
 /* -------------------------------------------------------------------------- */
@@ -30,12 +31,11 @@ export function keyLineWaiting(
 export type KeyLineHear = {
   /** The key line is open: no box for it, it is said (N544 item 1). */
   asks: boolean;
-  /** "Record your answer" in the bar's middle, else null (after "Not now",
+  /** "Record your answer" in the composer, else null (after "Not now",
    *  while it is sent, or with no key line open). */
   hear: { onTap: () => void } | null;
-  /** True while the answer is said: the recording bar stands in for the bar. */
-  recording: boolean;
-  bar: ReactNode;
+  recording?: ComposerRecording;
+  sending: boolean;
   /** "Not now", the grey word under the question (N483 item 1). */
   notNow: ReactNode;
 };
@@ -80,7 +80,7 @@ export function useKeyLineHear({
     asks: key !== null,
     hear: voice.waiting,
     recording: voice.recording,
-    bar: voice.bar,
+    sending,
     notNow: voice.waiting ? (
       <TapRow labels={[NOT_NOW]} onTap={() => setLeft(key)} dataAttr={{ "data-key-line-not-now": "" }} />
     ) : null,

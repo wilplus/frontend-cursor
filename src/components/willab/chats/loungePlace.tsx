@@ -86,37 +86,6 @@ export function typingOffIn(place: LoungePlace | null, off: boolean): boolean {
   return !wordsAlways(place) && off;
 }
 
-/** The text field shows when the chat asks for words, and always in a chat
- *  in words. */
-export function wordsShow(place: LoungePlace | null, show: boolean): boolean {
-  return show || wordsAlways(place);
-}
-
-export type LoungeBarMode = "words" | "action" | "quiet" | "record";
-
-/**
- * Speaking coach is a chat first: at rest its normal composer is open. A
- * specific task that needs a dedicated middle (for example "Record your
- * answer") may replace it; a tap-only question keeps the middle quiet. The
- * legacy one-chat surface keeps its record dock unchanged.
- */
-export function barModeIn(
-  place: LoungePlace | null,
-  wordsRequested: boolean,
-  actionMiddle: ReactNode,
-  hear: unknown,
-  typingOff: boolean,
-  otherTypingOff: boolean,
-): LoungeBarMode {
-  if (wordsShow(place, wordsRequested)) return "words";
-  const actionWaiting = actionMiddle != null || hear != null;
-  if (place === "speaking") {
-    if (actionWaiting) return "action";
-    return typingOff || otherTypingOff ? "quiet" : "words";
-  }
-  return actionWaiting ? "action" : "record";
-}
-
 /** The way in's links about one's own chat show on its row everywhere but
  *  the ring's speaking chat, where Will's chat has them (N636 item 3). */
 export function ownChatLinksIn(place: LoungePlace | null): boolean {

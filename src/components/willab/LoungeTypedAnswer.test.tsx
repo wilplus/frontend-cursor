@@ -429,7 +429,8 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
 
     expect(ownWords("The leadership team needs to decide")).toHaveLength(1);
-    expect(field.disabled).toBe(true);
+    expect(field.disabled).toBe(false);
+    expect(field.form?.getAttribute("aria-busy")).toBe("true");
     expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
     const query = harness.query.mock.calls[0]![0] as {
       clientId: string;

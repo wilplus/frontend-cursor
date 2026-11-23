@@ -30,18 +30,22 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   const sessionFile = sample ? previewPromptSchema() : file;
   const [view, setView] = useState<View>({ name: "menu", page: 0 });
   const [menuPage, setMenuPage] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const savingRef = useRef(false);
   const bind = useRef(onBindBack);
   bind.current = onBindBack;
 
   const back = useCallback((): boolean => {
+    if (savingRef.current) return true;
     if (view.name === "menu") return false;
     if (view.name === "upload") return step({ name: "consent" });
-    if (view.name === "prompt" && view.said) return step({ ...view, said: false, rating: {} });
+    if (view.name === "prompt" && view.said) return step(promptView(view.sessionId, view.index));
     if (view.name === "reading") {
-      return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, rating: view.rating });
+      return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, takeId: view.takeId, rating: view.rating });
     }
     if (view.name === "analysis" && view.source === "saved") {
-      return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, rating: view.rating });
+      return step({ name: "prompt", sessionId: view.sessionId, index: view.index, said: true, takeId: view.takeId, rating: view.rating });
     }
     if (view.name === "pick" && view.rules) return step({ ...view, rules: false });
     if (view.name === "pick" && view.source === "saved" && view.sessionId) {
@@ -74,17 +78,23 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   if (view.name === "menu") {
     return <Menu page={view.page} onPage={(page) => { setMenuPage(page); setView({ name: "menu", page }); }} onOpen={openMenu} />;
   }
-  if (view.name === "consent") return <Consent onNo={() => setView({ name: "menu", page: menuPage })} onYes={() => void agree()} />;
-  if (view.name === "upload") return <Upload onSkip={() => setView(promptView(view.sessionId, 0))} onUse={(name) => void attachPage(view.sessionId, name)} />;
+  if (view.name === "consent") return <Consent onNo={() => setView({ name: "menu", page: menuPage })} onYes={() => {
+    if (sample) void startSession();
+    else setView({ name: "upload" });
+  }} />;
+  if (view.name === "upload") return <Upload onStart={startSession} />;
   if (view.name === "prompt") {
     return (
       <PromptStep
+        key={view.index}
         file={sessionFile}
         view={view}
+        saving={saving}
+        saveError={saveError}
         onSkip={() => advance(view.sessionId, view.index)}
-        onSaid={() => setView({ ...view, said: true })}
+        onSaid={(audio) => setView({ ...view, said: true, audio })}
         onRate={(rating) => setView({ ...view, rating })}
-        onAgain={() => setView({ ...view, said: false, rating: {} })}
+        onAgain={() => { setSaveError(null); setView(promptView(view.sessionId, view.index)); }}
         onSave={() => void keepTake(view)}
       />
     );
@@ -132,14 +142,11 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
     />
   );
 
-  async function agree() {
-    const session = await openSession({});
-    if (!session) return;
-    setView(sample ? promptView(session.id, 0) : { name: "upload", sessionId: session.id });
-  }
-  async function attachPage(sessionId: string, name: string) {
-    await openSession({ sessionId, businessCaseName: name });
-    setView(promptView(sessionId, 0));
+  async function startSession(page?: File) {
+    const session = await openSession({ businessCase: page });
+    if (!session) return false;
+    setView(promptView(session.id, 0));
+    return true;
   }
   function promptView(sessionId: string, index: number): View {
     return { name: "prompt", sessionId, index, said: false, rating: {} };
@@ -152,18 +159,37 @@ export default function Experiments({ onBindBack }: { onBindBack: (fn: (() => bo
   async function keepTake(current: Extract<View, { name: "prompt" }>) {
     const prompt = sessionFile.prompts[current.index];
     const rating = current.rating;
-    if (!prompt || !rating.energy || !rating.feeling) return;
-    const take = await saveTake({ sessionId: current.sessionId, prompt, selfRating: { energy: rating.energy, feeling: rating.feeling } });
-    if (!take) return;
-    if (sample && prompt.tag === "baseline_calm") {
-      advance(current.sessionId, current.index);
-      return;
+    if (!prompt || !rating.energy || !rating.feeling || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    let takeId = current.takeId;
+    try {
+      if (!takeId) {
+        const take = await saveTake({
+          sessionId: current.sessionId, prompt,
+          selfRating: { energy: rating.energy, feeling: rating.feeling },
+          audio: current.audio,
+        });
+        if (!take) throw new Error("Take refused");
+        takeId = take.id;
+      }
+      if (sample && prompt.tag === "baseline_calm") {
+        advance(current.sessionId, current.index);
+        return;
+      }
+      setView({ name: "reading", sessionId: current.sessionId, index: current.index, takeId, rating });
+      await beginAnalysis(takeId);
+      const ready = await waitForReading(takeId);
+      if (!ready) throw new Error("Reading unavailable");
+      setView({ name: "analysis", sessionId: current.sessionId, index: current.index, takeId, moment: 0, source: "saved", rating });
+    } catch {
+      setSaveError(takeId ? "The reading is unavailable. Try again." : "Could not save the take. Try again.");
+      setView({ ...current, takeId });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    setView({ name: "reading", sessionId: current.sessionId, index: current.index, takeId: take.id, rating });
-    await beginAnalysis(take.id);
-    const ready = await waitForReading(take.id);
-    if (!ready) return;
-    setView({ name: "analysis", sessionId: current.sessionId, index: current.index, takeId: take.id, moment: 0, source: "saved", rating });
   }
   function choose(current: Extract<View, { name: "pick" }>, chosen: string | null) {
     const analysis = readingFor(current.source === "open" ? "open" : "gate");

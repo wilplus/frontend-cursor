@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { TapRow } from "@/components/willab/WillQuestion";
-import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
+import ChatComposer from "@/components/willab/chats/ChatComposer";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
@@ -436,16 +436,15 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
           <TapRow labels={labels} even={labels.length !== 2} onTap={onReply} dataAttr={{ "data-talk-replies": "", "data-tap-row": "" }} />
         </div>
       ) : null}
-      <ChatBarRow data-talk-composer="">
-        <BarBox
-          key={draft}
-          hint={placeholder}
-          open
-          grow
-          initial={draft}
-          onSend={async (words) => { setDraft(""); submit(words); return true; }}
-        />
-      </ChatBarRow>
+      <ChatComposer
+        key={draft}
+        placeholder={placeholder}
+        autoFocus
+        maxLength={400}
+        initialValue={draft}
+        formAttrs={{ "data-talk-composer": "" }}
+        onSend={(words) => { setDraft(""); submit(words); }}
+      />
     </div>
   );
 }

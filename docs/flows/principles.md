@@ -31,8 +31,8 @@ Life Panel.
 
 0. **The note rests** (backend N483 item 7, founder 2026-11-04: "I am ready
    to give up the option to record short messages in the chat and find for
-   it another place"). Will's chat has no mic and no "#" note, so no new #
-   note is made; Will no longer introduces the notebook from the Takes
+   it another place"). Will's chat has the shared composer with the mic
+   slot inactive for notebook capture. Will no longer introduces the notebook from the Takes
    (5) or asks "Keep a voice notebook?". Everything already kept stays,
    and notes left on the phone still go. Its new place is decided with the
    walk and the way knowledge spreads. The rules below describe it as it
@@ -78,8 +78,8 @@ Life Panel.
    or deleted (`NotebookPrivacy.tsx`; backend
    `voice_notebook.privacy_after_note`).
 6. Never in the way of the onboarding (N243). While a speaker is
-   onboarded, nothing of it shows: no mic, no "Keep a voice notebook?", no
-   life goals ask, no Sunday note, no quarter's ask. Will's chat does not
+   onboarded, the notebook and its offers wait along with life goals,
+   the Sunday note and the quarter's ask. Will's chat does not
    answer as the notebook, the Sunday note or life goals either.
    - Onboarded means: a new speaker, from the plan's first question to their
      first Take; a speaker who already has Takes, only while the plan's
@@ -96,11 +96,10 @@ The prototype: <https://claude.ai/artifact/Wfr7i2RYR7ubYHTRqS6cYe> (version 4).
 1. A tap on the mic records at once, and the person's own orange "# " note
    appears at the bottom of the thread with a small wave of their voice,
    drawn on the phone from the mic's level, so it shows at once that it
-   hears. Under the thread, the one recording bar (backend N314): the trash
-   on the left, then the walk's strip (the dot, the clock, the track) with
-   the red Stop inside it; Stop sends. Was: delete, the running time in a
-   pill, send (founder 2026-10-20). The life goals lens's small mic records
-   with the same bar.
+   hears. The [shared composer](feedback-walk-and-chat.md#shared-composer-n667) displays the timer and discard
+   in the middle and Stop on the right. Stop sends the note. Life-goal
+   voice answers use the same slots, and a written draft remains in the
+   field when the mic is idle.
 2. The words follow the wave well under a second behind the voice and
    replace the stretch of wave they cover, as they are said. The phone
    streams the voice to the transcription provider with a short-lived key
@@ -633,6 +632,8 @@ deletes the line when the work is merged (the change goes to §6).
   version 7, 2026-10-26; version 9 adds scene 5 as built for M14, N191).
 
 ## 6. Changes
+
+- 2026-11-23 · N667 · The notebook capture and life-goal questions use the shared composer.
 
 One line each, newest first: `date · N · what changed · PR`.
 

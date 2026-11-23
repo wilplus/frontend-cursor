@@ -539,7 +539,7 @@ describe("the walk on the deck", () => {
     function NextRecording() {
       const { roots } = useRecordingRoots({ arcId, initArc: null, takeIndex: 3, signedIn: true, entering: true });
       return <RecordingRoadmap slides={[...DEFAULT_DECK]} presentationRef={null} currentSlide={1}
-        roots={roots} onSlideChange={() => undefined} strip={null} onFinish={() => undefined} />;
+        roots={roots} onSlideChange={() => undefined} composer={null} />;
     }
     await act(async () => root.render(<NextRecording />));
     expect(container.textContent).toContain("mówić jasno");

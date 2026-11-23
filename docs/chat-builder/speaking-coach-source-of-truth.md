@@ -1,5 +1,7 @@
 # Speaking coach, as it is
 
+The app's [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667) owns the message field, file menu and mic layout. The coach definition supplies permitted formats and action wording.
+
 > **Label: Reference.** What a speaker meets today, read from this repo. The builder's document has to match it. A line here is a line already in the product.
 
 ## The chat

@@ -141,18 +141,26 @@ function nextId(prefix: string): string {
   return id;
 }
 
-export async function openSession(input: { businessCaseName?: string | null; researcher?: boolean; sessionId?: string } = {}): Promise<ExperimentSession | null> {
+export async function openSession(input: { businessCaseName?: string | null; businessCase?: File; researcher?: boolean; sessionId?: string } = {}): Promise<ExperimentSession | null> {
   const researcher = input.researcher === true;
   const consent = { participant: true, researcher, version: CONSENT_VERSION };
   if (!EXPERIMENTS_USE_MOCKS) {
-    const body = await live("POST", "/api/v2/experiments/sessions", { consent });
-    return body && typeof body === "object" ? (body as ExperimentSession) : null;
+    if (!input.businessCase) {
+      const body = await live("POST", "/api/v2/experiments/sessions", { consent });
+      return body && typeof body === "object" ? (body as ExperimentSession) : null;
+    }
+    const form = new FormData();
+    form.set("consent", JSON.stringify(consent));
+    form.set("business_case", input.businessCase);
+    const result = await bffFetch("/api/v2/experiments/sessions", { method: "POST", body: form, auth: "required" });
+    return result.kind === "response" && result.ok ? (result.body as ExperimentSession) : null;
   }
+  const caseName = input.businessCase?.name ?? input.businessCaseName;
   const volunteer_id = anonymousVolunteerId();
   if (researcher) store.researcher = true;
   const found = store.sessions.find((session) => session.id === input.sessionId && session.volunteer_id === volunteer_id);
   if (found) {
-    if (input.businessCaseName) found.business_case = { name: input.businessCaseName, content_type: "application/octet-stream" };
+    if (caseName) found.business_case = { name: caseName, content_type: input.businessCase?.type || "application/octet-stream" };
     found.consent = { ...found.consent, researcher: found.consent.researcher || researcher };
     touch();
     return found;
@@ -161,7 +169,7 @@ export async function openSession(input: { businessCaseName?: string | null; res
     id: nextId("ses"),
     volunteer_id,
     consent,
-    business_case: input.businessCaseName ? { name: input.businessCaseName, content_type: "application/octet-stream" } : null,
+    business_case: caseName ? { name: caseName, content_type: input.businessCase?.type || "application/octet-stream" } : null,
     created_at: new Date().toISOString(),
   };
   store.sessions.push(session);
@@ -169,7 +177,15 @@ export async function openSession(input: { businessCaseName?: string | null; res
   return session;
 }
 
-export async function saveTake(input: { sessionId: string; prompt: Prompt; selfRating: SelfRating; audioName?: string | null }): Promise<ExperimentTake | null> {
+type TakeInput = {
+  sessionId: string;
+  prompt: Prompt;
+  selfRating: SelfRating;
+  audioName?: string | null;
+  audio?: Blob;
+};
+
+export async function saveTake(input: TakeInput): Promise<ExperimentTake | null> {
   if (!EXPERIMENTS_USE_MOCKS) return liveTake(input);
   const session = store.sessions.find((item) => item.id === input.sessionId);
   if (!session || session.volunteer_id !== anonymousVolunteerId()) return null;
@@ -182,7 +198,7 @@ export async function saveTake(input: { sessionId: string; prompt: Prompt; selfR
     tag: input.prompt.tag,
     reference: input.prompt.reference ?? null,
     self_rating: input.selfRating,
-    audio_name: input.audioName ?? null,
+    audio_name: input.audioName ?? (input.audio ? "recording" : null),
     transcript: "",
     analysis: null,
   };
@@ -394,13 +410,15 @@ async function live(method: "GET" | "POST" | "PUT" | "DELETE", path: string, jso
   return result.kind === "response" && result.ok ? result.body : null;
 }
 
-async function liveTake(input: { sessionId: string; prompt: Prompt; selfRating: SelfRating; audioName?: string | null }): Promise<ExperimentTake | null> {
+async function liveTake(input: TakeInput): Promise<ExperimentTake | null> {
   const form = new FormData();
   form.set("prompt_id", input.prompt.id);
   form.set("tag", input.prompt.tag);
   form.set("self_rating", JSON.stringify(input.selfRating));
   if (input.prompt.reference) form.set("reference", input.prompt.reference);
-  if (input.audioName) form.set("audio_name", input.audioName);
+  if (!input.audio) return null;
+  const extension = input.audio.type.includes("mp4") ? "m4a" : input.audio.type.split(/[/;]/)[1] || "webm";
+  form.set("audio", input.audio, input.audioName ?? `recording.${extension}`);
   const result = await bffFetch(`/api/v2/experiments/sessions/${encodeURIComponent(input.sessionId)}/takes`, { method: "POST", body: form, auth: "required" });
   return result.kind === "response" && result.ok ? (result.body as ExperimentTake) : null;
 }

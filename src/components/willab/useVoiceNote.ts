@@ -102,12 +102,14 @@ function levelMeter(stream: MediaStream): { read: () => number; close: () => voi
 export function useVoiceNote({
   maxSeconds,
   onDone,
+  onUnavailable,
   notebook = false,
 }: {
   maxSeconds: number;
   /** The finished recording; resolves when it is sent (or failed). For the
    *  notebook it is already in the outbox. */
   onDone: (note: OutboxNote) => Promise<void>;
+  onUnavailable?: () => void;
   /** The voice notebook (N194, N199): the wave and the words, the outbox,
    *  and a note kept when the app is left. Off, the recording is sent or
    *  thrown away as it always was. */
@@ -131,6 +133,8 @@ export function useVoiceNote({
   const mountedRef = useRef(true);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  const unavailableRef = useRef(onUnavailable);
+  unavailableRef.current = onUnavailable;
   const keyRef = useRef("");
   const savedAtRef = useRef(0);
   /** Who is saying this note: read from the session as it starts. Every
@@ -243,7 +247,11 @@ export function useVoiceNote({
   }, [stopLive]);
 
   const start = useCallback(async () => {
-    if (phase !== "idle" || startingRef.current || typeof navigator === "undefined" || !navigator.mediaDevices) return;
+    if (phase !== "idle" || startingRef.current) return;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      unavailableRef.current?.();
+      return;
+    }
     startingRef.current = true;
     endedEarlyRef.current = null;
     // Who is saying it, read while the mic opens.
@@ -264,8 +272,11 @@ export function useVoiceNote({
       stream = await navigator.mediaDevices.getUserMedia({ audio: { ...TAKE_MIC_AUDIO, echoCancellation: true } });
     } catch {
       startingRef.current = false;
-      if (mountedRef.current) setPhase("idle");
-      return; // no mic permission: the mic goes back as it was
+      if (mountedRef.current) {
+        setPhase("idle");
+        unavailableRef.current?.();
+      }
+      return;
     }
     const release = () => stream.getTracks().forEach((t) => t.stop());
     startingRef.current = false;
@@ -288,6 +299,7 @@ export function useVoiceNote({
     } catch {
       release(); // a browser that cannot record this format: the mic goes off
       setPhase("idle");
+      unavailableRef.current?.();
       return;
     }
     chunksRef.current = [];
