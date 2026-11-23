@@ -430,6 +430,13 @@ green); the app shows the speaker's own slides, unchanged.
   Lives in `src/hooks/useTakeMic.ts`, `src/hooks/useNativeTakeMic.ts`,
   `src/lib/willab/nativeTakeRecorder.ts`, `src/services/api/labRecording.ts`
   (`labAudioName`) and the one line in `LabOverlay.tsx`.
+- **2026-11-23 · the recording moments you feel (backend N678 item 1).** In
+  the iPhone app only: a medium tick when the mic goes live, a light tick when
+  Next slide or Back moves the slide, a success tick on **Finish take**, a
+  warning tick on **Discard take**. Nothing on screen changes, no new words;
+  the browser and the home-screen app stay silent. Signed in the Claude Code
+  chat, 23 November 2026: "do 6 and 5 next". Lives in
+  `src/lib/willab/takeHaptics.ts` and `LabOverlay.tsx`.
 
 
 ### Fragment and whole rehearsal (2026-11-23)
@@ -615,6 +622,7 @@ unknown server text.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-23 · N678 item 1 · in the iPhone app the recording moments are felt: a medium tick when the mic goes live, a light tick on Next slide and Back, a success tick on Finish take, a warning tick on Discard take. Nothing on screen changes · FE (this PR)
 - 2026-11-17 · N655, N661, N662 · in the iPhone app with the native recorder and the ring row `native_take` on, the phone records the Take (m4a, AAC mono 48 kHz 64 kbps, call processing off); the screens, slides, clock, upload and device copy stay the web code; an m4a goes up as `lab.m4a`; a Take too large for the website route is kept instead of sent there when the Worker can't be reached. Nothing on screen changes · backend #1993, FE (this PR)
 - 2026-11-16 · The wait can take its five labels from the coach document. With none, the same five stay, in the same order. · FE (this PR)
 - 2026-11-16 · reactive UI-locale source · RootLayout's server-resolved locale seeds the one provider used by mounted recording, project, Lounge quick-action and footer surfaces; a manual EN/PL choice propagates immediately without a reload or remount, so an active recording is not interrupted. Footer links whose Polish wording is still pending continue to fall back visibly to English. Transcript, feedback and generated-coaching language remain separate · FE (this PR)

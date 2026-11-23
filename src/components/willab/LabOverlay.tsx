@@ -49,6 +49,7 @@ import FeelingsCheckIn from "./FeelingsCheckIn";
 import LoadingState, { LoadingSurface, VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import DiscardTakeDialog from "./DiscardTakeDialog";
+import { takeHaptic } from "@/lib/willab/takeHaptics";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
@@ -723,6 +724,10 @@ export default function LabOverlay({
   // an orphan, so cancel it. A normal stop never trips this (mic is "stopped",
   // not "recording", before the state leaves lab_recording).
   const micHot = mic.state.status === "recording";
+  // Felt when the mic goes live (backend N678 item 1).
+  useEffect(() => {
+    if (micHot) takeHaptic("start");
+  }, [micHot]);
   useEffect(() => {
     if (micHot && state !== "lab_recording") {
       cancelMic();
@@ -1334,6 +1339,7 @@ export default function LabOverlay({
     setCurrentSlide((c) => {
       const next = Math.min(Math.max(index, range.first), range.last);
       if (next !== c) {
+        takeHaptic("slide");
         slideAdvancesRef.current.push({
           index: next,
           // In audio time: a call's pause is not in the recording (N437).
@@ -1452,6 +1458,7 @@ export default function LabOverlay({
   function confirmDiscard() {
     const lane = discardConfirm;
     setDiscardConfirm(null);
+    takeHaptic("discard");
     if (lane === "upload") {
       discardUploadingTake();
       return;
@@ -1837,7 +1844,10 @@ export default function LabOverlay({
             targetSec={look.target}
             asks={look.asks}
             rejectedMsg={rejectedMsg}
-            onStop={() => void mic.stop()}
+            onStop={() => {
+              takeHaptic("finish");
+              void mic.stop();
+            }}
             onDiscard={handleClose}
             onRecordAgain={() => {
               // Not asked again (N28): the rejected recording never became a
