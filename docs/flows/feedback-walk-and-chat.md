@@ -170,6 +170,12 @@ and [Chat Builder](../chat-builder/flow.md).
   the Take's text and its marks are stored: the marks are baked in the
   processing run right after the Take is ready, and the page asks for them
   until they are in (or for ninety seconds) (2026-10-20, WIL-76).
+  For a project Take, the close control enters its own chat from the moment
+  Finish saves the recording, including before server acceptance. A new chat
+  appears in the Speaking Coach sidebar with the speaker's recording followed
+  by the processing bubble. Tapping it opens the same full-screen progress,
+  and the chat follows the exact Take when it appears in the server list
+  (founder 2026-11-23).
 - **A2** The moment processing finishes, the walk opens by itself, with
   nothing in between: the waiting screen stays over it until the walk's
   first step is on screen and lifts then, so "done" never opens onto the

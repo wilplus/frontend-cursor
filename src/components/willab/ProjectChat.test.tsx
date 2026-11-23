@@ -677,7 +677,9 @@ describe("project conversation", () => {
     trainingApi.fetchTrainings.mockResolvedValue([refreshed]);
 
     render(project, true, { handoffTake: "take-b" });
-    expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
+    const processing = host.querySelector<HTMLButtonElement>("[data-processing-bubble]");
+    act(() => processing?.click());
+    expect(host.querySelector('[role="dialog"][aria-label="Processing your take"]')).not.toBeNull();
 
     render(project, true, { handoffTake: "take-b" });
     expect(host.querySelector("[data-processing-bubble]")).not.toBeNull();
@@ -687,6 +689,7 @@ describe("project conversation", () => {
       await Promise.resolve();
     });
     expect(host.querySelector("[data-processing-bubble]")).toBeNull();
+    expect(host.querySelector('[role="dialog"][aria-label="Processing your take"]')).toBeNull();
     expect(host.querySelector('[data-project-take="take-b"] [data-take-review]')).not.toBeNull();
     expect(host.querySelector('[data-project-take="take-a"] [data-take-review-message]')).not.toBeNull();
     expect(host.querySelector('[data-project-take="take-c"] [data-take-review]')).toBeNull();

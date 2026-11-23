@@ -208,6 +208,15 @@ green); the app shows the speaker's own slides, unchanged.
 
 ### Amendments
 
+- **2026-11-23 · close processing into the project's chat.** The waiting
+  screen centers its progress on desktop and mobile. Its close control opens
+  the Take's project immediately after Finish. A new project appears in the
+  Speaking Coach sidebar with the speaker's recording and a tappable
+  processing bubble, including while the recording is going up. Once the
+  server lists the Take, its project takes over the same sidebar entry.
+  Closing a setup screen before Finish or discarding the Take follows the
+  existing close behavior.
+
 - **2026-11-18 · accepted-upload processing truth.** The Lounge's
   “Processing your recording” bubble is rendered only after the upload has
   received a server acceptance and the readout still says `processing` for

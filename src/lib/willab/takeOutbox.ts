@@ -88,6 +88,7 @@ const memory = new Map<string, { meta: KeptTake; audio: Blob; document?: File }>
 const saving = new Map<string, Promise<boolean>>();
 /** Going up from this page now: never sent a second time beside itself. */
 const live = new Set<string>();
+const preparing = new Set<string>();
 /** A retry of the same recording is not a second Finish. */
 const keptBlobs = new WeakSet<Blob>();
 
@@ -353,7 +354,13 @@ export function expiredTake(take: KeptTake, now = Date.now()): boolean {
 
 /** Being sent from this page right now. */
 export function isLive(key: string): boolean {
-  return live.has(key);
+  return preparing.has(key) || live.has(key);
+}
+
+/** Hold the outbox entry while the recorder saves project setup before upload. */
+export function prepareTakeUpload(key: string): () => void {
+  preparing.add(key);
+  return () => { preparing.delete(key); };
 }
 
 /** Refused for good: sending it again can only be refused again. */
@@ -475,6 +482,7 @@ export function __resetTakeOutboxForTests(): void {
   memory.clear();
   saving.clear();
   live.clear();
+  preparing.clear();
   madeIn.clear();
   tagged.clear();
   dbPromise = null;

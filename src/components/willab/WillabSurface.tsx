@@ -54,6 +54,8 @@ import { startFirstTake, startRealTalk } from "@/lib/willab/firstTake";
 import ProjectChat from "./ProjectChat";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
+import { PendingProjectChat, PendingProjectWait } from "./ProjectRecordingBubbles";
+import { useProjectTakeHandoff, type PendingProjectTake } from "./usePendingProjectTakes";
 
 /** A project recording has not begun in these screens. Closing one cancels
  *  the pending bridge back to ProjectChat instead of inventing processing. */
@@ -142,8 +144,9 @@ export default function WillabSurface({
       labWasOpenRef.current = true;
       return;
     }
-    if (!labWasOpenRef.current || !returnProject) return;
+    if (!labWasOpenRef.current) return;
     labWasOpenRef.current = false;
+    if (!returnProject) return;
     setPickedProject(returnProject);
     setReturnProject(null);
   }, [flow.labOverlayOpen, returnProject]);
@@ -200,6 +203,11 @@ export default function WillabSurface({
     [],
   );
   const userId = useUserId();
+  const projectTake = useProjectTakeHandoff(userId, pickedProject, returnProject, (project, sessionId) => {
+    setPickedProject(project);
+    setHandoffTake(sessionId);
+  });
+  const { clear: clearPendingTake, closeWait } = projectTake;
   const openProject = useCallback((arcId: string | null, sessionId: string | null = null) => {
     const sequence = ++projectOpenSequence.current;
     if (!arcId) {
@@ -215,11 +223,12 @@ export default function WillabSurface({
         return;
       }
       pendingProjectHandoff.current = null;
+      clearPendingTake();
       setPickedProject(project);
       setHandoffTake(sessionId);
       flow.closeLab();
     });
-  }, [flow]);
+  }, [clearPendingTake, flow]);
   // The coach's link (?lens= / ?idealArc=): the Ideal Text page's code and
   // its opening read start now, beside the boot reads, not once the Lounge
   // has mounted and the code has loaded. The same page opens on the same
@@ -301,8 +310,16 @@ export default function WillabSurface({
     }
     setHandoffTake(null);
     setRecordingInProgress(false);
+    clearPendingTake();
     setPickedProject(arc);
   };
+  function openPendingProject(take: PendingProjectTake) {
+    projectOpenSequence.current++;
+    pendingProjectHandoff.current = null;
+    setHandoffTake(null);
+    setRecordingInProgress(false);
+    projectTake.select(take);
+  }
   const navigate = (action: () => void) => {
     if (holdActiveChatCapture()) return;
     (projectExit.current ?? ((next) => next()))(action);
@@ -313,7 +330,14 @@ export default function WillabSurface({
     flow.startNewTopicSetup();
   };
   const chats = useChatsDoor(recordAnswer, {
-    activeProject: pickedProject ?? returnProject,
+    activeProject: projectTake.project,
+    pendingProjectKey: projectTake.preview?.key,
+    pendingProjects: projectTake.pending,
+    onOpenPendingProject: (take) => {
+      setPickedProject(null);
+      closeWait();
+      openPendingProject(take);
+    },
     navigate,
     onLeaveProject: leaveProject,
     onOpenProject: openProjectChat,
@@ -336,6 +360,21 @@ export default function WillabSurface({
     setRecordingInProgress(false);
     setHandoffTake(null);
     setPickedProject(null);
+    clearPendingTake();
+  }
+
+  function handoffProjectRecording(take: PendingProjectTake, keepWait: boolean): boolean {
+    if (!chats.enabled || (!chats.speakingActive && !returnProject)) return false;
+    projectTake.remember(take);
+    openPendingProject(take);
+    setPickedProject(returnProject ?? chats.projects.find((project) => project.arcId === take.projectId) ?? null);
+    setReturnProject(null);
+    projectTake.openWait(keepWait ? take : null);
+    const marker = readProcessingTake(userId);
+    if (marker && marker.sessionId === take.sessionId) {
+      writeProcessingTake(userId, { ...marker, projectChat: true });
+    }
+    return true;
   }
 
   function handoffRecording(sessionId: string) {
@@ -458,7 +497,7 @@ export default function WillabSurface({
           flow.startRecordingSetup();
         }}
         onOpenProject={openProject}
-        projectChatActive={Boolean(pickedProject || returnProject)}
+        projectChatActive={projectTake.chatActive}
         onProjectTakeReady={chats.speakingActive ? (arcId, sessionId, scoped) => {
           if (!scoped || pendingProjectHandoff.current === sessionId) openProject(arcId, sessionId);
         } : undefined}
@@ -571,6 +610,7 @@ export default function WillabSurface({
       {/* An existing project opens its own conversation. Its two durable
           results reopen the source Feedback walk and Ideal Text; recording
           always starts from this project, never from Will. */}
+      <PendingProjectChat key={projectTake.preview?.key} take={projectTake.preview} onOpen={projectTake.openWait} />
       {pickedProject && (
         <ProjectChat
           key={pickedProject.arcId}
@@ -581,6 +621,8 @@ export default function WillabSurface({
           onDraftChange={(draft) => projectDrafts.current.set(draftKey, draft)}
           analysisPending={pickerSettle.pending}
           recordingInProgress={recordingInProgress}
+          pendingRecording={projectTake.pending.find((take) => take.projectId === pickedProject.arcId)}
+          onOpenPendingRecording={projectTake.openWait}
           onBack={leaveProject}
           onRecord={(arcId) => {
             // Repeat/continue is allowed to arrive here from a remounted
@@ -613,6 +655,7 @@ export default function WillabSurface({
           onRecordingSettled={() => {
             setRecordingInProgress(false);
             setHandoffTake(null);
+            closeWait();
             void refreshProjectTrainings();
           }}
         />
@@ -631,9 +674,14 @@ export default function WillabSurface({
             endAnswer();
           }}
           onWaitHandedOver={handoffRecording}
+          onProjectRecordingHandoff={handoffProjectRecording}
+          onProjectRecordingFailure={projectTake.fail}
+          onProjectRecordingAccepted={projectTake.acknowledge}
           onRecordingProgress={setRecordingProgress}
         />
       )}
+      {projectTake.wait ? <PendingProjectWait key={projectTake.wait.key} take={projectTake.wait}
+        onClose={closeWait} /> : null}
       {/* The Lab's screens fade back out over the Lounge (Q-B14 A, D-RC-7). */}
       <LabFadeOut open={flow.labOverlayOpen} />
     </LoungeThreadProvider>
