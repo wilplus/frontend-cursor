@@ -606,7 +606,6 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
-  coachSetup = 0,
   projectChatActive = false,
   onProjectTakeReady,
   onStartPlanRecording,
@@ -633,7 +632,6 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
-  coachSetup?: number;
   projectChatActive?: boolean;
   onProjectTakeReady?: (arcId: string, sessionId: string, scoped: boolean) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
@@ -1844,14 +1842,6 @@ export default function Lounge({
     atBottomRef.current = true;
     pinBottom();
   }, [pinBottom]);
-  const seenCoachSetup = useRef(0);
-  useEffect(() => {
-    const rows = plan.rows;
-    if (place !== "speaking" || !coachSetup || coachSetup === seenCoachSetup.current || !rows?.plan) return;
-    seenCoachSetup.current = coachSetup;
-    if (rows.plan.onboarding) followAnswer();
-    else rows.onSeePlan();
-  }, [coachSetup, followAnswer, place, plan.rows]);
   // THE PROCESSING BUBBLE IS SHOWN (founder lock 2026-10-12, section 1):
   // it is not a message, so no new message brings it into view. When it
   // comes, and when the wait's ✕ shows the chat, the thread lands on it

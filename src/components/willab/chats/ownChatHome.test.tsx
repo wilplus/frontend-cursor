@@ -150,7 +150,7 @@ describe("Start your own chat", () => {
       onOpenOwnChat: open,
     })));
     await flush();
-    expect(ids()).toEqual(["speaking-coach", "bro", "set-up-speaking-coach", "start-own-chat"]);
+    expect(ids()).toEqual(["speaking-coach", "bro", "start-own-chat"]);
     const row = host.querySelector("[data-home-row='start-own-chat']")!;
     expect(row.closest("[data-chat-sidebar-setup]")).not.toBeNull();
     expect(host.querySelector("[data-product-projects] [data-start-new-project]")).not.toBeNull();
@@ -164,8 +164,25 @@ describe("Start your own chat", () => {
     expect(document.querySelector("[data-own-chat-sheet]")).toBeNull();
     expect(document.activeElement).toBe(starter);
     expect(readOwnChat().started).toBe(false);
-    expect(ids()).toEqual(["speaking-coach", "bro", "set-up-speaking-coach", "start-own-chat"]);
+    expect(ids()).toEqual(["speaking-coach", "bro", "start-own-chat"]);
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it("can start a fresh project after deleting Speaking Coach", async () => {
+    const change = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const start = vi.fn();
+    act(() => root.render(createElement(ProductHome, {
+      knownProjects: [],
+      onOpenSpeaking: vi.fn(),
+      onOpenProject: vi.fn(),
+      onStartNewProject: start,
+      structure: { layout: { coach: "deleted", builder: "active", subchats: [] }, change },
+    })));
+    await click("[data-start-new-project]");
+    expect(start).not.toHaveBeenCalled();
+    await click("[data-start-new-project]");
+    expect(change).toHaveBeenLastCalledWith({ action: "restore", section: "coach" });
+    expect(start).toHaveBeenCalledTimes(1);
   });
 
   it("Yes pins the chat and gives it a direct setup shortcut", async () => {

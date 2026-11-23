@@ -26,7 +26,6 @@ export type UiCopyKey =
   | "deleteFailed"
   | "tryAgain"
   | "speakingCoach"
-  | "setUpSpeakingCoach"
   | "openChatSidebar"
   | "closeChatSidebar"
   | "chatsNavigation"
@@ -112,7 +111,6 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Couldn't delete. Try again.",
     tryAgain: "Try again",
     speakingCoach: "Speaking coach",
-    setUpSpeakingCoach: "Set up Speaking Coach",
     openChatSidebar: "Show sidebar",
     closeChatSidebar: "Hide sidebar",
     chatsNavigation: "Chats",
@@ -184,7 +182,6 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Nie udało się usunąć. Spróbuj ponownie.",
     tryAgain: "Spróbuj ponownie",
     speakingCoach: "Trener wystąpień",
-    setUpSpeakingCoach: "Skonfiguruj trenera wystąpień",
     openChatSidebar: "Pokaż panel boczny",
     closeChatSidebar: "Ukryj panel boczny",
     chatsNavigation: "Czaty",

@@ -83,7 +83,9 @@ personality or challenge/threat state from voice alone (N663).
 
 ### Chat workspace and Take review (N666, N670, N671)
 
-One sidebar sits beside the active chat. The Speaking Coach row opens general guidance, with its projects listed underneath. Each project row opens its own conversation, Takes, feedback, and contextual questions. Owned chats, subchats, and other conversations use the same sidebar. The sidebar icon stays at the top left. On a phone the sidebar opens as a drawer. Setup for Speaking Coach and a person's own chat sit at the bottom. This replaces the full-page chat list, the Projects selector, and the sidebar inside a project.
+One sidebar sits beside the active chat. The Speaking Coach row opens general guidance, with its projects listed underneath. Each project row opens its own conversation, Takes, feedback, and contextual questions. Owned chats, subchats, and other conversations use the same sidebar. The sidebar icon stays at the top left. On a phone the sidebar opens as a drawer. Setup for a person's own chat sits at the bottom. This replaces the full-page chat list, the Projects selector, and the sidebar inside a project.
+
+On 23 November 2026, the sidebar's separate Speaking Coach setup shortcut was retired (N676). The plan opens from its existing prompts in the coach conversation. If the person previously deleted Speaking Coach, **Start a new project** can create a fresh project from the sidebar. An archived coach is restored from **Archived chats**.
 
 A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The new review opens in the project conversation when its spoken Take finishes processing and the user is there. Minimise at the bottom or leave the project to fold it into one clickable bubble beneath its recording. The bubble gives a short preview. Opening it restores the same Take and its saved practice runs, including runs older than the conversation's first page.
 

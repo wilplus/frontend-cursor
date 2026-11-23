@@ -3,7 +3,7 @@
 STORY    As a speaker, I want Speaking Coach and my chats in one sidebar that
          is available throughout the chat workspace.
 OUTCOME  Selecting a chat or project swaps the main pane and keeps the sidebar.
-PROVES   The project index is shared and the setup actions are at the bottom.
+PROVES   The project index is shared and Builder setup is at the bottom.
 */
 import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -66,11 +66,11 @@ function Surface({ onOpenProject, onStartNewProject }: { onOpenProject: (project
   });
   if (door.waiting) return createElement("div", { "data-chats-waiting": "" });
   return (
-    <ChatWorkspace sidebar={door.sidebar} viewKey={`${door.activeChat}:${door.coachSetup}`}>
+    <ChatWorkspace sidebar={door.sidebar} viewKey={door.activeChat}>
       {door.heading}
       {door.pane}
       {project ? <div data-project-pane>{project.topic}</div> : null}
-      {door.loungeCovered ? null : <div data-coach-pane={door.coachSetup} />}
+      {door.loungeCovered ? null : <div data-coach-pane="" />}
     </ChatWorkspace>
   );
 }
@@ -141,7 +141,7 @@ describe("the chat workspace", () => {
     expect(startNew).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps both setup actions at the bottom of the shared sidebar", async () => {
+  it("keeps only Builder setup at the bottom of the shared sidebar", async () => {
     act(() => root.render(createElement(Surface, {
       onOpenProject: vi.fn(),
       onStartNewProject: vi.fn(),
@@ -149,11 +149,9 @@ describe("the chat workspace", () => {
     await flush();
     const setup = host.querySelector("[data-chat-sidebar-setup]")!;
     expect(setup.previousElementSibling?.hasAttribute("data-chat-list")).toBe(true);
-    expect(setup.contains(row("set-up-speaking-coach"))).toBe(true);
-    expect(setup.contains(row("start-own-chat"))).toBe(true);
+    expect(Array.from(setup.querySelectorAll("[data-chat-row]"), (row) => row.getAttribute("data-chat-row")))
+      .toEqual(["start-own-chat"]);
     await click(row("b"));
-    await click(row("set-up-speaking-coach"));
-    expect(host.querySelector("[data-coach-pane]")?.getAttribute("data-coach-pane")).toBe("1");
     await click(row("start-own-chat"));
     await click(document.querySelector<HTMLButtonElement>("[data-own-chat-yes]")!);
     expect(host.querySelector("[data-chat-main] [data-builder-pane]")).not.toBeNull();

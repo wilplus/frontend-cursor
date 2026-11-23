@@ -458,7 +458,6 @@ export default function WillabSurface({
           flow.startRecordingSetup();
         }}
         onOpenProject={openProject}
-        coachSetup={chats.coachSetup}
         projectChatActive={Boolean(pickedProject || returnProject)}
         onProjectTakeReady={chats.speakingActive ? (arcId, sessionId, scoped) => {
           if (!scoped || pendingProjectHandoff.current === sessionId) openProject(arcId, sessionId);
@@ -640,7 +639,7 @@ export default function WillabSurface({
     </LoungeThreadProvider>
   );
   return authorizedShell(chats.enabled ? (
-    <ChatWorkspace key={userId} sidebar={chats.sidebar} viewKey={`${chats.activeChat}:${chats.coachSetup}`}
+    <ChatWorkspace key={userId} sidebar={chats.sidebar} viewKey={chats.activeChat}
       suspended={flow.labOverlayOpen || flow.state === "lab_project_pick"}>
       {conversation}
     </ChatWorkspace>
