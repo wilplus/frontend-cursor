@@ -69,6 +69,11 @@ export interface ChatQueryArgs {
     has_current_project: boolean;
     completed_takes: number;
     has_pdf: boolean;
+    review_focus?: {
+      step: "feedback" | "practise" | "ideal";
+      slide_index?: number;
+      snippet_id?: string;
+    };
   };
 }
 

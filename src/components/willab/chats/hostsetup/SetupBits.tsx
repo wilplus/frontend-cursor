@@ -4,8 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { TypingGlyph } from "../../TypingDots";
 import { TapRow } from "../../WillQuestion";
 import { W } from "./hostSetupCopy";
-import AskSheet from "../AskSheet";
-import { BarBox, BarPlus, ChatBarRow, SendTakes } from "../ChatBar";
+import ChatComposer from "../ChatComposer";
 import OneTopBar, { useBarBack } from "../../OneTopBar";
 import { TopBar } from "../TopBar";
 
@@ -295,45 +294,25 @@ export function Dots() {
   );
 }
 
-/** Where the person types: the app's own bottom bar (backend N647 item 9;
- *  was a box of its own with a "Send" word): the chats' box, its send icon
- *  on the right once there are words, growing with its text up to seven
- *  lines (N618 item 4); Enter sends, Shift+Enter is a new line. */
-export function Box({ placeholder, onSend, before, after, initial = "", lines = false }: {
+/** The builder's typed setup uses the shared composer. */
+export function Box({ placeholder, onSend, initial = "", lines = false, busy }: {
   placeholder: string;
-  /** False: not taken, the words stay in the box. */
-  onSend: (text: string) => void | boolean;
-  before?: ReactNode;
-  after?: ReactNode;
-  /** Already in the box, to send as it is or change. */
+  onSend: (text: string) => void | boolean | Promise<void | boolean>;
   initial?: string;
-  /** One thing on each line: Enter is a new line, only Send sends. */
+  /** For fields with one item per line, Enter inserts a line break. */
   lines?: boolean;
+  busy?: boolean;
 }) {
-  const sent = useContext(SendTakes);
-  const [sheet, setSheet] = useState(false);
   return (
-    <ChatBarRow data-host-box="">
-      {sent ? <BarPlus fresh={false} onClick={() => setSheet(true)} /> : null}
-      {before}
-      <BarBox
-        hint={placeholder}
-        open
-        grow
-        newlines={lines}
-        initial={initial}
-        // A send its screen does not take keeps the words in the box.
-        onSend={async (words) => onSend(words.trim()) !== false}
-      />
-      {after}
-      {sheet && sent ? (
-        <AskSheet
-          name={sent.name}
-          firstTime={false}
-          onClose={() => setSheet(false)}
-          onRecord={sent.takes.record ? () => setSheet(false) : undefined}
-        />
-      ) : null}
-    </ChatBarRow>
+    <ChatComposer
+      placeholder={placeholder}
+      initialValue={initial}
+      autoFocus
+      maxLength={400}
+      newlines={lines}
+      busy={busy}
+      onSend={(words) => onSend(words.trim())}
+      formAttrs={{ "data-host-box": "" }}
+    />
   );
 }

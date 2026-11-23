@@ -4,13 +4,13 @@
 
 import { ONE_THING_COPY } from "@/components/willab/idealEditCopy";
 import { buildWalkPlan, walkMoments, type WalkPlanInput } from "@/lib/willab/walkPlan";
-import { middleOf, plusRows, takesFromSend, type Middle } from "@/components/willab/chats/ChatBar";
+import { composerModes, takesFromSend } from "@/components/willab/chats/ChatBar";
 import { IDEAL_TEXT_NAME, RECORD_AFTER, RECORD_BEFORE, processingLabels, recordLabel, tryCopy } from "./screenCopy";
 import { PROCESSING_STAGES } from "@/components/willab/ProcessingWait";
 import type { CoachDefinition } from "./types";
 import { planFromDefinition } from "./runtime";
 
-export type BarFace = { middle: Middle; plus: string[]; thanks: boolean };
+type BarFace = ReturnType<typeof composerModes>;
 
 export type CoachFace = {
   chat: CoachDefinition["chat"];
@@ -34,10 +34,10 @@ function input(items: Parameters<typeof walkMoments>[0], extra: Partial<WalkPlan
   return { moments: walkMoments(items), coachNote: false, practiceOn: true, guest: false, ...extra };
 }
 
-function bar(send: CoachDefinition["chat"]["send"], asked: { answer: boolean; taps: boolean; photo: boolean }): BarFace {
+function bar(send: CoachDefinition["chat"]["send"], asked: { answer: boolean; photo: boolean }): BarFace {
   const takes = takesFromSend(send);
   if (!takes) throw new Error("send");
-  return { middle: middleOf(takes, asked), plus: plusRows(takes, asked, false), thanks: false };
+  return composerModes(takes, asked);
 }
 
 /** The sentences the walk already shows, read from the signed copy. */
@@ -68,14 +68,13 @@ function stepLines(def: CoachDefinition, key: string): string[] {
 
 /** The same face, read from a coach document. */
 export function faceFromDefinition(def: CoachDefinition): CoachFace {
-  const asked = { taps: false as const };
   const slow = def.walk.steps.find((s) => s.key === "tempo")?.variants?.find((v) => v.id === "slow")?.fixed;
   return {
     chat: def.chat,
     bars: {
-      nothing: bar(def.chat.send, { ...asked, answer: false, photo: false }),
-      asks: bar(def.chat.send, { ...asked, answer: true, photo: false }),
-      photo: bar(def.chat.send, { ...asked, answer: false, photo: true }),
+      nothing: bar(def.chat.send, { answer: false, photo: false }),
+      asks: bar(def.chat.send, { answer: true, photo: false }),
+      photo: bar(def.chat.send, { answer: false, photo: true }),
     },
     walkKeys: {
       praise: keys(input([strongest]), def),

@@ -28,12 +28,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => null) }));
-import { WillBarMiddle } from "../plan/PlanDock";
+import { willComposerMic } from "../plan/PlanDock";
+import ChatComposer from "./ChatComposer";
 import { wayInRowFor } from "../plan/WayIn";
 import OwnChatLinks from "./OwnChatLinks";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { barModeIn, PlaceOnly, onAskedPlace, placeOf, rememberPlace, shownIn, speakingFirst, typedHint, type LoungePlace } from "./loungePlace";
+import { PlaceOnly, onAskedPlace, placeOf, rememberPlace, shownIn, speakingFirst, typedHint, type LoungePlace } from "./loungePlace";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -52,14 +53,7 @@ function Lounge({
   next: { arcId: string; takeIndex: number } | null;
   hear?: boolean;
 }) {
-  const mode = barModeIn(
-    place,
-    false,
-    null,
-    hear ? { onTap: () => undefined } : null,
-    false,
-    false,
-  );
+  const speaking = place === "speaking" || place === null;
   return (
     <div>
       <div data-thread="">{rows.filter((r) => shownIn(r, place)).map((r) => <p key={r.client_id}>{r.body}</p>)}</div>
@@ -69,18 +63,10 @@ function Lounge({
       <PlaceOnly place={place} in={["speaking"]}>
         <div data-plan-dock="" />
       </PlaceOnly>
-      <form data-bar="">
-        <PlaceOnly place={place} in={["speaking"]}>
-          <button type="button" aria-label="Your projects" />
-        </PlaceOnly>
-        {mode === "words" ? (
-          <textarea aria-label="Message Will" />
-        ) : mode === "quiet" ? (
-          <span data-quiet-bar="" />
-        ) : (
-          <WillBarMiddle hear={hear ? { onTap: () => undefined } : null} next={mode === "record" ? next : null} held={false} onRecord={() => undefined} onFirst={() => undefined} />
-        )}
-      </form>
+      <ChatComposer formAttrs={{ "data-bar": "" }} inputLabel="Message Will"
+        onSend={() => true} voiceRequired={speaking && hear}
+        mic={speaking ? willComposerMic({ hear: hear ? { onTap: () => undefined } : null, next, held: false,
+          onRecord: () => undefined, onFirst: () => undefined }) : undefined} />
     </div>
   );
 }
@@ -109,23 +95,23 @@ const draw = (
   hear = false,
 ) => act(() => root.render(<Lounge place={place} rows={rows} next={next} hear={hear} />));
 const thread = () => host.querySelector("[data-thread]")!.textContent;
-const recordButton = () => host.querySelector("[data-bar] [data-start-first], [data-bar] [data-record-next], [data-bar] [data-will-hear]")?.textContent ?? null;
+const recordButton = () => host.querySelector("[data-bar] [data-start-first], [data-bar] [data-record-next], [data-bar] [data-will-hear]")?.getAttribute("aria-label") ?? null;
 
 describe("three chats over the one Lounge (N636)", () => {
-  it("N636-2: Speaking coach is a text chat at rest and uses recording only for a current spoken task", () => {
+  it("N636-2: Speaking Coach keeps the text and mic slots while a spoken task waits", () => {
     draw("speaking", []);
-    expect(recordButton()).toBeNull();
-    expect(host.querySelector("textarea")).not.toBeNull();
+    expect(recordButton()).toBe("Start your first recording");
+    expect(host.querySelector("textarea")?.disabled).toBe(false);
     draw("speaking", ROWS, { arcId: "a1", takeIndex: 1 });
-    expect(recordButton()).toBeNull();
-    expect(host.querySelector("textarea")).not.toBeNull();
+    expect(recordButton()).toBe("Record Take 2");
+    expect(host.querySelector("textarea")?.disabled).toBe(false);
     expect(thread()).toBe("Your feedback is ready.");
     expect(host.querySelector("[data-plan-dock]")).not.toBeNull();
     expect(host.querySelector("[data-needs-you]")).toBeNull();
 
     draw("speaking", ROWS, { arcId: "a1", takeIndex: 1 }, true);
     expect(recordButton()).toBe("Record your answer");
-    expect(host.querySelector("textarea")).toBeNull();
+    expect(host.querySelector("textarea")?.disabled).toBe(true);
 
     draw("will", ROWS, { arcId: "a1", takeIndex: 1 });
     expect(recordButton()).toBeNull();

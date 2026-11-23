@@ -18,6 +18,8 @@ export interface TrainingTake {
   hasSlides: boolean;
   /** Delivery layer — true once this take's published feedback page exists. */
   feedbackAvailable: boolean;
+  /** The Take's own generated review has finished processing. */
+  reviewAvailable?: boolean;
   /** The upload key the Take was sent with; null when it was made another
    *  way; undefined when the server does not say (before backend #1824).
    *  A Take kept on the phone reads it (backend N556 item 3). */
@@ -62,6 +64,7 @@ export interface TrainingArc {
   lastTakeAt?: string | null;
   /** Whole-presentation readiness. Per-chunk detector scores are never sent. */
   practiceProgress: number;
+  practiceCoverage?: { practised: number; total: number; unit: "slides" | "sections" };
   /** Chronological exact slide-range practice history. */
   practiceChunks: PracticeChunk[];
 }
@@ -103,16 +106,29 @@ function mapTake(raw: unknown): TrainingTake | null {
     createdAt: typeof r.created_at === "string" ? r.created_at : null,
     hasSlides: r.has_slides === true,
     feedbackAvailable: r.feedback_available === true,
+    ...(typeof r.review_available === "boolean" ? { reviewAvailable: r.review_available } : {}),
     ...("upload_key" in r
       ? { uploadKey: typeof r.upload_key === "string" && r.upload_key ? r.upload_key : null }
       : {}),
   };
 }
 
+function mapCoverage(raw: unknown): TrainingArc["practiceCoverage"] {
+  const coverage = raw as Partial<NonNullable<TrainingArc["practiceCoverage"]>> | undefined;
+  const practised = coverage?.practised;
+  const total = coverage?.total;
+  const unit = coverage?.unit;
+  if (typeof practised !== "number" || typeof total !== "number" ||
+      !Number.isInteger(practised) || !Number.isInteger(total) || practised < 0 || total < practised ||
+      (unit !== "slides" && unit !== "sections")) return undefined;
+  return { practised, total, unit };
+}
+
 function mapArc(raw: unknown): TrainingArc | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.arc_id !== "string" || r.arc_id.length === 0) return null;
+  const coverage = mapCoverage(r.practice_coverage);
   const takes = (Array.isArray(r.takes) ? r.takes : [])
     .map(mapTake)
     .filter((t): t is TrainingTake => !!t)
@@ -156,6 +172,7 @@ function mapArc(raw: unknown): TrainingArc | null {
         ? Math.max(0, Math.min(100, Math.round(r.practice_progress)))
         : 0,
     practiceChunks,
+    ...(coverage ? { practiceCoverage: coverage } : {}),
   };
 }
 

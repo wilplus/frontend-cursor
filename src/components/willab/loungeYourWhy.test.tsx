@@ -72,7 +72,7 @@ async function settle() {
 }
 
 async function tap(label: string) {
-  const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes(label));
+  const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes(label) || b.getAttribute("aria-label") === label);
   if (!button) throw new Error(`no button "${label}" in: ${text()}`);
   await act(async () => button.click());
   await settle();

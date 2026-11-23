@@ -200,9 +200,41 @@ describe("Start your own chat", () => {
     await click("[data-build-tile='test']");
     expect(host.querySelector("[data-visitor-try]")).not.toBeNull();
     expect(host.textContent).toContain("Hi. Record a short talk");
-    await click("[data-visitor-rec]");
-    await flush();
-    expect(host.querySelectorAll("[data-visitor-line='them']").length).toBeGreaterThan(1);
+    const stream = vi.fn();
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: {
+      getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: stream }] })),
+    } });
+    class Recorder {
+      static isTypeSupported() { return true; }
+      mimeType = "audio/webm";
+      state = "inactive";
+      ondataavailable?: (event: { data: Blob }) => void;
+      onstop?: () => void;
+      start() { this.state = "recording"; }
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({ data: new Blob(["audio"], { type: this.mimeType }) });
+        this.onstop?.();
+      }
+    }
+    vi.stubGlobal("MediaRecorder", Recorder);
+    const objectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    try {
+      await click("[data-visitor-rec]");
+      expect(host.querySelector<HTMLTextAreaElement>("[data-chat-input]")?.hidden).toBe(true);
+      await click("[data-chat-mic][data-recording]");
+      expect(stream).toHaveBeenCalledOnce();
+      expect(host.querySelector('audio[aria-label="Play recording"]')).not.toBeNull();
+      expect(host.querySelectorAll("[data-visitor-line='them']")).toHaveLength(1);
+      await click("[data-chat-send]");
+      expect(host.querySelectorAll("[data-visitor-line='them']").length).toBeGreaterThan(1);
+    } finally {
+      objectUrl.mockRestore();
+      revoke.mockRestore();
+      vi.unstubAllGlobals();
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    }
     await click("[data-visitor-try] button[aria-label='Back']");
     expect(host.querySelector("[data-build-home]")).not.toBeNull();
     expect(host.querySelector("[data-tile-tick='test']")).not.toBeNull();

@@ -117,22 +117,12 @@ workspace, no form.
     date for "Yes" to "Are you in a hurry?", with Send), "Not now" under
     them (N610 item 4), which leaves the question until the chat is opened
     again. The welcome is drawn as the host's own words, with no assistant's
-    mark (the backend's welcome lines carry no `meta.assistant`). **The bar**
-    is the locked two places (N610, the components of C1's bar,
-    `ChatBar.tsx`): the "+" on the left, always there, and "Ask {name}" in
-    the middle, a box where the host's recipe (`writes` from the backend)
-    takes typing, a black button where it does not; never grey, no emoji in
-    the bar and no mic on the right (N600's bar is replaced). The same bar
-    whether or not a question waits: the host's question is answered by its
-    taps, and a visitor's typed words are a question, not an answer to it,
-    so the middle stays "Ask {name}". Where the chat takes no typing, asking
-    is recording, which for a visitor is only after the sign-up (the
-    processing-authorization path has no one to ask before): the black
-    "Ask {name}" makes their chat (`start` with no message) and opens the
-    sign-up's join page; signed up, it and "+" open the chat in
-    WillpowerLab, where the question is recorded and a photo sent. Before
-    the sign-up "+" opens the sign-up; before the chat exists it does what
-    the middle does (the caret in the box, or the button's tap). **Thanks**
+    mark (the backend's welcome lines carry no `meta.assistant`). The
+    widget uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The message field asks "Ask {name}"
+    where the recipe takes typing. The host's own questions still use the
+    taps above it. Tapping the mic starts the existing sign-up path before
+    recording is available. After sign-up the mic opens the app. A
+    supported media action from Files follows the same app handoff. **Thanks**
     (N610 item 5): after the host's recorded answer in a chat without
     typing, 👀, 👍 and 🙏 above the bar, the last filled; one tap sends it
     and they go; an emoji is sent no other way. No photo here yet: no
@@ -148,10 +138,9 @@ workspace, no form.
 12. **In the host's list** each visitor is a chat like any other (N591 item
     1), **Widget / Visitor {n}**, "From {site}" under it; their answers
     arrive as the card ("Visitor {n}'s answers", N569 item 6). The host
-    answers as in any chat (N591 item 3): the bar is the chat's bar, the
-    locked two places (N610, C1): the "+", and **Record your answer** in
-    the middle for a visitor's typed question, which the backend marks as
-    any question (`record_answer`); with nothing asked, "Ask {name}". A
+    answers as in any chat (N591 item 3) with the shared composer. The
+    mic opens "Record your answer" when the visitor's question waits
+    (`record_answer`), and the chat's accepted text format remains available. A
     question signed up for joins its bundle and waits for the host (N584,
     N606 item 1: the assistant sends nothing until its minimum). Block and
     Report as in every chat.
@@ -243,7 +232,7 @@ workspace, no form.
      a hurry?" opens the date sheet ("When do you need to be ready?",
      Done); "Your deadline: {date}" shows under the answer. A question that
      takes more than one answer fills each one tapped, and "Send" stands in
-     the bar's middle (N483 item 3). An emoji sent meanwhile leaves the
+     the space above the composer (N667). An emoji sent meanwhile leaves the
      question waiting, its answers under the newest message. The one whose
      link it was sees "{name} joined through your link." and, once the
      answers are in, one card, "{name}'s answers", which is also their
@@ -273,36 +262,17 @@ workspace, no form.
      name and who they are. The messages start at the bottom, by the bar,
      with the day above them ("Today", otherwise the date) and the time in
      each bubble, bottom right; under a big emoji, its meaning and time
-     ("It's good · 06:12"). The bubbles stay the Lounge's. **The bar**
-     is two places, always the same (N610, locked on "The Bar, To Lock",
-     backend `docs/design/the-bar-2026-11-10/the-bar.html`; it replaces,
-     for a host's chat and a chat between people, N483's three emoji in
-     the middle and N600's mic on the right): the "+" on the left, which
-     never moves (below; while you record, on the recording screens, the
-     bin is in its place), and the one thing to do now in the middle: a
-     black button records, a box types, and the middle is never grey or
-     disabled. A chat with no host takes recordings and taps; a host's chat
-     takes what the host chose (answer_with). The box has the send icon
-     inside its right edge once there are words, in every chat, the
-     website chat's included; the keyboard's own key still sends (N647
-     item 9, "every text field in the app has its send button on the
-     right"; was the chat builder's ring and a ring host's chat only).
-     - **Nothing asked: the middle asks.** "Ask {name}", a black button
-       with no dot where the chat takes recordings or only taps, which
-       opens the "+" sheet's "Ask {name}"; a box with the words "Ask
-       {name}" where it takes typing (recording on too: still the box).
-     - **The chat asks: the middle answers.** "Record your answer", black
-       with the red dot, where the chat takes recordings, for a marked
-       question or their Take (below); "Type your answer" is then behind
-       the "+" where typing is on too, and opens the box. The box "Type
-       your answer" where the chat takes only typing. Where it takes only
-       taps the middle stays "Ask {name}". Answers to tap sit above the
-       bar, on your side, and "Not now", a grey word, under them and under
-       any question: it leaves the question until the chat is opened again
-       and tells them nothing (a question asked when you join included,
-       which had no "Not now" before). A photo asked for: the middle is
-       "Add a photo", black with the picture, which opens the device's
-       picker.
+     ("It's good · 06:12"). The bubbles stay the Lounge's. The
+     [shared composer](feedback-walk-and-chat.md#shared-composer-n667) uses Files, text and mic in fixed slots.
+     The host's `send` list or existing `answer_with` settings govern
+     what those controls can send. A chat without a host keeps its existing
+     recording, taps and photo support.
+     - The mic records a question or responds to the marked question or
+       Take that waits. When both typing and recording are allowed they can
+       both be used from the same row.
+     - Tap answers and "Not now" sit above the row. "Not now" leaves the
+       question until reopening the chat and does not write a message.
+       A requested photo uses Add a photo in Files.
      - **Thanks is one tap.** When the newest message is theirs and a
        person recorded it as an answer, in a chat that takes no typing and
        while nothing is asked, three taps sit above the bar on your side:
@@ -312,31 +282,22 @@ workspace, no form.
        assistant's own message. In a chat with typing, you type your
        thanks. The emoji can no longer be sent at any other time.
      - "Sending to {name}… {n}" with Undo, a bold word in the pill, stands
-       in the middle while an answer or a question goes; "Send" while
-       several answers are picked (N487).
+       above the composer while a recording goes. The confirmation for
+       picked answers also sits above it (N487).
      - **Typing is on where the host chose Type** (`host.answer_with.type`
        on `GET /v2/chats/<id>/host`; backend #1880): a chat with no host,
        a read that does not say `type`, or a backend without that route,
-       has no box. **Typed words are never lost:** a send the backend
-       refuses, or one that fails, puts them back in the box exactly as
-       typed, the box open and the caret in it, with no new words on
-       screen. The words go to
+       has a disabled text slot. A failed text send keeps the exact words
+       in the box for retry. The words go to
        `POST /v2/chats/<id>/messages` as `{"kind": "text", "body", "to"?}`;
        `to` is the waiting question's id when the words answer it (a
        question to tap included), and the answer comes back with the
        host's next lines. A photo is asked for by a question whose message
        has `meta.setup.kind === "photo"`; the photo picked goes to
        `POST /v2/chats/<id>/setup/<message_id>/photo`.
-     No mic: no voice notes (N483 item 3). Every send gives a short
-     sound, and a small buzz where the device allows it. Was: the three
-     emoji in the middle (N483), in a host's chat with a small mic on the
-     right (N600); before that the mic on the right, orange while your
-     voice was awaited (N368, N460 items 1 to 3; before that N341, the mic
-     only then).
-     Will's chat follows the same logic with its own left and middle: the
-     stack, Your projects (a stack, not a "+", so "+" means add in every
-     chat, N460 item 5), and the record button or, only when Will asks for
-     words, the box ([the chat's page](feedback-walk-and-chat.md) B14).
+     The mic opens the authorized Take path. Older voice notes stay
+     playable. Every send gives a short sound and a small buzz where the
+     device allows it.
      Every choice offered in a chat, a person's or Will's, follows the
      four rules of [the chat's page](feedback-walk-and-chat.md) J7 (N467,
      locked for the whole app): your answers on your side under the
@@ -367,40 +328,15 @@ workspace, no form.
      first as the one black button, the others as quiet rows), which wait
      for the picker (D1); the link to it from WhatsApp, which waits for the
      WhatsApp notice.
-   - **The "+" asks them** (N483 item 4, N498, N610 item 7; the locked
-     page "The Bar, To Lock"). In every chat but Will's, a tap opens "Ask
-     {name}", a sheet from the bottom built like "Add someone to chat
-     with": the title, the black "Record your question" with the red dot
-     (not where the chat takes only typing), "Send a photo", which opens
-     the device's picker and sends the photo picked at once
-     (`POST /v2/chats/<id>/photo`, N351; a big one is made smaller first),
-     the three steps before your first question only ("1. Ask one thing ·
-     A clear question gets a clear answer", "2. {name} answers · Out loud,
-     when they have a moment", "3. It stays here · Play it again whenever
-     you need it"), and Cancel; no line (N498 item 1). While the chat asks
-     and the middle answers, the sheet is "Answer {name}": "Type your
-     answer" where typing is on beside recording, and "Send a photo".
-     "Record your
-     question" always opens the recording screens on the default
-     presentation (Opening, Main points, Summary): a project of its own
-     with no slides, named "To {name}", that never becomes your current
-     one, the top line "To {name} · Slide {n} of 3"
-     ([recording-screens.md](recording-screens.md)). Finish take brings you
-     back to the chat with "Sending to {name}… {n}" and Undo, as an answer
-     goes (below): the question goes to the backend once its Take is up
-     (`POST /v2/chats/<id>/question`), held for what is left of the 5
-     seconds, taken back by Undo, then "Sent" under it (N504 item 3). It
-     reaches them as your voice message, with its words behind "Read it",
-     marked for them to answer: their bar's middle is "Record your answer"
-     with "Not now". Until you first tap it, while nothing else is asked of
-     you and before you have asked anyone, the "+" is a filled orange
-     circle, still: the one orange thing in the bar; once tapped it is
-     plain (both kept on this device), and never while a question asked
-     when you join waits for your tap ("Asked when they join", above). Was
-     (N351, N460 item 4): the "+" swapped the
-     bar for four tiles, Photos, Camera, Files and Someone else; Camera,
-     Files and Someone else are off for now (N483 item 4), and a photo is
-     sent with "Send a photo" (N610). Photos and files show: a
+   - **Record, photo, and file.** The mic's "Record your question" starts
+     the existing default presentation (Opening, Main points, Summary).
+     It is scoped to the named recipient and leaves the current project
+     selected. Finish take returns with "Sending to {name}…" and Undo.
+     The question goes through `POST /v2/chats/<id>/question` with the
+     existing five-second hold. Files opens "Send a photo" and "Send a
+     file" where supported. A picked attachment is staged in the chat
+     until Send. An ordinary photo uses `POST /v2/chats/<id>/photo`; a
+     required photo uses the matching question's own route. Photos and files show: a
      photo is a bubble with the image, mine orange on the right, theirs
      grey on the left, its time under it, and opens full size with a close
      ✕ and no words; a file is a bubble with a small red tile holding its
@@ -969,15 +905,13 @@ claude.ai link beside each is a convenience, never the only copy.
 
 The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/customer-requests-2026-10-28/).
 
-- **The bar, two places** (2026-11-10, N610, locked; the newest for the bar
-  in a host's chat and a chat between people): "The Bar, To Lock"
+- **Historical host and people bar** (2026-11-10, N610; composer superseded by N667): "The Bar, To Lock"
   <https://claude.ai/artifact/4YVTpZppV6oViDYiyGBAXg>, kept as backend
   [`docs/design/the-bar-2026-11-10/the-bar.html`](https://github.com/wilplus/backend-cursor/blob/main/docs/design/the-bar-2026-11-10/the-bar.html):
   its five rules, what the middle is in each kind of chat, and the frames
   (nothing asked, the chat asks, thanks, the "+" sheets, recording, a photo
   asked for).
-- **The bottom bar, one logic in every chat** (2026-11-04, N483, locked; the
-  newest for the bar in both chats): Will's chat in every state, and a chat
+- **Historical chat bar** (2026-11-04, N483; composer superseded by N667): Will's chat in every state, and a chat
   with a person: joining with closed questions, the orange "+", "Ask
   {name}" the first time and after, the default presentation on the
   recording screens, sending with Undo, the answer, "Record your answer"
@@ -1025,6 +959,8 @@ The folder: [`backend docs/design/customer-requests-2026-10-28/`](https://github
   · link <https://claude.ai/artifact/4HnpmJHfMzqnFkXpVQUAhL>.
 
 ## 6. Changes
+
+- 2026-11-23 · N667 · People chats and the widget keep the shared composer in all input states. The formats and sign-up handoff are governed by the chat's existing settings.
 
 One line each, newest first: `date · N · what changed · PR`.
 

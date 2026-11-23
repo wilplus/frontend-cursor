@@ -1,7 +1,9 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Layers, Send, Upload } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
+import ChatComposer, { type ComposerFileAction } from "./chats/ChatComposer";
+import type { PlanLounge } from "./plan/usePlanLounge";
+import { willComposerMic } from "./plan/PlanDock";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
@@ -18,7 +20,6 @@ import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } 
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isRetiredLoungeMessage,
-  isUploadAsk,
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
@@ -91,8 +92,8 @@ import {
 } from "./WillabWhatsAppPrompt";
 import { useRouter } from "next/navigation";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
-import { offersUpdateSlides, SlidesAskComposer, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
-import { NewProjectAskComposer, NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
+import { offersUpdateSlides, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
+import { NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import NoticeBar from "./NoticeBar";
 import {
   afterGoodbye,
@@ -126,7 +127,6 @@ import {
 import { postFeedbackCheck, type FeedbackCheckChoice } from "@/services/api/feedbackCheck";
 import {
   useVoiceNotebook,
-  VoiceNoteBar,
   VoiceNoteBubble,
   VoiceNoteFixBar,
   VoiceNoteThread,
@@ -168,19 +168,17 @@ import WillQuestionBubble, {
   ChatLinks,
   TapRow,
   SOMETHING_ELSE,
-  useWordsBox,
   willQuestionOf,
   type WillQuestionTarget,
 } from "./WillQuestion";
-import { isWillVoice, useKeyLineHear, WillVoiceBubble } from "./WillVoiceAnswer";
-import { WillBarMiddle } from "./plan/PlanDock";
+import { isWillVoice, useKeyLineHear, WillVoiceBubble, type KeyLineHear } from "./WillVoiceAnswer";
 import { JoinSetupBubble, joinSetupOf, useJoinSetup, type JoinSetup } from "./chats/JoinSetup";
 import BundleQueue from "./chats/BundleQueue";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, askForChatThread, barModeIn, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, typingOffIn, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungeBarMode } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, askForChatThread, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungePlace } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -233,23 +231,6 @@ const LOUNGE_THREAD_CLASS = "scrollbar-none -mb-1 flex flex-1 flex-col overflow-
 function loungeThreadClass(loading: boolean): string {
   if (loading) return LOUNGE_THREAD_CLASS;
   return `${LOUNGE_THREAD_CLASS} [&>:first-child]:mt-auto`;
-}
-
-function barContents(
-  mode: LoungeBarMode,
-  words: ReactNode,
-  otherwise: ReactNode,
-): ReactNode {
-  if (mode === "words") return words;
-  if (mode === "quiet") return <div className="min-w-0 flex-1" />;
-  return otherwise;
-}
-
-function recordTargetIn(
-  mode: LoungeBarMode,
-  target: { arcId: string; takeIndex: number } | null,
-): { arcId: string; takeIndex: number } | null {
-  return mode === "record" ? target : null;
 }
 
 /** The page a card opened: an older Take's own version, or (none) the live
@@ -384,7 +365,7 @@ function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArc
   return takeInFlight && inFlightArcId === openArcId;
 }
 
-/** The bar's middle waits for a Take still landing, and for the history's
+/** The composer waits for a Take still landing, and for the history's
  *  first answer: before it, a new device would offer "Start your first
  *  recording" to a speaker with Takes. Never longer than that one read (its
  *  timeout, bootPrefetch.ts): once a read went unanswered the bar is free,
@@ -392,12 +373,6 @@ function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArc
 function recordBarHeld(takeInFlight: boolean, thread: { loading: boolean; unanswered: boolean }, wayInWaits = false): boolean {
   // "Record Take 2" stays faded until the way in's walk is done (N592 item 3).
   return takeInFlight || wayInWaits || (thread.loading && !thread.unanswered);
-}
-
-/** The words box stays open: Will's "What was missing?", his setup question
- *  that takes words alone, or the way in waiting for words (N573, N592). */
-function wordsWaitFor(missing: unknown, setupWaits: { words: boolean } | null, wayInWords: boolean): boolean {
-  return missing !== null || setupWaits?.words === true || wayInWords;
 }
 
 /** The processing bubble at the bottom of the thread: only an accepted Take
@@ -408,12 +383,6 @@ function bottomProcessing(
   firstTakeWayIn: boolean,
 ): boolean {
   return processingBubbleVisible(resume, { firstTakeWayIn });
-}
-
-/** The bar's middle: the way in's "Send" while its choice has picks, else
- *  the one black button. */
-function orBarMiddle(wayIn: ReactNode, button: ReactNode): ReactNode {
-  return wayIn ?? button;
 }
 
 /** The oldest and the newest message's client_id, or null for none. */
@@ -506,10 +475,94 @@ function IdealTextForReader({
   );
 }
 
-/** What "Record your answer" in the bar's middle records: the plan's spoken
+/** What "Record your answer" in the composer records: the plan's spoken
  *  question first, else Will's key line (backend N483 item 2, N544). */
-function firstHear<T>(plan: T | null, keyLine: T | null): T | null {
-  return plan ?? keyLine;
+function useLoungeDraft(scope: string) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const setDraft = useCallback((update: SetStateAction<string>) => {
+    setDrafts((current) => ({
+      ...current,
+      [scope]: typeof update === "function" ? update(current[scope] ?? "") : update,
+    }));
+  }, [scope]);
+  const field = useRef<HTMLTextAreaElement | null>(null);
+  const focus = () => {
+    const input = field.current;
+    if (!input || input.disabled) return;
+    input.focus({ preventScroll: true });
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.scrollIntoView?.({ block: "nearest" });
+  };
+  return { value: drafts[scope] ?? "", setDraft, field, focus };
+}
+
+function LoungeComposer({
+  place, openChat, draft, plan, keyLine, notebook, nextTake, held, busy, onSend, onFirst, onRecord, onProjects, onUpload, onSlides,
+}: {
+  place: LoungePlace | null;
+  openChat: string | null;
+  draft: ReturnType<typeof useLoungeDraft>;
+  plan: PlanLounge;
+  keyLine: KeyLineHear;
+  notebook: VoiceNotebook;
+  nextTake: { arcId: string; takeIndex: number } | null;
+  held: boolean;
+  busy: boolean;
+  onSend: () => Promise<void>;
+  onFirst: () => void;
+  onRecord: (arcId: string, takeIndex: number) => void;
+  onProjects: () => void;
+  onUpload: () => void;
+  onSlides?: () => void;
+}) {
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const speaking = !openChat && !wordsAlways(place);
+  const hear = speaking ? plan.hear ?? keyLine.hear : null;
+  const guidedRecording = speaking ? plan.recording ?? keyLine.recording : undefined;
+  const notebookRecording = notebook.recording ? {
+    elapsedMs: notebook.note.elapsedMs,
+    discard: notebook.note.cancel,
+    stop: notebook.note.send,
+    attrs: { "data-voice-note-stop": "" },
+  } : undefined;
+  const mic = speaking ? willComposerMic({
+    hear, next: nextTake, onRecord, onFirst, held: held || keyLine.sending,
+  }) : undefined;
+  const files: ComposerFileAction[] = [];
+  if (speaking) {
+    files.push({
+      label: "Upload a recording", accept: "audio/*", sendFile: (file) => {
+        const error = validateAudioUpload(file);
+        setUploadError(error);
+        if (error) return false;
+        stageLabUpload(file);
+        onUpload();
+        return true;
+      },
+    });
+    if (!held && !hear && !guidedRecording) {
+      files.push({ label: "Your projects", open: onProjects });
+      if (onSlides) files.push({ label: "Update slides", open: onSlides });
+    }
+  }
+  if (notebook.fixing) return <VoiceNoteFixBar notebook={notebook} />;
+  return (
+    <ChatComposer
+      className="-mx-2"
+      inputRef={draft.field}
+      inputLabel="Message Will"
+      placeholder={placeholderIn(place)}
+      value={draft.value}
+      onValue={draft.setDraft}
+      onSend={onSend}
+      busy={busy}
+      voiceRequired={Boolean(hear || keyLine.sending && speaking)}
+      mic={mic}
+      recording={guidedRecording ?? notebookRecording}
+      files={files}
+      status={uploadError ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError}</p> : null}
+    />
+  );
 }
 
 /** The slides' line once they are ready: about the project's deck, so the
@@ -524,6 +577,7 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
+  projectUpdate,
   onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
@@ -548,6 +602,7 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
+  projectUpdate?: ReactNode;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
    *  with the topic filled in from the voice message, no feelings check; or,
    *  on a first-Take plan, the five questions at once (backend N401), and
@@ -580,30 +635,12 @@ export default function Lounge({
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
   const openChat = useOpenChat();
+  const composerScope = JSON.stringify(["lounge", userId, place, openChat]);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
   const { messages } = outbox;
   const { reload } = thread;
-  const [draftText, setDraftText] = useState("");
-  // R4-12 — the composer is an auto-grow textarea (multi-line). Re-fit its
-  // height to the content on every change, capped so it never eats the thread.
-  const composerRef = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = composerRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    // The BORDER has to be added back. `scrollHeight` covers content + padding
-    // and stops there, but the box is `border-box` (Tailwind's global reset),
-    // so assigning that number as the height makes the browser fit the borders
-    // INSIDE it — the content box comes out 2px short of the text it was just
-    // measured from. The result was a permanently-overflowing field: from the
-    // second line on, the textarea grew to exactly the wrong height and drew a
-    // scrollbar over a box that had just been sized to fit.
-    const cs = window.getComputedStyle(el);
-    const border =
-      parseFloat(cs.borderTopWidth || "0") +
-      parseFloat(cs.borderBottomWidth || "0");
-    el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
-  }, [draftText]);
+  const draft = useLoungeDraft(composerScope);
+  const { value: draftText, setDraft: setDraftText, focus: focusComposer } = draft;
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
   // for them nothing below mounts and this component behaves exactly as it did
@@ -935,11 +972,8 @@ export default function Lounge({
   // When the user asks to upload a file, the footer's record button becomes a
   // file picker (deckless upload). Tracks the LATEST intent so it reverts once
   // the user moves on. Detection is FE-side (the bot doesn't classify it).
-  const [uploadAskActive, setUploadAskActive] = useState(false);
-  const uploadFileRef = useRef<HTMLInputElement | null>(null);
   // Bug 1 — a picked file that fails the audio/size guard shows inline under
   // the button instead of silently opening the Lab with a doomed upload.
-  const [uploadPickError, setUploadPickError] = useState<string | null>(null);
 
   // Delivery layer — the tapped feedback bubble (per-take page) and the purple
   // ideal-text bubble's notebook.
@@ -1420,7 +1454,7 @@ export default function Lounge({
     // In the ring's speaking chat these two go to Will's chat (N636 item 3).
     ownChatLinks: ownChatLinksIn(place),
     onSetUpChat: assistant.builder ? () => void chatSetup.begin().then(followAnswer) : undefined,
-    onWords: () => words.start(),
+    onWords: focusComposer,
   });
   wayInTakeRef.current = plan.firstTakeWayIn;
   /** "Open your feedback ›", or the orange row on top: Take 1's walk. */
@@ -1428,7 +1462,7 @@ export default function Lounge({
     const arc = wayInReadyArc ?? firstTakeArcOf(messages);
     if (arc) openIdealText(arc, "review");
   }
-  // AFTER THE GOODBYE (N296 state 4, N483 item 2): the bar's middle is
+  // AFTER THE GOODBYE (N296 state 4, N483 item 2): the mic action is
   // "Record Take N" for the goodbye's Take, with no tap first (`useGoodbye`).
   const goodbye = useGoodbye({ messages, oneHoldsRecord: plan.oneHoldsRecord, planOne: plan.one, olderTake });
 
@@ -1779,7 +1813,7 @@ export default function Lounge({
   // builder's questions (backend N632 item 1).
   const setupWaits = willSetupWaiting(shownMessages, joinSetup, chatSetup, assistant.retired);
   // Will's key line asks to be said (backend N544): "Record your answer" in
-  // the bar's middle records it in the small recording bar, no box for it.
+  // the mic captures it in the shared composer.
   const keyLine = useKeyLineHear({
     shown: shownMessages,
     held: botThinking,
@@ -1789,26 +1823,6 @@ export default function Lounge({
       followAnswer();
     },
   });
-  // Will's chat and Principles: the bar is the text field, never the plan's
-  // footer in its place (N635 item 2).
-  const barDisplay = (base: string) => (keyLine.recording ? "hidden" : wordsAlways(place) ? base : plan.composerDisplay(base));
-  const words = useWordsBox(
-    shownMessages,
-    typingOffIn(place, plan.typingOff || keyLine.asks),
-    draftText,
-    composerRef,
-    wordsWaitFor(feedbackCheckTarget([...shownMessages], "missing"), setupWaits, plan.wordsWait),
-  );
-  const barHear = firstHear(plan.hear, keyLine.hear);
-  const barMode = barModeIn(
-    place,
-    words.show || openProjectQuestion(shownMessages) !== null,
-    plan.barMiddle,
-    barHear,
-    plan.typingOff,
-    keyLine.asks,
-  );
-
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
   useEffect(() => {
@@ -1849,15 +1863,13 @@ export default function Lounge({
     openIdealText(arcId, "share");
   }
 
-  async function handleSend(e?: React.FormEvent) {
-    e?.preventDefault();
+  async function handleSend() {
     const submittedDraft = draftText;
     const q = submittedDraft.trim();
     // Guard BEFORE clearing the input so a send while the bot is busy keeps the
     // user's text rather than silently dropping it.
     if (!q || botThinking || sendingRef.current || !outbox.ready) return;
     setDraftText("");
-    words.close();
     // Free words under a Take's open Will question are a real chat turn. The
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
@@ -1922,7 +1934,7 @@ export default function Lounge({
   // dots while it does, as for a typed answer (B8).
   async function answerWillQuestion(target: WillQuestionTarget, choice: string): Promise<void> {
     // "Something else", the first of his answers, opens the box (N483 item 2).
-    if (choice === SOMETHING_ELSE) return words.start();
+    if (choice === SOMETHING_ELSE) return focusComposer();
     if (botThinking || sendingRef.current) return;
     sendingRef.current = true;
     const optimistic = thread.own(choice);
@@ -2070,7 +2082,6 @@ export default function Lounge({
     sendingRef.current = true;
     setDraftText((draft) => draft === turn.draft ? "" : draft);
     setBotThinking(true);
-    setUploadAskActive(isUploadAsk(turn.user.body));
     setActiveOffer((open) => open === "feedback_check" ? null : open);
     atBottomRef.current = true;
     const project = projectQuestionTurn(turn.question);
@@ -2123,7 +2134,7 @@ export default function Lounge({
       open={i === shownItems.length - 1}
       onTap={(picked) => joinSetup.tap(item.message.client_id, picked).then(followAnswer)}
       onAgain={() => joinSetup.again().then(followAnswer)}
-      onWords={words.start}
+      onWords={focusComposer}
     />
   );
   const drawChatSetup = (item: ThreadItem, i: number, setup: ChatSetup) => (
@@ -2368,6 +2379,7 @@ export default function Lounge({
             return withHostRows(i, drawShown(item, i));
           })
         )}
+        <PlaceOnly place={place} in={["speaking"]}>{projectUpdate}</PlaceOnly>
         {/* A host's chat's own messages after its newest Take (N648 item 8). */}
         {hostRowsAfter()}
 
@@ -2497,179 +2509,24 @@ export default function Lounge({
             setActiveOffer(null);
           }}
         />
-      ) : uploadAskActive ? (
-        // The user asked to upload — the record button becomes a file picker.
-        // Picking a file stashes it and opens the Lab, which collects the topic
-        // (analysis needs it) then submits the upload (deckless).
-        <>
-          <input
-            ref={uploadFileRef}
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (!f) return;
-              const err = validateAudioUpload(f);
-              if (err) {
-                setUploadPickError(err);
-                return;
-              }
-              setUploadPickError(null);
-              stageLabUpload(f);
-              setUploadAskActive(false);
-              // A staged upload is a standalone deckless file, never a take of
-              // a project — skip the picker so the Lab mounts on the same tick
-              // and consumes the staged File atomically (review R-pp2).
-              (onStartInProject ?? onStart)();
-            }}
-            className="hidden"
-          />
-          <Button
-            type="button"
-            onClick={() => uploadFileRef.current?.click()}
-            className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
-          >
-            <Upload className="h-4 w-4" aria-hidden />
-            Upload a recording
-          </Button>
-          {uploadPickError ? (
-            <p className="mt-1.5 text-center text-[13px] text-destructive">
-              {uploadPickError}
-            </p>
-          ) : null}
-        </>
-      ) : // FE-2 (founder 2026-07-27) — the full-width "Start official
-      // recording" CTA is DELETED. The record affordance is the small control
-      // inside the composer and nothing else, so there is no second, louder
-      // button competing with it. The upload picker above keeps its own
-      // full-width button: it is a different action, and it only appears when
-      // the user has asked to upload.
-      null}
+      ) : null}
       </TopUpSlot>
       </SlidesAskSlot>
       </NewProjectAskSlot>
 
-      {/* Wave-3 — no standing chip row above the composer; quick actions are
-          single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
-      {/* A5 — the send button lives INSIDE the input (right edge): grey when the
-          field is empty, black once there's text. A4 — the input height (h-12)
-          matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
-      {/* The plan and the key line belong to the speaking chat (N635 item 2). */}
       <PlaceOnly place={place} in={["speaking"]}>
         {plan.dock}
         {plan.sheets}
-        {keyLine.bar}
+        {plan.barMiddle}
       </PlaceOnly>
-      {/* Hidden whole while the plan's footer stands in for it, so its empty
-          wrapper adds no gap under it (founder 2026-10-30). */}
-      <div className={barDisplay("contents")}>
-      <NewProjectAskComposer ask={newProjectAsk}>
-      <SlidesAskComposer ask={slidesAsk}>
-      <VoiceNoteBar notebook={notebook} />
-      <VoiceNoteFixBar notebook={notebook} />
-      <form
-        onSubmit={handleSend}
-        aria-busy={botThinking}
-        // 8px from the sides (N505): out of the shell's 16px.
-        className={`${barDisplay(notebook.composerDisplay)} -mx-2 items-end gap-1`}
-      >
-        {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
-            projects, where "Start a new project" starts one. It replaced the
-            Record button. Held while a Take is still landing, for the same
-            reason that button was (the spoken take count is the version). */}
-        {/* The projects are the speaking chat's (N635 item 3). */}
-        <PlaceOnly place={place} in={["speaking"]}>
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={takeInFlight}
-          aria-label="Your projects"
-          title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
-          // 44px to tap, 40px to see: 2px each side, within the 4px to the
-          // bar's middle.
-          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-0.5 after:content-[''] hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
-        >
-          {/* A stack, not a "+": in every other chat "+" adds to the chat
-              (backend N460 item 5). */}
-          <Layers className="h-5 w-5" aria-hidden />
-        </button>
-        </PlaceOnly>
-        {barContents(barMode, (
-        <div className="relative flex-1">
-          <textarea
-            ref={composerRef}
-            rows={1}
-            value={draftText}
-            disabled={botThinking}
-            onChange={(e) => setDraftText(e.target.value)}
-            onKeyDown={(e) => {
-              // R4-12 — Enter sends; Shift+Enter inserts a newline.
-              // requestSubmit fires the form's onSubmit (handleSend) with a
-              // real submit event.
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-              }
-            }}
-            // Founder 2026-07-27. Short by design: it sits on one line at the
-            // narrowest supported width, where the original copy wrapped to
-            // two and made a chat field read as a text area.
-            // Each of the ring's chats has its own words (backend N640).
-            placeholder={placeholderIn(place)}
-            // Empty, the box you opened closes when you tap away (N483).
-            onBlur={() => {
-              if (!draftText.trim()) words.close();
-            }}
-            /* B9 — kill any autofill / password-manager overlay that can ghost
-               a second line of placeholder text over a chat composer. R4-12 —
-               autocorrect ON now (this is prose, not a password field). */
-            autoComplete="off"
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            spellCheck
-            /* `scrollbar-none` + `overflow-x-hidden`: past the 160px cap the
-               field does scroll, but a bar inside a rounded chat input reads as
-               a broken control, and a textarea has no business scrolling
-               sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[42px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-[10px] pl-3.5 text-[15px] leading-5 outline-none focus:border-primary data-[words-active=true]:border-primary ${
-              draftText.trim() ? "pr-11" : "pr-4"
-            }`}
-            aria-label="Message Will"
-            data-words-active={String(words.active)}
-          />
-          {/* Only once there is text: an always-present grey Send is a button
-              that cannot be pressed, and it costs the field 32px to say so. */}
-          {draftText.trim() ? (
-            <button
-              type="submit"
-              disabled={botThinking}
-              aria-label="Send"
-              // 44px to tap, 32px to see: 6px each side, within the field's
-              // right padding (pr-11), where no words are; 5px in from the
-              // right and the bottom, the locked bar's box (N483).
-              className="absolute bottom-[5px] right-[5px] flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-default disabled:text-muted-foreground"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-          ) : null}
-        </div>
-        ),
-          orBarMiddle(
-            plan.barMiddle,
-            <WillBarMiddle
-              hear={barHear}
-              next={recordTargetIn(barMode, goodbye.recordNext ?? restingTake(messages, userId))}
-              held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
-              onRecord={recordNext}
-              onFirst={startFirst}
-            />,
-          ),
-        )}
-      </form>
-      </SlidesAskComposer>
-      </NewProjectAskComposer>
-      </div>
+      <LoungeComposer key={composerScope}
+        place={place} openChat={openChat} draft={draft} plan={plan} keyLine={keyLine} notebook={notebook}
+        nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
+        held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
+        busy={botThinking || !outbox.ready}
+        onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={onStart}
+        onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
+      />
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
@@ -3308,7 +3165,7 @@ function BubbleBody({
  *  wait's percent does (Never 1, founder 2026-10-19). */
 const FIRST_TAKE_TIME = "About 2 minutes to record. Your feedback comes about a minute later.";
 
-/** The last Take at rest, so the bar's middle is "Record Take N" for the
+/** The last Take at rest, so the composer is "Record Take N" for the
  *  one after it (N483 item 2): the newest Take in the thread, else this
  *  device's record of the project; none before the first Take. */
 function restingTake(
@@ -3326,7 +3183,7 @@ function LoungeEmptyState({ hidden }: { hidden: boolean }) {
   // WILL SAYS HELLO FIRST (founder 2026-10-29, N273 item 2, on its
   // prototype). The empty Lounge opens with N270's signed hello and one quiet
   // line on how long the first Take takes; "Start your first recording" is
-  // the bar's middle, the one black button (N483 item 2). With the plan
+  // the shared composer's mic (N667). With the plan
   // (the-plan.md B1) its questions come first, so all of it waits while the
   // plan is read and stays away while it asks.
   if (hidden) return null;

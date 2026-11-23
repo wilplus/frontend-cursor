@@ -14,6 +14,12 @@ let snapshot: Snapshot = { projects: null, status: "loading" };
 let pending: Promise<TrainingArc[] | null> | null = null;
 const listeners = new Set<() => void>();
 
+export function subscribeToProjectTrainings(receive: (projects: TrainingArc[]) => void): () => void {
+  const listen = () => { if (snapshot.status === "ready" && snapshot.projects) receive(snapshot.projects); };
+  listeners.add(listen);
+  return () => { listeners.delete(listen); };
+}
+
 function publish(next: Snapshot): void {
   snapshot = next;
   listeners.forEach((listen) => listen());

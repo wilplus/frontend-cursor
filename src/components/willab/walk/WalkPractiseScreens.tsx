@@ -6,7 +6,7 @@ import WalkLoading from "./WalkLoading";
 import type { WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
-import WalkFooter from "./WalkFooter";
+import WalkFooter, { WalkMic } from "./WalkFooter";
 import RecordingBar from "../RecordingBar";
 import { maxTries, type WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment, ReplayTries } from "@/lib/willab/feedbackWalkModel";
@@ -153,17 +153,7 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
   return served ?? (moment.highest ? null : WALK_COPY.lineA);
 }
 
-/** The recorder's footer: the one recording bar (founder 2026-10-31, backend
- *  N314, locked), the trash on the left, then the Take's strip with the red
- *  Stop inside it, nothing under it: the trash is the way out (founder
- *  2026-11-03, "for that we have the trash button on the left"; the locked
- *  prototype's `record()`). Stop shows once the mic is live, as in the
- *  tempo step (N350 item 5): while the mic opens, the trash and the strip
- *  alone. Stop sends the try; the trash throws it away, nothing uploaded
- *  and no try counted, back to the step that opened the practise, as ✕
- *  does. Was: Skip under it as the walk's grey link; before that the strip,
- *  then Skip in the Back style beside a red Stop in the Finish-take style
- *  (N70); Stop from the moment the practise opened. */
+/** Stop keeps the exercise attempt. Discard returns without counting it. */
 function RecorderFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   // The One thing walk's fix: its trash is the Skip (backend N435 item 3),
   // the try thrown away, the walk's "Okay, we'll skip this one." (N405),
@@ -325,19 +315,16 @@ function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
       ctx.skip();
     };
     return (
-      <WalkFooter
-        dot
-        pill={{ label: ONE_THING_COPY.tryIt, onClick: ctx.again, testId: "walk-again" }}
-        links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
+      <WalkMic
+        action={{ label: ONE_THING_COPY.tryIt, onClick: ctx.again, testId: "walk-again" }}
+        secondary={{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }}
       />
     );
   }
   return (
-    <WalkFooter
-      dot
-      outline
-      pill={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }}
-      second={step.kind === "unheard" ? { label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" } : null}
+    <WalkMic
+      action={{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }}
+      secondary={step.kind === "unheard" ? { label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" } : undefined}
     />
   );
 }

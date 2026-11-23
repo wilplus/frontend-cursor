@@ -188,7 +188,7 @@ describe("the One thing walk (N309)", () => {
     expect(live()!.querySelector("[data-walk-one]")!.textContent).toBe(ONE_THING_COPY.one);
     expect(now()!.textContent).toContain(ONE_THING_COPY.sayStraight);
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(CLEARER);
-    expect(testId("walk-forward")!.textContent).toContain(ONE_THING_COPY.tryIt);
+    expect(testId("walk-forward")!.getAttribute("aria-label")).toContain(ONE_THING_COPY.tryIt);
     expect(testId("walk-keep")!.textContent).toBe(ONE_THING_COPY.keepMine);
     // No picker, no second moment, no summary, no "Record Take N" anywhere.
     const keys = props.model.plan.map((s) => s.key);
@@ -462,7 +462,7 @@ describe("the One thing walk (N309)", () => {
     // One try that misses, then Skip: no Next to press, the walk goes on.
     click(testId("walk-tempo-ready"));
     await settle();
-    click(live()!.querySelector("[data-walk-dock] [data-walk-recording-strip] button"));
+    click(live()!.querySelector("[data-walk-dock] [data-chat-mic][data-recording]"));
     expect(text()).toContain(TEMPO_COPY.tryLabel(1));
     // The line and the scale stay in their one bubble, in its first place,
     // above the try (the prototype's scale() and record()).
@@ -489,7 +489,7 @@ describe("the One thing walk (N309)", () => {
     draw({ seq: 1, at: model.plan.findIndex((s) => s.key === "tempo") }, { model, tempo: TEMPO_STAND_IN, onTempo: left });
     click(testId("walk-tempo-ready"));
     await settle();
-    click(live()!.querySelector("[data-walk-dock] [data-walk-recording-strip] button"));
+    click(live()!.querySelector("[data-walk-dock] [data-chat-mic][data-recording]"));
     click(live()!.querySelector("button[aria-label='Close']"));
     const games = left.mock.calls.map(([event]) => event).filter((event) => event.kind === "ended");
     expect(games).toEqual([expect.objectContaining({ tries: [expect.anything()], skipped: true, left: true })]);
@@ -602,7 +602,7 @@ describe("the One thing walk (N309)", () => {
       expect(shown(scale)).toBe(true);
       click(testId("walk-tempo-ready"));
       await act(async () => {});
-      click(live()!.querySelector("[data-walk-dock] [data-walk-recording-strip] button"));
+      click(live()!.querySelector("[data-walk-dock] [data-chat-mic][data-recording]"));
       const tried = () => [...now()!.querySelectorAll("[data-walk-said]")].find((n) => n.textContent?.includes(TEMPO_COPY.tryLabel(1)));
       const line = () => [...now()!.querySelectorAll("[data-walk-message]")].find((n) => n.textContent === ONE_THING_COPY.onceMore);
       expect(shown(tried())).toBe(false);
@@ -661,7 +661,7 @@ describe("the One thing walk (N309)", () => {
       // Then the rest, one by one, and the buttons once all have landed.
       wait(2000);
       expect(shown("[data-walk-like]")).toBe(true);
-      expect(testId("walk-practise")!.textContent).toContain(ONE_THING_COPY.tryIt);
+      expect(testId("walk-practise")!.getAttribute("aria-label")).toContain(ONE_THING_COPY.tryIt);
       // Skip: the walk's answer lands behind the dots, then the helper words.
       click(testId("walk-skip"));
       expect(shown("[data-walk-skip-reply]")).toBe(false);
@@ -732,7 +732,7 @@ describe("the One thing walk (N309)", () => {
     await settle();
     // No answer came back: the fix's own buttons, not the outlined Practise again.
     const again = testId("walk-again")!;
-    expect(again.textContent).toBe(ONE_THING_COPY.tryIt);
+    expect(again.getAttribute("aria-label")).toBe(ONE_THING_COPY.tryIt);
     expect(again.hasAttribute("data-walk-pill-outline")).toBe(false);
     expect(testId("walk-skip")!.textContent).toBe(WALK_COPY.skip);
     click(testId("walk-skip"));

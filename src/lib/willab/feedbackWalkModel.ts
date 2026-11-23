@@ -484,7 +484,11 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
  *  open ones). A step the plan has is opened on itself; anything else opens
  *  on the moment's action step (what it asks or asked, its praise just
  *  above). Null when this walk has no step for it. */
-export type WalkStepTarget = { step?: string | null; moment?: number | null; take?: string | null; part?: string | null };
+export type WalkStepTarget = {
+  step?: string | null; moment?: number | null; take?: string | null; part?: string | null;
+  practise?: boolean;
+  snippet?: string | null;
+};
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;
   const byPart = (s: WalkStep) => s.moment != null && model.moments[s.moment]?.partId === target.part;

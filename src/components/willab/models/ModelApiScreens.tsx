@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import ChatComposer from "../chats/ChatComposer";
 import WalkOverlay from "../walk/WalkOverlay";
 import WalkFooter from "../walk/WalkFooter";
 import WalkMessage from "../walk/WalkMessage";
@@ -109,45 +109,27 @@ function Bubble({ said }: { said: Said }) {
 export function ModelTryScreen({ modelId, name, onBack, onClose }: Nav & { modelId: string; name: string }) {
   const [said, setSaid] = useState<Said[]>([]);
   const [sub, setSub] = useState<string | null>(null);
-  const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
-  const send = async () => {
-    const message = typed.trim();
-    if (!message || busy) return;
+  const send = async (text: string) => {
+    const message = text.trim();
+    if (!message || busy) return false;
     setBusy(true);
-    setTyped("");
-    setSaid((was) => [...was, { mine: true, text: message }]);
-    const reply: TryReply | null = await tryModel(modelId, message);
-    if (reply) {
+    const entry = { mine: true, text: message };
+    setSaid((was) => [...was, entry]);
+    let kept = false;
+    try {
+      const reply: TryReply | null = await tryModel(modelId, message);
+      if (!reply) return false;
+      kept = true;
       setSub(reply.sub);
       setSaid((was) => [...was, { mine: false, text: reply.text, mark: reply.sure ? undefined : reply.mark }]);
-    } else {
-      setTyped(message);
-      setSaid((was) => was.slice(0, -1));
+      return true;
+    } finally {
+      if (!kept) setSaid((was) => was.filter((item) => item !== entry));
+      setBusy(false);
     }
-    setBusy(false);
   };
-  const composer = (
-    <form
-      data-try-composer
-      className="flex items-end gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <textarea
-        aria-label={name}
-        rows={1}
-        value={typed}
-        onChange={(e) => setTyped(e.target.value)}
-        className="min-h-[44px] flex-1 resize-none rounded-[22px] border border-border bg-background px-4 py-2.5 text-[16px] leading-snug outline-none focus:border-primary"
-      />
-      <button type="submit" aria-label="Send" disabled={busy || !typed.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30">
-        <Send className="h-5 w-5" aria-hidden />
-      </button>
-    </form>
-  );
+  const composer = <ChatComposer inputLabel={name} busy={busy} onSend={send} formAttrs={{ "data-try-composer": "" }} />;
   return (
     <WalkOverlay onBack={onBack} backLabel={name} title={name} subtitle={sub} onClose={onClose} footer={composer} landing={false} testId="model-api-try">
       {said.map((s, i) => (

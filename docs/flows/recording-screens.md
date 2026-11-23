@@ -91,21 +91,19 @@ for the screens below.
      are drawn as one idea in the middle of the dark slide: the label in
      small spaced capitals, quiet; the question large and heavy, centered a
      little above the middle; the hint quiet under it; no orange line. It
-     fills the slide's space down to the strip, a mark for each slide under
+     fills the slide's space down to the controls, a mark for each slide under
      it, when the Take has no helper words; with helper words it keeps the
      16:9 box, so they keep their place. An uploaded deck is drawn as
      itself. Was: the question at the bottom with the orange line (N449),
      the default deck on its colour artwork, an answer's small line.
-   - The strip at the bottom: the recording dot, the clock, the bar. No
-     line above the strip, and no Finish take in it (2026-10-12, N70).
-   - Under the strip, two buttons side by side, equal width, in the coach
-     panel's pair style (48px tall, 16px corners, 15px semibold): **Back**
-     (white, thin border; greyed on the first slide) and **Next slide**
-     (black). On the last slide **Next slide** becomes **Finish take**,
-     red, with the stop square. Finish take is reached only from the last
-     slide; closing asks **Discard this take?** (founder, 2026-10-12: "that's
-     what i want"). With one slide there is no Back: Finish take alone fills
-     the row (backend N441 item 6).
+   - Capture uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667).
+     The middle shows the clock and target progress, with discard alongside.
+     The right-hand mic slot shows Finish take. The clock retains its
+     count-up or target countdown with red overrun.
+   - **Back** and **Next slide** sit above the composer. Back is held on
+     the first slide, and Next slide drops away on the last. Finish take
+     enables on the last slide. With a single slide only the composer is
+     needed. Discard opens the same confirmation as Close.
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
 5. **Finish take:** the processing wait, one stable full-page shell with one
@@ -162,12 +160,12 @@ was not practical").
   reverse. Out in 200ms, in from the other side in 420ms on
   `cubic-bezier(.16,1,.3,1)`. Instant with reduce motion.
 - **Only the slide and its helper words move.** The top bar, the "Take ·
-  Slide" line, the strip and the two buttons stay exactly where they are
+  Slide" line, the composer and slide controls stay in their own positions
   and are never rebuilt during a move.
 - **Keyboard, no click first:** ← and → change the slide, exactly like
   Back and Next slide (N70.1); ↓, Page Down, Space forward and ↑, Page Up
   back, after scrolling long helper words. **Keys never end a Take**: on
-  the last slide → and Space only give a small bounce; only the red Finish
+  the last slide → and Space only give a small bounce; only the composer's Finish
   take ends it (founder, 2026-10-12). A focused button keeps its own Space
   and Enter; a text field keeps every key; nothing is taken while
   **Discard this take?** is open. Keys prototype:
@@ -238,7 +236,7 @@ green); the app shows the speaker's own slides, unchanged.
   recording. "How do you feel?" before a later Take opens with no fade, at
   once on the tap (N549).
 - **2026-10-12 · buttons replace the scrolling (N70).** Back and Next slide
-  under the strip; Next slide becomes a red Finish take on the last slide;
+  under the former recording strip; the layout was superseded by N667;
   no slide dots; slides move sideways; the learning screen is deleted.
   Prototype <https://claude.ai/artifact/4zD6Tjw4MWjooqWq6z4FAL> (version 4),
   copy in `docs/design/recording-screens-2026-10-12.html`.
@@ -322,7 +320,7 @@ green); the app shows the speaker's own slides, unchanged.
   the recording screens show the Take's slides, in order, drawn by their
   titles as the poster (N462) with no "{name} asks" over them and no helper
   words (the sender's come from their Ideal Text, N479 item 8); Back and
-  Next slide move through them as on any Take, Finish take on the last. The
+  Next slide move through them as on any Take. Finish take is on the last. The
   top line is **{name} · Slide n of m** in the usual small grey (was the
   name alone, N441 item 7). The clock counts up, no cap (N486 item 4). An
   answer to a customer's question keeps its one slide, **{name} asks** over
@@ -609,6 +607,7 @@ unknown server text.
 ## 6. Changes
 
 - 2026-11-23 · continuation-scope repair · the real recorder retains and enforces the selected fragment through Finish/retry, and whole-presentation rehearsal is uncapped. Added user-story checks at the recording UI and mic/upload boundary; §1 documents the one scope contract and original-page provenance.
+- 2026-11-23 · N667 · Manual and native Take capture and recovery use the shared composer. Last-slide completion, slide timestamps and the discard confirmation still govern the official Take.
 
 One line each, newest first: `date · N · what changed · PR`.
 

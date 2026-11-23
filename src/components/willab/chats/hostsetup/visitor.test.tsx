@@ -83,11 +83,11 @@ async function open(messages: unknown[], send = ["text"]) {
 }
 const thread = () => container.querySelector("[data-chat-thread]")?.textContent ?? "";
 const bar = () => container.querySelector("[data-chat-bar]")!;
-const box = () => bar().querySelector<HTMLInputElement>("[data-chat-box] input");
+const box = () => bar().querySelector<HTMLTextAreaElement>("[data-chat-input]");
 async function say(words: string) {
   const input = box()!;
   await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, words);
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, words);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await act(async () => input.form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
@@ -159,7 +159,7 @@ describe("what a visitor meets (VIS-)", () => {
     expect(container.querySelector("[data-chat-send]")).toBeNull();
     const input = box()!;
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Hello there");
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "Hello there");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     const send = container.querySelector<HTMLButtonElement>("[data-chat-send]");
@@ -176,8 +176,8 @@ describe("what a visitor meets (VIS-)", () => {
     routes["GET /api/v2/chats/c-9/host"] = () => json({ host: null });
     await act(async () => root.render(createElement(ChatThread, { chat, onBack: () => undefined })));
     await flush();
-    // The bar is as it was: "Ask {name}", no box and no Send.
-    expect(container.querySelector("[data-chat-ask]")).not.toBeNull();
+    expect(box()?.disabled).toBe(true);
+    expect(container.querySelector("[data-chat-mic]")).not.toBeNull();
     expect(container.querySelector("[data-chat-send]")).toBeNull();
   });
 
@@ -187,7 +187,7 @@ describe("what a visitor meets (VIS-)", () => {
     await open([row("m-0", "Hi", null, true)], ["text"]);
     const input = box()!;
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Hello");
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "Hello");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(container.querySelector("[data-chat-send]")?.getAttribute("aria-label")).toBe("Send");
@@ -199,7 +199,7 @@ describe("what a visitor meets (VIS-)", () => {
     act(() => root.unmount());
     root = createRoot(container);
     await open([], ["rec"]);
-    expect(box()).toBeNull();
+    expect(box()?.disabled).toBe(true);
   });
 
   it("VIS-03 what comes back says who it is from", async () => {

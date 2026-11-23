@@ -6,7 +6,7 @@ OUTCOME  The door waits for auth, preserves the people-chat read, and then
          paints Speaking coach, active projects and Start a new project.
 PROVES   No general Will destination or floating add button is part of home.
 */
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, useEffect, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -19,19 +19,24 @@ const state = vi.hoisted(() => ({
   legacyRead: vi.fn(),
 }));
 vi.mock("../useSignedIn", () => ({ useSignedIn: () => session.signedIn }));
+vi.mock("../useUserId", () => ({ useUserId: () => session.signedIn ? "signed-in-owner" : null }));
+vi.mock("@/services/api/chatStructure", () => ({
+  fetchChatStructure: async () => ({ coach: "active", builder: "active", subchats: [] }),
+  changeChatStructure: vi.fn(),
+}));
 vi.mock("../LoungeThreadContext", () => ({ useLoungeThreadMaybe: () => state.thread }));
 vi.mock("./useChats", () => ({
   useChatsDecided: () => session.signedIn,
   useChatList: (on: boolean) => {
-    if (on) state.legacyRead();
+    useEffect(() => { if (on) state.legacyRead(); }, [on]);
     return { chats: [], reload: vi.fn() };
   },
   useForgetChatsSignedOut: vi.fn(),
 }));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: state.fetchTrainings }));
 vi.mock("@/components/willab/chats/ChatList", () => ({
-  ChatListRow: ({ id, title, circle, onOpen }: { id: string; title: string; circle: ReactNode; onOpen: () => void }) =>
-    createElement("button", { type: "button", "data-chat-row": id, onClick: onOpen }, circle, title),
+  ChatListRow: ({ id, title, circle, actions, onOpen }: { id: string; title: string; circle: ReactNode; actions: ReactNode; onOpen: () => void }) =>
+    createElement("div", null, createElement("button", { type: "button", "data-chat-row": id, onClick: onOpen }, circle, title), actions),
   WillMark: () => createElement("span", { "data-will-mark": "" }),
   PersonCircle: ({ name }: { name: string }) => createElement("span", { "data-person-circle": "" }, name.slice(0, 1)),
 }));
@@ -127,5 +132,18 @@ describe("the speaking-coach door", () => {
     expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(false);
     expect(state.fetchTrainings).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("Board pitch");
+  });
+
+  it("opens Speaking coach with its title and toggles projects with its arrow", async () => {
+    act(() => root.render(createElement(Surface, { onOpenProject: vi.fn(), onStartNewProject: vi.fn() })));
+    await flush();
+    const row = host.querySelector('[data-home-row="speaking-coach"]')!;
+    const chevron = row.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+    const group = document.getElementById(chevron.getAttribute("aria-controls")!)!;
+    await act(async () => chevron.click());
+    expect(group.hidden).toBe(true);
+    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(false);
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-chat-row]")!.click());
+    expect(host.querySelector("[data-chats-front]")?.classList.contains("hidden")).toBe(true);
   });
 });

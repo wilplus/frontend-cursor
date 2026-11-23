@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
-import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
+import { useEffect, useRef, useState, type ComponentProps, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import ChatComposer from "../ChatComposer";
 import { cn } from "@/lib/utils";
 import { answerHelp, type HelpStep } from "./help";
 
@@ -10,6 +10,7 @@ type FrameProps = ComponentPropsWithoutRef<"div"> & {
   help?: HelpStep;
   kicker?: string;
   foot?: ReactNode;
+  composer?: ComponentProps<typeof ChatComposer>;
 };
 
 /** A new step opens at the top with its own question thread. */
@@ -17,7 +18,7 @@ export function Frame({ screen, help = screen, ...props }: FrameProps) {
   return <Conversation key={`${screen}/${help}`} screen={screen} help={help} {...props} />;
 }
 
-function Conversation({ screen, help = screen, kicker, title, children, foot, ...attributes }: FrameProps) {
+function Conversation({ screen, help = screen, kicker, title, children, foot, composer, ...attributes }: FrameProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const [turns, setTurns] = useState<{ question: string; answer: string; topic: number }[]>([]);
 
@@ -58,9 +59,12 @@ function Conversation({ screen, help = screen, kicker, title, children, foot, ..
         </div>
       </div>
       {foot ? <div className="shrink-0 px-4 pt-2">{foot}</div> : null}
-      <ChatBarRow data-experiment-composer="">
-        <BarBox hint="Ask a question" onSend={ask} />
-      </ChatBarRow>
+      <ChatComposer
+        placeholder="Ask a question"
+        onSend={ask}
+        {...composer}
+        formAttrs={{ "data-experiment-composer": "" }}
+      />
     </div>
   );
 }
@@ -87,18 +91,20 @@ export function choiceBubble(selected: boolean) {
   );
 }
 
-export function ActionPair({ name, no, yes, onNo, onYes }: {
+export function ActionPair({ name, no, yes, onNo, onYes, disabled }: {
   name: string;
   no: string;
   yes: string;
   onNo: () => void;
   onYes: () => void;
+  disabled?: boolean;
 }) {
   const one = (label: string, go: boolean, onClick: () => void) => (
     <button
       type="button"
       data-choice={go ? "yes" : "no"}
       onClick={onClick}
+      disabled={disabled}
       className={choiceBubble(go)}
     >
       {label}

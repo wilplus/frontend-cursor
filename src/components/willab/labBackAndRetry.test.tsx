@@ -161,7 +161,8 @@ async function openLaterTake() {
 const recording = () => host.querySelector('[data-testid="recording-where"]') !== null;
 const asking = () => (document.body.textContent ?? "").includes("Discard this take?");
 const button = (label: string) =>
-  Array.from(document.body.querySelectorAll("button")).find((b) => (b.textContent ?? "").trim() === label);
+  Array.from(document.body.querySelectorAll("button")).find((b) =>
+    (b.textContent ?? "").trim() === label || b.getAttribute("aria-label") === label);
 
 /** The phone's Back: the iPhone's edge swipe, Android's Back. */
 async function back() {

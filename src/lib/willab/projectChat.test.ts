@@ -92,6 +92,17 @@ describe("project / Speaking Coach boundary", () => {
     }))).toBe(true);
   });
 
+  it("keeps typed and review follow-ups out of the general coach view", () => {
+    const question = { arc_id: "arc-a", take_session_id: "take-a", typed_project_turn: true, will_question_step: "answer" };
+    expect(projectMessageStaysInLounge(row("unanchored", "user", { ...question, reply_to: "" }))).toBe(false);
+    expect(projectMessageStaysInLounge(row("anchored", "user", {
+      ...question,
+      reply_to: "after-take",
+      review_focus: { step: "ideal", slide_index: 0 },
+    }))).toBe(false);
+    expect(projectMessageStaysInLounge(row("prompt-answer", "user", { ...question, reply_to: "after-take" }))).toBe(true);
+  });
+
   it("hides a held closing and releases it after the exchange it closes", () => {
     const summary = row("1", "bot", { arc_id: "arc-a", take_session_id: "take-a", summary: true });
     const held = row("2", "bot", { arc_id: "arc-a", take_session_id: "take-a", next_take: true, held_for: "will_question" });

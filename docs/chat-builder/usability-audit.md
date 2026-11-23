@@ -1,5 +1,7 @@
 # Usability, for a 12-year-old
 
+> Historical layout audit. The [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667) defines the current bottom bar.
+
 > **Label: Reference.** Build, then the chat it produces. Tap and go. Two choices.
 
 ## First pass
