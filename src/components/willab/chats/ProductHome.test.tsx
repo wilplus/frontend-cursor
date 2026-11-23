@@ -222,6 +222,38 @@ describe("Speaking coach home", () => {
     expect(host.textContent).not.toContain("Board pitch");
   });
 
+  it("keeps rename pending in the row and shows success before closing it", async () => {
+    let resolveRename: (name: string | null) => void = () => undefined;
+    api.renameProject.mockReturnValue(new Promise<string | null>((resolve) => { resolveRename = resolve; }));
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Edit")?.click());
+    const input = host.querySelector<HTMLInputElement>("[data-project-name-input]");
+    expect(input).not.toBeNull();
+    await act(async () => button("Edit")?.click());
+    expect(input?.disabled).toBe(true);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Loading");
+
+    await act(async () => resolveRename("Customer keynote"));
+    await flush();
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Saved");
+    expect(host.textContent).toContain("Customer keynote");
+  });
+
+  it("keeps the inline editor and shows the server error", async () => {
+    api.renameProject.mockResolvedValue(null);
+    await renderHome([arc("a", "Board pitch")]);
+
+    await act(async () => button("More options for Board pitch")?.click());
+    await act(async () => button("Edit")?.click());
+    await act(async () => button("Edit")?.click());
+    await flush();
+
+    expect(host.querySelector("[data-project-edit-row]")).not.toBeNull();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Couldn't edit. Try again.");
+  });
+
   it("keeps the project row and announces an archive failure", async () => {
     api.archiveProject.mockResolvedValue(false);
     await renderHome([arc("a", "Board pitch")]);
