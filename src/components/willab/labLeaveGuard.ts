@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { noteSwipeBack } from "@/lib/phone/swipeBack";
 import type { DualCaptureState } from "@/hooks/useDualCaptureMic";
 import type { LabUploadResult } from "@/services/api/labRecording";
 import type { WillabState } from "./useWillabFlow";
@@ -51,6 +52,7 @@ export function whenNoTakeAtRisk(go: () => void): void {
 
 function guardOff(): void {
   guardsOn = Math.max(0, guardsOn - 1);
+  noteSwipeBack({ takeAtRisk: guardsOn > 0 });
   if (guardsOn > 0 || !waiting) return;
   // After this commit, not inside it: the discard or the server's answer
   // finishes its own work first (the Take's copy on the device is settled),
@@ -76,6 +78,7 @@ export function useLeaveGuard(active: boolean): void {
     };
     window.addEventListener("beforeunload", ask);
     guardsOn += 1;
+    noteSwipeBack({ takeAtRisk: true });
     return () => {
       window.removeEventListener("beforeunload", ask);
       guardOff();
