@@ -20,7 +20,10 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
          O9  Feedback opens on the Take's published strength. I can type
              my reaction without a separate action, then open the selected
              practice from the reply and reach the same Take's Ideal Text.
-PROVES   O1 -> "puts the result before the project conversation"
+         O10 The sayable line and its controls are visible in chat. Saving
+             keeps one copy in this project and it can be opened again.
+PROVES   O10 -> "saves the proposed wording and shows it when the project reopens"
+         O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "keeps the fragment decision when Ideal Text opens from the card"
@@ -50,6 +53,11 @@ const state = vi.hoisted(() => ({
   appendLocalOnly: vi.fn(),
   chatQuery: vi.fn(),
   willQuestion: vi.fn(),
+}));
+const wordingApi = vi.hoisted(() => ({ save: vi.fn() }));
+vi.mock("@/services/api/coachWording", async (load) => ({
+  ...await load<typeof import("@/services/api/coachWording")>(),
+  saveCoachWording: wordingApi.save,
 }));
 const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
 const reviewApi = vi.hoisted(() => ({
@@ -371,6 +379,45 @@ describe("project conversation", () => {
     expect(review.textContent).toContain("Land the final word");
     await clickText(review, "Try it");
     expect(review.querySelector('[data-testid="result"]')?.getAttribute("data-review-snippet")).toBe("fix");
+  });
+
+  it("saves the proposed wording and shows it when the project reopens", async () => {
+    const words = "Jeśli dostaniemy zgodę, kto z was chciałby poprowadzić pilotaż?";
+    const wording = { words, arc_id: "arc-a", take_session_id: "take-a" };
+    state.messages = [
+      message("proposal", "Zakończ jednym pytaniem.", "bot", { coach_wording: wording }),
+      message("elsewhere", "Other project.", "bot", {
+        coach_wording: { ...wording, words: "A different project's wording.", arc_id: "arc-b" },
+      }),
+    ];
+    wordingApi.save.mockImplementationOnce(async () => {
+      state.messages = [...state.messages, {
+        ...message("saved-proposal", words, "bot", {
+          coach_wording: wording, coach_wording_saved: true, wording_reply_id: "proposal",
+        }),
+        role: "system",
+      }];
+      return true;
+    });
+
+    render();
+    await flush();
+    const offer = host.querySelector("[data-coach-wording]")!;
+    expect(offer.textContent).toContain(words);
+    expect(offer.textContent).toContain("Practise");
+    expect(host.textContent).not.toContain("A different project's wording.");
+    await clickText(offer, "Save wording");
+    expect(wordingApi.save).toHaveBeenCalledWith("arc-a", "proposal");
+    expect(offer.textContent).toContain("Saved wording");
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    await flush();
+    const saved = [...host.querySelectorAll("[data-coach-wording]")].find((node) => node.textContent?.includes("Saved wording"));
+    expect(saved?.textContent).toContain(words);
+    expect(host.querySelectorAll("[data-coach-wording]")).toHaveLength(1);
+    expect(host.querySelector("[data-coach-wording]")?.textContent).not.toContain("Save wording");
   });
 
   it("reopens the selected Take and retries an anchored review question once after reload", async () => {

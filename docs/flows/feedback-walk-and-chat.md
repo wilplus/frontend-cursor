@@ -99,6 +99,12 @@ In the inline Walk, the speaker's messages and recordings use the project conver
 
 When a Speaking Coach or project chat reply points to an exact recording moment, it can play that fragment beside the reply (N672). Automatic transcript footers are hidden. If the current Picker serves practice for the same moment, the reply presents its instruction and available demonstration. Practise opens only that activity in the conversation and uses the shared microphone. Reopening the chat resolves the recording against current project access and recording permissions.
 
+#### Speakable wording in coaching replies
+
+When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. The line is visible in the chat with **Practise** and **Save wording** when it has a project. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take as a project-chat entry. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
+
+When asked about the last two recordings, Speaking Coach compares those authorised Takes and attaches the example to the Take it is meant for. If the recording clip is unavailable, the coach can demonstrate with the supported words and a delivery direction. A project-free example can still be tried in the chat.
+
 #### Shared chat artifacts (N673)
 
 A Take review or a reply with structured content uses one small, clickable preview. Open it in the thread to see the available parts in order. The **moment** can be a quote or the original clip. The **intervention** can be a rewrite, an instruction, an AI audio or coach video example, or the Sniper pace practice. The **output** can be saved wording, a recorded attempt, a pace trace, or the Take's Ideal Text. Only available parts appear. Ordinary replies use the usual message bubble.

@@ -503,6 +503,10 @@ Every prototype link in §1, in the order it first appears:
 - <https://claude.ai/artifact/6AVcGS1ksx86KzvUPyKEes>
 - <https://claude.ai/artifact/6L2C5Uj7AiJbRaES4cxzb1>
 
+### Saved wording from Speaking Coach
+
+A later Take in an owned project can open its latest saved coach wording above the recording composer. The line and its delivery direction can be read while recording. They are a separate cue from the locked helper words and the transcript. The recording can start while the saved wording loads.
+
 ### Recording UI copy inventory (Polish)
 
 The app/system locale selects these fixed interface words. Transcript,

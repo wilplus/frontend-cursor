@@ -565,7 +565,10 @@ O8  After my first full Take, both rehearsal choices stay available;
 an unavailable fragment span falls back to the whole presentation.
 O9  Feedback opens on the Take's published strength. I can type
 my reaction without a separate action, then open the selected
-practice from the reply and reach the same Take's Ideal Text.","O1 -> ""puts the result before the project conversation""
+practice from the reply and reach the same Take's Ideal Text.
+O10 The sayable line and its controls are visible in chat. Saving
+keeps one copy in this project and it can be opened again.","O10 -> ""saves the proposed wording and shows it when the project reopens""
+O1 -> ""puts the result before the project conversation""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""keeps the fragment decision when Ideal Text opens from the card""

@@ -60,6 +60,7 @@ import { useUpdateSlides } from "./UpdateSlides";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
 import CoachMoment from "./CoachMoment";
+import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
 type Opened = "walk" | "ideal" | "decision" | null;
@@ -597,6 +598,7 @@ export default function ProjectChat({
     ),
     [outbox.messages, thread.messages, activeProject.arcId],
   );
+  const linkedWording = linkedSavedWordings(messages);
   const visibleMessages = messages.filter(
     (message) => !["walk_step", "ideal_text", "recording_summary", "feedback", "transcript_ready"].includes(message.kind),
   );
@@ -864,7 +866,10 @@ export default function ProjectChat({
           ) : null}
 
           {visibleMessages.map((message) => (
-            message.client_id === activeQuestion?.client_id ? (
+            message.role === "system" && message.metadata?.coach_wording_saved === true ? (
+              linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
+                <CoachWordingCard key={message.client_id} message={message} project={activeProject.arcId} recordingDock={recordingDock} />
+            ) : message.client_id === activeQuestion?.client_id ? (
               <div key={message.client_id} data-project-message={message.client_id} className="contents">
                 <WillQuestionBubble
                   body={message.body}
@@ -890,6 +895,9 @@ export default function ProjectChat({
                 {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
                   artifact={message.metadata?.chat_artifact}
                   project={activeProject.arcId} recordingDock={recordingDock} />}
+                {message.role === "bot" && <CoachWordingCard message={message}
+                  project={activeProject.arcId} recordingDock={recordingDock}
+                  savedReply={linkedWording.has(message.client_id)} onSaved={() => { void thread.reload(); }} />}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />
