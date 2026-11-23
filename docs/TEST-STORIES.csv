@@ -394,10 +394,14 @@ O2 -> ""records exactly one exposure when visible, however often visibility fire
 src/components/willab/CoachMoment.test.tsx,Story,"As a speaker, I want the coach to play the fragment it cites and present the exercise for that moment in my chat.","O1  An authorized clip plays beside the served exercise and opens practice in place.
 O2  An exercise for another moment stays out of the reply.
 O3  An unavailable clip stays out of the reply.
-O4  Older automatic transcript footers disappear while normal text stays.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
+O4  Older automatic transcript footers disappear while normal text stays.
+O5  A compact reply reopens only the practice saved for its own moment.
+O6  The rewrite becomes an output only after the speaker's choice is saved.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
 O2 -> ""keeps the clip when the served intervention is for another moment""
 O3 -> ""omits an unauthorized fragment and never looks up its practice""
-O4 -> ""drops the automatic transcript footer while keeping ordinary chat text""",
+O4 -> ""drops the automatic transcript footer while keeping ordinary chat text""
+O5 -> ""reopens the saved attempt for the cited moment""
+O6 -> ""saves an explicit wording choice before showing it as output""",
 src/components/willab/ConsentAsk.test.tsx,Story,"As a speaker asked for consent in the chat, I want Yes to save it as the Data & consent page does and No to save nothing, so that my answer means what I chose.","O1  The card shows the question's own words and Read more.
 O2  Yes saves the consent and closes the ask.
 O3  No saves nothing and closes the ask.","O1 -> ""shows the question's own words with Read more""
@@ -938,10 +942,12 @@ turns the setup action into Edit your chat.
 O3  The share control copies /c/<id>, or the host's join path when
 one already exists, and says Link copied.
 O4  The circle starts as the initial, can be an emoji, and wears the
-three-dots badge at about 40% of the avatar.","O1 -> ""the starter row sits in sidebar setup, and Close changes nothing""
+three-dots badge at about 40% of the avatar.
+O5  A new specialist chat can reopen its saved structured reply in place.","O1 -> ""the starter row sits in sidebar setup, and Close changes nothing""
 O2 -> ""Yes pins the chat and gives it a direct setup shortcut""
 O3 -> ""Share copies the public link""
-O4 -> ""the icon defaults to the initial and the badge is forty percent""",
+O4 -> ""the icon defaults to the initial and the badge is forty percent""
+O5 -> ""a specialist reply keeps its artifact through a legacy save and reload""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.

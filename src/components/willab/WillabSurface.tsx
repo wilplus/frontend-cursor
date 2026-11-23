@@ -70,6 +70,13 @@ export function cancelsPendingProjectRecording(state: WillabState | null): boole
 const LabOverlay = dynamic(() => import("./LabOverlay"), { ssr: false });
 const ProjectPicker = dynamic(() => import("./ProjectPicker"), { ssr: false });
 
+function holdActiveChatCapture(): boolean {
+  const capture = document.querySelector("[data-chat-main] [data-chat-capture]");
+  if (!capture) return false;
+  capture.querySelector<HTMLButtonElement>("[data-chat-mic]")?.focus();
+  return true;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
 /*                                                                            */
@@ -296,7 +303,10 @@ export default function WillabSurface({
     setRecordingInProgress(false);
     setPickedProject(arc);
   };
-  const navigate = (action: () => void) => (projectExit.current ?? ((next) => next()))(action);
+  const navigate = (action: () => void) => {
+    if (holdActiveChatCapture()) return;
+    (projectExit.current ?? ((next) => next()))(action);
+  };
   const startNewProject = () => {
     clearExploreArc(userId);
     beginSetupDraft(userId);

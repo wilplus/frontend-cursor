@@ -6,7 +6,7 @@ import { TempoTryBubble } from "./walk/WalkTempo";
 import WalkPlayer from "./walk/WalkPlayer";
 import { PROJECT_SPEAKER_BUBBLE } from "./walk/InlineWalkHost";
 
-function isAttempt(message: LoungeMessage): boolean {
+export function isSavedPracticeAttempt(message: LoungeMessage): boolean {
   const step = message.metadata?.step;
   return message.kind === "walk_step" && message.role === "user" &&
     typeof step === "string" && (step === "tempo:try" || step.startsWith("try:"));
@@ -20,26 +20,40 @@ export default function TakeReviewPracticeHistory({ runs, messages }: {
   runs: readonly ReviewRun[];
   messages: readonly LoungeMessage[];
 }) {
-  const attempts = messages.filter(isAttempt);
+  const attempts = messages.filter(isSavedPracticeAttempt);
   const drawn = new Set(attempts.map((attempt) => attempt.id ?? attempt.client_id));
   const receipts = runs.filter((run) => !drawn.has(run.id));
   if (attempts.length + receipts.length === 0) return null;
-  const rows = messages.filter((message) => isAttempt(message) ||
+  const rows = messages.filter((message) => isSavedPracticeAttempt(message) ||
     (message.kind === "walk_step" && message.role === "bot" && message.body.trim() &&
       REPLIES.has(String(message.metadata?.step))));
-  const count = drawn.size + receipts.length;
-  return <details open className="mt-2 w-full" data-take-practice-history>
-    <summary className="min-h-10 w-fit cursor-pointer py-2 text-[13px] text-muted-foreground">
-      {count} practice {count === 1 ? "run" : "runs"}
-    </summary>
-    <div className="flex flex-col gap-2">
+  const latest = attempts.at(-1);
+  const latestAt = latest ? rows.indexOf(latest) : 0;
+  const earlier = rows.slice(0, latestAt);
+  return <div className="w-full space-y-2" data-take-practice-history>
+    {latest ? <>
+      <p className="text-xs text-muted-foreground">
+        {latest.metadata?.step === "tempo:try" ? "Saved pace trace" : "Your latest try"}
+      </p>
+      <PracticeRows rows={rows.slice(latestAt)} />
+    </> : null}
+    {earlier.length || receipts.length ? <details>
+      <summary className="min-h-10 w-fit cursor-pointer py-2 text-[13px] text-muted-foreground">
+        {latest ? "Earlier attempts" : "Saved practice"}
+      </summary>
+      <PracticeRows rows={earlier} />
       {receipts.map((run) => <p key={run.id} className="ml-auto rounded-2xl bg-accent px-3 py-2 text-sm">
         {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
       </p>)}
-      {rows.map((row) => isAttempt(row) ? <PastAttempt key={row.client_id} row={row} /> :
-        <p key={row.client_id} className="w-fit max-w-[94%] whitespace-pre-wrap rounded-[18px] bg-muted px-4 py-2.5">{row.body}</p>)}
-    </div>
-  </details>;
+    </details> : null}
+  </div>;
+}
+
+function PracticeRows({ rows }: { rows: readonly LoungeMessage[] }) {
+  return <div className="flex flex-col gap-2">
+    {rows.map((row) => isSavedPracticeAttempt(row) ? <PastAttempt key={row.client_id} row={row} /> :
+      <p key={row.client_id} className="w-fit max-w-[94%] whitespace-pre-wrap rounded-[18px] bg-muted px-4 py-2.5">{row.body}</p>)}
+  </div>;
 }
 
 function PastAttempt({ row }: { row: LoungeMessage }) {

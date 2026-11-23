@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { ChevronsUp } from "lucide-react";
 import { fetchArcFeedback, type FeedbackKeyMoment } from "@/services/api/arcFeedback";
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import { fetchIdealTextRevisions, type IdealTextRevision } from "@/services/api/blockVariants";
@@ -23,7 +22,8 @@ import { useBackDismiss } from "./useBackDismiss";
 import { HelpersLabel } from "./TranscriptReviewDeck";
 import WalkPlayer from "./walk/WalkPlayer";
 import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
-import TakeReviewPracticeHistory from "./TakeReviewPracticeHistory";
+import TakeReviewPracticeHistory, { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
+import { ChatArtifactPanel } from "./chats/ChatArtifact";
 import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 
 export type ReviewFocus = NonNullable<NonNullable<ChatQueryArgs["presentationContext"]>["review_focus"]>;
@@ -44,7 +44,6 @@ export const REVIEW_STEPS = [
 
 const BUTTON = "min-h-11 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted";
 const LINK = "min-h-11 text-sm text-muted-foreground hover:underline";
-const BUBBLE = "w-fit max-w-[94%] min-w-0 rounded-[18px] bg-muted px-4 py-2.5";
 
 type ReviewEvidence = {
   moment: FeedbackKeyMoment | null;
@@ -290,22 +289,19 @@ export default function TakeReview({
   const done = () => void exit();
   const retry = () => setRefresh((v) => v + 1);
 
-  return (
-    <article ref={article} tabIndex={-1} data-take-review data-review-step={step} aria-label={"Take " + take.takeIndex + " review"}
-      className="flex min-w-0 flex-col items-start gap-2.5 text-[15px] leading-relaxed">
-      <section data-review-section="feedback" aria-label="Feedback" className={BUBBLE + " space-y-1.5"}>
-        <TakeReviewStatus project={project} take={take} loading={!artifact} failed={failed} onRetry={retry} />
-        {artifact ? <>
-          <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={moment}
-            onEdit={(text) => setDraft({ feedback: text })} onAsk={() => ask(focusFor("feedback", moment))} />
-          <ReviewEditAction editing={draftFeedback} canEdit={copy !== null && !draftIdeal}
-            busy={savingEdit} onEdit={() => startEditing("feedback")} onDone={done} />
-        </> : null}
-      </section>
-
-      <nav aria-label="Take review" className="grid w-full max-w-[320px] grid-cols-3 gap-1.5">
+  const momentSection = <div data-review-section="feedback" aria-label="Feedback" className="space-y-1.5">
+    <TakeReviewStatus project={project} take={take} loading={!artifact} failed={failed} onRetry={retry} />
+    {artifact ? <>
+      <ReviewMoment feedback={feedback} draft={draft?.feedback} moment={moment}
+        onEdit={(text) => setDraft({ feedback: text })} onAsk={() => ask(focusFor("feedback", moment))} />
+      <ReviewEditAction editing={draftFeedback} canEdit={copy !== null && !draftIdeal}
+        busy={savingEdit} onEdit={() => startEditing("feedback")} onDone={done} />
+    </> : null}
+  </div>;
+  const intervention = <>
+      <nav aria-label="Take review" className="flex max-w-[320px] flex-wrap gap-2">
         {REVIEW_STEPS.map(({ step: next, label }) => (
-          <button key={next} type="button" className={BUTTON + " px-1"} disabled={savingEdit} onClick={() => jump(next)}>{label}</button>
+          <button key={next} type="button" className={LINK + " rounded px-2"} disabled={savingEdit} onClick={() => jump(next)}>{label}</button>
         ))}
       </nav>
       {saveMessage ? <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p> : null}
@@ -314,36 +310,60 @@ export default function TakeReview({
         <button type="button" className={LINK} onClick={() => void exit(() => setEngine("walk"))}>Review feedback</button>
       ) : null}
 
-      <section data-review-section="practise" aria-label="Practise" className="w-full">
+      <div data-review-section="practise" aria-label="Practise">
         {artifact ? <PractiseStep evidence={artifact.evidence} unavailable={noPractice} repeated={runs.length > 0}
           trying={engine === "practise"} onTry={() => void exit(() => setEngine("practise"))} onSkip={() => jump("ideal")}
           onAsk={() => ask(focusFor("practise", moment))} /> : null}
-        {engine === "practise" ? engineView : engine === "walk" ? null : <TakeReviewPracticeHistory runs={runs} messages={history} />}
-      </section>
-
-      <section data-review-section="ideal" aria-label="Ideal text"
-        className="w-[94%] max-w-2xl rounded-[18px] border border-border bg-background px-4 py-2.5">
-        <h3 className="font-semibold">Ideal text</h3>
-        <AiGeneratedNote kind="ideal-text" name={project.topic} take={take.takeIndex} />
-        {artifact ? <IdealStep revision={artifact.revision} groups={groups} text={ideal} draft={draft?.ideal_sections}
-          onEdit={(ideal_sections) => setDraft({ ideal_sections })}
-          onAsk={(index) => ask(index === null ? { step: "ideal" } : { step: "ideal", slide_index: index })} /> : null}
-        <div className="flex flex-wrap items-center gap-x-3">
-          <ReviewEditAction editing={draftIdeal} canEdit={ideal.length > 0 && !draftFeedback && Boolean(artifact?.live || copy)}
-            busy={savingEdit} onEdit={() => startEditing("ideal")} onDone={done} />
-          {artifact?.live ? <button type="button" className={LINK}
-            onClick={() => void exit(() => setEngine("document"))}>Open Ideal text</button> : null}
-        </div>
-      </section>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={BUTTON} disabled={savingEdit} onClick={() => void exit(onNextTake)}>Continue recording</button>
-        <button type="button" className={LINK + " inline-flex items-center gap-1.5 px-2"} disabled={savingEdit}
-          onClick={() => void exit(onClose)}><ChevronsUp className="size-4" aria-hidden />Minimise</button>
+        {engine === "practise" ? engineView : null}
       </div>
-      {engine === "edit" || engine === "document" ? engineView : null}
-    </article>
-  );
+    </>;
+  const output = reviewOutput({
+    engine, runs, history, step, artifact, project, take, groups, ideal, draft, savingEdit, editable: copy !== null,
+    onEdit: () => startEditing("ideal"), onDone: done, onDraft: (ideal_sections) => setDraft({ ideal_sections }),
+    onAsk: ask, onOpen: () => void exit(() => setEngine("document")),
+  });
+  const footer = <>
+    {!engine ? <button type="button" className={BUTTON + " w-fit"} disabled={savingEdit}
+      onClick={() => void exit(onNextTake)}>Continue recording</button> : null}
+    {engine === "edit" || engine === "document" ? engineView : null}
+  </>;
+  return <ChatArtifactPanel panelRef={article} data-take-review data-review-step={step}
+    aria-label={"Take " + take.takeIndex + " review"} className="max-w-2xl"
+    moment={momentSection} intervention={intervention} output={output} footer={footer}
+    hideMinimise={engine !== null || savingEdit} onMinimise={() => void exit(onClose)} />;
+}
+
+function reviewOutput({
+  engine, runs, history, step, artifact, project, take, groups, ideal, draft, savingEdit, editable,
+  onEdit, onDone, onDraft, onAsk, onOpen,
+}: {
+  engine: Engine | null; runs: readonly ReviewRun[]; history: readonly LoungeMessage[];
+  step: Step; artifact: Artifact | null; project: TrainingArc; take: TrainingTake;
+  groups: ReturnType<typeof slideGroupsOf>; ideal: string[]; draft: ReviewCopy | null;
+  savingEdit: boolean; editable: boolean;
+  onEdit: () => void; onDone: () => void; onDraft: (sections: string[]) => void;
+  onAsk: (focus: ReviewFocus) => void; onOpen: () => void;
+}): ReactNode {
+  const showRuns = engine !== "practise" && engine !== "walk" && (runs.length > 0 || history.some(isSavedPracticeAttempt));
+  const hasIdeal = Boolean(artifact?.revision || artifact?.live);
+  const showIdeal = artifact && (hasIdeal || step === "ideal");
+  if (!showRuns && !showIdeal) return null;
+  return <>
+    {showRuns ? <TakeReviewPracticeHistory runs={runs} messages={history} /> : null}
+    {showIdeal ? <div data-review-section="ideal" aria-label="Ideal text" className="space-y-1">
+      <h3 className="font-semibold">Ideal text</h3>
+      {hasIdeal ? <AiGeneratedNote kind="ideal-text" name={project.topic} take={take.takeIndex} /> : null}
+      <IdealStep revision={artifact.revision} groups={groups} text={ideal} draft={draft?.ideal_sections}
+        onEdit={onDraft}
+        onAsk={(index) => onAsk(index === null ? { step: "ideal" } : { step: "ideal", slide_index: index })} />
+      <div className="flex flex-wrap items-center gap-x-3">
+        <ReviewEditAction editing={draft?.ideal_sections !== undefined}
+          canEdit={ideal.length > 0 && draft?.feedback === undefined && (artifact.live || editable)}
+          busy={savingEdit} onEdit={onEdit} onDone={onDone} />
+        {artifact.live ? <button type="button" className={LINK} onClick={onOpen}>Open Ideal text</button> : null}
+      </div>
+    </div> : null}
+  </>;
 }
 
 function TakeReviewStatus({ project, take, loading, failed, onRetry }: {
@@ -420,7 +440,7 @@ function PractiseStep({ evidence, unavailable, repeated, trying, onTry, onSkip, 
   evidence: ReviewEvidence; unavailable: boolean; repeated: boolean; trying: boolean;
   onTry: () => void; onSkip: () => void; onAsk: () => void;
 }) {
-  return <div className={BUBBLE + " space-y-1"}>
+  return <div className="space-y-1">
     {evidence.activity ? <p className="font-medium">{evidence.activity}</p> : null}
     {evidence.instruction ? <p>{evidence.instruction}</p> : null}
     {unavailable ? <p className="text-sm text-muted-foreground">No activity for this Take yet.</p> :

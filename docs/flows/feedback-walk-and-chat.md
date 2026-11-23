@@ -93,6 +93,14 @@ In the inline Walk, the speaker's messages and recordings use the project conver
 
 When a Speaking Coach or project chat reply points to an exact recording moment, it can play that fragment beside the reply (N672). Automatic transcript footers are hidden. If the current Picker serves practice for the same moment, the reply presents its instruction and available demonstration. Practise opens only that activity in the conversation and uses the shared microphone. Reopening the chat resolves the recording against current project access and recording permissions.
 
+#### Shared chat artifacts (N673)
+
+A Take review or a reply with structured content uses one small, clickable preview. Open it in the thread to see the available parts in order. The **moment** can be a quote or the original clip. The **intervention** can be a rewrite, an instruction, an AI audio or coach video example, or the Sniper pace practice. The **output** can be saved wording, a recorded attempt, a pace trace, or the Take's Ideal Text. Only available parts appear. Ordinary replies use the usual message bubble.
+
+The exact clip, the optional practice and its saved attempts stay tied to the same Take and moment. Wording choices use the Ideal Text decision service. Practise uses the existing walk and recorder. The latest saved attempt is visible and earlier attempts can be expanded. **Minimise** folds the artifact and returns keyboard focus to its preview. Returning to the conversation also starts folded, while saved results remain available. A finished Take still opens its review in the active project automatically.
+
+Speaking Coach, project and person-to-person chats, the website widget, and Chat Builder's test, main and named conversations share the same ordered component. A new specialist chat inherits it from Chat Builder. The component displays the structured reply and the controls the particular chat has permission to use.
+
 Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
 
 ### Shared composer (N667)

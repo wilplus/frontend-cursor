@@ -1,5 +1,6 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
+import type { ChatArtifactContent } from "@/lib/willab/chatArtifact";
 
 export type ChatLife = "active" | "archived" | "deleted";
 export type Subchat = { id: string; title: string; question: string; archived: boolean };
@@ -13,7 +14,9 @@ export type ChangeStructure =
   | { action: "publish"; chat: Omit<PublishedChat, "questions"> & { questions: string[] } }
   | { action: "add"; title: string; question: string }
   | { action: "archive" | "restore" | "delete"; section: string; projects?: string[] };
-export type BuiltChatTurn = { client_id: string; question: string; answer: string };
+export type BuiltChatTurn = {
+  client_id: string; question: string; answer: string; artifact?: ChatArtifactContent | null;
+};
 export type CoachProject = { id: string; display_name: string };
 
 const PATH = "/api/v2/chats/structure";
@@ -40,5 +43,6 @@ export async function fetchBuiltChatTurns(section: string): Promise<BuiltChatTur
 
 export async function keepBuiltChatTurn(section: string, turn: BuiltChatTurn): Promise<boolean> {
   const res = await bffFetch(`${PATH}/${encodeURIComponent(section)}/turns`, { method: "POST", json: turn });
-  return res.kind === "response" && res.ok;
+  return res.kind === "response" && res.ok &&
+    (!turn.artifact || (res.body as { artifact_saved?: boolean } | null)?.artifact_saved === true);
 }

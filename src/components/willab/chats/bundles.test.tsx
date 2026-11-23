@@ -218,9 +218,13 @@ describe("one recording answers everyone who asked", () => {
         ],
       });
     await render(createElement(ChatThread, { chat, onBack: () => undefined }));
-    const quote = container.querySelector("[data-answer-quote]")!;
+    const preview = container.querySelector<HTMLButtonElement>("[data-chat-artifact-preview]")!;
+    expect(preview.textContent).toContain("How do I start a handstand?");
+    await act(async () => preview.click());
+    const artifact = container.querySelector("[data-chat-artifact-open]")!;
+    const quote = artifact.querySelector("[data-artifact-section='moment'] [data-answer-quote]")!;
     expect(quote.querySelector("[data-answer-quote-words]")?.textContent).toBe("How do I start a handstand?");
     expect(quote.querySelector("[data-mark]")?.getAttribute("data-mark")).toBe("green");
-    expect(quote.querySelector("[data-chat-voice]")).toBeTruthy();
+    expect(artifact.querySelector("[data-artifact-section='output'] [data-chat-voice]")).toBeTruthy();
   });
 });
