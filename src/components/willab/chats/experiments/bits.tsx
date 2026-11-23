@@ -1,6 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { EXPERIMENTS_USE_MOCKS } from "@/services/api/experiments";
+
+/** Shown while the experiment screens are the on-device sample, not the backend. */
+export function SampleData() {
+  if (!EXPERIMENTS_USE_MOCKS) return null;
+  return <p data-sample-data="" className="m-0 text-[12px] font-medium text-muted-foreground">Sample data</p>;
+}
 
 /** The body under the builder's one top bar. Nothing here scrolls. */
 export function Frame({ screen, kicker, title, children, foot, wide = false }: {
@@ -18,6 +25,7 @@ export function Frame({ screen, kicker, title, children, foot, wide = false }: {
         <div className="flex flex-col gap-1">
           {kicker ? <p className="m-0 text-[13px] font-medium text-muted-foreground">{kicker}</p> : null}
           <p className="m-0 text-[22px] font-semibold leading-tight text-foreground">{title}</p>
+          <SampleData />
         </div>
         {children}
       </div>

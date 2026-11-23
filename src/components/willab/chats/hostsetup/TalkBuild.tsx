@@ -6,6 +6,11 @@ import { BarBox, ChatBarRow } from "@/components/willab/chats/ChatBar";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
+import { VoiceModelList } from "@/components/willab/chats/voice/VoiceModelList";
+import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { calmFromFile, LISTEN_QUESTION } from "@/lib/willab/experiments/voiceCatalog";
+import { chooseModel, writeHold } from "@/lib/willab/experiments/voiceHold";
+import { saveExperimentConfig } from "@/services/api/voiceCatalog";
 import { giveAsk, jobAsk, questionFor, startersFor, voiceJob } from "./jobQuestions";
 import { COACH_HELLO, editEffect, speakTurn, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 
@@ -22,7 +27,7 @@ const KIND_LABEL: Record<(typeof KIND_ORDER)[number], string> = {
 };
 const PILL = "min-h-[44px] max-w-full rounded-[22px] border-[1.5px] border-primary px-4 py-[9px] text-left text-[15px] font-semibold leading-snug";
 const OPENING: Line[] = [{ who: "will", text: "What do you do?" }];
-const YESNO = new Set<Phase>(["send", "walk", "who", "pay", "price", "machine", "connect", "code", "other", "plan"]);
+const YESNO = new Set<Phase>(["send", "listen", "walk", "who", "pay", "price", "machine", "connect", "code", "other", "plan"]);
 
 const blank = (): Snap => ({
   label: "", spec: "", send: [], walk: [], who: "shadow", pay: false, machine: false, code: false, connect: false, price: 0, model: "", otherModels: [], paste: "", plugin: null, hello: "",
@@ -174,6 +179,23 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
     setPicked(next);
   };
 
+  const goOn = () => {
+    const voice = snapRef.current.send.includes("rec") && voiceJob(snapRef.current.spec);
+    const ask = voice
+      ? { phase: "walk" as Phase, text: W.walkOne("best") }
+      : { phase: "for" as Phase, text: jobAsk(snapRef.current.spec).question };
+    write({ phase: ask.phase, i: 0, add: [{ who: "will", text: ask.text }] });
+    if (!voice) {
+      const spec = snapRef.current.spec;
+      void questionFor(spec).then((got) => {
+        if (phaseRef.current !== "for" || got.question === jobAsk(spec).question) return;
+        const next = linesRef.current.map((line, n) => n === linesRef.current.length - 1 && line.who === "will" ? { ...line, text: got.question } : line);
+        linesRef.current = next;
+        setLines(next);
+      });
+    }
+  };
+
   const commitKinds = (chosen: SendKind[]) => {
     const send: SendKind[] = (["rec", "text", "photo", "file"] as SendKind[]).filter((id) => id === "text" || chosen.includes(id));
     const text = kindNames(chosen);
@@ -201,6 +223,11 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
       setEditing(null);
     }
     const voice = hasRec && voiceJob(snapRef.current.spec);
+    if (hasRec) {
+      write({ snap: { ...snapRef.current, send }, phase: "listen", i: 0, add: [{ who: "me", text, q: "kinds" }, { who: "will", text: LISTEN_QUESTION }] });
+      setKinds([]);
+      return;
+    }
     const ask = voice
       ? { phase: "walk" as Phase, text: W.walkOne("best") }
       : { phase: "for" as Phase, text: jobAsk(snapRef.current.spec).question };
@@ -228,6 +255,19 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
       }
       return;
     }
+    if (phaseRef.current === "listen") {
+      const said = text.trim().toLowerCase();
+      if (said !== "yes" && said !== "no") return;
+      write({ add: [{ who: "me", text: said === "yes" ? "Yes" : "No", q: "listen" }] });
+      if (said === "yes") {
+        phaseRef.current = "listenPick";
+        setPhase("listenPick");
+        return;
+      }
+      goOn();
+      return;
+    }
+    if (phaseRef.current === "listenPick") return;
     if (phaseRef.current === "for" || phaseRef.current === "give") {
       const said = text.trim();
       if (!said) return;
@@ -419,6 +459,21 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
         {kept ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-kept="" className={WILL}>Kept.</div></div> : null}
         {liveDraft ? <div data-row="app" className="mr-auto flex max-w-[88%]"><div data-talk-live="" className={WILL}>Live on this device.</div></div> : null}
       </div>
+      {phase === "listenPick" ? (
+        <VoiceModelList
+          onSkip={goOn}
+          onPick={(model) => {
+            const prompts = model.needs_baseline ? calmFromFile() : [];
+            chooseModel(model);
+            writeHold({ prompts });
+            void saveExperimentConfig(readOwnChat().id || "your-chat", {
+              model_id: model.id,
+              baseline_prompt_ids: prompts.map((row) => row.id),
+            });
+            goOn();
+          }}
+        />
+      ) : null}
       {asking === "kinds" ? (
         <div data-talk-replies="" data-tap-row="" className="ml-auto flex w-full max-w-[86%] flex-col items-end gap-2 px-3 pb-1">
           {KIND_ORDER.map((id) => {

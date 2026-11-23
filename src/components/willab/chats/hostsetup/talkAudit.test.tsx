@@ -3,7 +3,7 @@
 STORY    The talk is scored by driving it. Finishing it writes the coach
          the screens read. A shop chat sets every field the builder has.
 OUTCOME
-  O1  Thirteen taps build the Speaking Coach, then Say go. The saved
+  O1  Fourteen taps build the Speaking Coach, then Say go. The saved
       document matches the fixture, and the screens read it.
   O2  A shop chat sets all four sends, an assistant, price 1, a training
       machine, the hedge model, another model and a checked paste.
@@ -11,7 +11,7 @@ OUTCOME
       the rest one at a time. A tap on an earlier answer changes it.
       A targeted edit, chips and Publish stay on this device.
   O4  The technical score is printed from the fixture and the shop fields.
-PROVES   O1 -> "fifteen taps build the Speaking Coach"
+PROVES   O1 -> "fourteen taps build the Speaking Coach"
          O2 -> "the shop chat sets price, model and paste"
          O3 -> "an earlier answer changes, then a targeted edit, chips, and publish stay on this device"
          O4 -> "prints the technical score from the fixture and the shop fields"
@@ -86,10 +86,11 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     await tap("A recording");
     await tap("Done");
+    await tap("No");
     for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     await tap("Yes");
-    expect(taps).toBe(13);
+    expect(taps).toBe(14);
     expect(snap()).toMatchObject({
       spec: "Speaking coach",
       send: ["rec", "text"],
@@ -125,6 +126,8 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     await tap("A recording");
     await tap("Done");
+    expect(container.textContent).toContain("Should your chat listen to how people speak?");
+    await tap("No");
     expect(container.textContent).not.toContain("best moment");
     expect(container.textContent).not.toContain("helper words");
     expect(container.textContent).toContain("What do people ask you?");
@@ -157,6 +160,7 @@ describe("the talk, scored by the script", () => {
     await tap("Yes");
     await tap("A recording");
     await tap("Done");
+    await tap("No");
     for (const answer of ["Yes", "Yes", "Yes", "Yes", "No", "Yes", "No", "No"]) await tap(answer);
     expect(container.textContent).toContain("Say go?");
     expect(container.querySelector("[data-quote]")).toBeNull();

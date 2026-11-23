@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Mic } from "lucide-react";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { BarBox, ChatBarRow, useFilePicker, usePhotoPicker } from "@/components/willab/chats/ChatBar";
@@ -12,6 +12,8 @@ import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { askReply, keepReplyExample } from "@/services/api/hostSetup";
 import { markTileStep } from "@/lib/willab/chatBuilder/tileSteps";
 import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
+import { readHold, subscribeHold } from "@/lib/willab/experiments/voiceHold";
+import { VoiceTurn } from "@/components/willab/chats/voice/VoiceTurn";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { fileTooBig, visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
 import { audioTooBig, audioTooLong, readWav } from "@/lib/willab/chatBuilder/voiceMeasures";
@@ -52,6 +54,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
   /** The host says the test is done. */
   onWorks?: () => void;
 }) {
+  const hold = useSyncExternalStore(subscribeHold, readHold, readHold);
   const hello = doc.chat.hello;
   const taps = doc.chat.taps;
   const [lines, setLines] = useState<Bubble[]>(hello ? [{ who: "them", text: hello }] : []);
@@ -200,8 +203,20 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
           />
         </div>
       ) : null}
+      {hold.model ? (
+        <VoiceTurn
+          model={hold.model}
+          prompts={hold.prompts}
+          onReply={async (analysis) => {
+            setBusy(true);
+            const reply = await replyLines("A recording", "rec", analysis ? { kind: "rec", analysis } : { kind: "rec" });
+            setLines((was) => [...was, ...reply]);
+            setBusy(false);
+          }}
+        />
+      ) : null}
       <ChatBarRow>
-        {sends.includes("rec") ? (
+        {sends.includes("rec") && !hold.model ? (
           <button type="button" aria-label="Send a recording" data-visitor-rec="" data-recording={live ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void onRec()}>
             <Mic className="h-5 w-5" aria-hidden />
           </button>

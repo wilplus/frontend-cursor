@@ -6,6 +6,12 @@ OUTCOME
   O1  The screens follow the prompt file and stay free of hidden words.
 PROVES   O1 -> "the experiment screens"
 */
+import { vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_EXPERIMENTS_MOCK = "1";
+});
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -46,6 +52,7 @@ describe("the experiment screens", () => {
     const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
 
     await click("[data-exp-go='session']");
+    expect(container.querySelector("[data-sample-data]")?.textContent).toBe("Sample data");
     expect(container.querySelector("[data-ai-disclosure]")?.textContent).toContain("does not name a feeling");
     await click("[data-pair='consent'] [data-choice='yes']");
     await click("[data-pair='page'] [data-choice='no']");

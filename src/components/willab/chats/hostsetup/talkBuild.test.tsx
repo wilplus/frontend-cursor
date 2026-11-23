@@ -73,6 +73,8 @@ describe("talk the chat into shape", () => {
     expect(container.querySelectorAll("[data-tap-row]")).toHaveLength(1);
     await tap("A recording");
     await tap("Done");
+    expect(container.textContent).toContain("Should your chat listen to how people speak?");
+    await tap("No");
     expect(container.textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
     expect(container.querySelector("[data-talk-list]")).toBeNull();
     expect(container.querySelector("[data-talk-order]")).toBeNull();
@@ -86,6 +88,8 @@ describe("talk the chat into shape", () => {
     await tap("Yes");
     await tap("A recording");
     await tap("Done");
+    expect(container.textContent).toContain("Should your chat listen to how people speak?");
+    await tap("No");
     expect(container.textContent).not.toContain("best moment");
     expect(container.textContent).not.toContain("helper words");
     expect(container.textContent).not.toContain("another way");

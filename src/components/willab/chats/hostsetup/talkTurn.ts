@@ -9,7 +9,7 @@ export const WALKS = ["best", "fix", "words"] as const;
 export const COACH_HELLO = "Hi. Record a short talk, and I'll tell you what worked.";
 export const WRITTEN_PASTE = "# id: hedge\n# role: detector\n# interventionType: NOTICE\n# hears: hedging\n# step: walk.message\n";
 
-export type Phase = "brief" | "send" | "kinds" | "for" | "give" | "starters" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
+export type Phase = "brief" | "send" | "kinds" | "listen" | "listenPick" | "for" | "give" | "starters" | "walk" | "who" | "pay" | "price" | "machine" | "connect" | "model" | "other" | "otherName" | "code" | "codeWay" | "describe" | "codeKeep" | "paste" | "plan" | "edit" | "greet" | "look" | "done";
 export type Snap = TalkSnap & { label: string };
 export type Line = {
   who: "will" | "me";
