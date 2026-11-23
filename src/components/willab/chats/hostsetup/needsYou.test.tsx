@@ -43,7 +43,8 @@ PROVES   O1 -> "N629-3 drafted answers: one per screen, Change sends my own word
          O8 -> "N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this"
          O7 -> "N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try"
 */
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
+import { useBackDismiss } from "../../useBackDismiss";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,6 +77,12 @@ import { forgetHostWork } from "./hostWork";
 import { OPEN_QUEUE_EVENT } from "@/lib/willab/coachDoor";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Build stays under a row's chat, as Will's bar does, so a row's history entry is not the last one. */
+function Stay({ children }: { children: ReactNode }) {
+  useBackDismiss(() => undefined);
+  return createElement("div", null, children);
+}
 
 const RECIPE = {
   spec: "Trichologist",
@@ -120,6 +127,184 @@ async function tap(label: string) {
 const posts = () => bff.calls.filter((c) => c.method === "POST" && c.path.startsWith("/api/v2/chats/setup/drafts/"));
 
 describe("what needs you is in Will (backend N629)", () => {
+  it("the four tiles open first, Settings lists every row, and Next walks each row's own chat", async () => {
+    const parts = [
+      { part: "name", title: "Name", value: "Ask Lena" },
+      { part: "hello", title: "Your hello", value: "Hi." },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, can_try: false };
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    expect(container.querySelectorAll("[data-build-tile]")).toHaveLength(4);
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    expect(container.querySelector('[data-needs-you="chat"]')).toBeNull();
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    expect([...container.querySelectorAll("[data-build-part]")].map((r) => r.getAttribute("data-build-part"))).toEqual(["name", "hello"]);
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
+    expect(chat("name").className).not.toContain("hidden");
+    expect(chat("name").querySelector("[data-part-bubble]")?.textContent).toContain("Name");
+    expect(chat("name").querySelector("[data-part-bubble]")?.textContent).toContain("Ask Lena");
+    expect(chat("name").querySelector("[data-chat-header]")?.textContent).toContain("1 of 2");
+    const box = chat("name").querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "kept in this chat");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (chat("name").querySelector("[data-part-next]") as HTMLButtonElement).click());
+    await flush();
+    expect(chat("hello").className).not.toContain("hidden");
+    expect(chat("name").className).toContain("hidden");
+    expect(chat("hello").querySelector("[data-part-bubble]")?.textContent).toContain("Your hello");
+    expect(chat("hello").querySelector("[data-chat-header]")?.textContent).toContain("2 of 2");
+    await act(async () => (chat("hello").querySelector("[data-part-next]") as HTMLButtonElement).click());
+    await flush();
+    expect(chat("hello").className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    expect(chat("name").querySelector("textarea")!.value).toBe("kept in this chat");
+  });
+
+  it("typing Enter in a row's chat saves that part and shows the words", async () => {
+    const suggest = {
+      line: ["People come."], send: ["text"], out: ["answer"], hello: ["Hi."],
+      qs: ["How?"], taps: [["Ask"]], models: [{ q: "Ok?", opts: ["Yes", "No"], says: "" }], name: ["Ask Lena"],
+    };
+    const recipe = { ...RECIPE, spec: "Trichologist", suggest, line: "People come.", hello: "Hi.", name: "Ask Lena", live: true };
+    const parts = [{ part: "what", title: "What you do", value: "Trichologist" }];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, recipe, parts, can_try: false };
+    bff.routes["PUT /api/v2/chats/setup/what"] = (c: Call) => ({ recipe: { ...recipe, spec: (c.json as { value: string }).value }, cost: null });
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
+    await flush();
+    await act(async () => (container.querySelector('[data-build-part="what"]') as HTMLButtonElement).click());
+    await flush();
+    const chat = container.querySelector('[data-part-chat="what"]')!;
+    expect(chat.textContent).toContain("What do you do?");
+    expect(chat.textContent).not.toContain("Let's set up your chat");
+    expect(chat.textContent).not.toContain("five minutes");
+    const box = chat.querySelector("textarea")!;
+    expect(box.getAttribute("placeholder")).toBe("Speaking coach");
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+      set.call(box, "Dermatologist");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (box.closest("form") as HTMLFormElement).requestSubmit());
+    await flush();
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/what").map((c) => (c.json as { value: string }).value)).toEqual(["Dermatologist"]);
+    expect(chat.querySelector("[data-my-line]")?.textContent).toBe("Dermatologist");
+    expect(chat.querySelector("[data-part-bubble='what']")).not.toBeNull();
+  });
+
+  it("Keep, a kept Draw new one, and a typed answer open the next row's chat", async () => {
+    const suggest = {
+      line: ["People come."], send: ["text"], out: ["answer", "words"], hello: ["Hi.", "Welcome."],
+      qs: ["How?"], taps: [["Ask"]], models: [{ q: "Ok?", opts: ["Yes", "No"], says: "" }], name: ["Ask Lena", "Lena's chat"],
+    };
+    const recipe = {
+      ...RECIPE, spec: "Trichologist", suggest, line: "People come.", hello: "Hi.", name: "Ask Lena",
+      out: "answer", send: ["text"], live: true, questions: [],
+    };
+    const parts = [
+      { part: "name", title: "Name", value: "Ask Lena" },
+      { part: "hello", title: "Your hello", value: "Hi." },
+      { part: "out", title: "They get back", value: "An answer" },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, recipe, parts, can_try: false };
+    const kept = (part: string, key: string) => (c: Call) => ({ recipe: { ...recipe, [key]: (c.json as { value: string }).value }, cost: null });
+    bff.routes["PUT /api/v2/chats/setup/name"] = kept("name", "name");
+    bff.routes["PUT /api/v2/chats/setup/hello"] = kept("hello", "hello");
+    bff.routes["PUT /api/v2/chats/setup/out"] = kept("out", "out");
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
+    await flush();
+    const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
+    const shown = (id: string) => !chat(id).className.includes("hidden");
+    await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+    await flush();
+    expect(shown("name")).toBe(true);
+    expect(chat("name").querySelector("[data-chat-header]")?.textContent).toContain("1 of 3");
+    const box = chat("name").querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "Lena's chat");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => (box.closest("form") as HTMLFormElement).requestSubmit());
+    await flush();
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/name").map((c) => (c.json as { value: string }).value)).toEqual(["Lena's chat"]);
+    expect(shown("name")).toBe(false);
+    expect(shown("hello")).toBe(true);
+    expect(chat("hello").querySelector("[data-chat-header]")?.textContent).toContain("2 of 3");
+    expect(chat("hello").querySelector("[data-part-bubble]")?.textContent).toContain("Your hello");
+    const press = async (id: string, label: string) => {
+      const b = [...chat(id).querySelectorAll("button")].find((x) => x.textContent?.trim() === label);
+      if (!b) throw new Error(`no ${label} in ${id}`);
+      await act(async () => (b as HTMLButtonElement).click());
+      await flush();
+    };
+    await press("hello", "Draw new one");
+    await press("hello", "Keep");
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/hello").map((c) => (c.json as { value: string }).value)).toEqual(["Welcome."]);
+    expect(shown("hello")).toBe(false);
+    expect(shown("out")).toBe(true);
+    expect(chat("out").querySelector("[data-chat-header]")?.textContent).toContain("3 of 3");
+    expect(chat("out").textContent).toContain("They get back");
+    await press("out", "Keep");
+    expect(bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/out").map((c) => (c.json as { value: string }).value)).toEqual(["answer"]);
+    expect(shown("out")).toBe(false);
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+  });
+
+  it("the header back arrow returns a row's chat to Your chat, and the browser's Back does too", async () => {
+    const parts = [{ part: "name", title: "Name", value: "Ask Lena" }];
+    const back = vi.fn();
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts, own_chat: { title: "Artur's chat", line: "Hi." }, can_try: false };
+    act(() => root.render(createElement(Stay, null, createElement(WillBuild, { onBack: back }), createElement(HostSetupRows))));
+    await flush();
+    const header = () => container.querySelector<HTMLButtonElement>("[data-chat-header] button[aria-label='Back']")!;
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Artur's chat");
+    await act(async () => header().click());
+    expect(back).toHaveBeenCalledTimes(1);
+    back.mockClear();
+    const open = async () => {
+      const tile = container.querySelector("[data-build-tile='settings']") as HTMLButtonElement | null;
+      if (tile) {
+        await act(async () => tile.click());
+        await flush();
+      }
+      await act(async () => (container.querySelector('[data-build-part="name"]') as HTMLButtonElement).click());
+      await flush();
+    };
+    const nameChat = () => container.querySelector("[data-part-chat='name']")!;
+    await open();
+    expect(nameChat().className).not.toContain("hidden");
+    expect((window.history.state as { __willabOverlay?: boolean }).__willabOverlay).toBe(true);
+    await act(async () => header().click());
+    await flush();
+    expect(back).not.toHaveBeenCalled();
+    expect(nameChat().className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    await open();
+    await act(async () => {
+      const popped = new Promise((done) => window.addEventListener("popstate", done, { once: true }));
+      window.history.back();
+      await popped;
+    });
+    await flush();
+    expect(back).not.toHaveBeenCalled();
+    expect(nameChat().className).toContain("hidden");
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    await act(async () => header().click());
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
   it("N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice", async () => {
     bff.routes["GET /api/v2/chats/setup"] = SETUP;
     bff.routes["GET /api/v2/chats/setup/drafts"] = { drafts: DRAFTS };
@@ -160,11 +345,13 @@ describe("what needs you is in Will (backend N629)", () => {
 
   it("N651 the parts sit in four groups under their headings, a group with no part is absent, an unknown part comes last with none", async () => {
     const p = (part: string, value = "x") => ({ part, title: `T-${part}`, value });
-    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts: [p("odd"), p("models", "None yet"), p("who"), p("taps"), p("name")] };
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, parts: [p("odd"), p("models", "None yet"), p("who"), p("taps", "A recording · A photo"), p("name")] };
     act(() => root.render(createElement("div", null, createElement(WillNeedsYou), createElement(HostSetupRows))));
     await flush();
-    const seq = [...container.querySelectorAll("[data-will-needs-you] h3, [data-build-part]")].map((e) => (e.tagName === "H3" ? `# ${e.textContent}` : (e as HTMLElement).dataset.buildPart));
+    const seq = [...container.querySelectorAll("[data-will-needs-you] h3, [data-build-part]")].map((e) => (e.tagName === "H3" ? `# ${e.querySelector("span")?.textContent}` : (e as HTMLElement).dataset.buildPart));
     expect(seq).toEqual(["# About your chat", "name", "# What comes in", "taps", "# What goes back", "who", "# What makes it smart", "models", "odd"]);
+    expect([...container.querySelectorAll('[data-build-part="taps"] [data-part-chip]')].map((c) => c.textContent)).toEqual(["A recording", "A photo"]);
+    expect(container.querySelector('[data-build-part="models"] [data-not-set]')?.textContent).toBe("Not set");
   });
 
   it("N642-3 Build's Your chat: Will's line, the chat's parts, each opening its step, then the answers to send; what is taught is not here", async () => {
@@ -182,8 +369,8 @@ describe("what needs you is in Will (backend N629)", () => {
     const mine = () => container.querySelector("[data-will-needs-you]")?.textContent ?? "";
     expect(mine().startsWith("Your chat is saved. Nobody can see it yet. Tap a part to change it.")).toBe(true);
     expect([...container.querySelectorAll("[data-build-part]")].map((r) => r.textContent)).toEqual([
-      "NameAsk Lena›",
-      "Why people comePeople come to you with scalp worries.›",
+      "NameAsk Lena",
+      "Why people comePeople come to you with scalp worries.",
     ]);
     expect([...container.querySelectorAll("[data-needs-you]")].map((r) => r.textContent)).toEqual(["2 answers to sendI drafted them. You fix and send.›"]);
     expect(mine()).toContain("This needs you:");
@@ -214,20 +401,23 @@ describe("what needs you is in Will (backend N629)", () => {
     await act(async () => (container.querySelector('[data-build-part="hello"]') as HTMLButtonElement).click());
     await flush();
     expect(container.querySelector("[data-host-setup]")?.textContent).toContain("Your chat opens with:");
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     expect(bff.calls.filter((c) => c.path === "/api/v2/chats/setup/hello").map((c) => (c.json as { value: string }).value)).toEqual(["Welcome."]);
     expect(container.querySelector("[data-host-setup]")).toBeNull();
   });
 
-  it("N629-1 without a chat of the new setup, Your chat opens the setup at What do you do?", async () => {
-    // A coach whose chat came from the older builder: no v2 recipe.
+  it("N629-1 without a saved recipe, the four tiles open, and Build asks what you do", async () => {
     bff.routes["GET /api/v2/chats/setup"] = { recipe: null, parts: [], own_chat: null, cost: null };
-    act(() => root.render(createElement("div", null, createElement(WillNeedsYou), createElement(HostSetupRows))));
+    act(() => root.render(createElement(WillBuild, { onBack: () => undefined })));
     await flush();
-    await act(async () => (container.querySelector('[data-needs-you="chat"]') as HTMLButtonElement).click());
+    expect(container.querySelectorAll("[data-build-tile]")).toHaveLength(4);
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    expect(container.querySelector('[data-needs-you="chat"]')).toBeNull();
+    expect(container.querySelector("[data-tile-highlight]")).not.toBeNull();
+    await act(async () => (container.querySelector("[data-build-tile='build']") as HTMLButtonElement).click());
     await flush();
-    expect(container.querySelector("[data-host-setup]")?.textContent).toContain("What do you do?");
+    expect(container.textContent).toContain("What do you do?");
   });
 
   it("N642-2 for the ring the pinned row is one's own chat, its circle, name and hello; Your chat before there is one; without the ring as it was", async () => {
@@ -348,21 +538,38 @@ describe("what needs you is in Will (backend N629)", () => {
     return got;
   };
   const tab = async (t: string) => {
-    await act(async () => (container.querySelector(`[data-build-tab="${t}"]`) as HTMLButtonElement).click());
+    await act(async () => (container.querySelector(`[data-build-tile="${t}"]`) as HTMLButtonElement).click());
     await flush();
+    if (t === "ai") {
+      await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
+      await flush();
+    }
   };
   const toggle = async (m: string) => {
     await act(async () => (container.querySelector(`[data-switch="${m}"]`) as HTMLButtonElement).click());
     await flush();
   };
 
+  it("the AI tile asks Experiments or Training, and Training is the model list", async () => {
+    await build({ ...SETUP, can_try: false });
+    await act(async () => (container.querySelector("[data-build-tile='ai']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-build-models]")).toBeNull();
+    expect(container.querySelector("[data-ai-choice='experiments']")?.textContent).toContain("Experiments");
+    expect(container.querySelector("[data-ai-choice='training']")?.textContent).toContain("Training");
+    expect(container.querySelectorAll("[data-chat-header]").length).toBeGreaterThan(0);
+    await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-build-models]")?.textContent).toContain("Your models, and everything you teach.");
+  });
+
   it("N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too", async () => {
     moments.speakers = [{ waiting: 2 }, { waiting: 1 }];
     // No chat yet: no switch, Build at once; the moments in AI models.
     await build({ recipe: null, parts: [], own_chat: null, cost: null, can_try: false });
-    expect(container.querySelector("[data-live-build]")).toBeNull();
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Your chat");
-    await tab("models");
+    expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Your chat");
+    await tab("ai");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer3 waiting›");
     expect(await queueOpened()).toEqual([{ fromWill: true }]);
 
@@ -372,10 +579,9 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetSetup();
     forgetHostWork();
     await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] }, own_chat: { title: "Ask Lena", line: "Hi." }, can_try: true });
-    // Opened, a chat with something to try is Live.
-    expect(container.querySelector("[data-build-tab]")).toBeNull();
-    await toggle("build");
-    await tab("models");
+    expect(container.querySelector("[data-build-home]")).not.toBeNull();
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    await tab("ai");
     expect(await queueOpened()).toEqual([{ fromWill: true }]);
     // And nothing waiting: the line stays, so the way in never goes.
     act(() => root.unmount());
@@ -384,15 +590,15 @@ describe("what needs you is in Will (backend N629)", () => {
     forgetHostWork();
     moments.speakers = [];
     await build({ ...SETUP, recipe: { ...RECIPE, hello: "Hi.", taps: [], questions: [] }, can_try: true });
-    await toggle("build");
-    await tab("models");
+    expect(container.querySelector("[data-build-home]")).not.toBeNull();
+    await tab("ai");
     expect(container.querySelector('[data-needs-you="moments"]')?.textContent).toBe("Moments to answer0 waiting›");
   });
 
   it("N642-5 someone who is not a coach has no moments line in AI models", async () => {
     who.coach = false;
     await build({ ...SETUP, can_try: false });
-    await tab("models");
+    await tab("ai");
     expect(container.querySelector("[data-build-models]")).not.toBeNull();
     expect(container.querySelector('[data-needs-you="moments"]')).toBeNull();
   });
@@ -402,7 +608,7 @@ describe("what needs you is in Will (backend N629)", () => {
     bff.routes["GET /api/v2/models/m1/check"] = { version: "v1", answers: ["Yes"], items: [{ example_id: "c1", example: {}, guess: "Yes", kept: null, answer: null }], done: false };
     const kasia = { q: "Is the skin red?", opts: ["Yes", "Somewhat", "No"], says: "", own: false, model_id: "k1", by: "Kasia" };
     await build({ ...SETUP, recipe: { ...RECIPE, models: [...RECIPE.models, kasia] }, can_try: false });
-    await tab("models");
+    await tab("ai");
     const models = container.querySelector("[data-build-models]")!;
     expect(models.textContent?.startsWith("Your models, and everything you teach.")).toBe(true);
     expect([...models.querySelectorAll("[data-needs-you]")].map((r) => r.textContent)).toEqual([
@@ -437,21 +643,24 @@ describe("what needs you is in Will (backend N629)", () => {
       own_chat: { title: "Ask Lena", line: "Hi.", about: ["Lena is a trichologist."], hello: "Hi. Show me your scalp.", taps: ["Look at my scalp", "Something else"] },
       can_try: true,
     });
-    // Opened: Live, the chat as people meet it, its about lines, hello and taps.
-    expect([...container.querySelectorAll("[data-switch]")].map((b) => b.textContent)).toEqual(["Live", "Build"]);
+    expect(container.querySelector("[data-build-home]")).not.toBeNull();
+    expect(container.querySelector("[data-part-search]")).toBeNull();
+    await tab("test");
     expect(container.querySelector("[data-chat-header]")?.textContent).toContain("Ask LenaYou run this chat.");
     const live = container.querySelector("[data-host-own-chat]")?.textContent ?? "";
     expect(live).toContain("Lena is a trichologist.");
     expect(live).toContain("Hi. Show me your scalp.");
     expect([...container.querySelectorAll("[data-host-taps] button")].map((b) => b.textContent)).toEqual(["Look at my scalp", "Something else"]);
-    await toggle("build");
-    expect(container.querySelector("[data-build-bar] [data-walk-back-label]")?.textContent).toBe("Ask Lena");
+    await act(async () => (container.querySelector("[data-chat-header] button[aria-label='Back']") as HTMLButtonElement).click());
+    await flush();
+    expect(container.querySelector("[data-build-home]")).not.toBeNull();
+    expect(container.querySelector("[data-build-bar] [data-chat-name]")?.textContent).toBe("Ask Lena");
     act(() => root.unmount());
     root = createRoot(container);
     forgetSetup();
     forgetHostWork();
     await build({ ...SETUP, can_try: false });
-    expect(container.querySelector("[data-live-build]")).toBeNull();
+    expect(container.querySelector("[data-build-bar] [data-live-build]")).toBeNull();
   });
 
   it("N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this", async () => {
@@ -468,7 +677,7 @@ describe("what needs you is in Will (backend N629)", () => {
       return { wanted: true };
     };
     await build({ ...SETUP, can_try: false });
-    await tab("models");
+    await tab("ai");
     const models = container.querySelector("[data-build-models]")!;
     const rows = [...models.querySelectorAll("[data-needs-you]")].map((r) => r.textContent);
     expect(rows).toContain("Moments to answer37 waiting›");
@@ -488,5 +697,64 @@ describe("what needs you is in Will (backend N629)", () => {
     await act(async () => (models.querySelector('[data-build-coming="images"]') as HTMLButtonElement).click());
     await flush();
     expect(told).toBe(1);
+  });
+
+  it("Yes and No on a row's last step show the answer, save, and open the next row", async () => {
+    const suggest = {
+      line: ["People come."], send: ["rec", "text", "photo", "file"], out: ["answer", "words"], hello: ["Hi."],
+      qs: ["How?"], taps: [["Ask"]], models: [{ q: "Ok?", opts: ["Yes", "No"], says: "" }], name: ["Ask Lena"],
+      walk: { steps: ["best", "fix", "words"], out: "ideal_text" },
+    };
+    const recipe = {
+      ...RECIPE, spec: "Trichologist", suggest, line: "People come.", hello: "Hi.", name: "Ask Lena",
+      out: "answer", send: ["rec", "text", "photo", "file"], live: true, questions: [], who: "shadow", care: false,
+    };
+    const parts = [
+      { part: "send", title: "They send", value: "A recording · A message · A photo · A file" },
+      { part: "walk", title: "The walk", value: "Their best moment" },
+      { part: "out", title: "They get back", value: "An answer" },
+    ];
+    bff.routes["GET /api/v2/chats/setup"] = { ...SETUP, recipe, parts, can_try: false };
+    bff.routes["PUT /api/v2/chats/setup/send"] = (c: Call) => ({ recipe: { ...recipe, send: (c.json as { value: string[] }).value }, cost: null });
+    bff.routes["PUT /api/v2/chats/setup/walk"] = (c: Call) => ({ recipe: { ...recipe, walk: (c.json as { value: unknown }).value }, cost: null });
+    act(() => root.render(createElement("div", null, createElement(WillBuild, { onBack: () => undefined }), createElement(HostSetupRows))));
+    await flush();
+    await act(async () => (container.querySelector("[data-build-tile='settings']") as HTMLButtonElement).click());
+    await flush();
+    const chat = (id: string) => container.querySelector(`[data-part-chat="${id}"]`)!;
+    const shown = (id: string) => !chat(id).className.includes("hidden");
+    const press = async (id: string, label: string) => {
+      const b = [...chat(id).querySelectorAll("button")].find((x) => x.textContent?.trim() === label && !x.closest("[data-setup-history]"));
+      if (!b) throw new Error(`no ${label} in ${id}: ${chat(id).textContent}`);
+      await act(async () => (b as HTMLButtonElement).click());
+      await flush();
+    };
+    const open = async (id: string) => {
+      await act(async () => (container.querySelector(`[data-build-part="${id}"]`) as HTMLButtonElement).click());
+      await flush();
+    };
+    await open("send");
+    expect(chat("send").textContent).toContain("Can they send a recording?");
+    await press("send", "Yes");
+    expect(chat("send").querySelector("[data-my-line]")?.textContent).toBe("Yes");
+    expect(chat("send").textContent).toContain("Can they send a message?");
+    await press("send", "No");
+    expect([...chat("send").querySelectorAll("[data-my-line]")].map((n) => n.textContent)).toEqual(["Yes", "No"]);
+    expect(chat("send").textContent).toContain("Can they send a photo?");
+    await press("send", "Yes");
+    await press("send", "Yes");
+    expect(shown("send")).toBe(false);
+    expect(shown("out")).toBe(true);
+    const saved = bff.calls.filter((c) => c.method === "PUT" && c.path === "/api/v2/chats/setup/send").map((c) => (c.json as { value: string[] }).value);
+    expect(saved.at(-1)).toEqual(["rec", "photo", "file"]);
+    await open("walk");
+    expect(chat("walk").textContent).toContain("After they send a recording, should your chat show them their best moment and why it worked?");
+    await press("walk", "Yes");
+    expect(chat("walk").textContent).toContain("Should it show one moment they could say another way?");
+    await press("walk", "Yes");
+    expect(chat("walk").textContent).toContain("Should it give them a few helper words to remember?");
+    await press("walk", "No");
+    expect(shown("walk")).toBe(false);
+    expect(container.querySelector("[data-part-search]")).toBeNull();
   });
 });

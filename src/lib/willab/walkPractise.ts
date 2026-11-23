@@ -234,9 +234,9 @@ const START = Math.floor(Math.random() * 3);
 
 /** The praise after a try at `at`: a line for the reading that moved
  *  toward confident, else a general one (founder 2026-10-13, option A). */
-export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine, landed: string = ONE_THING_COPY.landed): string {
   // The One thing walk's try that lands (N309 item 1).
-  if (plan[at]?.one) return ONE_THING_COPY.landed;
+  if (plan[at]?.one) return landed;
   const cue = cueOf(plan[at]?.kind, "cue:");
   return inTurn(plan, at, "improved", "cue:", PRACTISE_LINES.better[cue ?? "general"]);
 }
@@ -251,15 +251,15 @@ export function missLine(plan: readonly WalkStep[], at: number): string | null {
 
 /** The "not yet" at `at`: a line for the reading that went the wrong way,
  *  else a general one (option A). */
-export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine, onceMore: string = ONE_THING_COPY.onceMore): string {
   // The One thing walk's one miss (N309 item 1).
-  if (plan[at]?.one) return ONE_THING_COPY.onceMore;
+  if (plan[at]?.one) return onceMore;
   return missLine(plan, at) ?? inTurn(plan, at, "encourage", "miss:", PRACTISE_LINES.notYet.general);
 }
 
 /** The line after the third try that is not praise (CM3b A): one line; in
  *  the One thing walk, after the second miss (N309 item 1). */
-export function thanksLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
-  if (plan[at]?.one) return ONE_THING_COPY.takeItWithYou;
+export function thanksLine(plan: readonly WalkStep[], at: number, _say?: SayLine, takeItWithYou: string = ONE_THING_COPY.takeItWithYou): string {
+  if (plan[at]?.one) return takeItWithYou;
   return PRACTISE_LINES.movedOn;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import type { UiLocale } from "@/lib/uiLocale";
 import { lastMicWasEarbuds, useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useTakeMic } from "@/hooks/useTakeMic";
 import { useLabNoPull } from "./labNoPull";
 import { serverHasTake, takeNotYetAccepted, useLeaveGuard } from "./labLeaveGuard";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
@@ -29,8 +30,6 @@ import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
-  coerceTargetSeconds,
-  formatRecordingClock,
   measureSlideClockOffset,
 } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -57,7 +56,7 @@ import RecordingSetup, { setupSteps } from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import { LabEntryGate, useLabEntry } from "./LabEntryGate";
 import { gateStateFor } from "./Phase1AcceptanceGate";
-import FinishTakeButton from "./FinishTakeButton";
+import ChatComposer from "./chats/ChatComposer";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { keepRealTalkSlides, realTalkPending } from "@/lib/willab/firstTake";
@@ -87,11 +86,11 @@ import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import { usePolicyUpdate } from "./PolicyUpdate";
 import { keepTakeAtFinish, rememberTakeProject, sendTake } from "@/lib/willab/takeOutbox";
-import { takeUploadingUnwatched } from "@/lib/willab/takeUploading";
 import {
   clearPracticeResume,
   PRACTICE_CHUNK_SECONDS,
   readPracticeResume,
+  practiceSlideRange,
   type PracticeResumeSelection,
   writePracticeCheckpoint,
 } from "@/lib/willab/practiceResume";
@@ -203,7 +202,8 @@ export default function LabOverlay({
   // transcript, so skip Web Speech: its per-result events would re-render the
   // whole recording overlay many times a second (worse the longer the take),
   // which is what made the screen go stale / the slide Next feel unresponsive.
-  const mic = useDualCaptureMic({ transcript: false });
+  // In the iPhone app with the switch on, the phone records (N655, N662).
+  const mic = useTakeMic();
   const { getPausedMs } = mic;
   const { cancel: cancelMic } = mic;
   // From what this tab already knows, so "How do you feel?" draws on the
@@ -345,15 +345,11 @@ export default function LabOverlay({
     result: Awaited<ReturnType<typeof uploadForProcessing>>,
     run: {
       discarded: boolean;
-      /** The chat's "Processing your recording" while it went up (null when
-       *  the screens were still open as it was sent). */
-      uploading: (() => void) | null;
       projectId: string | null;
       waitStartedAt: number;
       carried: (arc: string | null, take: number | null) => { returnedArcId: string; nextIdx: number; deck: ExploreArcDeck | undefined } | undefined;
     },
   ): void {
-    run.uploading?.();
     if (run.discarded || answer) return;
     if (result.kind !== "ok" && result.kind !== "processing" && result.kind !== "ideal_text_unconfirmed") return;
     const sessionId = result.sessionId;
@@ -548,7 +544,7 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
-  // The policy update prompt (PolicyUpdate.tsx); refs, so the upload effect
+  // The current-policy consent gate (PolicyUpdate.tsx); refs, so the upload effect
   // reads the current ones without re-running.
   const policyUpdate = usePolicyUpdate();
   const policyUpdateRef = useRef(policyUpdate);
@@ -678,14 +674,12 @@ export default function LabOverlay({
       // already flipped to lab_recording on the Setup submit (optimistic), so
       // there is no dispatch here — this only pins t=0 to the real recording start.
       recordStartRef.current = performance.now();
-      const chosenSlide = Math.min(
-        practiceResumeRef.current?.slideIndex ?? 0,
-        Math.max(recordingSlides.length - 1, 0),
-      );
+      const chosenSlide = practiceSlideRange(practiceResumeRef.current, recordingSlides.length).first;
       setCurrentSlide(chosenSlide);
       slideAdvancesRef.current = [{ index: chosenSlide, tMs: 0 }];
       clearPracticeResume(userId, arcId);
-      practiceResumeRef.current = null;
+      // Consume the persisted choice once, but keep this Take's bounds until
+      // recording ends. Navigation and the timer read this same selection.
     }
     // BE-2/R6-FE5 — no minimum-time gate: every stop submits. The BE analyzes
     // whatever arrived (its min-content 422 is retired server-side too).
@@ -792,9 +786,7 @@ export default function LabOverlay({
     // Only a discard throws the answer away; a run that merely lost interest
     // (the ✕, an unmount) still lands it (`landUnwatched`).
     let discarded = false;
-    // The upload has answered; until then, a ✕ leaves the chat a bubble.
     let answered = false;
-    let uploading: (() => void) | null = null;
     // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
     // await return, deterministically, without the effect needing a branch for
     // a result it has nothing to do with. Cleared alongside `active` below so
@@ -949,7 +941,7 @@ export default function LabOverlay({
       // deliberate: it is deterministic (not "the dispatch probably re-ran the
       // effect first"), and it keeps this already-grandfathered function from
       // growing — the ratchet's own instruction.
-      if (!active) return landUnwatched(result, { discarded, uploading, projectId, waitStartedAt, carried: carryArc });
+      if (!active) return landUnwatched(result, { discarded, projectId, waitStartedAt, carried: carryArc });
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take
@@ -1061,8 +1053,6 @@ export default function LabOverlay({
     })();
     return () => {
       active = false;
-      // Closed while the Take goes up: the chat shows it is on its way.
-      if (!answered && !discarded && !answer && uploadAbortRef.current) uploading = takeUploadingUnwatched();
       // NOT an abort. An unmount or a dependency change must never throw a
       // take away — the upload keeps going and the server keeps it; only this
       // run's interest in the answer ends. Dropping the canceller with it
@@ -1335,8 +1325,9 @@ export default function LabOverlay({
     // default one — their taps are real slide events either way.
     const total = recordingDeck.slides.length;
     if (total === 0) return;
+    const range = practiceSlideRange(practiceResumeRef.current, total);
     setCurrentSlide((c) => {
-      const next = Math.min(Math.max(index, 0), total - 1);
+      const next = Math.min(Math.max(index, range.first), range.last);
       if (next !== c) {
         slideAdvancesRef.current.push({
           index: next,
@@ -1467,6 +1458,9 @@ export default function LabOverlay({
   }
 
   function startNextTakeHere() {
+    // A new Take must not inherit the previous Take's consumed fragment.
+    // Retrying a rejected recording keeps its choice in onRecordAgain instead.
+    practiceResumeRef.current = null;
     // A re-read is just the next take on THIS presentation: keep the
     // deck (context) and arc (arcTakeIndex was already advanced on the
     // prior upload), drop the current take's readout/session/blob, and
@@ -1572,6 +1566,13 @@ export default function LabOverlay({
       parkReadout();
       return;
     }
+    // The processing screen has already handed the Take to the upload or
+    // background worker. Closing is only a view change: do not invoke the mic
+    // teardown path here, which must never be mistaken for cancelling the job.
+    if (state === "lab_processing") {
+      onClose();
+      return;
+    }
     mic.cancel();
     onClose();
   }
@@ -1590,7 +1591,7 @@ export default function LabOverlay({
     return asksBeforeClosing();
   }
 
-  // Try processing again. Also run once a policy update is accepted after
+  // Try processing again. Also run once the current policy is accepted after
   // the upload was refused for an out-of-date acceptance (PolicyUpdate.tsx).
   const retryProcessing = async () => {
     if (labSessionId) {
@@ -1642,7 +1643,7 @@ export default function LabOverlay({
   retryProcessingRef.current = () => void retryProcessing();
 
   const look = answerLook(answer, state, uploadError, context?.target_length_seconds);
-  usePracticeChunkEnds(!answer, state, mic.state.status, elapsed, mic.stop);
+  usePracticeChunkEnds(!answer, state, mic.state.status, elapsed, mic.stop, practiceResumeRef.current);
   return (
     // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
     // is paint only; see labFade.tsx.
@@ -1832,6 +1833,7 @@ export default function LabOverlay({
             asks={look.asks}
             rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
+            onDiscard={handleClose}
             onRecordAgain={() => {
               // Not asked again (N28): the rejected recording never became a
               // Take and a mic error never started one, so this retries the
@@ -1846,8 +1848,9 @@ export default function LabOverlay({
               lastWasUploadRef.current = false;
               startPendingRef.current = false;
               recordStartRef.current = performance.now();
-              setCurrentSlide(0);
-              slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
+              const first = practiceSlideRange(practiceResumeRef.current, recordingSlides.length).first;
+              setCurrentSlide(first);
+              slideAdvancesRef.current = [{ index: first, tMs: 0 }];
               void mic.start();
             }}
             slides={recordingSlides}
@@ -1857,6 +1860,7 @@ export default function LabOverlay({
                 : (context?.presentationRef ?? null)
             }
             currentSlide={currentSlide}
+            practiceSelection={practiceResumeRef.current}
             roots={recordingRoots}
             onSlideChange={selectSlide}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
@@ -1868,13 +1872,14 @@ export default function LabOverlay({
                     const err = validateAudioUpload(file);
                     if (err) {
                       setRejectedMsg(err);
-                      return;
+                      return false;
                     }
                     setRejectedMsg(null);
                     slideAdvancesRef.current = [];
                     durationRef.current = 0; // the BE backfills duration
                     setBlob(file);
                     dispatch("upload_submitted");
+                    return true;
                   }
                 : null
             }
@@ -1987,6 +1992,7 @@ export function RecordingPhase({
   rejectedMsg,
   uploadRetry,
   onStop,
+  onDiscard,
   onRecordAgain,
   slides,
   presentationRef,
@@ -1994,6 +2000,7 @@ export function RecordingPhase({
   roots,
   onSlideChange,
   asks = null,
+  practiceSelection = null,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   /** The host draws "Getting your mic ready" itself, as one element across
@@ -2009,8 +2016,9 @@ export function RecordingPhase({
   rejectedMsg: string | null;
   /** R4-5 fix — when the rejected take was an UPLOAD, submit a different file
    *  instead of forcing a live re-record. null for live-recorded rejections. */
-  uploadRetry: ((file: File) => void) | null;
+  uploadRetry: ((file: File) => boolean) | null;
   onStop: () => void;
+  onDiscard?: () => void;
   onRecordAgain: () => void;
   slides: PresentationSlide[];
   presentationRef: string | null;
@@ -2021,54 +2029,11 @@ export function RecordingPhase({
   /** An answer's person: the slide reads "{name} asks" over the question
    *  (backend N441 item 7). */
   asks?: string | null;
+  practiceSelection?: PracticeResumeSelection | null;
 }) {
   const uiLocale = useUiLocale();
-  const retryFileRef = useRef<HTMLInputElement | null>(null);
-  // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
-  // setup context and let the user re-record without re-entering Setup. This
-  // wins over the connecting/idle spinner (cancelMic left the mic idle). When
-  // the take came from a file upload, lead with "upload a different file"
-  // (the old Pre-record recovery) and keep live recording as the alternative.
   if (rejectedMsg) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="max-w-sm text-[15px] text-destructive">{rejectedMsg}</p>
-        {uploadRetry ? (
-          <>
-            <input
-              ref={retryFileRef}
-              type="file"
-              accept="audio/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) uploadRetry(f);
-              }}
-              className="hidden"
-            />
-            <div className="flex flex-col items-center gap-2">
-              <Button
-                onClick={() => retryFileRef.current?.click()}
-                className="rounded-full px-6"
-              >
-                Upload a different file
-              </Button>
-              <button
-                type="button"
-                onClick={onRecordAgain}
-                className="text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                or record instead
-              </button>
-            </div>
-          </>
-        ) : (
-          <Button onClick={onRecordAgain} className="rounded-full px-6">
-            Record again
-          </Button>
-        )}
-      </div>
-    );
+    return <CaptureRecovery message={rejectedMsg} onRecordAgain={onRecordAgain} uploadRetry={uploadRetry ?? undefined} />;
   }
 
   // R4-5 — with the Pre-record screen gone, RecordingPhase is what shows while
@@ -2089,118 +2054,66 @@ export function RecordingPhase({
     // doesn't open app settings from the web, so it was a dead button.)
     const openInSafari = micState.code === "needs_safari";
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="max-w-sm text-[15px] text-destructive">
-          {micState.message}
-        </p>
-        {openInSafari ? (
-          <a
-            href={typeof window !== "undefined" ? window.location.href : "/"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-border px-6 py-2.5 text-[15px] text-foreground"
-          >
-            Open in Safari
-          </a>
-        ) : (
-          <Button
-            onClick={onRecordAgain}
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            Try again
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  // R5 — Apple-style clock: count DOWN from the setup target, read 0:00 at the
-  // target, then count UP as a negative red overrun (never auto-stopping — the
-  // red is only a nudge). No/invalid target → count up raw elapsed, never red.
-  const { label: clockLabel, overrun } = formatRecordingClock(
-    elapsed,
-    targetSec,
-  );
-  const target = coerceTargetSeconds(targetSec); // for the bar fill only
-  const hasDeck = slides.length > 0;
-
-  /* THE RECORDING STRIP (respec §4) — ONE line: pulsing dot → clock →
-     progress. Finish take left it for the last slide's button (N70). It used to be a four-storey tower (the word
-     "Recording", a 40px clock, a bar, then an 80px button) that pushed the
-     slide off the top of a phone. Everything in it still says exactly what
-     it said before; it says it across instead of down.
-
-     The clock keeps its semantics (R5): it counts DOWN to the setup target,
-     reads 0:00 there, then counts UP as a negative overrun. The bar is
-     NUMBERLESS — no digits, no percentage (AC-9) — and both turn to the
-     record red past the target, which is a nudge, never an error. */
-  const strip = (
-    <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3">
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-full bg-record/50 motion-safe:animate-pulse"
-        aria-hidden
+      <CaptureRecovery
+        message={micState.message}
+        onRecordAgain={openInSafari ? undefined : onRecordAgain}
+        workaround={openInSafari ? (
+          <a href={typeof window !== "undefined" ? window.location.href : "/"} target="_blank" rel="noopener noreferrer"
+            className="rounded-full border border-border px-6 py-2.5 text-[15px]">Open in Safari</a>
+        ) : undefined}
       />
-      <span
-        className={`font-mono text-[17px] font-semibold tabular-nums ${
-          overrun ? "text-record" : "text-foreground"
-        }`}
-      >
-        {clockLabel}
-      </span>
-      <div
-        className="h-1 flex-1 overflow-hidden rounded-full bg-border"
-        aria-hidden
-      >
-        <div
-          className={`h-full rounded-full transition-[width] duration-200 ${
-            overrun
-              ? "motion-safe:animate-pulse bg-record"
-              : target == null
-                ? "motion-safe:animate-pulse bg-muted-foreground/40"
-                : "bg-primary"
-          }`}
-          style={{
-            width:
-              target == null
-                ? "100%"
-                : `${Math.min(100, (elapsed / target) * 100)}%`,
-          }}
-        />
-      </div>
-    </div>
-  );
-
-  if (!hasDeck) {
-    // No deck at all is a state the product no longer produces (a speaker
-    // who uploaded nothing presents the default deck), but a take with an
-    // empty slide list must still be stoppable.
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end gap-2.5 pb-[env(safe-area-inset-bottom)]">
-        {strip}
-        <FinishTakeButton onClick={onStop} className="h-12 w-full rounded-2xl text-[15px]" />
-      </div>
     );
   }
 
-  /* THE COLUMN: the slide takes the room that is going spare; the strip and
-     the Back / Next slide pair stay pinned above the home indicator.
+  const hasDeck = slides.length > 0;
+  const stopLabel = recordingText("finishTake", uiLocale);
+  const composer = (
+    <ChatComposer recording={{
+      elapsedMs: elapsed * 1000,
+      targetSeconds: targetSec,
+      stop: currentSlide >= practiceSlideRange(practiceSelection, slides.length).last ? onStop : undefined,
+      discard: onDiscard,
+      stopLabel,
+      attrs: { "data-finish-take": "" },
+    }} />
+  );
+  if (!hasDeck) {
+    return <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end">{composer}</div>;
+  }
 
-     THE STILL FRAME (founder lock 2026-10-12, N70): only the slide and its
-     helper words move, sideways. The strip, the buttons and the top bar's
-     "Take · Slide" line keep their elements through a slide change. No line
-     above the strip. */
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
       <RecordingRoadmap
+        practiceSelection={practiceSelection}
         slides={slides}
         asks={asks}
         presentationRef={presentationRef}
         currentSlide={currentSlide}
         roots={roots}
         onSlideChange={onSlideChange}
-        strip={strip}
-        onFinish={onStop}
+        composer={composer}
+      />
+    </div>
+  );
+}
+
+function CaptureRecovery({ message, onRecordAgain, uploadRetry, workaround }: {
+  message: string;
+  onRecordAgain?: () => void;
+  uploadRetry?: (file: File) => boolean;
+  workaround?: ReactNode;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <p role="alert" className="max-w-sm text-[15px] text-destructive">{message}</p>
+        {workaround}
+      </div>
+      <ChatComposer
+        voiceRequired={!uploadRetry}
+        placeholder="Choose a recording"
+        mic={onRecordAgain ? { start: onRecordAgain, label: "Record again" } : undefined}
+        files={uploadRetry ? [{ label: "Upload a different file", accept: "audio/*", sendFile: uploadRetry }] : undefined}
       />
     </div>
   );
@@ -2388,19 +2301,21 @@ function answerLook(answer: AnswerFor | null, state: WillabState, uploadError: u
   };
 }
 
-/** Presentation Takes are practised in short chunks. The target duration in
- * setup remains the whole presentation's limit, not the recorder timer. */
+/** Only chunk practice auto-stops. Explicit whole rehearsal and answers are
+ * uncapped; setup's target duration remains an informational clock. */
 export function usePracticeChunkEnds(
   enabled: boolean,
   state: WillabState,
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
   elapsed: number,
   stop: () => unknown,
+  selection: PracticeResumeSelection | null = null,
 ) {
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const over =
     enabled &&
+    selection?.scope !== "whole" &&
     state === "lab_recording" &&
     micStatus === "recording" &&
     elapsed >= PRACTICE_CHUNK_SECONDS;

@@ -15,6 +15,10 @@ import {
 } from "@/lib/willab/nextTakeShare";
 import { shareLineDraft } from "@/lib/willab/walkThread";
 import { WALK_COPY } from "./idealEditCopy";
+import type { PracticeDecision } from "@/lib/willab/practiceResume";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
+import { PRACTICE_READINESS_TONE } from "./practiceReadiness";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -80,12 +84,9 @@ export default function IdealTextActions({
    *  the current project, which never asks (Never 3). */
   confirmFirst?: ((go: () => void) => void) | null;
   /** Project practice: the text is the decision point before recording. */
-  practiceDecision?: {
-    continueLabel?: string;
-    onContinue: () => void;
-    onRepeat: () => void;
-  } | null;
+  practiceDecision?: PracticeDecision | null;
 }) {
+  const locale = useUiLocale();
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
    * feedback", with the next Take one tap away underneath. J4: the walk's end
@@ -121,22 +122,39 @@ export default function IdealTextActions({
   };
 
   if (practiceDecision) {
+    const readinessTone = practiceDecision.deliveryLabel
+      ? PRACTICE_READINESS_TONE[practiceDecision.deliveryLabel]
+      : "#a3a3a3";
     return (
       <div data-practice-decision className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={practiceDecision.onContinue}
-          className="h-[56px] w-full rounded-full bg-foreground text-[16px] font-semibold text-background"
-        >
-          {practiceDecision.continueLabel ?? "Continue to next fragment"}
-        </button>
-        <button
-          type="button"
-          onClick={practiceDecision.onRepeat}
-          className="h-[48px] w-full rounded-full text-[16px] text-muted-foreground"
-        >
-          Repeat this fragment
-        </button>
+        {practiceDecision.deliveryLabel ? (
+          <div data-practice-status className="mb-0.5 flex min-h-6 items-center justify-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: readinessTone }}
+            />
+            {practiceDecision.deliveryLabel}
+          </div>
+        ) : null}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            data-practice-choice="fragment"
+            onClick={practiceDecision.onFragment}
+            className="min-h-[56px] rounded-full border border-border bg-background px-3 text-[15px] font-semibold text-foreground"
+          >
+            {uiText(locale, "practiceRepeatFragment")}
+          </button>
+          <button
+            type="button"
+            data-practice-choice="whole"
+            onClick={practiceDecision.onWholePresentation}
+            className="min-h-[56px] rounded-full bg-foreground px-3 text-[15px] font-semibold text-background"
+          >
+            {uiText(locale, "practiceWholePresentation")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -193,4 +211,4 @@ function useRecordAlone(asksShare: boolean, arcId: string | null, record: () => 
   };
 }
 
-// Founder-Approved: task delegation, 2026-11-16.
+// Founder-Approved: side-by-side practice choices with readiness status, 2026-11-18.

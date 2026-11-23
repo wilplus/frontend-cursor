@@ -1,11 +1,8 @@
 /*
-STORY    As a speaker, I want each project to keep its own conversation while
-         Will keeps general insights, so that take context never leaks lanes.
-OUTCOME  O1  Project rows route by arc and stay out of Will.
-         O2  Only the newest unanswered project question remains open.
-PROVES   O1 -> "keeps project rows out of Will and in their own project"
-         O2 -> "keeps the newest unanswered project question open"
-WHY      Founder 2026-11-15: project feedback is local; Will is cross-project.
+STORY    As a speaker, I want Will's shared Coach conversation to stay separate
+         from project-specific questions, so project work is never replayed in Coach.
+OUTCOME  O1  Project rows remain available to their owning project only.
+PROVES   O1 -> the project selector keeps project rows while Coach history excludes them.
 */
 import { describe, expect, it } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -15,24 +12,55 @@ import {
   openProjectQuestion,
   orderedProjectMessages,
   projectMessageStaysInLounge,
+  speakingCoachMessages,
 } from "./projectChat";
+import { loungeToHistory } from "@/components/willab/willabHelpers";
 
-const row = (id: string, role: "user" | "bot", metadata: Record<string, unknown> | null): LoungeMessage => ({
-  client_id: id,
-  client_created_at: `2026-11-15T00:00:0${id}.000Z`,
-  role,
-  kind: "text",
-  body: id,
-  metadata,
-});
+function message(over: Partial<LoungeMessage>): LoungeMessage {
+  return {
+    client_id: over.client_id ?? "message",
+    client_created_at: over.client_created_at ?? "2026-11-18T00:00:00.000Z",
+    role: over.role ?? "bot",
+    kind: over.kind ?? "text",
+    body: over.body ?? "",
+    metadata: over.metadata ?? null,
+  };
+}
 
-describe("project chat routing", () => {
-  it("keeps project rows out of Will and in their own project", () => {
-    const general = row("1", "bot", null);
-    const project = row("2", "bot", { arc_id: "arc-a" });
-    expect(isProjectMessage(general)).toBe(false);
-    expect(isProjectMessage(project)).toBe(true);
-    expect(messagesForProject([general, project], "arc-a")).toEqual([project]);
+function row(
+  id: string,
+  role: LoungeMessage["role"],
+  metadata: Record<string, unknown>,
+): LoungeMessage {
+  return message({ client_id: id, role, metadata });
+}
+
+describe("project / Speaking Coach boundary", () => {
+  it("keeps project Q&A available to its project but out of Coach history", () => {
+    const projectQuestion = message({
+      client_id: "project-question",
+      role: "bot",
+      body: "Who were you talking to?",
+      metadata: { arc_id: "arc-a", offer: "will_question" },
+    });
+    const projectAnswer = message({
+      client_id: "project-answer",
+      role: "user",
+      body: "The board",
+      metadata: { arc_id: "arc-a", take_session_id: "take-a" },
+    });
+    const general = message({
+      client_id: "general",
+      role: "bot",
+      body: "What speaking pattern would you like to work on?",
+    });
+    const all = [projectQuestion, projectAnswer, general];
+
+    expect(messagesForProject(all, "arc-a")).toEqual([projectQuestion, projectAnswer]);
+    expect(speakingCoachMessages(all)).toEqual([general]);
+    expect(loungeToHistory(all)).toEqual([
+      { role: "assistant", content: "What speaking pattern would you like to work on?" },
+    ]);
   });
 
   it("keeps the newest unanswered project question open", () => {
@@ -62,6 +90,17 @@ describe("project chat routing", () => {
       take_session_id: "take-a",
       will_question_step: "thanks",
     }))).toBe(true);
+  });
+
+  it("keeps typed and review follow-ups out of the general coach view", () => {
+    const question = { arc_id: "arc-a", take_session_id: "take-a", typed_project_turn: true, will_question_step: "answer" };
+    expect(projectMessageStaysInLounge(row("unanchored", "user", { ...question, reply_to: "" }))).toBe(false);
+    expect(projectMessageStaysInLounge(row("anchored", "user", {
+      ...question,
+      reply_to: "after-take",
+      review_focus: { step: "ideal", slide_index: 0 },
+    }))).toBe(false);
+    expect(projectMessageStaysInLounge(row("prompt-answer", "user", { ...question, reply_to: "after-take" }))).toBe(true);
   });
 
   it("hides a held closing and releases it after the exchange it closes", () => {

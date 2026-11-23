@@ -5,7 +5,8 @@ import { TapRow } from "@/components/willab/WillQuestion";
 import { VoicePlayer } from "@/components/willab/plan/VoicePlayer";
 import { LetterCircle } from "@/components/willab/chats/ChatList";
 import { VoiceWords, setupWaits } from "@/components/willab/chats/ChatThread";
-import { BarBox, BarButton, BarPlus, ThanksTaps, middleOf, thanksDue } from "@/components/willab/chats/ChatBar";
+import ChatComposer, { type ComposerFileAction } from "./ChatComposer";
+import { RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, ThanksTaps, takesFromSend, thanksDue } from "@/components/willab/chats/ChatBar";
 import type { ChatEmoji, ChatMessage } from "@/services/api/chats";
 import {
   answerWidgetSetup,
@@ -26,6 +27,7 @@ import {
   widgetSignUpLine,
   widgetSignedUp,
 } from "@/components/willab/chats/joinCopy";
+import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 
 /* -------------------------------------------------------------------------- */
 /*  The website chat (backend N591, N595, N606, N610; rules: docs/flows/      */
@@ -34,11 +36,8 @@ import {
 /*  on the public side. No consent card (N595 item 1): the visitor writes at  */
 /*  once, and their first message makes their chat, with the host's welcome  */
 /*  (the host's own words, with no assistant's mark) and the host's own       */
-/*  questions (N590 item 2), tapped above the bar. The bar is the locked two  */
-/*  places (N610, ChatBar.tsx): the "+" on the left, which never moves, and   */
-/*  "Ask {name}" in the middle, a box where the chat takes typing, a black    */
-/*  button where it does not. After asking, they sign up to get the answer    */
-/*  (N591 item 4, N595's signed words): every question waits for the host    */
+/*  questions (N590 item 2), tapped above the shared composer. After asking, */
+/*  they sign up to get the answer. Every question waits for the host        */
 /*  (N606: no assistant answers at once), and until the sign-up the host's   */
 /*  answers are held back by the backend. The sign-up opens the join page in */
 /*  a new tab with the visitor's secret; once signed up, the answers show    */
@@ -171,29 +170,31 @@ function SignUpCard({ name, onSignUp, onLater }: { name: string; onSignUp: () =>
   );
 }
 
-/** The visitor's bar: the locked two places (N610, drawn by ChatBar.tsx as
- *  in a host's chat). The "+" on the left, always there. In the middle the
- *  one thing to do now, "Ask {name}": a box where the host's recipe takes
- *  typing, a black button where it does not; never grey. A question of the
- *  host's that waits is answered by the taps above the bar, so the middle
- *  stays "Ask {name}" (item 4: the widget's typed words are a question, not
- *  an answer to it). No emoji in the bar and no mic on the right. */
-function WriteBar({ name, writes, onType, onAsk, onPlus }: {
+/** Media actions open the app's sign-up or existing signed-in handoff. */
+function WriteBar({ name, writes, send, onType, onAsk, onPlus, busy }: {
   name: string;
   writes: WidgetWrites;
+  send: string[] | null;
   onType: (words: string) => Promise<boolean>;
   onAsk: () => void;
   onPlus: () => void;
+  busy: boolean;
 }) {
-  const middle = middleOf(writes, { answer: false, taps: false, photo: false });
+  const takes = takesFromSend(send);
+  const files: ComposerFileAction[] = [];
+  if (!takes) files.push({ label: "Add files in the app", open: onPlus });
+  if (takes?.photo) files.push({ label: SEND_A_PHOTO, open: onPlus });
+  if (takes?.file) files.push({ label: SEND_A_FILE, open: onPlus });
+  const canRecord = takes?.record ?? (writes.record || !writes.type);
   return (
-    <div data-widget-bar="" className="flex items-center gap-2 px-3 pb-1.5">
-      <BarPlus fresh={false} onClick={onPlus} />
-      {middle === "ask-box" ? (
-        <BarBox hint={askName(name)} onSend={onType} />
-      ) : (
-        <BarButton label={askName(name)} onClick={onAsk} dataAttr={{ "data-chat-ask": "" }} />
-      )}
+    <div data-widget-bar="">
+      <ChatComposer
+        placeholder={askName(name)}
+        onSend={(takes?.type ?? writes.type) ? onType : undefined}
+        mic={canRecord ? { label: RECORD_YOUR_QUESTION, start: onAsk, disabled: busy } : undefined}
+        files={files}
+        busy={busy}
+      />
     </div>
   );
 }
@@ -239,6 +240,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   const [guest, setGuest] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [writes, setWrites] = useState<WidgetWrites>(firstWrites);
+  const [kinds, setKinds] = useState<string[] | null>(null);
   const [state, setState] = useState(NOTHING_YET);
   const [later, setLater] = useState(false);
   // "Not now" under a question's taps leaves it until the chat is opened again.
@@ -252,6 +254,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   const took = useCallback((chat: WidgetChatRead) => {
     setMessages(chat.messages);
     setWrites(chat.writes);
+    setKinds(chat.send);
     setState({ signedUp: chat.signedUp, signUp: chat.signUp, answered: chat.answered, noticeTo: chat.noticeTo });
   }, []);
 
@@ -436,7 +439,7 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
 
   return (
     <section data-widget-chat="" aria-label={name} className="fixed inset-0 flex flex-col overflow-hidden rounded-[22px] bg-background text-foreground">
-      <header className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-border pl-3.5 pr-2">
+      <header className={`flex h-[60px] shrink-0 items-center gap-2.5 ${TOP_NAV_SEPARATOR_CLASS} pl-3.5 pr-2`}>
         <LetterCircle id={token} name={name} size={36} />
         <b className="min-w-0 flex-1 truncate text-[16px]">{name}</b>
         <button type="button" aria-label="Close" data-widget-close="" onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-[15px]">
@@ -480,9 +483,11 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
         <WriteBar
           name={name}
           writes={writes}
+          send={kinds}
           onType={(words) => send("text", words.trim())}
           onAsk={state.signedUp ? () => void inTheApp() : signUpToAsk}
           onPlus={plus}
+          busy={busy}
         />
       </div>
       <Foot signUpLater={signUpDue && later} onSignUp={signUp} />

@@ -28,6 +28,7 @@ import { CopyLinkLine } from "@/components/willab/chats/JoinSetup";
 import { SEND_PICKED } from "@/components/willab/chats/joinCopy";
 import { TypingGlyph } from "@/components/willab/TypingDots";
 import { answerCommunityOffer, getCommunityOffer, type CommunityOffer } from "@/services/api/communityOffer";
+import type { ComposerRecording } from "../chats/ChatComposer";
 import { DatePickSheet, usePlanVoice } from "./PlanDock";
 
 /* -------------------------------------------------------------------------- */
@@ -160,7 +161,7 @@ export function WayInTop({
 }: {
   /** The plan says Take 1 of the way in, its walk not yet done. */
   on: boolean;
-  resume: { status: string } | null;
+  resume: { status: string; serverState?: "processing" | null } | null;
   /** Take 1's project, once its feedback was seen ready here. */
   readyArc: string | null;
   /** The plan says the walk is ready. */
@@ -170,7 +171,10 @@ export function WayInTop({
 }) {
   if (!on) return null;
   const ready = readyArc !== null || walkReady;
-  if (!ready && resume?.status !== "analyzing") return null;
+  if (
+    !ready &&
+    (resume?.status !== "analyzing" || resume.serverState !== "processing")
+  ) return null;
   return <WayInProcessingRow label={label} ready={ready} onOpen={onOpen} />;
 }
 
@@ -268,9 +272,7 @@ export type WayIn = {
   barMiddle: ReactNode;
   /** "Tell me what to change." waits: "Record your answer" records it. */
   hear: { onTap: () => void } | null;
-  /** The recording bar while that answer is said. */
-  voiceBar: ReactNode;
-  recording: boolean;
+  recording?: ComposerRecording;
   /** Words wait: "Something else" picked, or Will's last question after the
    *  walk; the box stays open. */
   wordsWait: boolean;
@@ -388,7 +390,6 @@ export function useWayIn({
         </button>
       ) : null,
     hear: voice.waiting,
-    voiceBar: voice.bar,
     recording: voice.recording,
     wordsWait: typed || ask?.kind === "words",
     say: (words) => {

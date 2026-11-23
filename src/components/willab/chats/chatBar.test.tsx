@@ -67,6 +67,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 
 import ChatThread from "./ChatThread";
+import ChatBarPreview from "@/app/dev/chat-bar/page";
+import { PEOPLE_TAKE, composerModes, sendCombos, takesFor, takesFromSend, takesOf } from "./ChatBar";
 import type { Chat } from "@/services/api/chats";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -129,13 +131,17 @@ const TO_TAP = theirs("m-t", { body: "What do you know better than most?", meta:
 const ANSWER = theirs("m-a", { kind: "voice", meta: { answer: true, duration_ms: 64000 } });
 
 /** Opens the chat: its messages and the host's answer_with (null: no
- *  host; "404": a backend without the host's route). */
-async function open(messages: unknown[], answerWith: With | null | "404" = null) {
+ *  host; "404": a backend without the host's route). `send` is They send. */
+async function open(messages: unknown[], answerWith: With | null | "404" = null, send?: string[]) {
   routes["GET /api/v2/chats/c-1/messages"] = () => json({ messages });
   if (answerWith === "404") delete routes["GET /api/v2/chats/c-1/host"];
   else
     routes["GET /api/v2/chats/c-1/host"] = () =>
-      json({ host: answerWith ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith } : null });
+      json({
+        host: answerWith || send
+          ? { assistant: "Tomek's assistant", about: [], questions: [], answer_with: answerWith ?? { tap: true, record: true }, ...(send ? { send } : {}) }
+          : null,
+      });
   act(() => root.unmount());
   root = createRoot(container);
   await act(async () => root.render(createElement(ChatThread, { chat: CHAT, onBack: () => undefined, onRecordAnswer })));
@@ -145,8 +151,8 @@ async function open(messages: unknown[], answerWith: With | null | "404" = null)
 const bar = () => container.querySelector("[data-chat-bar]")!;
 /** What the bar holds, left to right, in words. */
 const inBar = () =>
-  [...bar().querySelectorAll<HTMLElement>("button, input:not([type=file])")].map(
-    (el) => el.textContent || el.getAttribute("placeholder") || el.getAttribute("aria-label"),
+  [...bar().querySelectorAll<HTMLElement>("button, textarea")].map(
+    (el) => el.getAttribute("placeholder") || el.textContent || el.getAttribute("aria-label"),
   );
 const within = (scope: string, text: string) =>
   [...container.querySelectorAll<HTMLButtonElement>(`${scope} button`)].find((b) => b.textContent?.trim() === text);
@@ -155,14 +161,14 @@ const tap = async (el: Element | null | undefined) => {
   await act(async () => (el as HTMLElement).click());
   await flush();
 };
-const sheetTitle = () => container.querySelector("[data-ask-sheet] [role=dialog] p")?.textContent ?? null;
-const sheetRows = () => [...container.querySelectorAll("[data-ask-sheet] [role=dialog] button")].map((b) => b.textContent);
-const box = () => bar().querySelector<HTMLInputElement>("[data-chat-box] input");
+const files = () => bar().querySelector("[data-chat-files]");
+const mic = () => bar().querySelector("[data-chat-mic]");
+const box = () => bar().querySelector<HTMLTextAreaElement>("[data-chat-input]");
 
 async function say(words: string) {
   const input = box()!;
   await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, words);
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, words);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await act(async () => input.form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
@@ -170,47 +176,46 @@ async function say(words: string) {
 }
 
 async function pickPhoto() {
-  const input = container.querySelector<HTMLInputElement>("[data-chat-photo-pick]")!;
+  const input = container.querySelector<HTMLInputElement>("[data-chat-file-pick]")!;
   const photo = new File(["photo"], "hair.jpg", { type: "image/jpeg" });
   await act(async () => {
     Object.defineProperty(input, "files", { configurable: true, value: [photo] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  await flush();
+  await tap(bar().querySelector("[data-chat-send]"));
 }
 const PHOTO = "POST /api/v2/chats/c-1/photo";
 const photoSent = () => json({ message: { id: "m-p", mine: true, author: "", kind: "photo", body: "", meta: { question: true }, created_at: "2026-11-10T10:05:00Z" } });
 
 describe("the bar in a host's chat and between people (N610)", () => {
-  it("BAR-N610-FE-1: two places, the + and Ask {name}, while nothing is asked", async () => {
+  it("keeps the files, field and mic slots in the same order in people chats", async () => {
     for (const answerWith of [null, RECORDS, TAPS]) {
       await open([], answerWith);
-      expect(inBar()).toEqual(["Add", "Ask Tomek"]);
-      expect([...bar().querySelectorAll("button")].some((b) => b.disabled)).toBe(false);
-      expect(bar().textContent).not.toMatch(/👍|👀|🙏/);
+      expect(inBar()).toEqual(["Add files", "Ask Tomek", "Record your question"]);
+      expect(box()?.disabled).toBe(true);
+      expect(mic()?.hasAttribute("disabled")).toBe(false);
     }
-    await tap(bar().querySelector("[data-chat-ask]"));
-    expect(sheetTitle()).toBe("Ask Tomek");
   });
 
   it("BAR-N610-FE-2: the chat asks and the middle answers; taps above the bar, Not now under them", async () => {
     // A chat that takes recordings: "Record your answer", with the question.
     await open([ASKED], RECORDS);
-    expect(inBar()).toEqual(["Add", "Record your answer"]);
+    expect(inBar()).toEqual(["Add files", "Record your answer", "Record your answer"]);
     await tap(bar().querySelector("[data-chat-record-answer]"));
     expect(onRecordAnswer).toHaveBeenLastCalledWith({ chatId: "c-1", name: "Tomek", customer: false, question: "Which shampoo suits me?", slides: undefined });
 
     // Only taps: the middle stays; the answers above the bar, "Not now" under them.
     routes["POST /api/v2/chats/c-1/messages/m-t/not-now"] = () => json({ kept: true });
     await open([TO_TAP], TAPS);
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+    expect(box()?.disabled).toBe(true);
+    expect(mic()?.getAttribute("aria-label")).toBe("Record your question");
     const above = [...container.querySelectorAll("[data-chat-thread] button")].map((b) => b.textContent);
     expect(above).toEqual(["A hobby", "Something I lived through", "Not now"]);
     await tap(within("[data-chat-not-now]", "Not now"));
     expect(container.querySelector("[data-chat-setup]")).toBeNull();
     expect(container.querySelector("[data-chat-not-now]")).toBeNull();
     expect(calls("POST /api/v2/chats/c-1/messages/m-t/not-now")).toHaveLength(1);
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+    expect(inBar()).toEqual(["Add files", "Ask Tomek", "Record your question"]);
   });
 
   it("BAR-N610-FE-3: thanks is one tap after a person's answer, never after the assistant, never twice", async () => {
@@ -221,7 +226,7 @@ describe("the bar in a host's chat and between people (N610)", () => {
     await open([ANSWER]);
     expect(thanks().map((b) => b.textContent)).toEqual(["👀", "👍", "🙏"]);
     expect(thanks().map((b) => b.hasAttribute("data-goes"))).toEqual([false, false, true]);
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+    expect(inBar()).toEqual(["Add files", "Ask Tomek", "Record your question"]);
     await tap(thanks()[2]);
     expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "emoji", body: "🙏" });
     expect(container.querySelector("[data-chat-emoji]")?.textContent).toMatch(/^🙏Thanks · \d\d:\d\d$/);
@@ -239,29 +244,19 @@ describe("the bar in a host's chat and between people (N610)", () => {
     expect(thanks()).toEqual([]);
   });
 
-  it("BAR-N610-FE-4: the + sheet asks, answers and sends a photo", async () => {
+  it("records from the mic and sends a photo selected from Files", async () => {
     routes[PHOTO] = photoSent;
     await open([], RECORDS);
-    await tap(bar().querySelector("[data-chat-plus]"));
-    expect(sheetTitle()).toBe("Ask Tomek");
-    expect(sheetRows()).toEqual(["Record your question", "Send a photo", "Cancel"]);
-    await tap(within("[data-ask-sheet]", "Record your question"));
-    expect(onRecordAnswer).toHaveBeenLastCalledWith({ chatId: "c-1", name: "Tomek", customer: false, question: "", asks: true });
-    expect(sheetTitle()).toBeNull();
+    await tap(mic());
+    expect(onRecordAnswer).toHaveBeenLastCalledWith({ chatId: "c-1", name: "Tomek", customer: false, question: "", slides: undefined, asks: true });
 
-    await tap(bar().querySelector("[data-chat-plus]"));
-    await tap(within("[data-ask-sheet]", "Send a photo"));
-    expect(sheetTitle()).toBeNull();
+    await tap(files());
+    expect(within("[data-chat-composer]", "Record your question")).toBeUndefined();
+    await tap(within("[data-chat-composer]", "Send a photo"));
     await pickPhoto();
     const body = calls(PHOTO).at(-1)?.[1]?.body as FormData;
     expect((body.get("file") as File).name).toBe("hair.jpg");
     expect(container.querySelector('[data-row="me"] [data-chat-photo]')?.getAttribute("data-chat-photo")).toBe("/api/v2/chats/c-1/messages/m-p/file");
-
-    // While the chat asks: "Answer Tomek"; the middle already records.
-    await open([ASKED], RECORDS);
-    await tap(bar().querySelector("[data-chat-plus]"));
-    expect(sheetTitle()).toBe("Answer Tomek");
-    expect(sheetRows()).toEqual(["Send a photo", "Cancel"]);
   });
 
   it("BAR-N610-FE-5: the box types where the host chose Type", async () => {
@@ -270,7 +265,7 @@ describe("the bar in a host's chat and between people (N610)", () => {
     for (const host of [null, "404", { tap: true, record: true }] as const) {
       for (const messages of [[], [ASKED]]) {
         await open(messages, host);
-        expect(box()).toBeNull();
+        expect(box()?.disabled).toBe(true);
       }
     }
 
@@ -282,7 +277,7 @@ describe("the bar in a host's chat and between people (N610)", () => {
       return json(said.to ? { message, messages: [message, next] } : { message });
     };
     await open([], TYPES);
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+    expect(mic()?.hasAttribute("disabled")).toBe(true);
     expect(box()?.disabled).toBe(false);
     await open([], BOTH);
     expect(box()?.getAttribute("placeholder")).toBe("Ask Tomek");
@@ -291,13 +286,11 @@ describe("the bar in a host's chat and between people (N610)", () => {
     expect(container.querySelector('[data-row="me"]')?.textContent).toContain("What should my first offer cost?");
     expect(box()?.value).toBe("");
 
-    // Asked, recording on too: the button records; "Type your answer" is behind the "+".
+    // The same answer permits typing and recording when both are configured.
     await open([ASKED], BOTH);
-    expect(inBar()).toEqual(["Add", "Record your answer"]);
-    await tap(bar().querySelector("[data-chat-plus]"));
-    expect(sheetRows()).toEqual(["Type your answer", "Send a photo", "Cancel"]);
-    await tap(within("[data-ask-sheet]", "Type your answer"));
-    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    expect(box()?.placeholder).toBe("Type your answer");
+    expect(box()?.disabled).toBe(false);
+    expect(mic()?.getAttribute("aria-label")).toBe("Record your answer");
     await say("The gentle one");
     expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "The gentle one", to: "m-q" });
     // The answer, then the host's next line.
@@ -309,9 +302,9 @@ describe("the bar in a host's chat and between people (N610)", () => {
 
     // Asked, only typing: the box answers, a question to tap too. No thanks taps.
     await open([ASKED], TYPES);
-    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    expect(box()?.placeholder).toBe("Type your answer");
     await open([TO_TAP], TYPES);
-    expect(inBar()).toEqual(["Add", "Type your answer"]);
+    expect(box()?.placeholder).toBe("Type your answer");
     await say("Beekeeping");
     expect(sent("POST /api/v2/chats/c-1/messages")).toEqual({ kind: "text", body: "Beekeeping", to: "m-t" });
     await open([ANSWER], TYPES);
@@ -328,13 +321,14 @@ describe("the bar in a host's chat and between people (N610)", () => {
         ],
       });
     await open([theirs("m-ph", { body: "Send me a photo of your hair.", meta: { setup: { i: 2, kind: "photo", answers: [] } } })], RECORDS);
-    expect(inBar()).toEqual(["Add", "Add a photo"]);
-    await tap(bar().querySelector("[data-chat-add-photo]"));
+    expect(box()?.disabled).toBe(true);
+    await tap(files());
+    await tap(within("[data-chat-composer]", "Add a photo"));
     await pickPhoto();
     expect(((calls(ASKS_PHOTO).at(-1)?.[1]?.body as FormData).get("file") as File).name).toBe("hair.jpg");
     expect(calls(PHOTO)).toHaveLength(0);
     expect(container.querySelector("[data-chat-thread]")?.textContent).toContain("Lovely. Thank you.");
-    expect(inBar()).toEqual(["Add", "Ask Tomek"]);
+    expect(inBar()).toEqual(["Add files", "Ask Tomek", "Record your question"]);
   });
 
   it("BAR-N610-FE-7: typed words a send refuses come back to the box as typed", async () => {
@@ -350,17 +344,16 @@ describe("the bar in a host's chat and between people (N610)", () => {
     ];
     const typed = "  What should my first offer cost? ";
     await open([], TYPES);
-    const before = container.textContent;
     for (const refuse of refusals) {
       routes[TEXT] = refuse;
       await say(typed);
       expect(box()?.value).toBe(typed);
       expect(document.activeElement).toBe(box());
       expect(container.querySelector('[data-row="me"]')).toBeNull();
-      expect(container.textContent).toBe(before);
+      expect(bar().querySelector("[role=alert]")?.textContent).toContain("Try again");
       // Emptied, so the next refusal starts from the same words.
       await act(async () => {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box()!, "");
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box()!, "");
         box()!.dispatchEvent(new Event("input", { bubbles: true }));
       });
     }
@@ -368,12 +361,56 @@ describe("the bar in a host's chat and between people (N610)", () => {
     // "Type your answer" opened from the "+": refused, the box stays open with the words.
     routes[TEXT] = refusals[1];
     await open([ASKED], BOTH);
-    await tap(bar().querySelector("[data-chat-plus]"));
-    await tap(within("[data-ask-sheet]", "Type your answer"));
     await say("The gentle one");
     // The words are back in the box, so Will's Send shows inside it (a ring
     // host's chat; the founder's trial, item 1b).
-    expect(inBar()).toEqual(["Add", "Type your answer", "Send"]);
+    expect(inBar()).toEqual(["Add files", "Type your answer", "Send", "Record your answer"]);
     expect(box()?.value).toBe("The gentle one");
+  });
+
+  it("They send maps onto the bar, and a file sits behind the +", async () => {
+    const flag = (kinds: readonly string[], kind: string) => kinds.includes(kind);
+    expect(sendCombos()).toHaveLength(15);
+    for (const combo of sendCombos()) {
+      expect(takesFromSend(combo)).toEqual({
+        tap: true,
+        record: flag(combo, "rec"),
+        type: flag(combo, "text"),
+        photo: flag(combo, "photo"),
+        file: flag(combo, "file"),
+      });
+    }
+    expect(takesFromSend(null)).toBeNull();
+    expect(takesFromSend([])).toEqual({ tap: true, record: false, type: false, photo: false, file: false });
+    // No send: answer_with, with Send a photo and no file.
+    expect(takesOf(null)).toEqual(PEOPLE_TAKE);
+    expect(takesFor(null, { tap: true, type: true, record: false })).toEqual({ tap: true, type: true, record: false, photo: true, file: false });
+    expect(composerModes(takesFor(["rec", "photo"], null), { answer: false, photo: false }))
+      .toEqual({ text: false, mic: true, photo: true, file: false });
+    expect(composerModes(takesFor(["text", "file"], null), { answer: true, photo: false }))
+      .toEqual({ text: true, mic: false, photo: false, file: true });
+
+    routes["POST /api/v2/chats/c-1/file"] = () =>
+      json({ message: { id: "m-f", mine: true, author: "", kind: "file", body: "notes.pdf", meta: null, created_at: "2026-11-10T10:08:00Z" } });
+    await open([], null, ["text", "file"]);
+    expect(box()?.getAttribute("placeholder")).toBe("Ask Tomek");
+    await tap(files());
+    await tap(within("[data-chat-composer]", "Send a file"));
+    const input = container.querySelector<HTMLInputElement>("[data-chat-file-pick]")!;
+    const file = new File(["notes"], "notes.pdf", { type: "application/pdf" });
+    await act(async () => {
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await tap(bar().querySelector("[data-chat-send]"));
+    expect(((calls("POST /api/v2/chats/c-1/file").at(-1)?.[1]?.body as FormData).get("file") as File).name).toBe("notes.pdf");
+
+    act(() => root.render(createElement(ChatBarPreview)));
+    const cases = [...container.querySelectorAll("[data-bar-case]")];
+    expect(cases).toHaveLength(15 * 4);
+    const labels = cases.map((el) => el.querySelector("h2")?.textContent);
+    expect(labels).toContain("rec · text · photo · file · Nothing asked");
+    expect(labels).toContain("file · Thanks");
+    expect(cases.every((el) => el.querySelectorAll("[data-chat-composer]").length === 1)).toBe(true);
   });
 });

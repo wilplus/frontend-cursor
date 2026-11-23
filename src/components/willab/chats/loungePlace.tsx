@@ -86,37 +86,6 @@ export function typingOffIn(place: LoungePlace | null, off: boolean): boolean {
   return !wordsAlways(place) && off;
 }
 
-/** The text field shows when the chat asks for words, and always in a chat
- *  in words. */
-export function wordsShow(place: LoungePlace | null, show: boolean): boolean {
-  return show || wordsAlways(place);
-}
-
-export type LoungeBarMode = "words" | "action" | "quiet" | "record";
-
-/**
- * Speaking coach is a chat first: at rest its normal composer is open. A
- * specific task that needs a dedicated middle (for example "Record your
- * answer") may replace it; a tap-only question keeps the middle quiet. The
- * legacy one-chat surface keeps its record dock unchanged.
- */
-export function barModeIn(
-  place: LoungePlace | null,
-  wordsRequested: boolean,
-  actionMiddle: ReactNode,
-  hear: unknown,
-  typingOff: boolean,
-  otherTypingOff: boolean,
-): LoungeBarMode {
-  if (wordsShow(place, wordsRequested)) return "words";
-  const actionWaiting = actionMiddle != null || hear != null;
-  if (place === "speaking") {
-    if (actionWaiting) return "action";
-    return typingOff || otherTypingOff ? "quiet" : "words";
-  }
-  return actionWaiting ? "action" : "record";
-}
-
 /** The way in's links about one's own chat show on its row everywhere but
  *  the ring's speaking chat, where Will's chat has them (N636 item 3). */
 export function ownChatLinksIn(place: LoungePlace | null): boolean {
@@ -129,8 +98,9 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
 }
 
 /** What a row typed in this chat carries, so the backend files it here
- *  (it reads metadata.place before anything else, backend #1933); in the
- *  speaking chat, the Take it is about. Never an `offer`: a row with one is
+ *  (it reads metadata.place before anything else, backend #1933). Callers
+ *  pass an arc only for a project-scoped turn; ordinary Speaking-coach chat
+ *  stays visible in the shared thread. Never an `offer`: a row with one is
  *  drawn as Will's offer, never as one's own words. */
 export function typedHint(place: LoungePlace | null, arcId: string | null | undefined, chat: string | null = null): Record<string, unknown> | null {
   if (!place) return null;

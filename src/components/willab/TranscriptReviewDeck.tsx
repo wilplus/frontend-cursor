@@ -10,7 +10,10 @@ import DeckChunkModal, {
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
 import DeckSlideThumb from "@/components/willab/DeckSlideThumb";
 import { WalkEndLayer } from "@/components/willab/WalkEnd";
-import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
+import {
+  CHUNK_SHEET_COPY,
+  IDEAL_EDIT_COPY,
+} from "@/components/willab/idealEditCopy";
 import {
   bookmarkPartIds,
   buildBookmarks,
@@ -31,6 +34,10 @@ import {
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
+import TopNavbar, {
+  TOP_NAV_SEPARATOR_CLASS,
+  TopNavbarBackButton,
+} from "@/components/TopNavbar";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   buildChunkStates,
@@ -86,7 +93,7 @@ import {
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
-import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished } from "./useDeckFeedbackWalk";
+import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished, type FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { wordsPickedIn } from "@/lib/willab/walkThread";
@@ -276,6 +283,7 @@ export default function TranscriptReviewDeck({
   onSetRootPhrase,
   onSetHelperWordsFromTake = null,
   onEditSlide,
+  onRegisterBackGuard,
   onClose,
   styleChanges = null,
   onApplyStyle,
@@ -288,6 +296,8 @@ export default function TranscriptReviewDeck({
   coachMessage = null,
   reviewRequest = 0,
   reviewAt = null,
+  reviewSlideRange = null,
+  requireFeedbackWalk = false,
   onReviewWaiting,
   replayRequest,
   onReplayReady,
@@ -357,6 +367,8 @@ export default function TranscriptReviewDeck({
   onEditSlide: (
     edits: Array<{ chunk: DeckChunk; text: string }>
   ) => Promise<boolean>;
+  /** Lets the host's browser-Back handler save/close an open editor first. */
+  onRegisterBackGuard?: (guard: (() => boolean) | null) => void;
   onClose?: () => void;
   /** Legacy post-lock bold proposals, retained for already-created records. */
   styleChanges?: readonly DocumentSuggestion[] | null;
@@ -385,6 +397,11 @@ export default function TranscriptReviewDeck({
   reviewRequest?: number;
   /** The Lounge step tapped: the walk opens on it (lock 2026-10-12). */
   reviewAt?: WalkStepTarget | null;
+  /** A project-card Feedback CTA's exact 1-based slide range. */
+  reviewSlideRange?: FeedbackWalkSlideRange | null;
+  /** Keep the project-card Feedback CTA in the Feedback Walk if its selected
+   *  Take has already answered every moment. */
+  requireFeedbackWalk?: boolean;
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   /** Null until the deck is up: the page cannot tell yet whether a walk
@@ -577,10 +594,10 @@ export default function TranscriptReviewDeck({
      2026-09-30, B4): a tap on the orange words opens the paragraph's sheet
      straight on them; any other opening starts on the sheet itself. */
   const [openWords, setOpenWords] = useState(false);
-  const openParagraph = useCallback((chunk: DeckChunk) => {
+  const openParagraph = useCallback((chunk: DeckChunk, picking = false) => {
     openSeqRef.current += 1;
     setOpenSeq(openSeqRef.current);
-    setOpenWords(false);
+    setOpenWords(picking);
     setOpenPart({
       id: chunk.part.id,
       index: chunk.paragraphIndex,
@@ -796,6 +813,10 @@ export default function TranscriptReviewDeck({
     },
     [groups, slideTitles],
   );
+  const editSavedHelpers = useCallback((partId: string) => {
+    const chunk = chunks.find((c) => c.part.id === partId);
+    if (chunk) openParagraph(chunk, true);
+  }, [chunks, openParagraph]);
   const feedbackWalk = useDeckFeedbackWalk({
     chunks,
     groups,
@@ -808,6 +829,7 @@ export default function TranscriptReviewDeck({
     firstTake: takeCount === 1,
     takeIndex: takeCount,
     takeSessionId,
+    reviewSlideRange,
     arcId,
     setRootPhrase,
     onAccept,
@@ -817,6 +839,7 @@ export default function TranscriptReviewDeck({
     onJudged,
     answeredOf,
     helperWordsOf,
+    editSavedHelpers,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
     coachUnseen: coachStep.unseen,
     feedbackPending,
@@ -860,6 +883,7 @@ export default function TranscriptReviewDeck({
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review(reviewAt)) return;
+    if (requireFeedbackWalk) return;
     // Nothing to walk: the text (founder 2026-10-17). The 2026-09-30 sheets
     // and the coach's Step 0 no longer open here: every moment the server
     // sends is a step of the walk, and a review never falls back to them.
@@ -1247,7 +1271,7 @@ export default function TranscriptReviewDeck({
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (
-        <div className="shrink-0 border-b border-border">
+        <div className={`shrink-0 ${TOP_NAV_SEPARATOR_CLASS}`}>
           <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-3`}>
             <span className="flex min-w-0 items-baseline gap-2">
               <span className="truncate text-[15px] font-semibold text-foreground">
@@ -1516,7 +1540,11 @@ export default function TranscriptReviewDeck({
             // neither write depends on the other (see emphasiseChosen).
             const chunk = openChunk;
             saveBehind(
-              () => helperWordsBehind(setRootPhrase, onLockPart, chunk, span),
+              async () => {
+                const result = await helperWordsBehind(setRootPhrase, onLockPart, chunk, span);
+                if (openWords && result === "ok") feedbackWalk.noteHelperWords(chunk.part.id, span.text);
+                return result;
+              },
               CHUNK_SHEET_COPY.failWordsBehind,
             );
             helperSavedRef.current = true;
@@ -1546,10 +1574,20 @@ export default function TranscriptReviewDeck({
             onUseFromTake: async (phrase, takeIndex) => {
               if (!onSetHelperWordsFromTake) return false;
               const chunk = openChunk;
-              expectHeadline(chunk.part.id, phrase);
               saveBehind(
-                () => helperWordsFromTakeBehind(
-                  onSetHelperWordsFromTake, onLockPart, chunk, phrase, takeIndex),
+                async () => {
+                  expectHeadline(chunk.part.id, phrase);
+                  let saved = false;
+                  try {
+                    const result = await helperWordsFromTakeBehind(
+                      onSetHelperWordsFromTake, onLockPart, chunk, phrase, takeIndex);
+                    saved = result === "ok";
+                    if (openWords && saved) feedbackWalk.noteHelperWords(chunk.part.id, phrase);
+                    return result;
+                  } finally {
+                    settleHeadline(chunk.part.id, saved);
+                  }
+                },
                 CHUNK_SHEET_COPY.failWordsBehind,
               );
               helperSavedRef.current = true;
@@ -1623,12 +1661,9 @@ export default function TranscriptReviewDeck({
             groups.find((group) => group.slideIndex === editingSlideIndex)
               ?.chunks ?? []
           }
+          onRegisterBack={onRegisterBackGuard}
           onCancel={() => setEditingSlideIndex(undefined)}
-          onSave={async (edits) => {
-            const saved = await onEditSlide(edits);
-            if (saved) setEditingSlideIndex(undefined);
-            return saved;
-          }}
+          onSave={onEditSlide}
         />
       ) : null}
       {/* The walk is its own screen over everything, never inside the
@@ -1664,29 +1699,64 @@ export function SlideEditor({
   chunks,
   onCancel,
   onSave,
+  onRegisterBack,
 }: {
   /** Where the text sits: "Slide 2", or "Your talk" with no deck. */
   where: string;
   chunks: readonly DeckChunk[];
   onCancel: () => void;
   onSave: (edits: Array<{ chunk: DeckChunk; text: string }>) => Promise<boolean>;
+  onRegisterBack?: (guard: (() => boolean) | null) => void;
 }) {
   const [drafts, setDrafts] = useState(() => chunks.map((chunk) => chunk.part.text));
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  const save = () => {
+  const savingRef = useRef(false);
+  const commitAndExit = useCallback(async () => {
+    if (savingRef.current) return false;
+    const edits = chunks.flatMap((chunk, index) =>
+      drafts[index]?.trim() !== chunk.part.text.trim()
+        ? [{ chunk, text: drafts[index].trim() }]
+        : [],
+    );
+    if (edits.length === 0) {
+      onCancel();
+      return true;
+    }
+    savingRef.current = true;
     setSaving(true);
     setFailed(false);
-    void onSave(
-      chunks.flatMap((chunk, index) =>
-        drafts[index]?.trim() !== chunk.part.text.trim()
-          ? [{ chunk, text: drafts[index].trim() }]
-          : []
-      )
-    ).then((ok) => {
+    try {
+      const ok = await onSave(edits);
+      if (ok) {
+        onCancel();
+      } else {
+        setFailed(true);
+      }
+      return ok;
+    } catch {
+      setFailed(true);
+      return false;
+    } finally {
+      savingRef.current = false;
       setSaving(false);
-      setFailed(!ok);
+    }
+  }, [chunks, drafts, onCancel, onSave]);
+
+  useEffect(() => {
+    if (!onRegisterBack) return;
+    // Returning true tells the host's useBackDismiss to consume browser Back
+    // and re-arm its entry. The async save then closes only this editor; a
+    // failed save leaves the draft and the editor in place.
+    onRegisterBack(() => {
+      void commitAndExit();
+      return true;
     });
+    return () => onRegisterBack(null);
+  }, [commitAndExit, onRegisterBack]);
+
+  const requestExit = () => {
+    void commitAndExit();
   };
   return (
     <div
@@ -1695,15 +1765,23 @@ export function SlideEditor({
       aria-modal="true"
       aria-label="Edit the text"
     >
-      <div className="shrink-0 border-b border-border">
-        <div className={`${WILLAB_CONTENT_RAIL} flex items-center justify-between gap-3 px-4 py-2.5`}>
-          <div className="flex min-w-0 flex-col">
-            <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
-            <p className="text-[11px] leading-snug text-muted-foreground">{where}</p>
+      <TopNavbar
+        className="bg-background"
+        contentClassName="flex items-start justify-between gap-3 px-4 py-2.5"
+      >
+        <div className="flex min-w-0 flex-1 items-start gap-1">
+          <TopNavbarBackButton onClick={requestExit} />
+          <div className="min-w-0 flex-1 pt-1">
+            <h2 className="break-words text-[17px] font-semibold leading-tight text-foreground">
+              Edit the text
+            </h2>
+            <p className="break-words text-[11px] leading-snug text-muted-foreground">
+              {where}
+            </p>
           </div>
-          <OverlayCloseButton onClick={onCancel} />
         </div>
-      </div>
+        <OverlayCloseButton onClick={requestExit} />
+      </TopNavbar>
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-5 py-5`}>
           {chunks.map((chunk, index) => (
@@ -1731,26 +1809,26 @@ export function SlideEditor({
           </p>
           {failed ? (
             <p data-testid="slide-editor-failed" className="text-[13px] text-destructive">
-              Couldn&apos;t save this slide. Your edits are still here.
+              {IDEAL_EDIT_COPY.editorSaveFailed}
             </p>
           ) : null}
         </div>
       </div>
-      {/* 8px above, on each side and below (N505); "Cancel" adds nothing
-          under it. */}
+      {/* 8px above, on each side and below (N505). Cancel follows the same
+          save-safe exit path so a draft cannot be discarded silently. */}
       <div className="bar-space shrink-0 border-t border-border">
         <div className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-0.5`}>
           <button
             type="button"
             disabled={saving || drafts.some((draft) => !draft.trim())}
-            onClick={save}
+            onClick={requestExit}
             className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={requestExit}
             disabled={saving}
             data-bar-word
             className="flex min-h-[48px] w-full items-center justify-center text-[16px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
@@ -1865,3 +1943,5 @@ export function HelpersLabel({ phrases }: { phrases: string[] }) {
     </span>
   );
 }
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; the deck keeps the locked Feedback Walk and Ideal Text surfaces while accepting the selected project Take/range and prevents the project Feedback CTA from revealing Ideal Text.

@@ -135,10 +135,10 @@ const tap = async (el: Element | null | undefined) => {
 };
 const button = (text: string) => [...container.querySelectorAll("button")].find((b) => b.textContent?.trim() === text);
 const typeIn = async (words: string) => {
-  const box = container.querySelector<HTMLInputElement>("[data-widget-bar] [data-chat-box] input");
+  const box = container.querySelector<HTMLTextAreaElement>("[data-widget-bar] [data-chat-input]");
   expect(box).toBeTruthy();
   await act(async () => {
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
     set.call(box, words);
     box!.dispatchEvent(new Event("input", { bubbles: true }));
   });
@@ -200,20 +200,19 @@ describe("the website chat on someone's site", () => {
   it("N610: the bar is + and the box, the same while a question waits, Not now under its taps", async () => {
     await openWidget();
     const bar = () => container.querySelector("[data-widget-bar]")!;
-    const places = () => [...bar().children].map((c) => (c.hasAttribute("data-chat-plus") ? "+" : c.hasAttribute("data-chat-box") ? "box" : "?"));
-    // Before my chat exists: two places already, "+" and the box that asks.
-    expect(places()).toEqual(["+", "box"]);
-    expect(bar().querySelector<HTMLInputElement>("input")?.placeholder).toBe("Ask Tomek");
+    const places = () => bar().querySelector("[data-chat-files]") && bar().querySelector("[data-chat-input]") && bar().querySelector("[data-chat-mic]");
+    expect(places()).not.toBeNull();
+    expect(bar().querySelector("textarea")?.placeholder).toBe("Ask Tomek");
     await typeAndSend("Hello");
     // The host's question waits: its taps above the same bar, "Not now" under them.
     expect(container.querySelector("[data-widget-answers]")).not.toBeNull();
-    expect(places()).toEqual(["+", "box"]);
-    expect(bar().querySelector<HTMLInputElement>("input")?.placeholder).toBe("Ask Tomek");
+    expect(places()).not.toBeNull();
+    expect(bar().querySelector("textarea")?.placeholder).toBe("Ask Tomek");
     expect(bar().textContent).toBe("");
     await tap(button("Not now"));
     expect(container.querySelector("[data-widget-answers]")).toBeNull();
     expect(calls.some((c) => c.url.includes("/setup/"))).toBe(false);
-    expect(places()).toEqual(["+", "box"]);
+    expect(places()).not.toBeNull();
     // Words typed: the send icon on the box's right (backend N647 item 9).
     expect(bar().querySelector("[data-chat-send]")).toBeNull();
     await typeIn("Hi");
@@ -227,11 +226,10 @@ describe("the website chat on someone's site", () => {
     startRead = { writes: TAP_ONLY, messages: [WELCOME] };
     await openWidget(TAP_ONLY);
     const bar = container.querySelector("[data-widget-bar]")!;
-    expect(bar.querySelector("[data-chat-box]")).toBeNull();
-    expect(bar.textContent).toBe("Ask Tomek");
-    expect(bar.querySelector("[data-chat-ask]")?.hasAttribute("disabled")).toBe(false);
+    expect(bar.querySelector("textarea")?.disabled).toBe(true);
+    expect(bar.querySelector("[data-chat-mic]")?.hasAttribute("disabled")).toBe(false);
     expect(calls).toEqual([]);
-    await tap(bar.querySelector("[data-chat-ask]"));
+    await tap(bar.querySelector("[data-chat-mic]"));
     // My chat is made with no message in it, and the join page opens with it.
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ method: "POST", url: `/api/v2/chats/widget/${TOKEN}/start`, body: { site: "invitaheadspa.com" } });
@@ -250,10 +248,11 @@ describe("the website chat on someone's site", () => {
     read = { writes: { tap: true, type: false, record: true }, messages: [WELCOME, answer], signed_up: true };
     await openWidget();
     const bar = container.querySelector("[data-widget-bar]")!;
-    expect([...bar.children].map((c) => (c.hasAttribute("data-chat-plus") ? "+" : c.hasAttribute("data-chat-ask") ? "ask" : "?"))).toEqual(["+", "ask"]);
-    await tap(bar.querySelector("[data-chat-plus]"));
+    expect(bar.querySelector("textarea")?.disabled).toBe(true);
+    await tap(bar.querySelector("[data-chat-files]"));
+    await tap(button("Add files in the app"));
     expect(opened).toHaveBeenCalledWith(`${window.location.origin}/chat`, "_blank", "noopener");
-    await tap(bar.querySelector("[data-chat-ask]"));
+    await tap(bar.querySelector("[data-chat-mic]"));
     expect(opened).toHaveBeenCalledTimes(2);
     const thanks = container.querySelector("[data-chat-thanks]");
     expect(thanks?.textContent).toBe("👀👍🙏");

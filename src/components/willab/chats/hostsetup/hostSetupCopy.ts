@@ -33,12 +33,21 @@ export const WHO_LINE: Record<WhoKind, string> = {
 export const OPTS = [["Yes", "Somewhat", "No"], ["Yes", "Not sure", "No"], ["A lot", "A little", "None"]];
 export const PRICES = [2, 1, 3, 5];
 
+/** The three walk questions, one Yes or No each (founder, 17 November 2026). */
+const WALK_ASK = {
+  best: "After they send a recording, should your chat show them their best moment and why it worked?",
+  fix: "Should it show one moment they could say another way?",
+  words: "Should it give them a few helper words to remember?",
+} as const;
+
 export const W = {
   will: "Will",
   back: "‹ Back",
   backPlain: "Back",
   keep: "Keep",
   change: "Change",
+  /** A new suggestion, in the same place Change had (the host's words, 16 November 2026). */
+  drawNew: "Draw new one",
   typeOwn: "Type my own",
   done: "Done",
   next: "Next",
@@ -67,9 +76,18 @@ export const W = {
   nameSay: "Your chat is called:",
   nameAsk: "What should your chat be called?",
   sendSay: "What do people send you? Tick all that apply.",
+  /** One kind at a time (the host's words, 16 November 2026). */
+  sendOne: (name: string) => `Can they send ${name.charAt(0).toLowerCase()}${name.slice(1)}?`,
+  /** A typed message is always on. This asks whether people can send anything else. */
+  sendMore: "Can people send you more than a typed message?",
+  sendKinds: "What can they send?",
+  sendDone: "Done",
   outSay: "They get back:",
   // The feedback walk, kept and not run yet (N641).
   walkSay: ["After a recording, people get a feedback walk.", "What should yours hold? Tick all that apply."],
+  /** One part of the walk at a time, in plain words (founder, 17 November 2026). */
+  walkAsk: WALK_ASK,
+  walkOne: (id: keyof typeof WALK_ASK) => WALK_ASK[id],
   walkSteps: { best: "Their best moment", fix: "One moment to try another way", words: "The helper words" } as const,
   walkOrderSay: "Your walk goes in this order:",
   walkOutSay: "What do they get at the end?",
@@ -87,7 +105,9 @@ export const W = {
   thanks: "Thanks.",
   noticeSay: "This is what I notice in a message. Tap one.",
   readyNow: "Ready",
+  on: "On",
   off: "Off",
+  remove: "Remove",
   keepIt: "Keep it",
   turnOff: "Turn it off",
   turnOn: "Turn it on",
@@ -114,7 +134,9 @@ export const W = {
   /** The walk's home, each part's value (backend N647 item 1). */
   nothingYet: "Nothing yet",
   lineCount: (n: number) => (n === 1 ? "1 line" : `${n} lines`),
-  walkOnMessages: "Your walk runs on messages. Recordings are not ready yet. Want them?",
+  walkOnMessages: "Your walk runs on a recording too. Want it?",
+  audioTooLong: "That recording is too long. Keep it under five minutes.",
+  audioTooBig: "That recording is too big. Send a shorter one.",
   helloSay: "Your chat opens with:",
   helloAsk: "What should your chat say first?",
   qSay: "Then it asks:",
@@ -147,7 +169,7 @@ export const W = {
   gives: [
     ["pick", "A pick from a list"],
     ["score", "A score, not ready yet"],
-    ["words", "An answer in your words, not ready yet"],
+    ["words", "An answer in your words"],
   ] as const,
   /** What one's own model is built on (N634 item 1, its words N636 item 6). */
   baseSay: "What should it be built on?",
@@ -167,7 +189,10 @@ export const W = {
   stackSay: "Your model. Tap a block to change it.",
   givesBlock: (gives: string) => `It gives back ${gives.toLowerCase()}`,
   builtOnGpt: "Built on GPT",
-  taughtByYou: "Taught by you",
+  /** The host's own answers teach a model still learning. A visitor's message
+   *  is not kept as an example (chat_recipes.teach). The card cannot choose
+   *  anyone else. */
+  taughtByYou: "Taught by your answers",
   teachIt: "Teach it",
   modelAsk: "What should it spot? Write it as a question.",
   modelPlaceholder: "Is this a dry scalp?",
@@ -219,6 +244,11 @@ export const W = {
   tellMe: "Tell me what you'd like to do, and I'll show you where.",
   goAhead: "Go ahead. Send it to me.",
   message: (name: string) => `Message ${name}`,
+  replyHeld: "The host will read this before you see an answer.",
+  replyHost: "The host will answer this.",
+  replyWait: "The host is still teaching this chat. They will answer.",
+  fileTooBig: "That file is too big. Send a smaller one.",
+  fileUnread: "I could not read that file. Try another.",
   useful: "Was this useful?",
   /** Under a walk line (backend N647 items 1, 6 and 8). */
   didThisHelp: "Did this help?",
@@ -252,13 +282,63 @@ export const W = {
   aiModels: "AI models",
   aiModelsLine: "Teach one, or start your own.",
   yourChatTitle: "Your chat",
-  yourChatLine: "See it, test it, change it.",
+  yourChatLine: "See it. Try it. Change it.",
+  finishBuild: "Finish Build first. Then your answers are here.",
+  tryFirst: "Finish Build first. Then you can try the chat.",
+  voiceOff: "You can type. Speaking to the chat is not on yet.",
+  /** One tap from Your chat and from the Build card. */
+  tryAsVisitor: "Try it as a visitor",
+  codeTitle: "Your own code",
+  codeHint: "Add a small piece of code that runs when someone sends something.",
+  codeAsk: "Add a small piece of code that runs when someone sends something?",
+  codeNone: "None yet",
+  codeAdded: "Added.",
+  codePaste: "Paste the code, then send it.",
+  codeMissing: "That code needs a name at the top. Paste it again.",
+  codeHow: "Tell me what it does, or paste your own code.",
+  codeTell: "Tell me what it does",
+  codeOwn: "Paste my code",
+  codeDescribe: "What should it do?",
+  codeTold: "It notices hedging and says so.",
+  codePasted: "It runs the code you pasted.",
+  codeKeep: "Keep",
+  codeChange: "Change",
+  talkCheck: "Do you check each answer before someone sees it?",
+  talkWrite: "Do you write every answer yourself?",
+  talkPay: "Do people pay to use it?",
+  talkLearn: "Should it learn from answers you have already sent?",
+  talkModel: "Use a model someone else already built?",
+  talkWhich: "Which model?",
+  talkNotice: "What should the model notice?",
+  talkAnother: "Add another model?",
+  talkName: "Name it.",
+  talkYesNo: "Yes or no.",
+  talkReady: "This is your chat.",
+  talkChange: "What should change?",
+  talkWhichChange: "Say the first line, or the price.",
+  talkBuild: "Build it by talking",
+  tileBuild: "Build",
+  tileSettings: "Settings",
+  tileTest: "Test",
+  tileAi: "AI",
+  ownChatSheet: "Make your own chat. You choose what it does. People you share it with can use it.",
+  linkCopied: "Link copied",
+  pickPicture: "Pick a picture. Your initial is fine.",
   // Build and Live (backend N642 item 3, N643 items 3 and 4).
   live: "Live",
   build: "Build",
   aiModelsTab: "AI models",
   youRunIt: "You run this chat.",
   partsOpen: "Your chat is open. Tap a part to change it.",
+  /** A small mark when the chat is open, beside that line. */
+  openBadge: "Open",
+  /** An empty part in the overview table. */
+  notSet: "Not set",
+  /** The overview's search, and what it says when no row fits. */
+  search: "Search",
+  nothingMatches: "Nothing matches",
+  /** Where you are in the list, inside a row's chat. */
+  placeInList: (n: number, of: number) => `${n} of ${of}`,
   partsSaved: "Your chat is saved. Nobody can see it yet. Tap a part to change it.",
   yourModels: "Your models, and everything you teach.",
   momentsTask: "Moments to answer",

@@ -63,8 +63,7 @@ function Harness() {
     currentSlide: current,
     roots: ROOTS,
     onSlideChange: setCurrent,
-    strip: null,
-    onFinish: () => undefined,
+    composer: null,
   });
 }
 

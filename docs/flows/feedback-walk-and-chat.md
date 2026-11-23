@@ -1,5 +1,7 @@
 # The Feedback walk and the chat
 
+- 2026-11-18 · N663, N665, N660 · Speaking Coach uses the authorized longitudinal answer path and retains unfinished turns for same-ID retry. Project Chat retains its audience and goal context for follow-up messages. Every turn retains its project identity through submission, storage, reload and retry; project dialogue never becomes Speaking Coach conversation. Feedback, Ideal Text, transcription and recording navigation remain present. Founder-Approved: contact-point chat, integration and production release request, 2026-11-18.
+
 > **Label: In force** · one of the rules, read in N95's order. Every doc and its label: [the master doc](https://github.com/wilplus/backend-cursor/blob/main/README.md) (N106).
 
 One page for one loop: a Take is processed → the lens opens on the walk →
@@ -16,7 +18,7 @@ and are no longer edited.
   wording goes to §6 as one line. Never a new file.
 - A new feature, fix or amendment is **a line in §1, §2 or §6.**
 - Who said it and when is a suffix in brackets, not a paragraph.
-- **The prototypes are the design** (§5); this page is their written record
+- **The prototypes are the design** (§5), with the composer updated by N667; this page is their written record
   and the check when something is built. Where they disagree, say so in §3.
 - A frontend commit that changes a file in `scripts/flow-pages.txt` must
   change this page too; the design-lock check (`npm run check:design-lock`)
@@ -35,9 +37,104 @@ Three rules that always hold: the coach's Judge screen stays blind; the
 recording screens keep recording, saving and processing working at every
 step; the loop never waits for a coach.
 
+### The shared authenticated page header
+
+**Locked by founder visual feedback, 2026-11-17.** `PageHeader` is the one
+cross-app primitive for authenticated page and overlay headers. Its content
+uses the same safe rail as the title, profile/back controls and the small
+outlined circular close control; its separator spans the viewport even when a
+surface is mounted inside the desktop canvas. Ideal Text, project chat and
+feedback overlays use it without changing their existing Back, title, profile,
+browser-back or overlay-close behavior. Onboarding progress starts at the
+safe rail's left edge rather than being globally centered. Mobile side margins
+and safe-area spacing remain the caller's existing values. The implementation is
+in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.tsx`,
+`src/components/willab/FeedbackOverlay.tsx` and
+`src/components/willab/chats/TopBar.tsx`.
+
+The 2026-11-18 screenshot correction anchors the viewport divider to the
+header's bottom edge and centers it to `100vw`; the content rail and all
+existing controls remain unchanged.
+
+### Project result and Speaking Coach (N663)
+
+Speaking Coach sends project identity with each project bubble in screen history. An interrupted typed turn stays in its conversation through refresh, and **Try again** reuses its original words and identity until the stored reply arrives.
+
+The compact project result has one title inside the selected slide row, not a
+second repeated heading above Progress. Its black **Feedback** control opens
+that selected Take's Feedback Walk directly; **Ideal text** remains the white
+door to the document. The practice decision is one row: white **Rehearse this
+again** with a red, yellow or green readiness dot, then black **Continue
+practice**. Red is Not yet there, yellow is the intermediate/Almost state, and
+green is Good to go or stronger. These labels describe the next action, not a
+score (founder, 2026-11-18; backend N663).
+
+The Speaking Coach answers the latest turn in that turn's language. A greeting
+gets a greeting and cannot replay an older project answer. A request for an
+overall speaking view may use the speaker's authorised Takes across projects,
+their transcripts, feedback outcomes, coach words, earlier conversation and
+private memory together with the curated speaking-science source. It separates
+direct observation from tentative interpretation and does not diagnose a
+personality or challenge/threat state from voice alone (N663).
+
 ---
 
 ## 1. The rules
+
+### Speaking Coach projects and Take review (N666)
+
+The existing Speaking Coach row opens the general conversation. Its chevron independently reveals owned projects. Each project opens its conversation directly. The general conversation shows the latest project update and can open the same project conversation and recorder with the project selected. General advice and project questions keep their own history.
+
+A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. Accepted interventions add runs to the selected Take. The Takes list and each Take's run history can be collapsed.
+
+Feedback, Practise, and Ideal text have equal buttons and open one step at a time for that Take. Feedback plays the picked recording moment. Practise opens its optional activity and offers another try on repeat. Ask coach carries the project, Take and available slide or moment back to the project conversation. A retry keeps the same turn identity and scope through reload. The project chat uses the shared composer for both actions.
+
+Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
+
+### Shared composer (N667)
+
+The same bottom composer serves Speaking Coach, project chats, review
+follow-ups, people chats, the website widget, Builder setup and test chats,
+experiments, and spoken practice. Files stay on the left, the message field
+stays in the middle, and the microphone stays on the right. The up-arrow Send
+appears immediately before the mic when the current draft can be sent. The
+composer keeps touch-sized controls and accounts for the phone's safe area.
+
+- In a conversation, type or start recording from the same row. Files opens
+  the attachments or upload actions supported by the current chat. A place
+  without a particular input keeps its slot disabled. Context chips, tap
+  answers, consent, ratings, slide navigation and progress stay outside the
+  message field.
+- For a voice-only step the field is disabled and prompts the user to record.
+  During capture the center shows the running timer and the right slot
+  becomes Stop. The discard action sits beside the timer. Typing returns
+  when the chat allows it, with the draft still there. Files picked for an
+  ordinary message stay queued during a voice-only answer in that chat.
+- Drafts follow the chat in which they were entered. Files and recordings
+  that need confirmation appear above the row. In Builder tests and live
+  experiments, Stop prepares a local clip. Play, discard or record again
+  before sending it. The experiment preview uses sample answers and keeps
+  the composer available for questions. Send submits the next eligible
+  draft, starting with a ready recording, then an attachment, then text.
+  A refused send keeps that draft available for retry.
+- Guided answers, exercises and official Takes keep their existing completion
+  paths. Stop sends a guided answer or submits the attempt for checking.
+  Discard uses that flow's existing exit or Skip. An official Take enables
+  Finish take in the mic slot on its last slide and keeps the discard
+  confirmation and processing handoff.
+- In Speaking Coach the mic opens the first or next Take when a voice
+  question is not waiting. The Files menu includes upload a recording and
+  the available project actions. In a project the mic opens recording for
+  that project, and the file action updates that project's slides. Asking
+  from review shows the selected Take, slide or moment above the same bar.
+  The durable send keeps the project and Take identity through reload and
+  retry. Standalone project questions and review follow-ups are drawn in
+  their project conversation.
+
+The implementation lives in `ChatComposer.tsx`, with `useComposerVoice.tsx`
+for a local audio draft and `RecordingBar.tsx` for guided recording.
+See [recording screens](recording-screens.md), [people chats and widget](customer-requests.md)
+and [Chat Builder](../chat-builder/flow.md).
 
 ### A · After a Take
 
@@ -69,10 +166,12 @@ step; the loop never waits for a coach.
   speaker came back to the app, or left the wait for the chat): from the
   Take straight into the walk, the chat never shown in between, and under
   the walk when it closes (founder 2026-11-01, N319 item 10).
-  The full-surface wait has one canonical centered frame and one indicator for
-  the lifecycle; analysis, document assembly and the Lounge hand-off keep
-  that footprint. The chat's processing line and the lens's typing dots remain
-  intentional inline bubbles, not additional full-surface loaders.
+  The full-surface wait has one canonical centered frame and one circular
+  three-dot loading bubble for the lifecycle; analysis, document assembly and
+  the Lounge hand-off keep that footprint. Page boot in the chat list, project
+  chat and pattern flow uses the same shell. Only an actual in-conversation
+  response keeps an inline typing bubble; a route or walk step wait is never a
+  bottom-corner loader.
 - **A3** The loop never waits for a coach (2026-09-16, 2026-09-26). The
   coach's word opens the walk only when it is there.
 - **A4** A guest's processed Take lands on "Done" and the account ask,
@@ -109,7 +208,7 @@ step; the loop never waits for a coach.
   2. **the pair:** the Take's "Feedback walk" bubble and, right under it, the
      Take's Ideal Text card (D4);
   3. the chain after the Take, ending with the goodbye, "Good job. See you
-     next time." (D4); under it the bar's middle is "Record Take N" (B14).
+     next time." (D4); under it the mic action is "Record Take N" (B14).
 
   **Before the first Take** the empty Lounge opens with Will's hello, "Hi,
   I'm Will. 👋 Record your first take, and I will help you with your
@@ -117,8 +216,7 @@ step; the loop never waits for a coach.
   "About 2 minutes to record. Your feedback comes about a minute later."
   (founder 2026-10-29, N273 item 2, on the prototype
   <https://claude.ai/artifact/H2CwSoSWXF7wttNEXsPMYb>). The one button,
-  "Start your first recording", is the bar's middle (B14, N483 item 2;
-  was under the hello). With the plan, its questions come first and the
+  "Start your first recording", is the mic action in the shared composer (B14). With the plan, its questions come first and the
   hello and the line don't show (the-plan.md B1).
 
   **The Feedback walk bubble:** light grey, on the left. It reads "Feedback
@@ -146,7 +244,7 @@ step; the loop never waits for a coach.
   Opening a walk posts nothing in the chat.
 
   **Record buttons:** no bubble carries a button (N294 item 7). The chat's
-  one record button is the bar's middle (B14): "Record Take N" for the
+  recording action is in the mic slot (B14): "Record Take N" for the
   newest Take, "Start your first recording" before any, the black button
   with the red dot. A practice day's "Record Take N" is the plan's:
   [`the-plan.md`](the-plan.md) G6. Was: "Record Take N" alone in the
@@ -167,15 +265,21 @@ step; the loop never waits for a coach.
   bold in any bubble, the Clearer version's new words included (2026-10-21).
   No sender labels, except "Your coach:" which opens the
   coach's bubble, with the colon (2026-10-20).
+  A free-form message submitted in Speaking coach appears as the speaker's
+  orange bubble immediately, before persistence or the conversational reply;
+  it is not filed into a project's hidden thread merely because that project
+  is current. The pattern invitation keeps a visible gap from the preceding
+  bubble and draws its waiting outline inside its own bounds, so the chat rail
+  cannot clip the stroke (founder visual and chat fixes, 2026-11-17).
 - **B5** Nothing swaps. Each step reached lands under the one before;
   earlier steps stay above to scroll back to; nothing leaves the thread while
   the lens is open. Each new bubble, and the typing dots before it, land at
   the bottom, right above the buttons, as in the Lounge; the thread follows
   them down until the speaker scrolls up by hand. A thread shorter than the
   screen sits at the bottom too, and the lens screen's own wait while the
-  walk loads is the typing dots there, so the first bubble lands where the
-  dots were; they show only once the walk is still loading 0.3 s after the
-  screen opens, so a quick load never flashes them (N122, N499). What opens a part (the
+  walk loads is the centered circular three-dot bubble in its stable full-page
+  shell. Actual in-conversation replies still use typing dots, so a quick
+  response never adds a second page loader (N122, N499). What opens a part (the
   walk's answer to the step before, "And here's one moment to try another way:", a
   lead) lands first, then the step's own bubbles one at a time, the AI
   clip's fix's too; moving on, the thread glides down to them (N440; was:
@@ -218,9 +322,11 @@ step; the loop never waits for a coach.
   they have all landed; the walk's answer to Skip and the helper words
   after it land the same way, before "Lesson done." (N440). Next and
   Continue post nothing.
-- **B8** The typing dots are the only wait, in the lens and the Lounge: a
-  bubble being written, a try checked, other speakers' moments or the summary
-  loading, the thread loading, the processing bubble. No breathing mark.
+- **B8** Typing dots are the only inline wait for an in-conversation response,
+  in the lens and the Lounge: a bubble being written or a reply being checked.
+  Page boot, a walk step, other speakers' moments, the summary, the thread and
+  processing use the one centered circular three-dot bubble in the stable
+  full-surface shell. No breathing mark, progress rail or duplicate loader.
 - **B9** Scrolled away from the step the walk stands on, the buttons read
   Next, which brings that step back, with the step's Skip kept under it
   (founder 2026-11-03, N440: "keep the "skip" below it"); a link that
@@ -310,6 +416,26 @@ step; the loop never waits for a coach.
   the things that are there that we went through, the judgment time, the
   sniper, whatever intervention was included in the feedback", then "Both,
   read only".)
+
+  **Canonical state table and entry-point invariants.** The FE persists one
+  versioned walk-state snapshot on each idempotent `walk_step` event for the
+  Take (`shown`, `answered`, `skipped`, `completed`). The Lounge remains the
+  persistence contract; state-only rows are not drawn as chat bubbles.
+
+  | State | Meaning | Entry rendering |
+  | --- | --- | --- |
+  | `not_started` | No step has been completed for this Take | First canonical plan, step by step, in order: praise → moment/judgement when served → one thing to improve → exercise/practice → remaining sections |
+  | `in_progress` | The walk has been entered and has work left | Same canonical plan; completed parts are given, first pending part has controls |
+  | `practice_pending` | Practice was reached, then skipped/deferred | Preceding sections remain expanded; the same exercise is focused with its persisted attempts, up to the established maximum or Skip |
+  | `completed` | The walk's `end` transition is persisted | One fully expanded, scrollable read-only review of every seen/completed element; no Next, Skip or pending control |
+
+  The processing-complete door and the project's black Feedback button pass
+  the same selected `take_session_id` into the same overlay and state machine.
+  A Lounge or paragraph door may choose a target step, but it cannot choose a
+  second plan. A reload reconstructs the state from the same Take's Lounge
+  rows; it never resets the moment identity, praise, judgement, exercise,
+  attempts or responses. The exact Take is preserved separately from
+  `coachTake`, which is only the coach-link route.
 - **B11** ✕ turns the lens off and goes back where the step was opened
   from: the chat, or the Ideal Text page for a step opened from a paragraph.
   ✕ keeps a coach word's "new" ring.
@@ -330,41 +456,11 @@ step; the loop never waits for a coach.
   (Founder 2026-10-26, N192: "it should show on the feedback walk as edited
   like on the whatsapp; but it should not go at the bttom like a new message
   cause it is not!")
-- **B14** **The bar under the chat** has one logic in every chat
-  (founder 2026-11-04, N483, locked on "The Bar, Clickable"
-  <https://claude.ai/artifact/WfwtMu9qc6aefz3zYUdPC2>, version 12, N498). The left
-  holds your things: in Will's chat the stack, Your projects (N460 item 5).
-  The middle holds the one thing to do now, the first of these that holds
-  (`Lounge.tsx`; `WillBarMiddle` in `plan/PlanDock.tsx`; `useWordsBox` in
-  `WillQuestion.tsx`):
-  1. Will asks for your own words ("What was missing?", his follow-up with
-     no answers to tap, or "Something else", the first of his answers,
-     tapped): the box "Type your answer". Empty, a box opened from
-     "Something else" closes when you tap away; one Will asks for stays
-     until you send. You type at no other time, and your name is never
-     asked here: it comes from sign-up (N498 item 2);
-  2. Will needs to hear you (the plan's spoken questions,
-     [`the-plan.md`](the-plan.md) B10): "Record your answer", with "Not
-     now" a grey word under his question; "Not now" leaves it until the
-     chat is opened again;
-  3. otherwise "Record Take N" for the newest Take (the goodbye's, a
-     practice day's, else the thread's newest Take), faded while a Take is
-     processed; "Start your first recording" before any Take. An
-     unfinished review holds nothing back: no "Continue review" (N532,
-     B10).
-
-  One black button; the red dot means a tap starts a recording. No mic, and
-  no ✕ beside the button or the box. While an answer is said, **the one
-  recording bar** (N314, locked; N304) takes the bar's place: the trash on
-  the left, then the walk's strip (the pulsing dot, the clock, the track)
-  with the red Stop inside it. Stop sends, the trash throws it away. The
-  same bar for the plan's spoken answers ([`the-plan.md`](the-plan.md) B3),
-  the walk's practice (C7) and the tempo step (T); a Take keeps its locked
-  recording screen, whose strip is the same (N70, N303). Was: "+", "Type
-  here" and the mic always (N369); the mic orange while Will waited (N296,
-  N319 item 1); "Type here" faded while the plan asked, with its note (N319
-  item 3, N323, N325); "Something else" in the bar's middle (N371 item 3);
-  voice notes to Will and the "#" note (N253).
+- **B14** **The bar under the chat** follows the [shared composer](#shared-composer-n667).
+  "Something else" focuses the existing message field, and "Not now"
+  under a spoken question leaves it for the next visit. The microphone
+  returns to that chat's first or next Take. Your projects is in Files
+  in Speaking Coach.
 
   **N655 · project content conversation override (founder-approved and
   locked):** tap options are supplemental; they never replace or remove the
@@ -374,9 +470,8 @@ step; the loop never waits for a coach.
   request answers. A short hello and a longer contextual question are the same
   durable text turn: a reply, structured card, polling update, reconciliation
   or history reload may never replace or hide that user bubble. Once the
-  conversation reaches the next-Take state, that
-  same persistent bottom action becomes the recording bar/button. There is no
-  new visible copy. For a signed-in typed project turn, both project surfaces
+  conversation reaches the next-Take state, the microphone keeps the next
+  Take ready alongside the message field. For a signed-in typed project turn, both project surfaces
   call contextual `/chat/query` with `persist:true` and the exact optimistic
   user's `client_id` and `client_created_at`. The idempotent user outbox may
   upsert that same row so it cannot disappear; it never writes a signed-in bot
@@ -829,16 +924,12 @@ praised moment:
   6). As the locked prototype X4gDmGfHH7ivuoRZ9ufiy9 draws it (`walk.html`,
   `record()`). Was: every try labelled "Practise N" in place of its words,
   and an orange "● Practise N" pill in the thread while recording. In a Take served before N289: every practise is one thread: the words to say, the
-  recorder in the dock (the one recording bar, N314: the trash on the left,
-  then the strip with the dot, the clock, the bar and the red "Stop" inside
-  it; nothing under it: the trash is the way out (founder 2026-11-03, "for
-  that we have the trash button on the left"); was "Skip" under it, the
-  walk's grey link, and before that "Skip" in the Back style beside a red
-  "Stop" in the Finish-take style), the
+  shared composer in the dock, with the timer and discard in the middle
+  and Stop in the mic slot, the
   try as the orange "Practise N", the typing dots while it is checked, then
   the answer. Each try keeps its own number and its own voice on screen, a
   try the server did not keep (late, not sent, not heard) included: the
-  next is numbered after it (2026-10-21). The recorder's strip is the recording screen's as re-locked 2026-10-12
+  next is numbered after it (2026-10-21). The recorder uses the shared composer (N667)
   (N70), without the slide card; after Stop the walk returns instantly.
   Stop shows once the mic is live: while the mic opens, the bar shows the
   trash and the strip without Stop, as the tempo step's does (T; N350 item
@@ -977,11 +1068,11 @@ praised moment:
      follow-up waits, nothing of this comes under it, whoever asks: the
      goodbye, the plan's lines and the bar wait until it is answered or
      skipped (N545; was guarded on the Lounge's call only, and the goodbye
-     could come under the key line). Under them the bar's middle is "Record
+     could come under the key line). Under them the mic action is "Record
      Take N" (B14), which opens the text as its own button does (the
      sharing question first from Take 2, G); after the first Take it
      records the real talk (N449 item 1). The speaker may simply close the
-     app; the stack still opens the projects, and the Take's card still
+     app; Files still opens the projects, and the Take's card still
      opens its Ideal Text with its own "Record Take N". Was: the tap "I
      want to continue my practice" first, then "Record Take N" alone with a
      grey ✕ (N294 item 6, N296 state 4, N395; N483 item 7).
@@ -1043,9 +1134,8 @@ praised moment:
   top. One question or ask is on screen at a time
   (N294 item 4). While Will's question waits, his answers sit under it,
   "Something else" first. In the project content conversation, N655 keeps the
-  text composer under those answers; the bottom action becomes the next-Take
-  recording action only after the question/conversation has closed. His
-  question never stands in front of the next Take (B14, N483 item 2).
+  shared composer under those answers. The microphone retains the recording
+  action in the same row (B14, N667).
 
   **Notifications come in a bar at the top of the chat, never in the
   buttons under it** (founder 2026-11-03, N391; prototype
@@ -1149,17 +1239,14 @@ praised moment:
   (N655; N483 item 2; was in the bar's middle, N371), so Will asks once (N406 item 2; was "Someone else"
   last, opening "Who is it for, then? 👀", N319 item 8). The check
   ("Right?") keeps "Someone else" and its follow-up. No Skip under Will's
-  questions (N296 item 2): not answering is allowed, and the stack still
+  questions (N296 item 2): not answering is allowed, and Files still
   opens the projects; their own words in the box answer too. The key line
-  is said, not typed (N544): while it waits the bar's middle is "Record
-  your answer" and "Not now" is the grey word under it; the tap records in
-  the plan's small recording bar (N314: the time, the bin, "Stop") in the
-  bar's place, never the recording screens or slides; Stop sends it to
-  `/will-question/voice`, heard under the processing authorization and
-  answered as typed words, kept as the talk's key line, shown as the
-  speaker's bubble with the words Will heard (N275); the recording is not
-  kept; "Not now" gives the middle back to "Record Take N" until the chat
-  is opened again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `Lounge.tsx`).
+  is spoken (N544). The composer highlights "Record your answer" in the mic
+  slot with "Not now" under the question. Stop submits through
+  `/will-question/voice` under processing authorization. The words become
+  the talk's key line and the speaker's bubble. The audio is temporary.
+  "Not now" brings the next-Take action back to the mic until the next visit
+  (`useKeyLineHear` in `WillVoiceAnswer.tsx`).
   Every other question of Will's makes no spoken answer (N483 item 7); one
   already given stays as the speaker's bubble. Was: while Will waited the
   mic was orange (N294 items 2 and 3, N319 item 1); then, from N483 until
@@ -1902,7 +1989,7 @@ October (backend N111).
   buttons (`RecordingRoadmap.tsx`), the transcript's Save
   (`TranscriptReviewDeck.tsx`) and the welcome example's button
   (`WelcomeExample.tsx`). Sizes, words and the gaps inside a bar do not
-  change; a slide-up sheet is a card and keeps its own padding. Was: 16px
+  follow the shared composer for message and capture controls. A slide-up sheet keeps its own padding. Was: 16px
   sides; 0px above the chat's bar and "Record Take N"; the walk's footer and
   the plan's answers 20px sides and 30px under.
 
@@ -2151,7 +2238,10 @@ backend N142, `docs/SPEC.md` §17 `pace-scale-v1`.
 2. Will's bubble, from what the stretch was: "That part went fast. 🏃 Let's try a little game." or "That part slowed down, with long pauses. 🐢 Let's try a little game."
 3. Will's bubble with the stretch's topic: "Tell me more about {topic}, and keep the ball in the green."
 4. Will's bubble: "🤫 Find a quiet spot first."
-5. The scale, asleep, and **I'm ready**. Tapping it wakes the scale and starts the recording bar, the app's one recording bar (N314): the trash, then the strip with Stop inside it, nothing under it (founder 2026-11-03; was the Skip under it). Stop shows once the mic is live, as in the walk's practise (C7, N350 item 5). Nothing else appears until Stop. The trash throws the try away: no try is counted or kept for Will, and the step is back where it was before it (I'm ready, "Try it" or Practise again); in the Sniper the trash is the Skip instead, and the walk goes on with "Okay, we'll skip this one." (backend N435 item 3, N448).
+5. **I'm ready** in the mic slot wakes the scale and starts the recorder.
+   The timer occupies the middle and Stop enables when the mic is live.
+   Discard drops the attempt without counting it and returns to the prompt.
+   In the Sniper it follows the existing Skip path (N435 item 3, N448).
 6. The try: the dot's path, then Will's word on it; Will guides, the speaker never has to choose between another try and moving on (N245):
    - **It lands** (really better): "That landed. 🎯 Really better. Let's move on.", then **Next**; the game ends there, on any try.
    - **It came closer** (more than half in the green, not enough to land): "Better. You let it breathe." and, while a try is left, "You're close. 💪 Give it one more try.", then **Practise again**.
@@ -2348,7 +2438,8 @@ page):
 - `src/lib/willab/coachLink.ts` — the coach's link (WIL-93) (guarded since N111).
 - `src/components/willab/OtherAccountLink.tsx` — the coach's link on another account (WIL-93) (guarded since N111).
 - `src/lib/willab/enrichmentSettle.ts` — the wait for the Take's reading to settle (A2) (guarded since N111).
-- `src/components/willab/TypingDots.tsx` — Will's typing dots (B8) (guarded since N111).
+- `src/components/willab/TypingDots.tsx` — Will's inline response dots (B8) (guarded since N111).
+- `src/components/willab/LoadingState.tsx` — the shared full-surface shell and circular three-dot loader for page boot and processing waits.
 
 Frontend, shared with other flows (not guarded): `src/components/willab/Lounge.tsx`
 (the chat), `src/components/willab/useLoungeThread.ts`,
@@ -2358,9 +2449,10 @@ paragraph tap), `src/components/willab/IdealTextOverlay.tsx` and
 `src/components/willab/WillVoiceAnswer.tsx` (a spoken answer already
 given, E3), `src/components/willab/WillQuestion.tsx` (Will's question, its
 taps and the box, B14, E2, E3), `src/components/willab/plan/PlanDock.tsx`
-(`WillBarMiddle`, the bar's middle, B14).
+(`willComposerMic`, the right-hand action, B14).
 The Ideal Text's own files are in `scripts/design-locked-files.txt`. So is
-`src/components/willab/RecordingBar.tsx` (the one recording bar, B14, C7,
+`src/components/willab/chats/ChatComposer.tsx` and
+`src/components/willab/RecordingBar.tsx` (the shared composer, B14, C7,
 T), locked by backend N314: a change to it needs the `Founder-Approved:`
 trailer; shared with the chats and the plan, no flow page names it.
 
@@ -2429,12 +2521,35 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-23 · project rehearsal handoff · the selected Feedback Walk's proven server slide span passes through the one `PracticeResumeSelection` contract to the real recorder. A provisional card cannot invent a practice span from a local checkpoint. Both localized Ideal Text rehearsal choices remain available after Take 1. Current behavior and business-test ownership: [Ideal Text, project rehearsal choices](ideal-text.md#project-rehearsal-choices-2026-11-23) and [recording scope](recording-screens.md#fragment-and-whole-rehearsal-2026-11-23).
+- 2026-11-23 · N667 · The shared composer replaces the separate message and recording layouts in B14, C7, E3 and T. Earlier layouts below are historical.
+
+- 2026-11-18 · C3, F5 · On the standalone helper-words step, pressing “Edit the helper words” before changing the selection opens the paragraph’s current and earlier Take choices. “Keep these” leaves the saved cue in place. Saving a replacement keeps the edit in the walk history.
+- 2026-11-18 · Founder-approved project Feedback card correction · the project conversation is positioned inside its scrollable app canvas above the global footer, so Feedback and Ideal text remain fully visible and operable on desktop and mobile. The card shows no delivery-status dot or text; internal delivery evidence and the recording decision keep their existing behavior. No new copy (`WillabSurface.tsx`, `FeedbackWalkCard.tsx`). Founder-Approved: contact-point chat, 2026-11-18.
+
+- 2026-11-18 · Gate cleanup · review-plan selection and shown-step messages have one named policy each in `useDeckFeedbackWalk.tsx`; live/replay entry, coach-note delivery and AI clip wording keep the same behavior. Existing speaker-story tests cover those public paths; no complexity baseline is raised.
+- 2026-11-18 · Practice story timing · the AI-clip wait stories advance a fake clock through typing, fallback words and late playback. This removes workstation timing races while preserving the same speaker outcomes and time limits.
+- 2026-11-18 · Navigation story isolation · chat tests drain queued history events after closing a view; the edge-swipe story supplies its own gesture clock. Back/Forward, scroll restoration and short-swipe behavior are unchanged, and no history event leaks into the next story.
+
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-17 · release-blocking chat reliability audit · B14, B15: an accepted typed or quick-choice turn draws exactly one durable orange bubble and brings it into view; the composer and choices disable behind one typing state until its contextual reply or the existing recoverable-error line arrives, with a 45-second request timeout. A stale `next_take` terminal line cannot answer or reappear as a new turn; structured replies stay after their typed trigger; authoritative reloads reconcile the exact optimistic identity without consuming an intentional repeated same-body message. Both the Lounge and project chat pin the send and settlement on desktop/mobile while history reads otherwise keep their place (`Lounge.tsx`, `ProjectChat.tsx`, `WillQuestion.tsx`, `useLoungeThread.ts`, `projectChat.ts`, `chatQuery.ts`). No new visible copy · FE (this PR)
+- 2026-11-16 · They send and the walk's contents are one yes or no at a time. The saved list is the same, and never empty. In a setup row, Send a photo and Send a file are not in the + sheet. · FE (this PR)
+- 2026-11-16 · A try that lands, one miss, and the last miss read their sentences from the coach document when one is published. With none, the signed lines stay. · FE (this PR)
+- 2026-11-16 · The walk reads a published speaking-coach document when this account has one, and otherwise the same plan as before (`planForWalk` in `feedbackWalkModel.ts`, `useDeckFeedbackWalk.tsx`). A missing or refused document changes nothing a speaker sees. The builder that edits the draft is the chat's Build screen, not this walk. · FE (this PR)
+- 2026-11-16 · The chat bar follows They send (`rec` records, `text` types, `photo` and `file` sit behind +). A read with no `send` keeps answer_with: recordings, taps, Send a photo, no typing, no file. /dev/chat-bar shows every combination. · FE (this PR)
+- 2026-11-16 · In a row's chat, the header's back arrow returns to Your chat, the same as the row's Back. It goes on to the list of chats only from that page. The browser's Back does the same: opening a row pushes a history entry. · FE (this PR)
+- 2026-11-16 · In a row's chat, Keep, a kept Draw new one, and a typed answer that saves finish that row and open the next row's chat, in the same order as Next. The last row returns to the page. Back still returns to the page. · FE (this PR)
+- 2026-11-16 · Build's Your chat is a page, not Will's thread: a search, then the table. No Speaking coach chip. A row opens that row's own chat, the row as the first bubble, then its editor. Next opens the next row's chat in the same order ("1 of 9"). The last Next returns to the page. Back returns to the page. · FE (this PR)
+- 2026-11-16 · Build's "Your chat" parts are one settings table per group: a small icon, the name, the value on one line (or chips when there are several; "Not set" when empty), and a chevron. A tap still opens that part. "Open" shows when the chat is open. · FE (this PR)
+- 2026-11-16 · Build's bar does not draw Developer mode; the Speaking coach chip stays. From the parts overview, a row opens its editor at once. A single value is two big taps (Keep / Draw new one, Yes / No, On / Off). They send, the walk's steps and what it notices are On or Off on each row, saved as tapped. First questions are Keep or Remove on each question. The composer stays for typed words. · FE (this PR)
+- 2026-11-16 · The host's setup uses the chat's own header (back, circle, the chat's name, "You run this chat.", Live / Build) and one bottom bar on every step: the chat's answer chips, then the composer. A proposed line is "Draw new one" or "Keep"; typed words are that line. The walk's home takes plain words to the part they name. A model's blocks are cards, with a preview of the question and the taps a person meets, and "Taught by your answers": a visitor's message is not kept as an example (`chat_recipes.teach`). · FE (this PR)
 - 2026-11-16 · N655 · a project's content-question chips never replace its persistent bottom composer; chips stack above the usable field, typed and tapped answers draw one orange bubble immediately, and free words use contextual `/chat/query` with arc/take/place identity instead of the strict choice endpoint. Signed-in project turns use backend-owned `persist:true` with the optimistic user's exact ID/time, retain authoritative reply metadata, reload the released after-Take path, and settle only on `persisted:true`; request failures and `persisted:false` keep the same outbox row and exact draft retryable without duplication. The bottom action becomes the recording bar/button only at the next-Take state (`ProjectChat.tsx`, `Lounge.tsx`, `useLoungeThread.ts`, `projectChat.ts`). No new visible copy · FE (this PR)
+- 2026-11-18 · N461 · a project Take's Feedback Walk ends, or its finished walk is closed, on that Take's Ideal Text; closing that text returns to the same project conversation, and closing the conversation returns to the project picker, which revalidates the list so the newly completed project is present without a page reload (`IdealTextOverlay.tsx`, `ProjectChat.tsx`, `ProjectPicker.tsx`, `projectTrainings.ts`, `WillabSurface.tsx`) · FE (source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e)
+- 2026-11-16 · chat list · the chat list waits for its current chats and host setup reads and then appears once; the browser's previous list is used only if the chats read fails, so neither old rows nor the non-builder pinned rows flash before current ones. On a computer, the chat list and a person's chat use the same max-width and side padding as the WillpowerLab logo and menu; phones stay full width. Was: the previous list appeared first and was replaced by the current list, the pinned rows changed after the host setup arrived, and both chat screens filled the whole computer window (founder 2026-11-16) · FE (this PR)
 - 2026-11-16 · N461 · project-scoped Take rows live in their project conversation; a Take started there returns there after the source Feedback walk and Ideal Text. Will keeps cross-project patterns, principles and mindset · FE (this PR)
 - 2026-11-16 · loader contract · the processing wait's centered frame is shared across the Lab, Lounge resume overlay and document wait; inline chat/lens typing dots remain distinct · FE (this PR)
+- 2026-11-17 · founder-approved loader correction · the chat list, project chat, pattern flow, Feedback Walk, Ideal Text hand-off, overlays and route openings use one stable full-surface shell with one centered circular three-dot bubble; page boot and walk-step waits no longer use bottom-corner or moving typing indicators, while true in-chat replies keep their inline dots · FE (this PR)
 - 2026-11-16 · founder-approved product structure · the home has one Speaking coach destination, every active project and Start a new project; projects stay concurrent, opening or creating one never archives another, and the project owns its conversation, Takes, questions, Feedback Walk, Ideal Text and resume point. The home waits for the project list and Speaking coach state before painting; the legacy people-chat reads remain for required backend side effects, not as the speaking-coach IA · FE (this PR)
 - 2026-11-16 · the project index starts during the authenticated /chat boot and the home consumes that same read, removing a post-mount project-list round trip without caching stale project state; the home still waits for the current project list and Speaking coach state before painting · FE (this task)
 
@@ -2463,7 +2578,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-10 · no rule changed · B8: a tap on "Did this help?" (Yes, No, Skip) shows the typing dots until Will's reply is in the thread, as a tap on Will's question and a typed answer do (`answerFeedbackCheck` in `Lounge.tsx`). Nothing new on screen. Was: nothing for a moment, then the reply (founder 2026-11-10) · FE (this PR)
 - 2026-11-10 · N624 · C4: the One thing walk's fix no longer plays their confident moment again when it has its own example (the AI clip, the exercise's video): "Say this one like your confident moment:" stands right above it, in the walk and the chat (`OneExerciseBody` in `FeedbackWalk.tsx`). With no example of its own, their best stays full after the line. No new words. Was: the "Your confident moment" chip between the line and the AI clip (N379 item 1) · BE #1902, FE (this PR)
 - 2026-11-10 · N623 · D4, B16: after the walk, on a plan, the plan's bar comes under the goodbye only on a day the hello did not already show it (backend `plan_flow.progress`, the plan's `hello_on`); D4 now says the goodbye and the bar as N564 left them (no "15 minutes", no "{n} of {total} practices done."). No new words. Was: the bar under the hello and again after every walk the same day · BE #1897, BE #1900, FE (this PR)
-- 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, the bubble, then the walk), and the bubble shows at once, before the server has answered (recording-screens.md §6). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
+- 2026-11-10 · no rule changed · two bug fixes for §1's processing bubble: a Take whose processing screen was closed with the ✕ while it was still going up still reaches the chat (its "Your Recording" line, then the bubble once the server accepts it, then the walk). Was: the Take never showed in the chat, no bubble, no walk, and "Record Take N" stayed on the Take before · FE #1364, FE #1366
 - 2026-11-09 · — · §3, D4 (WILL-07): the summary row comes at once with the signed line and GPT-4o's words replace it in place; while its metadata says `writing`, Will reads it as "not in yet", never as the failed summary (`loungeScreen.ts`). No new words on screen. What stops: Will treating a summary still being written as one that failed · BE wilplus/backend-cursor#1865, FE (this PR)
 - 2026-11-09 · N559 · G1: your own chats, best fit first: opened for a Take, the screen of who hears it puts first the people in your chats the matcher finds best able to answer it (`useChatOrder`, `bestFitFirst` in `NextTakeShareScreen.tsx`; `getChatOrder` in `takeMatches.ts`; BFF `/api/v2/takes/<take>/match/chats`), then the list's order; "Last sent" and the ticks unchanged, no score, no new words; a failed, slow (1.5 s) or switched-off read keeps the list's order. Before a Take nothing changes. What stops: the person sent to last always on top when the screen opens for a Take · BE N559 (wilplus/backend-cursor#1861), FE (this PR)
 - 2026-11-09 · N576 · B17: a Take's bubble in Will's chat opens its words behind "Read it", one paragraph per slide, "Hide" closes them; closed by default, nothing before there are words (`ReportCard.tsx` `TakeWords`, `takeWordsOf`, with `VoiceWords` from `chats/ChatThread.tsx`). Was: only the chats with people, the inquiry and the website chat had it · BE (the Take's words on the Lounge read), FE (this PR)
@@ -2479,7 +2594,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-09 · N548 · C2: a Clearer version the walk cannot draw is no Clearer version to the walk's plan either, so the fix falls to the same moment's AI clip (`voice_too`) or to none, never to a Clearer version screen the walk then drops; the voice fix's practice opens on the picker's own clip (the Confident Voice row), not the rewrite's, so its AI clip is made on the clip that was measured (`buildFeedbackWalk`, `practiseItem` in `feedbackWalkModel.ts`). The server makes a moment the AI clip's fix only when its clip can be made (backend `_voice_problem`, wilplus/backend-cursor#1813). No new words. What stops: the fix vanishing when its Clearer version could not be drawn, and an AI clip asked for on a clip the picker did not measure · BE #1813, FE (this PR)
 - 2026-11-09 · N548 · C2, K: one fix, on one moment, its tool by the kind of its weakness. The fix is the weakest (its voice shows the problem the AI clip teaches): its Clearer version first when its words need help too, else its AI clip; the moment whose words need help most is the fix only when no moment's voice shows a problem. A Clearer version the walk cannot draw gives its place to the same moment's AI clip when the server flags `voice_too`, else no fix (`oneThing` in `walkPlan.ts`, `voiceToo`). Words retired: "We don't have an exercise for exactly this yet, so here's the closest one." and "I've asked your speaking coach to make one just for you." What stops: a fix on a moment chosen for its words while a weaker voice went unfixed, the closest exercise, and an AI clip asked for a moment whose voice had nothing to teach · BE N548, FE (this PR)
 - 2026-11-06 · N545 · D4: a question is the last thing; the goodbye, the plan's lines and the progress never come under Will's open question, whoever lets them go (backend `will_question.waits`, `after_take.release`). No new words. What stops: "Good job. See you {day}." and the progress under an unanswered key line · BE N545 (pushed to main), FE (this commit)
-- 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the bar's middle is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
+- 2026-11-06 · N544 · E2, E3: Will's key line ("… Say it the way you'll say it.") is said, not typed. While it waits the mic action is "Record your answer" with "Not now" under the question; the tap records in the plan's small recording bar in the bar's place, never the recording screens; Stop sends it to `/will-question/voice` (BFF route restored), heard under the processing authorization, and the thread reads again (`useKeyLineHear` in `WillVoiceAnswer.tsx`, `postWillQuestionVoice`, `Lounge.tsx`). No new words. What stops: the box "Type your answer" under the key line · BE N544 (wilplus/backend-cursor#1805), FE (this PR)
 - 2026-11-06 · N547 · C2, K: a Clearer version lost on the way gives its place to the voice fix. The server serves the Take's weakest (a moment whose own voice shows a problem the AI clip teaches) as the fix, walked with its AI clip; with none, no fix, their best and its helper words (backend `_name_lost_clearer`, `fix_backup`). No new words. What stops: the closest exercise and its coach request on a lost Clearer version, whose AI clip fell back to their best's clip · BE N547 (wilplus/backend-cursor#1809, #1810), FE (this PR)
 - 2026-11-06 · N546 · H1, the One thing walk's pick: a worked slide gives way unless its moment stands out, and their best and the fix spread over the talk's beginning, middle and ending, within a Take and from the last walk; on a plan the level's moment does the same; what was trained stays skipped (backend `moment_pick.praise_give`, `fix_give`, `part_of`, `take_progress.last_parts`). No new words. What stops: a clearly great or clearly poor moment on a worked slide losing to an ordinary one on an untouched slide, and the praise and the fix landing in the same part of the talk Take after Take · BE N546 (wilplus/backend-cursor#1807), FE (this PR)
 - 2026-11-06 · N543 · H1, the One thing walk's pick: the moments come from untouched slides first. A slide that had helper words when the Take was recorded gives way in every slot (their best, the Clearer version's between, the AI clip's weakest, the next bests) and fills one only when no untouched slide can (backend `moment_pick._untouched_first`, `_rank`). No new words. What stops: a moment on a slide the speaker already worked on winning over an untouched slide because its own words did not hold the helper words · BE N543 (#1804), FE (this PR)
@@ -2540,7 +2655,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-03 · N377 · built (C4): the fix's no-clip words land with `walk-bubble-in`, once per wording (`FixWords`, `useLandsOnce`); "Say this one like your confident moment:" only when their best's clip follows, in the walk and the chat (`fixBest`; the chat's body now comes whole from the walk). Was: a swap with no motion, and a colon that could point at nothing · FE (this PR)
 - 2026-11-03 · N373 · built (C4): the fix waits ten seconds on a clip still being made, then says its tip in words (N370's bubble), a clip that comes later joining as its player alone; once the first try began, a clip not yet seen never lands above it (`AI_CLIP_WAIT_MS`, `useClipWait`, `useClipBeforeTry`). Was: the dots as long as the clip took, and a late clip above the try · FE (this PR)
 - 2026-11-03 · N370 · built (C4): the One thing walk's fix with no AI clip (its check failed, the provider or the limits refused, no voice) keeps its tip in words, the exercise's video and instruction when one is served, and "Your turn.", in the walk and the chat; "Last time" keeps the tip; the backend sends what the clip would fix with an unavailable clip once it was chosen. Was: the bubble, and the tip with it, went with the clip · BE #1621, FE (this PR)
-- 2026-11-03 · N371 · E1: suggested answers, one rule for the whole app (`TapRow`): above the bar on the right, at least 44px high, 15px; the most likely last, nearest the thumb, filled orange (Will's question lists it first from the backend, so it is drawn last); two side by side, three or four stacked one per line, more than four the last three and "Show more"; a quiet "Not now" never the filled one. While Will's question waits and typing is allowed, the bar's middle is "Something else", shaped like the box, and a tap opens the box with "Type your answer"; the mic beside it answers by voice as before. Was: small outlined taps in one wrapping row, and "Type here" while Will asked · FE (this PR)
+- 2026-11-03 · N371 · E1: suggested answers, one rule for the whole app (`TapRow`): above the bar on the right, at least 44px high, 15px; the most likely last, nearest the thumb, filled orange (Will's question lists it first from the backend, so it is drawn last); two side by side, three or four stacked one per line, more than four the last three and "Show more"; a quiet "Not now" never the filled one. While Will's question waits and typing is allowed, the mic action is "Something else", shaped like the box, and a tap opens the box with "Type your answer"; the mic beside it answers by voice as before. Was: small outlined taps in one wrapping row, and "Type here" while Will asked · FE (this PR)
 - 2026-11-02 · N359 · built (C2, H1): a fix the last walk gave (the AI clip, the Clearer version or the pace game) that worked on this Take, its issue gone on that slide by Last time's rule, is not given again on that slide; the walk picks from everything else as before, and gives it again only when the issue comes back; no walk before, or one that cannot be read, picks as before; nothing on screen, in the frame or for a coach. Was: the same fix could be given again on a slide where it had just worked · BE (this change), FE (this PR)
 - 2026-11-02 · N350, N325 item 3 · C0a, H1, T, §2: mirrors the backend half: while the run waits for the verbal read the walk's read answers "pending" until the bake starts (`ideal_text_feedback_bake.hold_for_bake`, a 15-second "queued" mark set only when the run waits); the pace fix worked when every clip on that slide spends less than the bar that picks a stretch (`tempo_stretch.MIN_OUTSIDE`) of its time past the green on the stretch's side (`tempo_stretch.stays_inside`; was `tempo_stretch.furthest`), for Last time and the Takes table alike; the tempo step reaches whoever the `tempo_step` row reaches, at ring 0 everyone, and the walk's choice of the Sniper reads the row alone (`tempo_stretch.tempo_on_for`; was: also the founder reading their own Take) · BE n350, docs (this PR)
 - 2026-11-02 · N350 · C0a, C7, H1, T: Stop shows in the walk's practise once its mic is live, as in the tempo step: while the mic opens, the trash and the strip alone (`useWalkPractise` `capturing`; was Stop from the moment the practise opened); the notes' verbal read waits at most 5 seconds after the Take is flipped ready and before the walk's marks are baked, so "ready" and the Ideal Text never wait and the walk may open up to 5 seconds later (was: "ready" waited for it); one rule for "the pace fix worked", every clip on that slide in the next Take inside the green on that side, the bar that picks a stretch, for Last time and the Takes table (was: any drop for the walk, a moved stretch for the table); the code simplified with the same behaviour: a Stop while the mic opens goes through the mic's generation token (`useDualCaptureMic`, no `stopEarlyRef`), the Sniper's helper words read once (`tempoWords`) · BE n350, FE (this PR)
@@ -2717,3 +2832,8 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-16 · locked production re-record invariant · a repeated fragment is a real Take of the same project: its arc is carried into the recorder, its processing wait is visible in the project chat as soon as the Lab closes, and that one bubble stays through polling, navigation, reconciliation and remounting until fresh feedback plus transcript/Ideal Text data are confirmed. Completion refreshes the fragment card, attempt count and CTAs; failure stays visible with an actionable retry. No silent disappearance · FE (this change)
 - 2026-11-16 · AI voice playback reliability: a ready Feedback Walk clip re-reads its existing AI-voice endpoint once when its 15-minute signed URL expires, including when `audio.play()` rejects before the media error event; a successful read swaps in the fresh URL, and an unsuccessful read leaves the existing approved “unavailable” state instead of silently doing nothing. Generation, validation, and the walk’s words are unchanged · FE (this change)
 - 2026-11-16 · N654 items 1–4 · Project-chat order and chrome lock: an accepted Take makes the neutral project/result card present immediately, without guessing a score, slide range, delivery label or claim; real evidence replaces the pending state. Opening a project replaces the WillpowerLab site bar with the existing single chat top bar. The readable Feedback/Ideal-text card is the first item, followed by the Take summary, bridge and contextual question in human order. A held closing is invisible while the question is open and, when released, follows that Take's answer/reply. Suggested answers use the shared stacked `TapRow`; “Something else” opens the shared text-composer shape. There is no custom chip row or divider above the bottom controls (`ProjectChat.tsx`, `FeedbackWalkCard.tsx`, `projectChat.ts`). Founder-approved, 2026-11-16.
+- 2026-11-18 · founder-approved onboarding correction · Project chat, Ideal Text and feedback overlays keep the shared safe-rail header/divider primitive and outlined circular X; the onboarding progress marks return to their original centred position between equal Back/close slots. Existing Back, browser-back, close and persistence behavior is unchanged (`wizard.tsx`). Founder visual feedback, 2026-11-18.
+- 2026-11-17 · founder-approved shared page header · Project chat, Ideal Text and feedback overlays use the same safe-rail header/divider primitive; the project-chat divider is viewport-wide, and the outlined circular X stays inside the safe content column. Existing Back, title/profile, browser-back, close and persistence behavior is unchanged (`PageHeader.tsx`, `ProjectChat.tsx`, `chats/TopBar.tsx`, `FeedbackOverlay.tsx`). Founder visual feedback, 2026-11-17.
+- 2026-11-17 · Founder-approved project Feedback Walk card hierarchy correction: the latest captured slide span is the card title; Progress and the existing qualitative delivery label are proportionally more readable; attempts, progress meaning, CTAs, responsive layout and all data behavior stay unchanged. A closing Walk step with no summary fetch is absent rather than showing an idle typing loader; fetched summaries still use the existing wait state (`FeedbackWalkCard.tsx`, `WalkSummary.tsx`). Founder-approved, 2026-11-17.
+- 2026-11-17 · Founder-approved project-card routing correction · the black Feedback CTA opens the existing Feedback Walk review path with the selected chunk's exact Take session id, Take index and 1-based slide range; its review analytics, walk thread writes, and close/reload side effects remain attached to that Take. The white Ideal text CTA continues to open the current Ideal Text route without inheriting Feedback Walk state. The locked Feedback Walk and Ideal Text designs are unchanged. Founder-Approved: source thread `01a1d59c-9be3-7640-b932-b4cbf92ab66e`, 2026-11-17.
+- 2026-11-18 · N663 · Founder-approved project-card Feedback completion correction · the black Feedback CTA requests the selected Take's Feedback Walk even when no moment is waiting, and that route never reveals Ideal Text if the walk cannot immediately produce a step; the white Ideal text CTA and ordinary review fallbacks remain unchanged. (`ProjectChat.tsx`, `IdealTextOverlay.tsx`, `TranscriptReviewDeck.tsx`). Founder-Approved: N663, source thread `01a1d59c-9be3-7640-b932-b4cbf92ab66e`, 2026-11-18.

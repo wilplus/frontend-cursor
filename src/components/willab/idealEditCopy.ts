@@ -36,6 +36,15 @@ export const IDEAL_EDIT_COPY = {
   tooLong:
     "That is longer than this text can hold. Nothing was lost, trim it a little and it saves.",
 
+  /* The editor keeps its draft mounted on every recoverable write failure.
+     These are deliberately short, localizable states rather than transport
+     errors leaking into the screen. */
+  editorSaved: "Saved.",
+  editorSaveFailed:
+    "Couldn't save your edit just now. Your edits are still here. Try Save again.",
+  editorSaveAuthority:
+    "Your access needs to be refreshed before this can be saved. Your edits are still here.",
+
   /* --- MATERIAL RECOVERY (founder-approved 2026-08-07) -------------------- */
   /* Words the speaker SAID, on a slide their script has no block for. Not a
      suggestion and not feedback: it is their own material, currently missing.
@@ -885,3 +894,5 @@ export const PAST_TAKE_COPY = {
   notSaved: (take: number, latest: number): string =>
     `Take ${take}'s words weren't saved. This is Take ${latest}.`,
 } as const;
+
+// Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; project practice scope labels are centralized with the Ideal Text copy.

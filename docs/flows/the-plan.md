@@ -45,7 +45,7 @@ built and what is still to come.
    and two follow-ups, the two ratings after the yes. The first Take follows
    the plan card, whose one button is "Start your first recording" (E5); no
    question has it under it (N319 item 2, which amends N262). When a Take
-   is recorded first all the same (the "+" in the bar opens the projects),
+   is recorded first all the same (Files opens the projects),
    what isn't answered yet comes back after that Take's walk, where Will
    left off, and the plan counts that Take as its first practice (N136,
    N146, N262).
@@ -64,6 +64,9 @@ built and what is still to come.
    asked for a speaker who already has Takes (A2, A3). The plan says so
    (`onboarding`), and nothing of the voice notebook, the Sunday note or life
    goals shows meanwhile ([principles](principles.md) A6; N243).
+6. The plan's first-Take processing row appears only while the server says
+   that Take is processing. Opening Ideal Text or revisiting a Feedback walk
+   cannot create a processing row; once processing ends, the row stays gone.
 
 ### B · The questions, in the Lounge
 
@@ -77,14 +80,10 @@ built and what is still to come.
    (G1). Was: "When is your deadline?", and no date gave two months.
 3. "I assume you came here to practise for some important event in your
    life. Please tell me, why does it matter and what is it about?" One voice
-   message: while it waits the bar's middle is "Record your answer", with
-   "Not now" under the question (B10, backend N483 item 2); a tap records
-   with the one recording bar (backend N314, locked): the trash on the left,
-   then the walk's strip (the pulsing dot, the clock, the track) with the red
-   Stop inside it; Stop sends, the trash throws it away; no Skip (N319 item
-   1). Was: the bar's mic orange (N319 item 1); "Record your answer" in the footer, with "Start your first
-   recording" under it before the first Take (N262); before that a "Your
-   answer" line over the strip and a large red Stop under it. It lands as
+   message. The mic is "Record your answer" in the [shared composer](feedback-walk-and-chat.md#shared-composer-n667).
+   "Not now" remains under the question. While recording, the center
+   shows the timer and discard, and the mic becomes Stop. Stop submits
+   the answer. It lands as
    the speaker's orange voice bubble, which plays back, and it goes through
    the processing authorization like every recording (N135, N136, N137,
    N262). The bubble shows at once, with
@@ -135,31 +134,11 @@ built and what is still to come.
    B8: the third time, Will moves on (N276).
 10. **Asked the after-walk way** (N319 items 1 and 3, as Will asks after
    the walk, [the walk's page](feedback-walk-and-chat.md) B14, E3): each
-   question is Will's bubble, and the Lounge's bar stays under it, the stack
-   and its one black button ([the walk's page](feedback-walk-and-chat.md)
-   B14, N483). A choice is tap answers on the right of the
-   thread, Will's orange outlined pills: "Pick a date" (it opens the date
-   sheet) and "No date yet"; the plan's own yes, "Not now" a grey word and
-   "Yes, ask me" filled orange (D5); "Skip" (a grey word, on the left) and
-   "Book now" (filled orange, on the right) under a call's ask while the
-   calls show (F1, N325 item 2); a yes-or-no ask has "Yes" last, so the
-   filled answer is the likely one: "No", then "Yes" for "Are you preparing
-   for the same event?" (N467 items 4 and 7, as every choice in a chat,
-   [the walk's page](feedback-walk-and-chat.md) J7; was: "Not now" and
-   "Skip" faded grey pills, and "Yes" first). A spoken question makes the
-   bar's middle "Record your answer", with "Not now" a grey word under the
-   question, which leaves it until the chat is opened again; its answer is
-   recorded as in B3. The 1 to 10 scale
-   keeps its shape, in the thread under its question (D2); the picked
-   number turns orange (N467 item 7; was black). While the plan asks there is no box: the answer is a tap or
-   your voice (N483 item 7; was: "Type here" faded and not focusable in the
-   bar, and a tap on it showed "We need to hear this in your voice. Tap the
-   mic." or "Tap one of the answers above.", N319 item 3, N323 item 1, N325
-   item 4, N350 item 4). The taps and the
-   scale go while an answer is on its way; the answer and Will's next words
-   then land in the thread. Was: the plan's footer in place of the bar,
-   with its own chips, "Record your answer" and the scale, and the bar
-   hidden while the plan had a step.
+   question is Will's bubble. Tap choices and the 1 to 10 scale are
+   in the thread as before. A spoken question highlights the mic and
+   disables typing while it waits. "Not now" rests under the question
+   and leaves it for the next visit. The [shared composer](feedback-walk-and-chat.md#shared-composer-n667)
+   keeps its layout as the answer lands, then follows the newest bubble.
 
 ### C · The diagnosis
 
@@ -269,10 +248,8 @@ built and what is still to come.
    text, the small labels (N161). Text colours read on white (4.5:1): the
    orange #C2410C, the green #1F7A4A, the grey #737373. Every link has a
    fingertip's tap area; the text keeps its size (N167).
-5. Under the card, the bar's middle is "Start your first recording"
-   (N161), beside the stack: the one button before the first Take, which
-   the plan's questions never stand in front of (N483 item 2; was in
-   place of the bar, under no question, N319 item 2).
+5. Under the card, the mic action is "Start your first recording"
+   (N161) as soon as the first Take is ready.
 
 ### F · The two calls with the coach, before the plan
 
@@ -367,19 +344,11 @@ built and what is still to come.
    your key line"; a speaker's own case: "give your key line a little more
    room"), the key line in the speaker's words and their recording ("How you
    said it"). No bubble carries a button (N294 item 7): while this bubble is
-   the newest one thing, the bar's middle is "Record Take N" for its Take,
-   the black button with the red dot, beside the stack
-   ([the walk's page](feedback-walk-and-chat.md) B14; `WillBarMiddle`,
-   drawn from one place for this Take and for the goodbye's next, N350
-   item 1); a tap starts that Take as the old button did, and it waits
-   (faded) while a Take is still landing. While the plan asks a spoken
-   question it is "Record your answer" instead; while a call's calendar is
-   open, the calendar stands there. The chat has one record button: the
-   previous Take's goodbye keeps its words and gives its button up. Once a
-   newer Take is recorded, in any project, the button is the new Take's
-   (N244, N251). Was: "● Record Take N" inside the bubble (N167); then
-   alone under the chat with the bar gone and a grey ✕ beside it (N296
-   state 4, N325 item 1, N395).
+   the newest one thing, the mic opens "Record Take N" for its Take.
+   It waits while a Take is landing. A spoken question uses that same mic
+   slot for its answer. A call's calendar opens as its own control.
+   Once a newer Take is recorded, the action refers to that Take (N244,
+   N251).
    The last practice and the next plan show the same bubble with N89's
    closing line. No "Start a new project" under it: the stack in the bar
    opens the projects, as today (N167, N169).
@@ -505,11 +474,8 @@ Signed:
   "When is your deadline?" · "Pick a date" · "No date yet" · "That's fine.
   Let's give it two months, until {date}." · "I assume you came here to
   practise for some important event in your life." · "Please tell me, why
-  does it matter and what is it about?" (N137, N140); the recording bar's
-  "Stop" (N314); "Record your answer" (N137, N140), the bar's middle for a
-  spoken question, with "Not now" (N483; the orange mic from N319 item 1
-  until then). Signed, no longer shown: "Your answer" over the strip
-  (N314).
+  does it matter and what is it about?" (N137, N140); "Record your answer"
+  in the mic slot, "Not now" under the question, and "Stop" in capture.
 - Will's reply: "I can already hear your main vocal cues and verbal habits."
   · when the AI fails, "Thank you. Now I can hear you talking about your
   goal and why it matters." (N140, N150). Signed, no longer shown: "Let me
@@ -662,7 +628,7 @@ Waiting for the founder's OK:
     to change." answered out loud ("Record your answer"); "What would you
     like to do here first?" with "Something else" (it opens the box),
     "Learn from others", "Share what I know", "Prepare a talk", several,
-    then "Send" in the bar's middle; "When is it?" with "Pick a date" and
+    then "Send" above the composer; "When is it?" with "Pick a date" and
     "No date yet"; the questions for people who join as their own rows;
     the plan card; "Do you accept it?" with "I agree"; one "You're set.",
     for sharers with "Copy my link ›" and "Your questions for people who
@@ -772,8 +738,7 @@ The plan's own code, guarded by this page (`scripts/flow-pages.txt`):
 - `src/components/willab/plan/`: the questions by step (`PlanDock.tsx`:
   `PlanAsk`, the tap answers and the scale in the thread; `usePlanVoice`,
   the recording of a spoken answer; `PlanDock`, the calls' calendar in the
-  footer; `WillBarMiddle`, the bar's middle in Will's chat, the one black
-  button: "Record your answer", "Record Take N" for the
+  chat; `willComposerMic`, the mic action in the shared composer: "Record your answer", "Record Take N" for the
   goodbye's next Take or a practice day's (`usePlanLounge` `one` from
   `PlanRows` `newestOneOf`, G6), or "Start your first recording"
   (`usePlanLounge` `startFirst`), N483), the
@@ -800,13 +765,9 @@ It touches these places, each with its own page for what it owns:
 
 - The Lounge (`Lounge.tsx`): one hook call, the plan's rows drawn from the ask
   bubbles, its answers at the thread's end with "Not now" under a spoken
-  question, its say over the bar (`hear`, "Record your answer"; no box
-  while it asks, `typingOff`), its footer in place of the bar only for a
-  call's calendar and the recording bar, and the bar's middle
-  (`WillBarMiddle`) for a practice day's Take as for the goodbye's, and
-  the empty Lounge's hello held while the plan asks. The plan's taps
-  are Will's (`WillQuestion.tsx`, `TapRow`, with "Not now" quiet). The
-  walk's page owns the Lounge's other rules.
+  question, and its mic action and capture state passed to
+  `ChatComposer.tsx`. The plan's taps are Will's (`WillQuestion.tsx`,
+  `TapRow`). The walk's page owns the Lounge's other rules.
 - `WillabSurface.tsx` and `src/lib/willab/setupDraft.ts`: "Start your first
   recording" opens the set-up with the topic filled in, without the feelings
   check (E5, B7).
@@ -841,6 +802,8 @@ The design is the prototype; the newest wins where two disagree.
   (N130; the circle became the scale, N142).
 
 ## 6. Changes
+
+- 2026-11-23 · N667 · The plan uses the shared composer for spoken answers and recording actions. A picked answer is confirmed above it.
 
 One line each, newest first: `date · N · what changed · PR`.
 

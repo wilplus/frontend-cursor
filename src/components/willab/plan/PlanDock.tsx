@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import RecordingBar from "@/components/willab/RecordingBar";
+import type { ComposerMic, ComposerRecording } from "../chats/ChatComposer";
 import { useVoiceNote } from "@/components/willab/useVoiceNote";
 import { TapRow } from "@/components/willab/WillQuestion";
 import type { CallWhich, Plan } from "@/services/api/plan";
@@ -190,12 +190,7 @@ export function PlanAsk({
   return null;
 }
 
-/** A voice question (why it matters, the key line, the follow-ups, "How did
- *  it go?"): while it waits the Lounge's mic is orange, as after the walk
- *  (N319 item 1, the walk's page B14 state 2); a tap records with the one
- *  recording bar (backend N314): the trash, then the walk's strip with Stop
- *  inside it. Stop sends the answer through the plan's answer path; the
- *  trash throws it away. No Skip. */
+/** Record a guided answer and send it through that question's existing path. */
 export function usePlanVoice({
   open,
   onAnswer,
@@ -204,79 +199,36 @@ export function usePlanVoice({
   onAnswer: (audio: Blob, durationMs: number) => Promise<void>;
 }) {
   const note = useVoiceNote({ maxSeconds: 300, onDone: ({ audio, durationMs }) => onAnswer(audio, durationMs) });
-  const recording = note.phase === "recording";
+  const recording: ComposerRecording | undefined = note.phase === "recording" ? {
+    elapsedMs: note.elapsedMs,
+    discard: note.cancel,
+    stop: note.send,
+    attrs: { "data-plan-voice-recording": "" },
+  } : undefined;
   return {
-    /** The question waits: the mic is orange and records the answer. */
     waiting: open && note.phase === "idle" ? { onTap: () => void note.start() } : null,
     recording,
-    /** The recording bar, in the message box's place while the answer is said. */
-    bar: recording ? (
-      <div data-plan-voice-recording="">
-        <RecordingBar elapsedMs={note.elapsedMs} onTrash={note.cancel} onStop={note.send} />
-      </div>
-    ) : null,
   };
 }
 
-/** The middle of Will's bar while he asks for no words (backend N483 item
- *  2), the first that holds: Will needs to hear you (the plan's spoken
- *  question), "Record your answer"; otherwise the next Take, faded while the
- *  last one is processed, or "Start your first recording" before any. No
- *  "Continue review" (backend N532): the review is the Feedback walk
- *  bubble's, and never holds the next Take back. One black button; the red
- *  dot when a tap starts a recording. */
-export function WillBarMiddle({
-  hear,
-  next,
-  held,
-  onRecord,
-  onFirst,
+export function willComposerMic({
+  hear, next, held, onRecord, onFirst,
 }: {
   hear: { onTap: () => void } | null;
   next: { arcId: string; takeIndex: number } | null;
   held: boolean;
   onRecord: (arcId: string, takeIndex: number) => void;
   onFirst: () => void;
-}) {
-  const [label, onClick, attr]: [string, () => void, string] = hear
-    ? [PLAN_COPY.recordAnswer, hear.onTap, "data-will-hear"]
-    : next
-      ? [PLAN_COPY.recordTake(next.takeIndex + 1), () => onRecord(next.arcId, next.takeIndex), "data-record-next"]
-      : [PLAN_COPY.startFirst, onFirst, "data-start-first"];
-  return (
-    <div className="min-w-0 flex-1">
-      <RecordDockButton label={label} onClick={onClick} disabled={held && !hear} dataAttr={{ [attr]: "" }} />
-    </div>
-  );
+}): ComposerMic {
+  if (hear) return { label: PLAN_COPY.recordAnswer, start: hear.onTap, attrs: { "data-will-hear": "" } };
+  if (next) return {
+    label: PLAN_COPY.recordTake(next.takeIndex + 1),
+    start: () => onRecord(next.arcId, next.takeIndex),
+    disabled: held,
+    attrs: { "data-record-next": "" },
+  };
+  return { label: PLAN_COPY.startFirst, start: onFirst, disabled: held, attrs: { "data-start-first": "" } };
 }
-
-/** The one black button in the middle of Will's bar (backend N483). The red
- *  dot means a tap starts a recording, as every one of its taps does. */
-function RecordDockButton({
-  label,
-  onClick,
-  disabled = false,
-  dataAttr,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  dataAttr: Record<string, string>;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      {...dataAttr}
-      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background disabled:opacity-45"
-    >
-      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-      {label}
-    </button>
-  );
-}
-
 
 /** Which step of the plan is open, or null for none: a question ("deadline",
  *  "consent", "voice", "stress", "ready", "call", "next", "same_event"),
@@ -304,8 +256,8 @@ export function dockFor(plan: Plan | null, booking: CallWhich | null): string | 
 /** The plan's footer, only where it stands in for the bar: the calls'
  *  calendar, full screen over the chat, for "Book now" under Will's ask or
  *  "Book" in the plan's list (N248, N281). "Start your first recording"
- *  and a practice day's "Record Take N" are the bar's middle
- *  (`WillBarMiddle`, backend N483 item 2). */
+ *  and a practice day's "Record Take N" are the composer
+ *  (`willComposerMic`, backend N483 item 2). */
 export default function PlanDock({
   plan,
   busy,

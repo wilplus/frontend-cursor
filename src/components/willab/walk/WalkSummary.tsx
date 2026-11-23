@@ -85,6 +85,8 @@ export default function WalkSummary({
     backDisabled,
     nextDisabled: true,
   };
+  // No fetch means this closing step is intentionally absent, not waiting.
+  if (!text && !fetchText) return null;
   if (past && !text) return null;
   return (
     <WalkOverlay

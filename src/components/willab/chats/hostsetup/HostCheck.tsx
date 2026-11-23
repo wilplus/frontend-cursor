@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExampleCase } from "../../models/ModelBits";
 import { answerCheck, getCheck, type ModelCheck } from "@/services/api/hostSetup";
 import { W } from "./hostSetupCopy";
-import { Btn, Cap, Card, Frame, Opt, Say, Two } from "./SetupBits";
+import { Cap, Card, Frame, Opt, Say } from "./SetupBits";
 
 /* -------------------------------------------------------------------------- */
 /*  "Check its guesses" inside the blank setup (FIRST-08's check, LEARN-03;   */
@@ -79,7 +79,12 @@ export default function HostCheck({ modelId, question, onBack, onDone, onNothing
   return (
     <Frame
       onBack={back}
-      foot={<Two left={<Btn out label={W.change} onClick={() => setFixing(true)} />} right={<Btn label={W.keep} disabled={busy} onClick={() => send(null)} />} />}
+      dock={{
+        choices: [W.change, W.keep],
+        onChoice: (label) => (label === W.keep ? send(null) : setFixing(true)),
+        onSend: () => false,
+        disabled: busy,
+      }}
     >
       <Say>{W.checkSay}</Say>
       <div data-check-example={item.example_id}>

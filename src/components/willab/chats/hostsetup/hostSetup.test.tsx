@@ -132,10 +132,17 @@ async function tap(label: string) {
   await flush();
 }
 /** The one top bar's back arrow (backend N639). */
-const backArrow = () => container.querySelector<HTMLButtonElement>('[data-one-top-bar] button[aria-label="Back"]');
+const backArrow = () => container.querySelector<HTMLButtonElement>('[data-chat-header] button[aria-label="Back"], [data-one-top-bar] button[aria-label="Back"]');
 async function back() {
   const arrow = backArrow();
   if (!arrow) throw new Error(`no back arrow in: ${text()}`);
+  await act(async () => arrow.click());
+  await flush();
+}
+/** Test my chat wears the chat header. Its arrow is the way out. */
+async function leaveOwnChat() {
+  const arrow = container.querySelector<HTMLButtonElement>("[data-host-own-chat] [data-chat-header] button[aria-label='Back']");
+  if (!arrow) throw new Error(`no own-chat back in: ${text()}`);
   await act(async () => arrow.click());
   await flush();
 }
@@ -159,7 +166,7 @@ async function makeOwn(teach = true) {
 }
 /** Where the person types: the app's bottom bar in the setup (N647 item 9),
  *  the box in "Test my chat". */
-const field = () => container.querySelector<HTMLInputElement | HTMLTextAreaElement>("[data-chat-box] input, textarea")!;
+const field = () => container.querySelector<HTMLInputElement | HTMLTextAreaElement>("[data-chat-input]")!;
 async function type(words: string) {
   const ta = field();
   const proto = ta instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
@@ -183,15 +190,17 @@ async function begun() {
   await mount();
   act(() => void openSetupFromWill(0));
   await flush();
-  await tap("Answer");
   await type("trichologist");
   await tap("No");
 }
 /** On to a step, keeping Will's first suggestion on each. */
+const asking = () => [...container.querySelectorAll("[data-will-line]")].filter((el) => !el.closest("[data-setup-history]")).map((el) => el.textContent ?? "").join(" ");
 async function keepTo(say: string) {
-  for (let i = 0; i < 12 && !text().includes(say); i += 1) {
-    if (text().includes("Ask one more question?")) await tap("No");
-    else if (text().includes("Tick all that apply")) await tap("Done");
+  for (let i = 0; i < 40 && !text().includes(say); i += 1) {
+    const now = asking();
+    if (now.includes("Ask one more question?")) await tap("No");
+    else if (now.startsWith("Can they send")) await tap(now.includes("a photo") ? "Yes" : "No");
+    else if (now.startsWith("After they send a recording") || now.startsWith("Should it show one moment") || now.startsWith("Should it give them a few helper words")) await tap("Yes");
     else await tap("Keep");
   }
   expect(text()).toContain(say);
@@ -203,9 +212,8 @@ describe("the blank setup (FIRST-)", () => {
     await mount();
     act(() => void openSetupFromWill(0));
     await flush();
-    await tap("Answer");
-    // Typing is the app's bottom bar, its send on the right once there are words.
-    expect(container.querySelector("[data-chat-bar] [data-chat-box] textarea")).not.toBeNull();
+    // The bar is open: the chat's composer, its send on the right once there are words.
+    expect(container.querySelector("[data-setup-dock] [data-chat-box] textarea")).not.toBeNull();
     await type("trichologist");
     await tap("No");
     const mine = () => [...container.querySelectorAll("[data-setup-history] [data-my-line]")].map((b) => b.textContent);
@@ -234,7 +242,6 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Hi Lena. I'm Will. Let's set up your chat, so people can come to you through one link.");
     expect(text()).toContain("I ask one thing at a time. You tap Keep or Change. It takes about five minutes.");
     expect(text()).toContain("What do you do?");
-    await tap("Answer");
     expect(field().placeholder).toBe("Speaking coach");
     await type("trichologist");
     expect(text()).toContain("Trichologist. One moment.");
@@ -250,7 +257,6 @@ describe("the blank setup (FIRST-)", () => {
     await mount();
     act(() => void openSetupFromWill(0));
     await flush();
-    await tap("Answer");
     await type("dermatologist");
     expect(text()).toContain("Is your work about health, law or money?");
     expect(text()).toContain("If yes, I only suggest answers to you, and you send each one. Not sure? Say yes.");
@@ -269,12 +275,11 @@ describe("the blank setup (FIRST-)", () => {
     await begun();
     expect(text()).toContain("New people read this before they join your chat.");
     bff.routes["PUT /api/v2/chats/setup/line"] = { status: 400, body: { code: "RECIPE_WORDS" } };
-    await tap("Type my own");
     await type("People come to you for a score out of ten.");
     await tap("Keep");
     expect(text()).toContain("People come to you for this:");
     expect(text()).toContain("Try other words. Your chat can't show a score or a number about someone.");
-    await tap("Change");
+    await tap("Draw new one");
     expect(text()).not.toContain("Try other words.");
   });
 
@@ -286,18 +291,15 @@ describe("the blank setup (FIRST-)", () => {
     await mount();
     act(() => void openSetupFromWill(0));
     await flush();
-    await tap("Answer");
     await type("trichologist");
     await tap("No");
     await tap("Keep");
     expect(text()).toContain("Your chat is called:");
     expect(text()).toContain(NAMES[0]);
     const calls = bff.calls.length;
-    await tap("Change");
+    await tap("Draw new one");
     expect(text()).toContain(NAMES[1]);
     expect(bff.calls.length).toBe(calls);
-    await tap("Type my own");
-    expect(text()).toContain("What should your chat be called?");
     await type("Hair with Lena");
     expect(text()).toContain("Hair with Lena");
     bff.routes["PUT /api/v2/chats/setup/name"] = { status: 400, body: { code: "RECIPE_WORDS" } };
@@ -307,7 +309,7 @@ describe("the blank setup (FIRST-)", () => {
     bff.routes["PUT /api/v2/chats/setup/name"] = (c: Call) => ({ recipe: { ...recipe, name: (c.json as R).value }, cost: FREE });
     await tap("Keep");
     expect(puts("name")).toEqual(["Hair with Lena", "Hair with Lena"]);
-    expect(text()).toContain("What do people send you? Tick all that apply.");
+    expect(text()).toContain("Can they send a photo?");
   });
 
   it("N642-1 the Name part opens its step and comes back to the parts; without suggested names the step is not asked", async () => {
@@ -323,7 +325,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Name");
     expect(text()).toContain("Your chat is called:");
     expect(text()).toContain("Ask Lena");
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     expect(puts("name")).toEqual(["Lena's chat"]);
     expect(text()).toContain("Here are your chat's parts. Tap one to change it.");
@@ -332,7 +334,6 @@ describe("the blank setup (FIRST-)", () => {
   it("FIRST-06 Type my own on the taps sends the one tap typed", async () => {
     await begun();
     await keepTo("People tap what they want:");
-    await tap("Type my own");
     await type("Check my scalp");
     expect(text()).toContain("Check my scalp");
     expect(text()).toContain("Something else");
@@ -343,77 +344,71 @@ describe("the blank setup (FIRST-)", () => {
   it("FIRST-03 one decision per screen: Change shows Will's next, Type my own comes back, Back keeps it", async () => {
     await begun();
     const calls = bff.calls.length;
-    await tap("Change");
+    await tap("Draw new one");
     expect(text()).toContain(SUGGEST.line[1]);
     expect(bff.calls.length).toBe(calls);
-    await tap("Type my own");
-    expect(text()).toContain("Why do people come to you?");
     await type("People come to me when their hair worries them.");
     expect(text()).toContain("People come to you for this:");
     expect(text()).toContain("People come to me when their hair worries them.");
     await tap("Keep");
     expect(puts("line")).toEqual(["People come to me when their hair worries them."]);
-    expect(text()).toContain("What do people send you? Tick all that apply.");
+    expect(text()).toContain("Can they send a photo?");
     await back();
     expect(text()).toContain("People come to me when their hair worries them.");
   });
 
-  it("FIRST-04 what people send: Will's first comes ticked, several can be, Done keeps them", async () => {
+  it("FIRST-04 what people send: one yes or no each, the first stays, a yes adds the next", async () => {
     await begun();
     await tap("Keep");
-    const ticks = () => [...container.querySelectorAll('[role="checkbox"]')].map((b) => `${b.textContent}:${b.getAttribute("aria-checked")}`);
-    expect(ticks()[0]).toContain("A photo");
-    expect(ticks()[0]).toContain("true");
-    await tap("A message");
-    await tap("Done");
+    expect(asking()).toBe("Can they send a photo?");
+    await tap("Yes");
+    expect(asking()).toBe("Can they send a message?");
+    await tap("Yes");
+    await tap("No");
+    await tap("No");
     expect(puts("send")).toEqual([["photo", "text"]]);
   });
 
-  it("FIRST-04 what people send shows what the recipe holds: A message ticked with the first suggestion (N625)", async () => {
+  it("FIRST-04 what people send shows what the recipe holds: A message kept with the first suggestion (N625)", async () => {
     backend();
     recipe = first({ send: ["photo", "text"] });
     bff.routes["POST /api/v2/chats/setup/start"] = { recipe };
     await mount();
     act(() => void openSetupFromWill(0));
     await flush();
-    await tap("Answer");
     await type("trichologist");
     await tap("No");
     await tap("Keep");
-    const ticked = [...container.querySelectorAll('[role="checkbox"][aria-checked="true"]')].map((b) => b.querySelector("b")?.textContent);
-    expect(ticked).toEqual(["A photo", "A message"]);
-    await tap("Done");
+    await tap("Yes");
+    await tap("Yes");
+    await tap("No");
+    await tap("No");
     expect(puts("send")).toEqual([["photo", "text"]]);
   });
 
-  it("FIRST-04 several rows tick, each on its own; the last tick cannot be unticked; Done saves them all", async () => {
+  it("FIRST-04 each kind is its own yes or no; the saved list is never empty", async () => {
     await begun();
     await tap("Keep");
-    const ticked = () => [...container.querySelectorAll('[role="checkbox"][aria-checked="true"]')].map((b) => b.querySelector("b")?.textContent);
-    const row = (name: string) => [...container.querySelectorAll<HTMLButtonElement>('[role="checkbox"]')].find((b) => b.querySelector("b")?.textContent === name)!;
-    const press = async (name: string) => {
-      await act(async () => row(name).click());
-      await flush();
-    };
-    expect(ticked()).toEqual(["A photo"]);
-    await press("A message");
-    await press("A recording");
-    await press("A file");
-    expect(ticked()).toEqual(["A photo", "A message", "A recording", "A file"]);
-    for (const name of ["A photo", "A message", "A recording"]) await press(name);
-    expect(ticked()).toEqual(["A file"]);
-    await press("A file");
-    expect(ticked()).toEqual(["A file"]);
-    await press("A message");
-    await tap("Done");
+    await tap("No");
+    await tap("Yes");
+    await tap("No");
+    await tap("Yes");
     expect(puts("send")).toEqual([["text", "file"]]);
+    await back();
+    await tap("No");
+    await tap("No");
+    await tap("No");
+    await tap("No");
+    expect(puts("send").at(-1)).toEqual(["file"]);
   });
 
-  /** On "What do people send you?", a recording ticked too, then Done. */
+  /** A photo and a recording, one yes or no each. */
   async function withRecording() {
-    await keepTo("What do people send you? Tick all that apply.");
-    await tap("A recording");
-    await tap("Done");
+    await keepTo("Can they send a photo?");
+    await tap("Yes");
+    await tap("No");
+    await tap("Yes");
+    await tap("No");
   }
   const posts = (path: string) => bff.calls.filter((c) => c.method === "POST" && c.path === path);
 
@@ -421,28 +416,22 @@ describe("the blank setup (FIRST-)", () => {
     await begun();
     await withRecording();
     expect(puts("send")).toEqual([["photo", "rec"]]);
-    expect(text()).toContain("After a recording, people get a feedback walk.");
-    expect(text()).toContain("What should yours hold? Tick all that apply.");
-    const ticked = () => [...container.querySelectorAll('[role="checkbox"]')].filter((b) => b.getAttribute("aria-checked") === "true").map((b) => b.textContent);
-    expect(ticked()).toEqual(["Their best moment", "One moment to try another way", "The helper words"]);
-    await tap("Their best moment");
-    await tap("One moment to try another way");
-    // The last tick stays.
-    await tap("The helper words");
-    expect(ticked()).toEqual(["The helper words"]);
-    await tap("Their best moment");
-    await tap("Done");
+    expect(asking()).toBe("After they send a recording, should your chat show them their best moment and why it worked?");
+    await tap("Yes");
+    await tap("No");
+    await tap("Yes");
     expect(text()).toContain("Your walk goes in this order:");
+    expect(text()).toContain("1. Their best moment");
+    expect(text()).toContain("2. The helper words");
+    await tap("Change");
     expect(text()).toContain("1. The helper words");
     expect(text()).toContain("2. Their best moment");
-    await tap("Change");
-    expect(text()).toContain("1. Their best moment");
     await tap("Keep");
     expect(text()).toContain("What do they get at the end?");
     expect(puts("walk")).toEqual([]);
     await tap("Nothing for now");
-    expect(puts("walk")).toEqual([{ steps: ["best", "words"], out: "none" }]);
-    expect([...container.querySelectorAll("[data-walk-blocks] > *")].map((b) => b.textContent)).toEqual(["Their best moment", "The helper words", "Nothing for now"]);
+    expect(puts("walk")).toEqual([{ steps: ["words", "best"], out: "none" }]);
+    expect([...container.querySelectorAll("[data-walk-blocks] > *")].map((b) => b.textContent)).toEqual(["The helper words", "Their best moment", "Nothing for now"]);
     expect(text()).toContain("Your chat can't run this yet. Want it?");
     expect(container.querySelector("small")).toBeNull();
     await tap("Not now");
@@ -453,7 +442,9 @@ describe("the blank setup (FIRST-)", () => {
   it("N641 \"I want this\" tells the founder once: the thanks and Done, and the question never again", async () => {
     await begun();
     await withRecording();
-    await tap("Done");
+    await tap("Yes");
+    await tap("Yes");
+    await tap("Yes");
     await tap("Keep");
     await tap("An Ideal Text");
     expect(puts("walk")).toEqual([{ steps: ["best", "fix", "words"], out: "ideal_text" }]);
@@ -472,8 +463,11 @@ describe("the blank setup (FIRST-)", () => {
 
   it("N641 a chat that takes no recording has no feedback walk", async () => {
     await begun();
-    await keepTo("What do people send you? Tick all that apply.");
-    await tap("Done");
+    await keepTo("Can they send a photo?");
+    await tap("Yes");
+    await tap("No");
+    await tap("No");
+    await tap("No");
     expect(text()).toContain("Your chat opens with:");
     expect(text()).not.toContain("feedback walk");
   });
@@ -489,17 +483,13 @@ describe("the blank setup (FIRST-)", () => {
     act(() => void openSetupFromNote());
     await flush();
     await tap("The feedback walk");
-    // A walk already kept opens part by part (N647 item 1); "Its steps" is today's.
+    // One tap opens the steps. Each step is On or Off, saved as it is tapped.
     await tap("Its steps");
-    expect(text()).toContain("What should yours hold? Tick all that apply.");
-    await tap("Done");
-    expect(text()).toContain("1. One moment to try another way");
-    await tap("Keep");
-    await tap("An Ideal Text");
-    expect(puts("walk")).toEqual([{ steps: ["fix", "best"], out: "ideal_text" }]);
-    expect(text()).toContain("Thanks. I've told Artur.");
-    await tap("Done");
-    expect(text()).toContain("Open your chat to people?");
+    expect(asking()).toBe("After they send a recording, should your chat show them their best moment and why it worked?");
+    expect(container.querySelectorAll("[data-binary]")).toHaveLength(0);
+    await tap("No");
+    await flush();
+    expect(puts("walk").length).toBeGreaterThan(0);
   });
 
   /** A host with a walk kept, its part opened; the walk read as the backend gives it. */
@@ -544,6 +534,13 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("What do they get at the end?");
   });
 
+  it("the walk home and the model choice share one bottom bar, and plain words open the part", async () => {
+    await walkHome(WALK_READ);
+    expect(container.querySelector("[data-setup-dock] textarea")).not.toBeNull();
+    await type("what i notice");
+    expect(text()).toContain("This is what I notice in a message. Tap one.");
+  });
+
   it("N647-1 the walk's home counts only what is on: Nothing yet, 1 line", async () => {
     await walkHome({ ...WALK_READ, notice: WALK_READ.notice.map((n) => ({ ...n, on: false })), say: [WALK_READ.say[0], { ...WALK_READ.say[1], on: false }] });
     const value = (part: string) => container.querySelector(`[data-part="${part}"]`)?.children[1]?.textContent;
@@ -571,14 +568,16 @@ describe("the blank setup (FIRST-)", () => {
     await walkHome(WALK_READ);
     await tap("What I notice");
     expect(text()).toContain("This is what I notice in a message. Tap one.");
-    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Ready");
-    expect(button("Is the hair thinning here?").textContent).toBe("Is the hair thinning here?Still learning");
+    const dry = container.querySelector("[data-notice='m-dry']")!;
+    expect(dry.textContent).toContain("Is this a dry scalp?");
+    expect(dry.textContent).toContain("Ready");
+    expect(container.querySelector("[data-notice='m-thin']")?.textContent).toContain("Still learning");
     expect(text()).not.toContain("Coaches agreed");
     expect(text()).not.toContain("Catch more");
-    await tap("Is this a dry scalp?");
-    await tap("Turn it off");
+    await act(async () => dry.querySelector<HTMLButtonElement>("[data-choice='off']")!.click());
+    await flush();
     expect(sentItems()).toEqual([["m-dry", { on: false }]]);
-    expect(button("Is this a dry scalp?").textContent).toBe("Is this a dry scalp?Off");
+    expect(container.querySelector("[data-notice='m-dry']")?.textContent).toContain("Off");
     await tap("Something else. I want this");
     expect(bff.calls.filter((c) => c.path === "/api/v2/chats/setup/walk/want")).toHaveLength(1);
     expect(text()).toContain("Thanks. I've told Artur.");
@@ -599,23 +598,22 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Keep it");
     await tap("The crown is thinner.");
     expect(text()).toContain("It's new. I'll tell you how it does.");
-    await tap("Change the words");
-    expect(text()).toContain("What should I say?");
-    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Write here");
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("What should I say?");
     await type("The crown looks thinner than the sides.");
     expect(container.querySelector("textarea")?.value).toBe("The crown looks thinner than the sides.");
     refuse = false;
     await type("The crown looks thinner than the sides.");
     expect(sentItems().at(-1)).toEqual(["m-thin", { says: "The crown looks thinner than the sides." }]);
     expect(text()).toContain("The crown looks thinner than the sides.");
-    expect(container.querySelector("textarea")).toBeNull();
+    expect(text()).not.toContain("What should I say?");
   });
 
-  it("N647 the not-running screen: on messages it asks for recordings; otherwise as before", async () => {
+  it("N647 the not-running screen: a walk on messages also runs on a recording; otherwise as before", async () => {
     await walkHome(WALK_READ);
     await tap("What they get");
     await tap("An Ideal Text");
-    expect(text()).toContain("Your walk runs on messages. Recordings are not ready yet. Want them?");
+    expect(text()).toContain("Your walk runs on a recording too. Want it?");
+    expect(text()).not.toContain("Recordings are not ready yet");
     expect(text()).not.toContain("Your chat can't run this yet.");
     act(() => root.unmount());
     root = createRoot(container);
@@ -632,10 +630,10 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     const steps: { go: () => Promise<void>; see: string }[] = [
       { go: async () => undefined, see: "What do you do?" },
-      { go: async () => { await tap("Answer"); await type("trichologist"); }, see: "Is your work about health, law or money?" },
+      { go: async () => { await type("trichologist"); }, see: "Is your work about health, law or money?" },
       { go: () => tap("No"), see: "People come to you for this:" },
-      { go: () => tap("Keep"), see: "What do people send you? Tick all that apply." },
-      { go: () => tap("Done"), see: "Your chat opens with:" },
+      { go: () => tap("Keep"), see: "Can they send a photo?" },
+      { go: async () => { await tap("Yes"); await tap("No"); await tap("No"); await tap("No"); }, see: "Your chat opens with:" },
       { go: () => tap("Keep"), see: "Then it asks:" },
       { go: () => tap("Keep"), see: "Ask one more question?" },
       { go: () => tap("No"), see: "People tap what they want:" },
@@ -659,9 +657,13 @@ describe("the blank setup (FIRST-)", () => {
     for (let k = 0; k < steps.length; k += 1) {
       await steps[k].go();
       expect(text()).toContain(steps[k].see);
-      // The one top bar (N639): the arrow and "Your chat"; no "Back" word, no circle.
+      // The chat's own header: back, the circle, the name, who runs it, Live and Build.
+      const header = container.querySelector("[data-chat-header]");
       expect(backArrow()).not.toBeNull();
-      expect(container.querySelector("[data-one-top-bar]")?.textContent).toBe("Your chat");
+      expect(header?.textContent).toContain("Lena's chat");
+      expect(header?.textContent).toContain("You run this chat.");
+      expect(header?.querySelector("[data-live-build]")).not.toBeNull();
+      expect(header?.textContent).not.toContain("Back");
       expect(container.querySelector("[data-host-back]")).toBeNull();
       if (k === 0) continue;
       await back();
@@ -674,7 +676,10 @@ describe("the blank setup (FIRST-)", () => {
   it("FIRST-05 what they get back is asked only when it isn't simply an answer", async () => {
     await begun();
     await tap("Keep");
-    await tap("Done");
+    await tap("Yes");
+    await tap("No");
+    await tap("No");
+    await tap("No");
     expect(text()).not.toContain("They get back:");
     expect(text()).toContain("Your chat opens with:");
     backend();
@@ -685,11 +690,13 @@ describe("the blank setup (FIRST-)", () => {
     await mount();
     act(() => void openSetupFromWill(0));
     await flush();
-    await tap("Answer");
     await type("speaking coach");
     await tap("No");
     await tap("Keep");
-    await tap("Done");
+    await tap("Yes");
+    await tap("No");
+    await tap("No");
+    await tap("No");
     expect(text()).toContain("They get back:");
     expect(text()).toContain("Their own words, tidied");
   });
@@ -831,7 +838,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("What should it give back?");
     expect(button("A pick from a list").disabled).toBe(false);
     expect(button("A score, not ready yet").disabled).toBe(true);
-    expect(button("An answer in your words, not ready yet").disabled).toBe(true);
+    expect(button("An answer in your words").disabled).toBe(false);
     expect(container.querySelector("small")).toBeNull();
     await tap("A pick from a list");
     expect(text()).toContain("What should it be built on?");
@@ -851,7 +858,10 @@ describe("the blank setup (FIRST-)", () => {
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Yes · Somewhat · No");
     expect(container.querySelector("small")).toBeNull();
     await tap("Keep");
-    expect(blocks()).toEqual([SUGGEST.models[0].q, "It gives back a pick from a list", "Built on GPT", "Taught by you"]);
+    expect(blocks()).toEqual([SUGGEST.models[0].q, "It gives back a pick from a list", "Built on GPT", "Taught by your answers"]);
+    expect(container.querySelector("[data-model-preview] [data-will-line]")?.textContent).toBe(SUGGEST.models[0].q);
+    expect(container.querySelector("[data-model-sample]")?.textContent).toBe("Yes");
+    expect(container.querySelector("[data-model-taught]")?.textContent).toContain("Your answers teach it");
     expect(container.querySelector("small")).toBeNull();
     expect(puts("models")).toEqual([]);
     await tap("Teach it");
@@ -878,15 +888,12 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Train my own");
     await tap("A pick from a list");
     await tap("GPT");
-    await tap("Type my own");
     await type("Is the wood cracked or broken");
     expect(bff.calls.filter((c) => c.path === "/api/v2/models/setup/answers").map((c) => c.json)).toEqual([{ question: "Is the wood cracked or broken?" }]);
     expect(text()).toContain("People answer with:");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Cracked · Broken · Not sure");
-    await tap("Change");
+    await tap("Draw new one");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Split · Whole · Not sure");
-    await tap("Type my own");
-    expect(text()).toContain("Type two or three answers, one on each line.");
     await type("Cracked\nBroken\n\nNot sure\nRotten");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Cracked · Broken · Not sure");
     await tap("Keep");
@@ -906,9 +913,8 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Keep");
     expect(text()).toContain("People answer with:");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Yes · Somewhat · No");
-    await tap("Change");
+    await tap("Draw new one");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Dry · Oily · Not sure");
-    await tap("Type my own");
     await type("Very dry\nA little dry");
     expect(container.querySelector("[data-model-answers]")?.textContent).toBe("Very dry · A little dry");
     await tap("Keep");
@@ -933,7 +939,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Your model. Tap a block to change it.");
     await tapBlock(SUGGEST.models[0].q);
     expect(text()).toContain("What should it notice?");
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     await tap("Keep");
     expect(blocks()[0]).toBe(SUGGEST.models[1].q);
@@ -981,7 +987,7 @@ describe("the blank setup (FIRST-)", () => {
     await back();
     expect(text()).toContain("Your model. Tap a block to change it.");
     await tapBlock(SUGGEST.models[0].q);
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     await tap("Keep");
     await tap("Teach it");
@@ -1013,7 +1019,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("GPT");
     expect(text()).toContain("Is this a dry scalp?");
     expect(chips()).toEqual(["Yes", "Somewhat", "No"]);
-    await tap("Change");
+    await tap("Draw new one");
     expect(text()).toContain("Is the hair thinning here?");
     await tap("Keep");
     await tap("Keep");
@@ -1147,7 +1153,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(puts("share")).toEqual([true]);
     expect(text()).toContain("Each use costs them:");
     expect(text()).toContain("2 tokens");
-    await tap("Change");
+    await tap("Draw new one");
     expect(text()).toContain("1 token");
     await tap("Keep");
     expect(puts("price")).toEqual([1]);
@@ -1222,7 +1228,6 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     expect(text()).toContain("What do you do?");
     expect(covered).toBe(true);
-    await tap("Answer");
     await type("trichologist");
     await tap("No");
     await keepTo("Right now your chat isn't a specialist in anything.");
@@ -1231,7 +1236,7 @@ describe("the blank setup (FIRST-)", () => {
     await tap("Test my chat");
     expect(container.querySelector("[data-host-own-chat]")).not.toBeNull();
     expect(covered).toBe(true);
-    await tap("‹ Back");
+    await leaveOwnChat();
     await tap("Not yet");
     expect(container.querySelector("[data-host-setup]")).toBeNull();
     expect(covered).toBe(false);
@@ -1265,7 +1270,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("Lena's model");
     expect(text()).toContain("Was this useful?");
     expect(field()).not.toBeNull();
-    await tap("‹ Back");
+    await leaveOwnChat();
     expect(text()).toContain("Open your chat to people?");
   });
 
@@ -1319,7 +1324,7 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("This link opens your chat.");
     await tap("Your hello");
     expect(text()).toContain("Your chat opens with:");
-    await tap("Change");
+    await tap("Draw new one");
     await tap("Keep");
     expect(puts("hello")).toEqual([SUGGEST.hello[1]]);
     expect(text()).toContain("Your hello");
@@ -1331,7 +1336,6 @@ describe("the blank setup (FIRST-)", () => {
     act(() => void openSetupFromWill(0));
     await flush();
     expect(text()).toContain("What do you do?");
-    await tap("Answer");
     expect(field().value).toBe("Trichologist");
     await act(async () => (field().closest("form") as HTMLFormElement).requestSubmit());
     await flush();
@@ -1350,7 +1354,6 @@ describe("the blank setup (FIRST-)", () => {
     await flush();
     await tap("What you do");
     expect(text()).toContain("What do you do?");
-    await tap("Answer");
     await type("barber");
     expect(puts("what")).toEqual(["Barber"]);
     expect(bff.calls.some((c) => c.path === "/api/v2/chats/setup/start")).toBe(false);
@@ -1371,14 +1374,13 @@ describe("the blank setup (FIRST-)", () => {
     await back();
     expect(text()).toContain("Why people come");
     await tap("Start again");
-    await tap("Answer");
     await type("barber");
     expect(bff.calls.find((c) => c.path === "/api/v2/chats/setup/start")?.json).toEqual({ what: "barber" });
     expect(text()).toContain("Is your work about health, law or money?");
     await tap("No");
     // Every step again, not back to the parts after one.
     await tap("Keep");
-    expect(text()).toContain("What do people send you? Tick all that apply.");
+    expect(text()).toContain("Can they send a photo?");
   });
 
   it("N632-5 a Not now is never final: Your models, after Not now, adds a model and the parts show it", async () => {
@@ -1445,13 +1447,11 @@ describe("the blank setup (FIRST-)", () => {
     expect(text()).toContain("What do you do?");
     expect(text()).not.toContain("They can ask");
     // A start whose suggestions come back empty stays here too.
-    await tap("Answer");
     await type("trichologist");
     expect(text()).toContain("What do you do?");
     expect(text()).not.toContain("People tap what they want:");
     // Once Will has suggested every step, on as usual.
     bff.routes["POST /api/v2/chats/setup/start"] = { recipe: first() };
-    await tap("Answer");
     await type("trichologist");
     expect(text()).toContain("Is your work about health, law or money?");
   });

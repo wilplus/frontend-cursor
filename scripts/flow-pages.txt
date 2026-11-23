@@ -11,6 +11,11 @@
 # counted: a test pins a flow, it is not one.
 
 docs/flows/feedback-walk-and-chat.md
+  src/components/willab/PageHeader.tsx
+  src/components/willab/ProjectChat.tsx
+  src/components/willab/chats/ChatComposer.tsx
+  src/components/willab/FeedbackOverlay.tsx
+  src/components/willab/chats/TopBar.tsx
   src/components/willab/walk/
   src/components/willab/WalkEnd.tsx
   src/components/willab/useDeckFeedbackWalk.tsx
@@ -54,13 +59,11 @@ docs/flows/coach-panel.md
 
 docs/flows/recording-screens.md
   src/components/willab/LabOverlay.tsx
-  src/components/willab/FinishTakeButton.tsx
   src/components/willab/RecordingRoadmap.tsx
   src/components/willab/recordingCopy.ts
   src/components/willab/useRecordingGestures.ts
   src/lib/willab/recordingGesture.ts
   src/components/willab/DiscardTakeDialog.tsx
-  src/lib/willab/takeUploading.ts
   src/components/willab/RecordingAnalysisPresentation.tsx
   src/components/willab/ProcessingWait.tsx
   src/components/willab/SlideStage.tsx
@@ -87,6 +90,7 @@ docs/flows/consent-screens.md
   src/app/page.client.tsx
 
 docs/flows/ideal-text.md
+  src/components/willab/PageHeader.tsx
   src/components/willab/IdealTextOverlay.tsx
   src/components/willab/IdealTextPastVersion.tsx
   src/lib/willab/pastIdealText.ts

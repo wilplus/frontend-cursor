@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { getAuthToken } from "@/lib/api/auth-client";
 import { mapProjectDeletion, type ProjectDeletion } from "./projectDeletion";
 
 /* -------------------------------------------------------------------------- */
@@ -17,6 +18,8 @@ export interface TrainingTake {
   hasSlides: boolean;
   /** Delivery layer — true once this take's published feedback page exists. */
   feedbackAvailable: boolean;
+  /** The Take's own generated review has finished processing. */
+  reviewAvailable?: boolean;
   /** The upload key the Take was sent with; null when it was made another
    *  way; undefined when the server does not say (before backend #1824).
    *  A Take kept on the phone reads it (backend N556 item 3). */
@@ -61,6 +64,7 @@ export interface TrainingArc {
   lastTakeAt?: string | null;
   /** Whole-presentation readiness. Per-chunk detector scores are never sent. */
   practiceProgress: number;
+  practiceCoverage?: { practised: number; total: number; unit: "slides" | "sections" };
   /** Chronological exact slide-range practice history. */
   practiceChunks: PracticeChunk[];
 }
@@ -102,16 +106,29 @@ function mapTake(raw: unknown): TrainingTake | null {
     createdAt: typeof r.created_at === "string" ? r.created_at : null,
     hasSlides: r.has_slides === true,
     feedbackAvailable: r.feedback_available === true,
+    ...(typeof r.review_available === "boolean" ? { reviewAvailable: r.review_available } : {}),
     ...("upload_key" in r
       ? { uploadKey: typeof r.upload_key === "string" && r.upload_key ? r.upload_key : null }
       : {}),
   };
 }
 
+function mapCoverage(raw: unknown): TrainingArc["practiceCoverage"] {
+  const coverage = raw as Partial<NonNullable<TrainingArc["practiceCoverage"]>> | undefined;
+  const practised = coverage?.practised;
+  const total = coverage?.total;
+  const unit = coverage?.unit;
+  if (typeof practised !== "number" || typeof total !== "number" ||
+      !Number.isInteger(practised) || !Number.isInteger(total) || practised < 0 || total < practised ||
+      (unit !== "slides" && unit !== "sections")) return undefined;
+  return { practised, total, unit };
+}
+
 function mapArc(raw: unknown): TrainingArc | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.arc_id !== "string" || r.arc_id.length === 0) return null;
+  const coverage = mapCoverage(r.practice_coverage);
   const takes = (Array.isArray(r.takes) ? r.takes : [])
     .map(mapTake)
     .filter((t): t is TrainingTake => !!t)
@@ -155,13 +172,53 @@ function mapArc(raw: unknown): TrainingArc | null {
         ? Math.max(0, Math.min(100, Math.round(r.practice_progress)))
         : 0,
     practiceChunks,
+    ...(coverage ? { practiceCoverage: coverage } : {}),
   };
 }
 
-/** Fetch the arc-grouped trainings. null = endpoint missing / error → the
- *  caller falls back to the legacy strengths-fed view. */
+type TrainingsCacheEntry = { value: TrainingArc[]; cachedAt: number };
+
+const TRAININGS_CACHE_MAX_AGE_MS = 15_000;
+const cachedTrainings = new Map<string, TrainingsCacheEntry>();
+const inFlightTrainings = new Map<string, Promise<TrainingArc[] | null>>();
+
+function trainingsCacheKey(token: string, includeArchived: boolean): string {
+  // The bearer token is an in-memory identity boundary. A new account, or a
+  // refreshed token, can never read another account's project list.
+  return `${token}\u0000${includeArchived ? "archived" : "active"}`;
+}
+
+/** Fetch the arc-grouped trainings. Concurrent and recent callers share the
+ * authenticated result; failures are never cached. `force` is for live
+ * processing/recovery reads that must see a newly completed Take. */
 export async function fetchTrainings(
-  { includeArchived = false }: { includeArchived?: boolean } = {},
+  {
+    includeArchived = false,
+    force = false,
+  }: { includeArchived?: boolean; force?: boolean } = {},
+): Promise<TrainingArc[] | null> {
+  const token = await getAuthToken();
+  if (!token) return null;
+  const key = trainingsCacheKey(token, includeArchived);
+  const cached = cachedTrainings.get(key);
+  if (!force && cached && Date.now() - cached.cachedAt <= TRAININGS_CACHE_MAX_AGE_MS) {
+    return cached.value;
+  }
+  const existing = inFlightTrainings.get(key);
+  if (existing) return existing;
+
+  const read = requestTrainings(includeArchived, key);
+  inFlightTrainings.set(key, read);
+  const clearInFlight = () => {
+    if (inFlightTrainings.get(key) === read) inFlightTrainings.delete(key);
+  };
+  read.then(clearInFlight, clearInFlight);
+  return read;
+}
+
+async function requestTrainings(
+  includeArchived: boolean,
+  cacheKey: string,
 ): Promise<TrainingArc[] | null> {
   const res = await bffFetch(
     includeArchived ? "/api/v2/user/trainings?include_archived=1" : "/api/v2/user/trainings",
@@ -176,5 +233,13 @@ export async function fetchTrainings(
       ? body.arcs
       : null;
   if (!list) return null;
-  return list.map(mapArc).filter((a): a is TrainingArc => !!a);
+  const value = list.map(mapArc).filter((a): a is TrainingArc => !!a);
+  cachedTrainings.set(cacheKey, { value, cachedAt: Date.now() });
+  return value;
+}
+
+/** Test-only reset for the page-scoped read cache. */
+export function __resetTrainingsCacheForTests(): void {
+  cachedTrainings.clear();
+  inFlightTrainings.clear();
 }

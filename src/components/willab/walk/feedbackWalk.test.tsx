@@ -335,7 +335,7 @@ describe("FeedbackWalk", () => {
     for (const go of ["walk-tempo-ready", "walk-practise", "walk-practise"]) {
       click(dock(`[data-testid='${go}']`));
       await act(async () => {});
-      click(dock("[data-walk-recording-strip] button"));
+      click(dock("[data-chat-mic][data-recording]"));
     }
     expect(screen()).toBe("walk-screen-tempo");
     forward();

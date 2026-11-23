@@ -11,17 +11,12 @@ export type FeedbackWalkChunk = Omit<
   /** Null until analysis supplies real delivery evidence. */
   attempts: number | null;
   deliveryLabel: PracticeDeliveryLabel | null;
+  /** The official Take index paired with this exact practice range. */
+  takeIndex?: number | null;
   /** A factual temporary title such as "Take 2" while its slide range lands. */
   pendingLabel?: string;
   /** Neutral workflow state; never a guessed quality judgement. */
   pendingStatus?: string;
-};
-
-const QUALITY_TONE: Record<PracticeDeliveryLabel, string> = {
-  "Not yet there": "#b66d4c",
-  Almost: "#d6a048",
-  Good: "#6e9c6c",
-  "Strong delivery": "#3f7fbd",
 };
 
 function EditableText({ value, label, onCommit, className }: {
@@ -83,15 +78,18 @@ export default function FeedbackWalkCard({
   chunks,
   onFeedback,
   onIdealText,
+  showProgress = true,
 }: {
-  title: string;
+  /** The builder's preview names the chat. The project card leaves this off. */
+  title?: string;
   progress: number;
   chunks: FeedbackWalkChunk[];
   onFeedback: (chunk: FeedbackWalkChunk) => void;
   onIdealText: (chunk: FeedbackWalkChunk) => void;
+  /** The founder may hide the bar. It stays on the card and off the walk. */
+  showProgress?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [displayTitle, setDisplayTitle] = useState(title);
   const [rangeLabels, setRangeLabels] = useState<Record<string, string>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const latest = chunks.at(-1);
@@ -102,33 +100,23 @@ export default function FeedbackWalkCard({
   const single = chunks.length === 1;
   const attemptsLabel = (attempts: number) => `${attempts} ${attempts === 1 ? "attempt" : "attempts"}`;
   const keys = useMemo(() => new Set(chunks.map((chunk) => chunk.latestSessionId)), [chunks]);
-
   if (!latest || !selected) return null;
 
   return (
     <section
       data-feedback-walk-card
-      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-[18px]" : "p-3"}`}
+      className={`w-full rounded-[22px] bg-[#f5f5f5] text-[#121212] ${single ? "p-3.5" : "p-4"}`}
     >
-      <header className="px-0.5 pb-[5px] pt-px">
-        <div className="group flex min-w-0 items-baseline gap-1.5">
-          <EditableText
-            value={displayTitle}
-            label="Edit presentation name"
-            onCommit={setDisplayTitle}
-            className="w-fit rounded-[5px] text-[18px] font-extrabold tracking-[-0.02em] outline-none focus:bg-white focus:ring-1 focus:ring-[#ff6a14]"
-          />
-          <span aria-hidden className="text-[11px] font-semibold text-[#737373] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">Click to edit</span>
+      {title ? <p className="mb-2 text-[15px] font-semibold">{title}</p> : null}
+      <div className="mb-2">
+        <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373]">
+          <span>Progress</span><b className="text-[14px] text-[#121212]">{safeProgress}%</b>
         </div>
-      </header>
-
-      <div className="mb-2 mt-[9px]">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-[#737373]">
-          <span>Progress</span><b className="text-[12px] text-[#121212]">{safeProgress}%</b>
-        </div>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
-          <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
-        </div>
+        {showProgress ? (
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e8e8e8]" aria-label={`${safeProgress}% progress`}>
+            <span className="block h-full rounded-full bg-[#ff6a14]" style={{ width: `${safeProgress}%` }} />
+          </div>
+        ) : null}
       </div>
 
       {hidden > 0 ? (
@@ -148,16 +136,12 @@ export default function FeedbackWalkCard({
           const compact = !single;
           const defaultRange = chunk.pendingLabel ?? `Slides ${chunk.startSlide}-${chunk.endSlide}`;
           const range = rangeLabels[chunk.latestSessionId] ?? defaultRange;
-          const status = chunk.deliveryLabel ?? chunk.pendingStatus ?? "Processing";
-          const statusTone = chunk.deliveryLabel
-            ? QUALITY_TONE[chunk.deliveryLabel]
-            : "#a3a3a3";
           return (
             <div
               key={chunk.latestSessionId}
               data-practice-chunk
               onClick={() => setSelectedId(chunk.latestSessionId)}
-              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white ${single ? "min-h-[78px] p-[11px]" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
+              className={`flex min-w-0 items-center gap-[10px] rounded-[14px] border-l-[3px] bg-white ${single ? "min-h-[70px] p-2.5" : "p-2"} ${isLatest ? "border-l-[#ff6a14] ring-[1.5px] ring-[#ff6a14]" : "border-l-[#e5e5e5] opacity-70"} ${index ? "mt-1" : ""}`}
             >
               <SlideThumbnail compact={compact} onOpen={() => onIdealText(chunk)} />
               <div className="min-w-0 flex-1">
@@ -175,10 +159,6 @@ export default function FeedbackWalkCard({
                     <span className="shrink-0 rounded-full bg-[#ffeadf] px-2 py-[3px] text-[11px] font-bold text-[#ff6727]">{attemptsLabel(chunk.attempts)}</span>
                   ) : null}
                 </div>
-                <div className="mt-1 inline-flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold text-[#737373]">
-                  <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusTone }} />
-                  {status}
-                </div>
               </div>
             </div>
           );
@@ -186,10 +166,10 @@ export default function FeedbackWalkCard({
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => onFeedback(selected)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[11px] bg-[#1b1918] px-2 text-[13px] font-semibold text-white">
+        <button type="button" onClick={() => onFeedback(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] bg-[#1b1918] px-2 text-[13px] font-semibold text-white">
           <MessageSquareText className="h-[15px] w-[15px]" aria-hidden /> Feedback
         </button>
-        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] bg-white px-2 text-[13px] font-semibold text-[#121212]">
+        <button type="button" onClick={() => onIdealText(selected)} className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-[11px] border border-[#ebebeb] bg-white px-2 text-[13px] font-semibold text-[#121212]">
           <MonitorPlay className="h-[15px] w-[15px]" aria-hidden /> Ideal text
         </button>
       </div>
@@ -197,4 +177,4 @@ export default function FeedbackWalkCard({
   );
 }
 
-// Founder-Approved: readable project-history card, larger type and controls while preserving the locked Feedback/Ideal-text structure, 2026-11-16.
+// Founder-Approved: contact-point chat, 2026-11-18; remove the project Feedback card's visible status dot and label.

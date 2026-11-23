@@ -19,6 +19,12 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 `LOCKED 2026-10-07 · founder in chat: "Lock the recording screens" · decisions log N59`
 `RE-LOCKED 2026-10-12 · founder in chat: "that's what i want; please lock it" · decisions log N70`
 
+**Pre-Take cancellation (N663).** Closing the feelings, setup or microphone
+preparation stage before Record cancels that attempt. It creates no Take,
+starts no upload and leaves no "Processing your recording" bubble in the
+project chat. Once recording has actually begun, the existing discard and
+leave guards below remain unchanged (founder, 2026-11-18).
+
 Clickable prototype (the reference for every screen, phone and desktop),
 since 2026-10-12: <https://claude.ai/artifact/4zD6Tjw4MWjooqWq6z4FAL>,
 version 4 (its v10 design), copy in
@@ -85,34 +91,30 @@ for the screens below.
      are drawn as one idea in the middle of the dark slide: the label in
      small spaced capitals, quiet; the question large and heavy, centered a
      little above the middle; the hint quiet under it; no orange line. It
-     fills the slide's space down to the strip, a mark for each slide under
+     fills the slide's space down to the controls, a mark for each slide under
      it, when the Take has no helper words; with helper words it keeps the
      16:9 box, so they keep their place. An uploaded deck is drawn as
      itself. Was: the question at the bottom with the orange line (N449),
      the default deck on its colour artwork, an answer's small line.
-   - The strip at the bottom: the recording dot, the clock, the bar. No
-     line above the strip, and no Finish take in it (2026-10-12, N70).
-   - Under the strip, two buttons side by side, equal width, in the coach
-     panel's pair style (48px tall, 16px corners, 15px semibold): **Back**
-     (white, thin border; greyed on the first slide) and **Next slide**
-     (black). On the last slide **Next slide** becomes **Finish take**,
-     red, with the stop square. Finish take is reached only from the last
-     slide; closing asks **Discard this take?** (founder, 2026-10-12: "that's
-     what i want"). With one slide there is no Back: Finish take alone fills
-     the row (backend N441 item 6).
+   - Capture uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667).
+     The middle shows the clock and target progress, with discard alongside.
+     The right-hand mic slot shows Finish take. The clock retains its
+     count-up or target countdown with red overrun.
+   - **Back** and **Next slide** sit above the composer. Back is held on
+     the first slide, and Next slide drops away on the last. Finish take
+     enables on the last slide. With a single slide only the composer is
+     needed. Discard opens the same confirmation as Close.
 4. **Close:** **Discard this take?** / "This recording has not been saved."
    / **Keep recording** / **Discard take**, as today.
-5. **Finish take:** the processing wait, one narrow centred column (the
-   breathing mark, the stage label and its percent, a rounded bar, and under
-   it **Usually about a minute.**; nothing to read or scroll, N271, N273;
-   prototype <https://claude.ai/artifact/S66ZsrqTQZ4se74caoCj2J>).
-   The bar shows 1% from the first second. The wait stays on screen when the Lounge takes the Take over, and
+5. **Finish take:** the processing wait, one stable full-page shell with one
+   centered circular three-dot loading bubble; no stage label, progress rail or
+   second wait is introduced while the real server phases change. The wait
+   stays on screen when the Lounge takes the Take over, and
    lifts only when the walk's first step is on screen; then the walk, and
    the Ideal Text page after it (founder 2026-10-21, N110; the walk's page,
    [A1 and A2](feedback-walk-and-chat.md)).
-   The full-surface wait uses one canonical centered frame: one stationary
-   loading mark, one fixed footprint for the stage/value row, and the same
-   frame through analysis, document assembly and Lounge hand-off. Inline chat
+   The full-surface wait uses one canonical centered frame and one bubble
+   through analysis, document assembly and Lounge hand-off. Inline chat
    processing bubbles are separate and keep their typing dots; they never add
    a second full-surface loader.
 6. **An answer in a chat** (backend N363, N441, approved for this lock):
@@ -158,12 +160,12 @@ was not practical").
   reverse. Out in 200ms, in from the other side in 420ms on
   `cubic-bezier(.16,1,.3,1)`. Instant with reduce motion.
 - **Only the slide and its helper words move.** The top bar, the "Take ·
-  Slide" line, the strip and the two buttons stay exactly where they are
+  Slide" line, the composer and slide controls stay in their own positions
   and are never rebuilt during a move.
 - **Keyboard, no click first:** ← and → change the slide, exactly like
   Back and Next slide (N70.1); ↓, Page Down, Space forward and ↑, Page Up
   back, after scrolling long helper words. **Keys never end a Take**: on
-  the last slide → and Space only give a small bounce; only the red Finish
+  the last slide → and Space only give a small bounce; only the composer's Finish
   take ends it (founder, 2026-10-12). A focused button keeps its own Space
   and Enter; a text field keeps every key; nothing is taken while
   **Discard this take?** is open. Keys prototype:
@@ -204,6 +206,26 @@ green); the app shows the speaker's own slides, unchanged.
 
 ### Amendments
 
+- **2026-11-18 · accepted-upload processing truth.** The Lounge's
+  “Processing your recording” bubble is rendered only after the upload has
+  received a server acceptance and the readout still says `processing` for
+  that session. Visiting or closing Ideal Text, the Feedback Walk, a pre-Take
+  screen, or practice navigation cannot create it. A marker found on reload is
+  reconciled against the readout before it is shown; ready, failed, cancelled
+  and abandoned states clear it. The marker carries the project and session,
+  so a Take cannot leak into another project (`LabOverlay.tsx`, `Lounge.tsx`,
+  `processingTake.ts`, `processingBubble.ts`). · FE (this task)
+
+- **2026-11-18 · honest processing wait copy and progress.** The existing
+  centred three-dot mark remains unchanged. The bar starts at 1%, then moves
+  only from backend-reported processing state; when the document phase has no
+  report, it holds the last real value instead of advancing from elapsed time.
+  Under it, the localized line says the wait usually takes about a minute and
+  that the screen may be closed while processing continues in the background.
+  The outlined close control remains a view-only exit after the Take is held by
+  the upload or worker (`ProcessingWait.tsx`,
+  `RecordingAnalysisPresentation.tsx`, `LabOverlay.tsx`). · FE (this task)
+
 - **2026-10-07 · one close button (Q-B14 A, N63; build plan D-RC-6).** The
   app's one small grey close X (`OverlayCloseButton`) is the close button
   everywhere, the recording screen included; the ⋯ beside it on the text
@@ -214,7 +236,7 @@ green); the app shows the speaker's own slides, unchanged.
   recording. "How do you feel?" before a later Take opens with no fade, at
   once on the tap (N549).
 - **2026-10-12 · buttons replace the scrolling (N70).** Back and Next slide
-  under the strip; Next slide becomes a red Finish take on the last slide;
+  under the former recording strip; the layout was superseded by N667;
   no slide dots; slides move sideways; the learning screen is deleted.
   Prototype <https://claude.ai/artifact/4zD6Tjw4MWjooqWq6z4FAL> (version 4),
   copy in `docs/design/recording-screens-2026-10-12.html`.
@@ -298,7 +320,7 @@ green); the app shows the speaker's own slides, unchanged.
   the recording screens show the Take's slides, in order, drawn by their
   titles as the poster (N462) with no "{name} asks" over them and no helper
   words (the sender's come from their Ideal Text, N479 item 8); Back and
-  Next slide move through them as on any Take, Finish take on the last. The
+  Next slide move through them as on any Take. Finish take is on the last. The
   top line is **{name} · Slide n of m** in the usual small grey (was the
   name alone, N441 item 7). The clock counts up, no cap (N486 item 4). An
   answer to a customer's question keeps its one slide, **{name} asks** over
@@ -391,7 +413,49 @@ green); the app shows the speaker's own slides, unchanged.
   go"). Lives in `src/components/willab/labLeaveGuard.ts`
   (`whenNoTakeAtRisk`), `src/lib/nativePush.ts`, `src/lib/nativeLinks.ts`
   and `src/components/willab/PendingCoachSend.tsx`.
+- **2026-11-17 · in the iPhone app, the phone records the Take (backend N655,
+  N661, N662).** With the app's native recorder (app version 1.1) and the
+  ring row `native_take` on (the founder first), the phone records the Take
+  itself: an m4a, AAC, mono, 48 kHz, 64 kbps, the phone-call processing off,
+  the microphone the phone picks, a call or another app's audio paused and
+  resumed by the phone. Only the capture moves: these screens, their words,
+  the slides and their times, the clock, Discard, the upload and its device
+  copy are the web code they were, and the earbuds line reads the kind of
+  microphone, never its name. A browser, the home-screen app, an app without
+  the native recorder, or the row off record on the web, as before. A Take
+  too large for the website route is never sent there when the upload
+  Worker can't be reached: it is kept and sent again. Nothing on screen
+  changes. Signed in the Claude Code chat, 17 November 2026: "OK to the
+  shape. 64 kbps. The mic the phone picks. The switch, on for me first."
+  Lives in `src/hooks/useTakeMic.ts`, `src/hooks/useNativeTakeMic.ts`,
+  `src/lib/willab/nativeTakeRecorder.ts`, `src/services/api/labRecording.ts`
+  (`labAudioName`) and the one line in `LabOverlay.tsx`.
 
+
+### Fragment and whole rehearsal (2026-11-23)
+
+The project Ideal Text's two choices share `PracticeResumeSelection` in
+`src/lib/willab/practiceResume.ts`. A fragment is an inclusive 1-based slide
+span. On mic start `LabOverlay` resolves it against the loaded deck, starts on
+its first page and clears the one-shot stored choice. The active choice stays
+in memory until this Take ends. Both the overlay's timestamped slide setter
+and `RecordingRoadmap` honor its bounds; Back/keyboard cannot leave them, and
+the fragment's last slide shows Finish take even with more deck pages left.
+PDF pages, helper words and uploaded `slideAdvances` retain original deck
+indices. A rejected recording retries from the same first page.
+
+Explicit whole rehearsal starts on slide 1, includes the complete deck and
+has no five-minute auto-stop. The target-length clock remains informational.
+Fragment practice and ordinary chunk recordings retain their five-minute cap;
+answers to other people retain their existing uncapped behavior. Old saved
+resume shapes are read at the storage boundary, then normalized to the same
+scope contract. An old start-only resume becomes a single-slide fragment.
+
+`recordingStillFrame.test.tsx` drives the real recorder's buttons and keyboard
+against a fragment ending before the deck does. `labBackAndRetry.test.tsx`
+mounts `LabOverlay` with a simulated mic, consumes the saved choice, verifies
+the upload's original slide index, and advances the whole-rehearsal clock
+past five minutes. These tests do not call a live microphone or provider.
 
 ## 2. In flight
 
@@ -407,6 +471,7 @@ doing it fills its line in its PR and deletes the line when the work is merged (
 
 ## 4. Where it lives
 
+
 Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 
 - `src/components/willab/LabOverlay.tsx`
@@ -416,11 +481,11 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/useRecordingGestures.ts`
 - `src/lib/willab/recordingGesture.ts`
 - `src/components/willab/DiscardTakeDialog.tsx` — "Discard this take?" (step 4) (guarded since N111).
-- `src/components/willab/RecordingAnalysisPresentation.tsx` — the wait while a Take is processed (step 5) (guarded since N111).
-- `src/components/willab/ProcessingWait.tsx` — the wait's stage and percent (step 5) (guarded since N111).
+- `src/components/willab/RecordingAnalysisPresentation.tsx` — the shared full-surface loading bubble while a Take is processed (step 5) (guarded since N111).
+- `src/components/willab/ProcessingWait.tsx` — the processing view of the shared loader (step 5) (guarded since N111).
 - `src/components/willab/SlideStage.tsx` — the slide on the recording screen (guarded since N111).
 - `src/components/willab/labFade.tsx` — the fade between the screens (guarded since N111).
-- `src/lib/willab/takeUploading.ts` — a Take still going up after the ✕ closed the processing screen, for the chat's processing bubble (2026-11-10).
+- `src/lib/willab/processingTake.ts` — the accepted session/project marker the Lounge reconciles against the server's readout before showing the processing bubble.
 
 Backend (`wilplus/backend-cursor`): the lock file this page replaces, [`docs/FOUNDER-LOCK-recording-screens-2026-10-07.md`](https://github.com/wilplus/backend-cursor/blob/main/docs/FOUNDER-LOCK-recording-screens-2026-10-07.md) (history).
 
@@ -541,13 +606,19 @@ unknown server text.
 
 ## 6. Changes
 
+- 2026-11-23 · continuation-scope repair · the real recorder retains and enforces the selected fragment through Finish/retry, and whole-presentation rehearsal is uncapped. Added user-story checks at the recording UI and mic/upload boundary; §1 documents the one scope contract and original-page provenance.
+- 2026-11-23 · N667 · Manual and native Take capture and recovery use the shared composer. Last-slide completion, slide timestamps and the discard confirmation still govern the official Take.
+
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-17 · N655, N661, N662 · in the iPhone app with the native recorder and the ring row `native_take` on, the phone records the Take (m4a, AAC mono 48 kHz 64 kbps, call processing off); the screens, slides, clock, upload and device copy stay the web code; an m4a goes up as `lab.m4a`; a Take too large for the website route is kept instead of sent there when the Worker can't be reached. Nothing on screen changes · backend #1993, FE (this PR)
+- 2026-11-16 · The wait can take its five labels from the coach document. With none, the same five stay, in the same order. · FE (this PR)
 - 2026-11-16 · reactive UI-locale source · RootLayout's server-resolved locale seeds the one provider used by mounted recording, project, Lounge quick-action and footer surfaces; a manual EN/PL choice propagates immediately without a reload or remount, so an active recording is not interrupted. Footer links whose Polish wording is still pending continue to fall back visibly to English. Transcript, feedback and generated-coaching language remain separate · FE (this PR)
 - 2026-11-16 · founder-approved localization task · project entry, newcomer setup, the pre-recording feelings check, slide upload and later-Take presentation status use the app/system locale; user-authored and model-generated content keep their own language. Exact Polish copy is inventoried above. Was: these fixed controls remained English while the recording still frame was Polish · FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · setup, feelings, microphone wait, recording, processing and readout content align with the locked 1080px app canvas used by the global logo/hamburger shell while their full-screen layer stays viewport-wide; narrower layouts remain fluid with their existing padding · FE (this PR)
 - 2026-11-16 · N654 item 5 · fixed recording controls, status, built-in poster and fallbacks follow the app/system locale, while transcript, speaker-authored slides and generated coaching keep their content language. The founder approved the exact Polish copy inventory above on 2026-11-16 · FE (this PR)
 - 2026-11-16 · loader contract · full-surface waits now use one canonical centered frame and one indicator across processing phases and the Lab/Lounge/Ideal Text hand-off; the value slot and content frame keep their dimensions on desktop and mobile, while inline chat and lens typing bubbles remain intentionally separate · FE (this PR)
+- 2026-11-17 · founder-approved loader correction · processing, overlays and route openings use one stable full-surface shell with one centered circular three-dot bubble; stage/progress and breathing-ring variants are removed, while the approved microphone label and true in-chat response bubbles remain · FE (this PR)
 - 2026-11-16 · N461 · setup's time limit is the whole presentation target; a presentation-practice Take is capped at five minutes and saves the slide actually visible at stop as the continuation point. Answers in another person's chat still finish manually · FE (this PR)
 - 2026-11-16 · locked production re-record invariant · repeating a project fragment carries the selected arc into the Lab and opens the recorder on that fragment; after the processing screen closes, the project chat itself keeps one processing bubble until the exact new Take exposes fresh feedback, transcript and Ideal Text data; only then does the bubble resolve and the project card refresh its attempts and CTAs. A failed job keeps an actionable retry in the same chat, and navigation, polling and remounts cannot clear the wait without success or an explicit error · FE (this change)
 
@@ -557,7 +628,7 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-11-09 · N556 item 3 · a kept Take knows a newer Take of its project by the upload key the server now names for each Take (`upload_key` in `/v2/user/trainings`): one later Take with another key is newer, and one with its own key is itself. Was: a guess from how many Takes came after its Finish and whether one had its "Your Recording" line, which missed a Take from another device that lost its line. A server without the keys keeps the guess (`lib/willab/takeResend.ts`, `services/api/trainings.ts`). No new words · BE #1824, FE (this PR)
 - 2026-11-09 · N553 item 2, N556 · a finished Take is kept on the device (IndexedDB) until the server has it, and sent again at the next open, when the connection comes back and when the app returns to the front, through the same upload with the same upload key; deleted once the server names it, on a discard, a refusal for good, a newer Take of its project on the server, withdrawn recording consent, an account deletion, or after 7 days (`lib/willab/takeOutbox.ts`, `lib/willab/takeResend.ts`, `useTakeResend.ts`, `LabOverlay.tsx`, `Lounge.tsx`, `accountDeletion.ts`). No new words. Was: a Take whose upload never finished (the app killed, the page refreshed, the connection lost) was gone · BE N553, N556 (#1818), FE (this PR)
 - 2026-11-09 · N553 item 1 · while a Take is recorded and until the server answers that it has it (201 or 202), refreshing or closing the page in a browser shows the browser's own "Leave page?" warning, with no words of ours; a failed upload keeps it until the Take goes up, and a discard or leaving the screens ends it; iPhone Safari and the app ignore it, item 2 is for them (`labLeaveGuard.ts`, `LabOverlay.tsx`). Nothing on screen changes. Was: a refresh or a close lost the Take with no warning · BE N553 (#1818), FE (this PR)
-- 2026-11-10 · no rule changed · a bug fix: the ✕ on the processing screen while the Take is still going up shows "Processing your recording" in the chat at once, and Record waits, until the server has the Take; then the bubble follows its processing as before (`lib/willab/takeUploading.ts`, `LabOverlay.tsx`, `Lounge.tsx`). No new words. Was: nothing in the chat said the Take was processing until the upload answered (founder 2026-11-10: "if I close the processing earlier there is no indication that it is processing") · FE (this PR)
+- 2026-11-10 · no rule changed · a bug fix: after the processing screen closes while a Take is still going up, the chat waits for the upload response; only once the server has the Take can its processing bubble appear (`LabOverlay.tsx`, `Lounge.tsx`). No new words. Was: nothing in the chat said the Take was processing until the upload answered (founder 2026-11-10: "if I close the processing earlier there is no indication that it is processing") · FE (this PR)
 - 2026-11-10 · no rule changed · a bug fix: the ✕ on the processing screen while the Take is still going up no longer loses it for the chat. The upload goes on, and when the server answers, the Take's "Your Recording" line, its share and the processing marker are still written, so the chat shows "Processing your recording" and the walk opens when the feedback is ready, as for any Take (`landUnwatched` in `LabOverlay.tsx`). Nothing on screen changes. Was: the answer came back to screens that were gone and was dropped, so the Take never showed in the chat, no bubble, no walk, no goodbye, and the chat's "Record Take N" stayed on the Take before (founder 2026-11-10) · FE (this PR)
 - 2026-11-09 · N549 · "Record Take N" opens "How do you feel?" at once: no 0.4 s fade into it, and the check draws from the tab's last "authorized" while the Lab's own consent read runs; a pick or Skip starts the Take only once that read agrees, and a read that says otherwise puts the acceptance flow in front (`LabOverlay.tsx`, `LabEntryGate.tsx`, `useSignedIn.ts`, `processingAuthorization.ts`). No new words. Was: the Lab faded in over 0.4 s and waited behind a loader for the read, so the page under it showed for a moment · BE (N549 log), FE (this PR)
 - 2026-11-09 · no rule changed · a bug fix: the wait's ✕ shows the chat landed on "Processing your recording", and the thread lands on that bubble whenever a Take's processing starts (`useLandOnProcessing` in `usePinThreadBottom.ts`, `Lounge.tsx`). Nothing on screen changes. Was: since the chat follows only a new message (2026-11-05), the bubble, which is not a message, could stay below the screen after the ✕, and looked gone · FE (this PR)
@@ -589,3 +660,4 @@ One line each, newest first: `date · N · what changed · PR`.
 - 2026-10-21 · N111 · the page also guards the recording screens' files it missed: the discard dialog, the wait while a Take is processed, the slide and the fade (§4); no rule changes · BE, FE
 - 2026-10-21 · N110 · the flow, 5, in the present tense: the wait starts at 1% and stays on screen through the hand-over to the Lounge until the walk's first step is on screen, in place of "the processing wait as today (voice mark, stage label, **While you wait** tips), then the Ideal Text page" · FE #931, BE #1245
 - 2026-10-21 · N107 · this page replaces backend `FOUNDER-LOCK-recording-screens-2026-10-07.md` as the place the rules live; the lock stays as history · BE #1241, FE #928
+- 2026-11-17 · founder-approved visual correction · the speaking-coach home keeps the system row fixed, aligns project icons with the WillpowerLab logo's safe gutter, and gives manageable project rows owner-authorized Edit, Archive and Delete actions. Edit uses the authenticated project-name route and changes the row only after success; Archive removes only after success; Delete requires confirmation and leaves a failed or pending row coherent (`ProductHome.tsx`, `ChatList.tsx`, `ProjectRowMenu.tsx`). Polish Edit and delete-confirmation copy remain pending and fall back to the approved English source strings until localized.

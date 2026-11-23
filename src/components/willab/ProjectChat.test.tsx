@@ -7,17 +7,24 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
              and, once released, follows the answer instead of jumping ahead.
          O3  The project uses one chat top bar and the standard answer controls.
          O4  Every route to the current Ideal Text preserves the decision to
-             continue to the next fragment or repeat this fragment.
-         O5  An accepted typed answer, its one pending state, and its matched
+             rehearse the whole presentation or repeat the selected fragment.
+         O5  The project-card CTAs keep the selected Take and route distinct:
+             Feedback opens its exact Feedback Walk range; Ideal Text stays
+             on Ideal Text.
+         O6  An accepted typed answer, its one pending state, and its matched
              reply or recoverable error are always brought into view.
-         O6  A refused quick choice remains one durable user turn with one
+         O7  A refused quick choice remains one durable user turn with one
              recoverable error instead of disappearing.
+         O8  After my first full Take, both rehearsal choices stay available;
+             an unavailable fragment span falls back to the whole presentation.
 PROVES   O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
          O3 -> "uses the locked chat bar and answer controls"
          O4 -> "keeps the fragment decision when Ideal Text opens from the card"
-         O5 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
-         O6 -> "keeps a refused quick choice once with one recoverable error"
+         O5 -> "keeps the selected Take and range on Feedback while Ideal Text remains separate"
+         O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
+         O7 -> "keeps a refused quick choice once with one recoverable error"
+         O8 -> "as a speaker after my first full Take, I can rehearse even before a fragment span is available"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -41,6 +48,25 @@ const state = vi.hoisted(() => ({
   willQuestion: vi.fn(),
 }));
 const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
+const reviewApi = vi.hoisted(() => ({
+  idealText: vi.fn(),
+  revisions: vi.fn(),
+  notes: vi.fn(),
+  runs: vi.fn(),
+}));
+vi.mock("@/services/api/idealText", async (load) => ({
+  ...await load<typeof import("@/services/api/idealText")>(),
+  fetchIdealText: reviewApi.idealText,
+}));
+vi.mock("@/services/api/blockVariants", async (load) => ({
+  ...await load<typeof import("@/services/api/blockVariants")>(),
+  fetchIdealTextRevisions: reviewApi.revisions,
+}));
+vi.mock("@/services/api/takeReview", () => ({
+  readReviewCopy: reviewApi.notes,
+  saveReviewCopy: vi.fn(),
+  readReviewRuns: reviewApi.runs,
+}));
 const arcSetup = vi.hoisted(() => ({
   fetch: vi.fn(async () => ({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] })),
 }));
@@ -67,23 +93,60 @@ vi.mock("@/services/api/arcSetup", () => ({
 vi.mock("@/services/api/trainings", () => ({
   fetchTrainings: trainingApi.fetchTrainings,
 }));
+const fetchTakeTranscript = vi.hoisted(() => vi.fn(async (sessionId: string) => `raw transcript for ${sessionId}`));
+vi.mock("@/services/api/takeTranscript", () => ({ fetchTakeTranscript }));
 vi.mock("./IdealTextCard", () => ({
   default: ({ onOpen }: { onOpen: () => void }) =>
     createElement("button", { "data-testid": "ideal", onClick: onOpen }, "Ideal Text"),
 }));
 vi.mock("./IdealTextOverlay", () => ({
-  default: ({ practiceDecision }: { practiceDecision?: { continueLabel?: string; onContinue: () => void; onRepeat: () => void } }) =>
+  default: ({
+    practiceDecision,
+    initialMode,
+    coachTake,
+    reviewTake,
+    reviewSlideRange,
+    requireFeedbackWalk,
+    projectFlow,
+    onClose,
+  }: {
+    practiceDecision?: { deliveryLabel?: string; onFragment: () => void; onWholePresentation: () => void };
+    initialMode?: string;
+    coachTake?: string | null;
+    reviewTake?: string | null;
+    reviewSlideRange?: { startSlide: number; endSlide: number } | null;
+    requireFeedbackWalk?: boolean;
+    projectFlow?: boolean;
+    onClose?: () => void;
+  }) =>
     createElement(
       "div",
-      { "data-testid": practiceDecision ? "decision" : "result" },
+      {
+        "data-testid": practiceDecision ? "decision" : "result",
+        "data-overlay-mode": initialMode ?? "notebook",
+        "data-coach-take": coachTake ?? "",
+        "data-review-take": reviewTake ?? "",
+        "data-review-range": reviewSlideRange
+          ? `${reviewSlideRange.startSlide}-${reviewSlideRange.endSlide}`
+          : "",
+        "data-require-feedback-walk": requireFeedbackWalk ? "true" : "false",
+        "data-project-flow": projectFlow ? "true" : "false",
+      },
       practiceDecision
         ? createElement(
             "div",
             null,
-            createElement("button", { onClick: practiceDecision.onContinue }, practiceDecision.continueLabel),
-            createElement("button", { onClick: practiceDecision.onRepeat }, "Repeat this fragment"),
+            createElement("i", { "data-readiness": practiceDecision.deliveryLabel }),
+            createElement("button", { "data-choice": "fragment", onClick: practiceDecision.onFragment }, "Repeat this fragment"),
+            createElement("button", { "data-choice": "whole", onClick: practiceDecision.onWholePresentation }, "Rehearse whole presentation"),
+            createElement("button", { onClick: onClose }, "Close"),
           )
-        : "Result",
+        : createElement(
+            "div",
+            null,
+            projectFlow ? createElement("i", { "data-project-flow": "true" }) : null,
+            createElement("button", { onClick: onClose }, "Close"),
+          ),
     ),
 }));
 import ProjectChat from "./ProjectChat";
@@ -128,7 +191,7 @@ beforeEach(() => {
   state.willQuestion.mockReset().mockResolvedValue(true);
   state.appendRecoverable.mockReset().mockImplementation((draft: LoungeMessageDraft) => {
     const stamped = stampLoungeMessage(draft, newestStamp(state.messages));
-    state.messages = [...state.messages, stamped];
+    state.messages = [...state.messages.filter((row) => row.client_id !== stamped.client_id), stamped];
     const stored = Promise.resolve(true);
     return { message: stamped, stored, retry: () => stored };
   });
@@ -143,6 +206,7 @@ beforeEach(() => {
   root = createRoot(host);
   onRecord = vi.fn<(arcId: string) => void>();
   localStorage.clear();
+  sessionStorage.clear();
   trainingApi.fetchTrainings.mockReset();
 });
 
@@ -219,6 +283,109 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("project conversation", () => {
+  it("as a speaker after my first full Take, I can rehearse even before a fragment span is available", async () => {
+    localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "4");
+    render({ ...project, practiceChunks: [] });
+    await act(async () => { await Promise.resolve(); });
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    expect(host.querySelectorAll("[data-choice]")).toHaveLength(2);
+    act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toEqual({ scope: "whole" });
+    expect(onRecord).toHaveBeenCalledWith("arc-a");
+  });
+
+  it("reopens the selected Take and retries an anchored review question once after reload", async () => {
+    const twoTakes = {
+      ...project,
+      takeCount: 2,
+      takes: [...project.takes, { ...project.takes[0], sessionId: "take-b", takeIndex: 2 }],
+      practiceCoverage: { practised: 2, total: 8, unit: "slides" as const },
+    };
+    reviewApi.notes.mockResolvedValue({ revision: 0, document: {} });
+    reviewApi.runs.mockResolvedValue({ "take-a": [{ id: "run", at: "2026-11-23T10:00:00.000Z", kind: "tempo" }] });
+    reviewApi.revisions.mockResolvedValue({ kind: "ready", revisions: [{
+      takeIndex: 1, revision: 1, text: "An early decision.", slides: [0], presentationRef: null,
+      helperWords: [{ slideIndex: 0, phrases: ["decision"] }],
+    }] });
+    reviewApi.idealText.mockResolvedValue({
+      kind: "single", latestTakeSessionId: "take-b", ideal: { text: "The newest words.", keyMoments: [] },
+      suggestions: [{
+        takeSessionId: "take-a", walkSlot: "weakest", snippetId: "segment-a",
+        quote: "The older moment.", rewriteMove: "Pause here.", evidence: { slideIndex: 0 },
+      }],
+    });
+    state.chatQuery.mockRejectedValueOnce(new Error("connection dropped")).mockResolvedValueOnce({
+      answer: "Pause before the last sentence.", persisted: true, persisted_client_id: "matched-answer",
+      row_metadata: { arc_id: "arc-a", take_session_id: "take-a", review_focus: { step: "ideal", slide_index: 0 } },
+    });
+    const click = async (container: ParentNode, label: string) => {
+      const button = [...container.querySelectorAll("button")].find((item) => item.textContent?.trim() === label);
+      expect(button).toBeDefined();
+      await act(async () => button!.click());
+    };
+
+    render(twoTakes);
+    await flush();
+    const bubble = host.querySelector("[data-take-review-message]")!;
+    expect(bubble.textContent).toContain("2 of 8 slides");
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+    await click(bubble, "2 Takes · 1 practice run");
+    await click(bubble, "Take 1 · 1 practice run");
+    await click(bubble, "Feedback");
+    let review = host.querySelector("[data-take-review]")!;
+    expect(review.textContent).toContain("The older moment.");
+    await click(review, "Practise");
+    expect(review.getAttribute("data-review-step")).toBe("practise");
+    expect(review.textContent).toContain("Practised before");
+    await click(review, "Ideal text");
+    expect(review.textContent).toContain("An early decision.");
+    expect(review.textContent).not.toContain("The newest words.");
+    await click(review, "Ask coach");
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    enterAnswer("How should I open this slide?");
+    submitAnswer();
+    await flush();
+    const sent = state.chatQuery.mock.calls[0][0];
+    expect(sent).toMatchObject({
+      projectId: "arc-a", sessionId: "take-a", historySource: "screen",
+      presentationContext: { review_focus: { step: "ideal", slide_index: 0 } },
+    });
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    render(twoTakes);
+    await flush();
+    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    expect(retry).not.toBeNull();
+    await act(async () => retry.click());
+    expect(state.chatQuery.mock.calls[1][0]).toEqual(sent);
+    expect(state.messages.filter((row) => row.client_id === sent.clientId)).toHaveLength(1);
+    expect(state.messages.filter((row) => row.client_id === "matched-answer")).toHaveLength(1);
+    await click(host, "Take 1 · Slide 1 · Back to review");
+    review = host.querySelector("[data-take-review]")!;
+    expect(review.getAttribute("data-review-step")).toBe("ideal");
+    expect(review.textContent).toContain("An early decision.");
+  });
+
+  it("keeps contextual follow-ups available after the setup questions finish", async () => {
+    state.chatQuery.mockResolvedValue({
+      answer: "Try returning to the decision from your opening.",
+      persisted: true, persisted_client_id: "reply-follow-up",
+      row_metadata: { arc_id: "arc-a", take_session_id: "take-a", project_chat: true },
+    });
+    render();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    enterAnswer("How should I finish this talk?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery).toHaveBeenCalledWith(expect.objectContaining({
+      question: "How should I finish this talk?", projectId: "arc-a", sessionId: "take-a",
+    }));
+    expect(host.textContent).toContain("Try returning to the decision from your opening.");
+    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+  });
   it("shows the neutral result card as soon as the accepted Take reaches the thread", () => {
     const accepted: LoungeMessage = {
       client_id: "accepted-take",
@@ -244,7 +411,7 @@ describe("project conversation", () => {
 
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Take 1");
-    expect(host.textContent).toContain("Processing");
+    expect(host.querySelector("[data-practice-status]")).toBeNull();
     expect(host.textContent).not.toContain("Not yet there");
     expect(host.querySelector('[data-project-message="accepted-take"]')).toBeNull();
   });
@@ -254,18 +421,51 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
     expect(host.textContent).toContain("Progress");
     expect(host.textContent).toContain("Slides 1-2");
-    expect(host.textContent).toContain("Almost");
+    expect(host.textContent).not.toContain("Almost");
     expect(host.textContent).toContain("Feedback");
     expect(host.textContent).toContain("Ideal text");
-    expect(host.textContent).toContain("Continue recording");
-    expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelector("[data-project-record]")?.getAttribute("aria-label")).toBe("Continue recording");
+    expect(host.querySelector("[data-chat-input]")).not.toBeNull();
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
     expect(onRecord).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"durationSeconds":300');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      scope: "whole",
+    });
+  });
+
+  it("opens the raw transcript for the exact project Take", async () => {
+    render();
+    act(() => (host.querySelector("[data-project-recording='take-a'] button") as HTMLButtonElement).click());
+    expect(fetchTakeTranscript).toHaveBeenCalledWith("take-a");
+    await act(async () => undefined);
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(host.textContent).toContain("Board meeting · Take 1");
+    expect(host.textContent).toContain("raw transcript for take-a");
+  });
+
+  it("repeats the exact latest practiced fragment", () => {
+    render({
+      ...project,
+      practiceChunks: [{
+        startSlide: 3,
+        endSlide: 5,
+        attempts: 2,
+        deliveryLabel: "Almost",
+        latestSessionId: "take-a",
+      }],
+    });
+    act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
+    act(() => (host.querySelector('[data-choice="fragment"]') as HTMLButtonElement).click());
+    expect(onRecord).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      scope: "fragment",
+      startSlide: 3,
+      endSlide: 5,
+    });
   });
 
   it("keeps the fragment decision when Ideal Text opens from the card", () => {
@@ -277,46 +477,102 @@ describe("project conversation", () => {
     act(() => idealText.click());
 
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    expect(host.textContent).toContain("Continue practice");
+    expect(host.textContent).toContain("Rehearse whole presentation");
     expect(host.textContent).toContain("Repeat this fragment");
+    expect(host.querySelector("[data-readiness]")?.getAttribute("data-readiness")).toBe("Almost");
     expect(host.querySelector('[data-testid="result"]')).toBeNull();
 
     act(() => [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Repeat this fragment",
     )!.click());
     expect(onRecord).toHaveBeenCalledWith("arc-a");
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"startSlide":1');
   });
 
-  it("opens the scoped recording for Continue practice and Repeat this fragment", async () => {
+  it("keeps the selected Take and range on Feedback while Ideal Text remains separate", () => {
+    const twoTakes: TrainingArc = {
+      ...project,
+      takeCount: 2,
+      takes: [
+        ...project.takes,
+        {
+          sessionId: "take-b",
+          takeIndex: 2,
+          createdAt: null,
+          hasSlides: true,
+          feedbackAvailable: true,
+        },
+      ],
+      practiceChunks: [
+        project.practiceChunks[0],
+        {
+          startSlide: 3,
+          endSlide: 4,
+          attempts: 1,
+          deliveryLabel: "Good",
+          latestSessionId: "take-b",
+        },
+      ],
+    };
+    render(twoTakes);
+
+    act(() => (host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click());
+    act(() => (host.querySelectorAll("[data-practice-chunk]")[0] as HTMLElement).click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback"))!.click());
+
+    const feedbackOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(feedbackOverlay.getAttribute("data-overlay-mode")).toBe("review");
+    expect(feedbackOverlay.getAttribute("data-review-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-review-range")).toBe("1-2");
+    expect(feedbackOverlay.getAttribute("data-coach-take")).toBe("take-a");
+    expect(feedbackOverlay.getAttribute("data-require-feedback-walk")).toBe("true");
+
+    act(() => [...feedbackOverlay.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Ideal text"))!.click());
+
+    const idealOverlay = host.querySelector('[data-testid="decision"]')!;
+    expect(idealOverlay.getAttribute("data-overlay-mode")).toBe("notebook");
+    expect(idealOverlay.getAttribute("data-review-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-review-range")).toBe("");
+    expect(idealOverlay.getAttribute("data-coach-take")).toBe("");
+    expect(idealOverlay.getAttribute("data-require-feedback-walk")).toBe("false");
+  });
+
+  it("opens the scoped recording for whole-presentation and fragment practice", async () => {
     localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
     render();
     await act(async () => { await Promise.resolve(); });
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(onRecord).toHaveBeenNthCalledWith(1, "arc-a");
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":1');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      scope: "whole",
+    });
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Repeat this fragment")!.click());
     expect(onRecord).toHaveBeenNthCalledWith(2, "arc-a");
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toMatchObject({
+      scope: "fragment",
+      startSlide: 1,
+      endSlide: 2,
+    });
   });
 
-  it("still records when Continue practice is on the final fragment", async () => {
+  it("still records the whole presentation when the current fragment is final", async () => {
     arcSetup.fetch.mockResolvedValueOnce({ slides: [{ title: "Only", body: "" }] });
     localStorage.setItem("willab_practice_checkpoint:v1:user-a:arc-a", "0");
     render();
     await act(async () => { await Promise.resolve(); });
 
     act(() => (host.querySelector("[data-project-record]") as HTMLButtonElement).click());
-    expect(host.textContent).toContain("Continue practice");
+    expect(host.textContent).toContain("Rehearse whole presentation");
     expect(host.textContent).not.toContain("Finish presentation");
-    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Continue practice")!.click());
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Rehearse whole presentation")!.click());
     expect(onRecord).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"slideIndex":0');
+    expect(JSON.parse(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")!)).toEqual({ scope: "whole" });
   });
 
   it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {
@@ -356,7 +612,7 @@ describe("project conversation", () => {
     });
     expect(host.querySelector("[data-processing-bubble]")).toBeNull();
     expect(host.textContent).toContain("2 attempts");
-    expect(host.textContent).toContain("Good");
+    expect(host.textContent).not.toContain("Good");
   });
 
   it("restores a durable failure as an actionable project-chat state", () => {
@@ -401,7 +657,7 @@ describe("project conversation", () => {
     expect(before(summary, bridge)).toBe(true);
     expect(before(bridge, question)).toBe(true);
     expect(host.textContent).not.toContain("Good job. See you next time.");
-    expect(host.querySelector("[data-project-record]")).toBeNull();
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
     expect(host.querySelector("[data-chat-header]")).not.toBeNull();
     expect(host.querySelector("[data-will-answers]")).not.toBeNull();
     expect(host.querySelector('textarea[aria-label="Answer about this take"]')).not.toBeNull();
@@ -521,7 +777,7 @@ describe("project conversation", () => {
       persist: true,
       clientId: optimistic.client_id,
       clientCreatedAt: optimistic.client_created_at,
-      history: [{ role: "assistant", content: "Who were you talking to?" }],
+      history: [{ role: "assistant", metadata: { arc_id: "arc-a" }, content: "Who were you talking to?" }],
     }));
 
     await act(async () => request.resolve({
@@ -592,7 +848,8 @@ describe("project conversation", () => {
     submitAnswer();
     await flush();
 
-    expect(field.disabled).toBe(true);
+    expect(field.disabled).toBe(false);
+    expect(host.querySelector("[data-project-question-composer]")?.getAttribute("aria-busy")).toBe("true");
     expect(state.chatQuery).toHaveBeenCalledTimes(1);
     expect(host.querySelectorAll('[data-typing-dots][aria-label="Will is replying"]')).toHaveLength(1);
     expect([...host.querySelectorAll("[data-project-message]")].filter(
@@ -775,6 +1032,35 @@ describe("project conversation", () => {
     )).toHaveLength(1);
   });
 
+  it("restores an interrupted project request only in its project and retries its original Take", async () => {
+    const question = message("ask", "Who needs to act?", "bot", {
+      offer: "will_question", will_question_step: "ask", chips: [],
+    });
+    state.messages = [question];
+    state.chatQuery.mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ answer: "Name the decision.", persisted: true, persisted_client_id: "saved" });
+    render();
+    enterAnswer("  The board  ");
+    submitAnswer();
+    await flush();
+    const first = state.chatQuery.mock.calls[0]![0];
+    act(() => root.unmount());
+    root = createRoot(host);
+    state.messages = [question];
+    render({ ...project, arcId: "arc-b" });
+    expect(host.textContent).not.toContain("The board");
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    render();
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    act(() => { retry.click(); retry.click(); });
+    await flush();
+    expect(state.chatQuery.mock.calls.map(([args]) => args)).toEqual([first, first]);
+    expect(first).toMatchObject({ projectId: "arc-a", sessionId: "take-a" });
+    expect(host.textContent?.split("The board")).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+  });
+
   it("keeps the exact optimistic turn retryable when a 200 is not persisted", async () => {
     state.chatQuery.mockResolvedValue({
       answer: "I answered, but storage failed.",
@@ -809,5 +1095,16 @@ describe("project conversation", () => {
     expect(secondQuery.clientId).toBe(firstQuery.clientId);
     expect(secondQuery.clientCreatedAt).toBe(firstQuery.clientCreatedAt);
     expect(state.appendRecoverable).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the post-walk close inside the project conversation", () => {
+    render();
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback"))!.click());
+    const result = host.querySelector('[data-testid="decision"]') as HTMLElement;
+    expect(result.getAttribute("data-project-flow")).toBe("true");
+
+    act(() => result.querySelector("button")!.click());
+    expect(host.querySelector('[data-testid="decision"]')).toBeNull();
+    expect(host.querySelector("[data-feedback-walk-card]")).not.toBeNull();
   });
 });

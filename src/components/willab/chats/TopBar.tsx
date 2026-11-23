@@ -7,7 +7,31 @@ import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
 import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
-import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { PageHeader } from "../PageHeader";
+import { W } from "./hostsetup/hostSetupCopy";
+
+/** Live or Build, the same switch on a chat and on the setup. */
+export const BUILD_MODE_EVENT = "willab:build-mode";
+
+export function LiveBuildSwitch({ mode, onMode }: { mode: "live" | "build"; onMode: (mode: "live" | "build") => void }) {
+  const one = (m: "live" | "build", label: string) => (
+    <button
+      type="button"
+      data-switch={m}
+      aria-pressed={mode === m}
+      onClick={() => onMode(m)}
+      className={`rounded-full px-3 py-1.5 text-[13.5px] font-semibold ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span data-live-build="" className="flex items-center rounded-full border border-border p-0.5">
+      {one("live", W.live)}
+      {one("build", W.build)}
+    </span>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /*  The chats' top bars, apart from the chat itself (ChatThread.tsx): Will's   */
@@ -48,55 +72,49 @@ export function TopBar({
     </>
   );
   return (
-    <div
+    <PageHeader
       data-chat-header
-      className="relative shrink-0 bg-background pt-[env(safe-area-inset-top)]"
+      safeArea
+      divider="viewport"
+      contentClassName="h-[60px] gap-1 px-[15px]"
     >
-      <div className={`${WILLAB_CONTENT_RAIL} flex h-[60px] items-center gap-1 px-[15px]`}>
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={CHUNK_SHEET_COPY.pagerBack}
-          className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
-        >
-          <ChevronLeft className="h-6 w-6" aria-hidden />
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={CHUNK_SHEET_COPY.pagerBack}
+        className="walk-press-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground"
+      >
+        <ChevronLeft className="h-6 w-6" aria-hidden />
+      </button>
+      {onOpen ? (
+        <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
+          {who}
         </button>
-        {onOpen ? (
-          <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
-            {who}
-          </button>
-        ) : (
-          <span className="flex min-w-0 items-center gap-2.5">{who}</span>
-        )}
-        {right ? <span className="ml-auto shrink-0 pl-2">{right}</span> : null}
-      </div>
-      {/* This bar replaces the global bar and sits at the viewport's top. A
-          fixed rule spans the viewport without a 100vw-wide box that can
-          enlarge the horizontal scroll area. */}
-      <span
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)_+_60px)] h-px bg-border"
-      />
-    </div>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2.5">{who}</span>
+      )}
+      {right ? <span className="ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
+    </PageHeader>
   );
 }
 
 /** Will's chat's top bar, over the Lounge: his mark and his name; the
  *  WillpowerLab bar is on the list only (backend N334 item 1). It spans the
  *  Lounge's column, across its side padding. */
-export function WillTopBar({ onBack, place = "will", build = null }: {
+export function WillTopBar({ onBack, place = "will", build = null, right = null }: {
   onBack: () => void;
   place?: LoungePlace;
   /** The ring's own chat: Build and Live in this bar's place (backend N642
    *  item 3). The phone's Back stays this bar's across the three chats. */
   build?: ReactNode;
+  right?: ReactNode;
 }) {
   // The device's Back (the iPhone's swipe) is this bar's back: one step, to
   // the list, as in a person's chat (N378).
   useBackDismiss(onBack);
   if (build) return <>{build}</>;
   return (
-    <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} />
+    <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} right={right} />
   );
 }
 

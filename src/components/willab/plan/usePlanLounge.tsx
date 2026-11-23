@@ -22,6 +22,7 @@ import {
 } from "@/services/api/plan";
 import { fmtDay, fmtWhen, PLAN_COPY } from "@/lib/willab/planCopy";
 import type { FirstTakeSlide } from "@/lib/willab/firstTake";
+import type { ComposerRecording } from "../chats/ChatComposer";
 import PlanDock, { dockFor, PlanAsk, planAsks, usePlanVoice, type PlanActions } from "./PlanDock";
 import { TapRow } from "@/components/willab/WillQuestion";
 import { NOT_NOW } from "@/lib/willab/leaveWords";
@@ -47,9 +48,7 @@ export type PlanLounge = {
   /** The voice answer just sent, in the thread while it is heard (N275). */
   pending: ReactNode;
   rows: PlanRowCtx | undefined;
-  /** The bar's display: hidden while the plan's footer replaces it (a
-   *  call's calendar, the recording bar while an answer is said). */
-  composerDisplay: (base: string) => string;
+  recording?: ComposerRecording;
   /** The plan's spoken question waits: "Record your answer" in the bar's
    *  middle records it (backend N483 item 2); null once "Not now" under it
    *  is tapped, until the chat is opened again. */
@@ -59,7 +58,7 @@ export type PlanLounge = {
   typingOff: boolean;
   /** The plan's own first recording (its topic, and on a first-Take plan its
    *  slides) while its first Take is not recorded: what "Start your first
-   *  recording" in the bar's middle starts (N483 item 2). */
+   *  recording" in the composer starts (N483 item 2). */
   startFirst: (() => void) | null;
   /** True while the empty Lounge's own button must wait for the plan. */
   holdsEmpty: boolean;
@@ -103,7 +102,7 @@ type Thread = { messages: LoungeMessage[]; loading: boolean; reload: () => Promi
 const READ_ON_RETURN_AFTER_MS = 30_000;
 
 /** The plan's spoken question (backend N483 item 2): while it waits,
- *  "Record your answer" in the bar's middle records it (`voice.waiting`),
+ *  "Record your answer" in the composer records it (`voice.waiting`),
  *  and "Not now", a grey word under the question (`notNow`, N467 rule 3),
  *  leaves it until the chat is opened again. Was the orange mic (N319 item
  *  1). */
@@ -311,21 +310,13 @@ export function usePlanLounge({
   // alone (N294 item 7, N296 state 4).
   const newestOne = state?.enabled ? newestOneOf(thread.messages) : null;
   const one = plan && kind === null ? newestOne : null;
-  // What stands in for the bar: a call's calendar, the recording bar while
-  // an answer is said. Otherwise the bar stays with its one black button,
-  // "Start your first recording" included (N483).
-  const replaces = kind === "book" || voice.recording || way.recording;
   const openBook = (which: CallWhich) => {
     setSheet(null);
     setBooking(which);
   };
   const dock = plan ? (
-    // In place of the message box (hidden then), nothing is under it: the
-    // shell's padding alone, as under the message box (founder 2026-10-30).
-    <div className={replaces ? undefined : "mb-2"} data-plan-dock-slot>
+    <div data-plan-dock-slot>
       <PlanDock plan={plan} busy={busy} booking={booking} onCloseBooking={() => setBooking(null)} actions={actions} />
-      {voice.bar}
-      {way.voiceBar}
     </div>
   ) : null;
   const sheets = plan ? (
@@ -384,7 +375,7 @@ export function usePlanLounge({
       <PendingBooked text={bookedLine} />
     ) : null,
     rows,
-    composerDisplay: (base) => (replaces ? "hidden" : base),
+    recording: voice.recording ?? way.recording,
     hear: voice.waiting ?? way.hear,
     typingOff: asks,
     startFirst: firstStart(plan, actions.startFirst),

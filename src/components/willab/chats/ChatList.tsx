@@ -136,13 +136,43 @@ export function AssistantMark({ label, inline = false }: { label: string; inline
   );
 }
 
-/** A person's circle, with the assistant's mark when one answers for them. */
-export function PersonCircle({ id, name, size, assistant = null }: { id: string; name: string; size: 36 | 48; assistant?: string | null }) {
-  if (!assistant) return <LetterCircle id={id} name={name} size={size} />;
+/** The WillpowerLab mark on a host's circle: about 40% of the avatar, a white
+ *  ring, sitting on the bottom-right the way a group-chat badge does. */
+export function WillBadge({ px }: { px: number }) {
+  const dot = Math.max(2, Math.round(px * 0.18));
+  const mid = Math.max(3, Math.round(px * 0.26));
+  return (
+    <span
+      aria-hidden
+      data-will-badge=""
+      className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full border-2 border-white bg-muted"
+      style={{ width: px, height: px, gap: 1 }}
+    >
+      <i className="rounded-full bg-foreground" style={{ width: dot, height: dot }} />
+      <i className="rounded-full bg-foreground" style={{ width: mid, height: mid }} />
+      <i className="rounded-full bg-foreground" style={{ width: dot, height: dot }} />
+    </span>
+  );
+}
+
+/** A person's circle, with the assistant's mark when one answers for them.
+ *  `badge` adds the WillpowerLab mark. `mark` is a host-picked face; without
+ *  one, the circle is their initial. */
+export function PersonCircle({ id, name, size, assistant = null, badge = false, mark = null }: {
+  id: string;
+  name: string;
+  size: 36 | 48;
+  assistant?: string | null;
+  badge?: boolean;
+  mark?: ReactNode | null;
+}) {
+  const face = mark ?? <LetterCircle id={id} name={name} size={size} />;
+  if (!assistant && !badge) return <>{face}</>;
   return (
     <span className="relative shrink-0">
-      <LetterCircle id={id} name={name} size={size} />
-      <AssistantMark label={assistant} />
+      {face}
+      {assistant ? <AssistantMark label={assistant} /> : null}
+      {badge ? <WillBadge px={Math.round(size * 0.4)} /> : null}
     </span>
   );
 }
@@ -186,6 +216,9 @@ export function ChatListRow({
   isNew = false,
   pinned = false,
   cameFrom = false,
+  actions = null,
+  paddingClassName = "pl-4",
+  disabled = false,
   onOpen,
 }: {
   id: string;
@@ -198,16 +231,28 @@ export function ChatListRow({
   pinned?: boolean;
   /** Just come back from this chat: lit for a moment (backend N378 item 5). */
   cameFrom?: boolean;
+  /** Optional row actions. When present, the action control sits beside the
+   * row button rather than inside it, so the row never contains nested
+   * interactive elements. */
+  actions?: ReactNode;
+  /** The default chat-list inset is kept for the people-chat lists. The
+   * speaking-coach home passes no inset so its project icons share the
+   * header logo's safe-gutter edge. */
+  paddingClassName?: string;
+  /** A project with a pending deletion is visible but locked. */
+  disabled?: boolean;
   onOpen: () => void;
 }) {
-  return (
+  const rowButton = (
     <button
       type="button"
       data-chat-row={id}
       data-chat-new={isNew ? "" : undefined}
       data-chat-came-from={cameFrom ? "" : undefined}
       onClick={onOpen}
-      className="relative isolate flex h-[76px] w-full shrink-0 items-center gap-3 pl-4 text-left transition-colors hover:bg-muted/50"
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      className={`relative isolate flex h-[76px] min-w-0 ${actions ? "flex-1" : "w-full"} items-center gap-3 text-left transition-colors hover:bg-muted/50 disabled:cursor-default disabled:hover:bg-transparent ${paddingClassName}`}
     >
       <span
         aria-hidden
@@ -239,6 +284,15 @@ export function ChatListRow({
         </span>
       </span>
     </button>
+  );
+  if (!actions) {
+    return rowButton;
+  }
+  return (
+    <div className="relative flex h-[76px] w-full shrink-0 items-center">
+      {rowButton}
+      {actions}
+    </div>
   );
 }
 

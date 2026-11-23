@@ -10,6 +10,8 @@ export const UI_LOCALES = ["en", "pl"] as const;
 export type UiLocale = (typeof UI_LOCALES)[number];
 
 export type UiCopyKey =
+  | "practiceRepeatFragment"
+  | "practiceWholePresentation"
   | "footerAbout"
   | "footerBlog"
   | "footerPrivacy"
@@ -24,6 +26,10 @@ export type UiCopyKey =
   | "deleteFailed"
   | "tryAgain"
   | "speakingCoach"
+  | "showProjects"
+  | "hideProjects"
+  | "chooseProject"
+  | "startOwnChat"
   | "startNewProject"
   | "createNewProject"
   | "startFirstProject"
@@ -37,6 +43,8 @@ export type UiCopyKey =
   | "projectDeletionPending"
   | "projectArchive"
   | "projectArchiveFailed"
+  | "projectEdit"
+  | "projectEditFailed"
   | "projectMoreOptions"
   | "projectDeleteDraftTitle"
   | "projectDeleteDraftBody"
@@ -83,6 +91,8 @@ export type UiCopyKey =
  */
 const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
   en: {
+    practiceRepeatFragment: "Repeat this fragment",
+    practiceWholePresentation: "Rehearse whole presentation",
     footerAbout: "About us",
     footerBlog: "Blog",
     footerPrivacy: "Privacy",
@@ -97,6 +107,10 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Couldn't delete. Try again.",
     tryAgain: "Try again",
     speakingCoach: "Speaking coach",
+    showProjects: "Show projects",
+    hideProjects: "Hide projects",
+    chooseProject: "Projects",
+    startOwnChat: "Start your own chat",
     startNewProject: "Start a new project",
     createNewProject: "Create new project",
     startFirstProject: "Start your first project",
@@ -110,6 +124,8 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     projectDeletionPending: "Deletion pending",
     projectArchive: "Archive",
     projectArchiveFailed: "Couldn't archive. Try again.",
+    projectEdit: "Edit",
+    projectEditFailed: "Couldn't edit. Try again.",
     projectMoreOptions: "More options for {name}",
     projectDeleteDraftTitle: "Delete this draft?",
     projectDeleteDraftBody: "Your unfinished setup answers will be removed.",
@@ -149,6 +165,8 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     newSlides: "New slides",
   },
   pl: {
+    practiceRepeatFragment: "Powtórz ten fragment",
+    practiceWholePresentation: "Przećwicz całą prezentację",
     loading: "Wczytywanie",
     close: "Zamknij",
     cancel: "Anuluj",
@@ -156,6 +174,9 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Nie udało się usunąć. Spróbuj ponownie.",
     tryAgain: "Spróbuj ponownie",
     speakingCoach: "Trener wystąpień",
+    showProjects: "Pokaż projekty",
+    hideProjects: "Ukryj projekty",
+    chooseProject: "Projekty",
     startNewProject: "Rozpocznij nowy projekt",
     createNewProject: "Utwórz nowy projekt",
     startFirstProject: "Rozpocznij pierwszy projekt",

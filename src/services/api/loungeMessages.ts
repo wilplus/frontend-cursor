@@ -72,6 +72,8 @@ export type LoungeMessageDraft = Pick<LoungeMessage, "role" | "kind" | "body"> &
    *  lifecycle messages may supply the UUID of the thing that completed so
    *  every observer (backend, open tab, resumed tab) converges on one row. */
   clientId?: string;
+  /** Restore the ordering key of an interrupted turn on a retry. */
+  clientCreatedAt?: string;
 };
 
 export interface LoungeHistoryPage {
@@ -102,7 +104,7 @@ export function stampLoungeMessage(draft: LoungeMessageDraft, after: string | nu
       (typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.round(Math.random() * 1e9)}`),
-    client_created_at: stampAfter(after),
+    client_created_at: draft.clientCreatedAt ?? stampAfter(after),
     role: draft.role,
     kind: draft.kind,
     body: draft.body.slice(0, LOUNGE_BODY_MAX),

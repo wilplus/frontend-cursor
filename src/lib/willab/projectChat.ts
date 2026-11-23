@@ -37,19 +37,31 @@ export function isPersistedTerminalReplay(
 }
 
 export function projectIdOf(message: Pick<LoungeMessage, "metadata">): string | null {
-  const id = message.metadata?.arc_id;
-  return typeof id === "string" && id.length > 0 ? id : null;
+  const metadata = message.metadata ?? {};
+  for (const id of [metadata.arc_id, metadata.project_id, metadata.projectId]) {
+    if (typeof id === "string" && id.trim()) return id.trim();
+  }
+  return null;
 }
 
 export function isProjectMessage(message: Pick<LoungeMessage, "metadata">): boolean {
-  return projectIdOf(message) !== null;
+  return message.metadata?.project_chat === true || projectIdOf(message) !== null;
 }
 
-/** A project question and every turn answering it still belong to the
- *  speaking conversation where the speaker met them. Their arc metadata is
- *  retained as well, so opening the project shows the same exchange. */
+/** Shared Coach history is longitudinal across projects, but project chat
+ * turns remain owned by their project and never become Coach dialogue. */
+export function speakingCoachMessages(
+  messages: readonly LoungeMessage[],
+): LoungeMessage[] {
+  return messages.filter((message) => !isProjectMessage(message));
+}
+
+/** Keep the established after-Take prompts in the Lounge. Questions asked
+ *  from a project or its review belong to the project conversation. */
 export function projectMessageStaysInLounge(message: Pick<LoungeMessage, "metadata">): boolean {
   const metadata = message.metadata ?? {};
+  if (metadata.review_focus) return false;
+  if (metadata[TYPED_PROJECT_TURN] === true && metadata.reply_to === "") return false;
   const step = metadata.will_question_step;
   return metadata.offer === "will_question" ||
     metadata[TYPED_PROJECT_TURN] === true ||
@@ -117,6 +129,7 @@ export function projectConversationHistory(
     .map((message) => ({
       role: message.role === "user" ? "user" : "assistant",
       content: message.body,
+      metadata: { arc_id: arcId },
     }));
 }
 

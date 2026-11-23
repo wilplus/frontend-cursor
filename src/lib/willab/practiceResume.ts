@@ -1,10 +1,35 @@
-export interface PracticeResumeSelection {
-  durationSeconds: number;
-  slideIndex: number;
+import type { PracticeDeliveryLabel } from "@/services/api/trainings";
+
+/** One recording choice. Fragment bounds are inclusive, 1-based deck pages. */
+export type PracticeResumeSelection =
+  | { scope: "whole" }
+  | { scope: "fragment"; startSlide: number; endSlide: number };
+
+export interface PracticeDecision {
+  deliveryLabel?: PracticeDeliveryLabel;
+  onFragment: () => void;
+  onWholePresentation: () => void;
 }
 
-/** Recording length is fixed product behaviour; presentation target length is
- * stored separately in the project setup. */
+/** Missing history means the full text; never invent a fragment from a checkpoint. */
+export function practiceSelection(
+  scope: "fragment" | "whole",
+  span: { startSlide: number; endSlide: number } | null | undefined,
+): PracticeResumeSelection {
+  if (scope === "whole" || !span) return { scope: "whole" };
+  return { scope, startSlide: span.startSlide, endSlide: span.endSlide };
+}
+
+/** Keep original deck indices for PDF pages, helper words and audio timestamps. */
+export function practiceSlideRange(selection: PracticeResumeSelection | null, count: number) {
+  const last = Math.max(0, count - 1);
+  if (selection?.scope !== "fragment") return { first: 0, last };
+  const first = Math.min(last, selection.startSlide - 1);
+  return { first, last: Math.max(first, Math.min(last, selection.endSlide - 1)) };
+}
+
+/** Fragment chunks have a fixed cap. Explicit whole rehearsal is uncapped;
+ * the presentation's target length is stored separately in project setup. */
 export const PRACTICE_CHUNK_SECONDS = 5 * 60;
 
 const KEY_PREFIX = "willab_practice_resume:v1";
@@ -53,23 +78,25 @@ export function readPracticeResume(
     const raw = localStorage.getItem(key(KEY_PREFIX, ownerId, arcId));
     if (!raw) return null;
     const value = JSON.parse(raw) as Record<string, unknown>;
-    if (
-      typeof value.durationSeconds !== "number" ||
-      !Number.isFinite(value.durationSeconds) ||
-      value.durationSeconds <= 0 ||
-      typeof value.slideIndex !== "number" ||
-      !Number.isInteger(value.slideIndex) ||
-      value.slideIndex < 0
-    ) {
-      return null;
-    }
-    return {
-      durationSeconds: value.durationSeconds,
-      slideIndex: value.slideIndex,
-    };
+    if (value.scope === "whole") return { scope: "whole" };
+    return readFragment(value);
   } catch {
     return null;
   }
+}
+
+function positiveSlide(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function readFragment(value: Record<string, unknown>): PracticeResumeSelection | null {
+  // Older resumes stored a zero-based start and sometimes no end. Preserve
+  // their start as a single-slide fragment; discard invalid persisted input.
+  const legacyStart = typeof value.slideIndex === "number" ? value.slideIndex + 1 : NaN;
+  const start = value.startSlide ?? legacyStart;
+  const end = value.endSlide ?? start;
+  if (!positiveSlide(start) || !positiveSlide(end) || end < start) return null;
+  return { scope: "fragment", startSlide: start, endSlide: end };
 }
 
 export function clearPracticeResume(

@@ -41,6 +41,8 @@ export type HostRecipe = {
   hello: string;
   questions: { q: string }[];
   taps: string[];
+  /** The up to three first questions people tap. */
+  starters?: string[];
   smart: boolean;
   way: "use" | "own";
   models: RecipeModel[];
@@ -110,23 +112,35 @@ async function call(path: string, init: Parameters<typeof bffFetch>[1]): Promise
 }
 
 const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-const recipeOf = (value: unknown): HostRecipe | null =>
-  value && typeof value === "object" && (value as Body).suggest ? (value as HostRecipe) : null;
+const EMPTY_SUGGEST: HostRecipe["suggest"] = {
+  line: [], send: [], out: [], hello: [], qs: [], taps: [], models: [], sample_in: "", sample_out: "",
+};
+
+/** A saved recipe. `people_profiles.chat_recipe` is v2. An older read can
+ *  omit `suggest`; the tiles still open, and Settings uses `parts`. */
+const recipeOf = (value: unknown): HostRecipe | null => {
+  if (!value || typeof value !== "object") return null;
+  const doc = value as HostRecipe & { v?: number };
+  const saved = Boolean(doc.suggest || doc.spec || doc.hello || doc.v === 2);
+  if (!saved) return null;
+  return doc.suggest ? doc : { ...doc, suggest: EMPTY_SUGGEST };
+};
 const costOf = (value: unknown): ChatCost | null => (value && typeof value === "object" ? (value as ChatCost) : null);
 
 export async function readSetup(): Promise<SetupRead | null> {
   const body = await call("/api/v2/chats/setup", { method: "GET" });
   if (!body) return null;
   const own = body.own_chat as SetupRead["own_chat"];
+  const recipe = recipeOf(body.recipe);
   return {
-    recipe: recipeOf(body.recipe),
+    recipe,
     parts: list<SetupPart>(body.parts),
     own_chat: own && typeof own.title === "string" ? own : null,
     cost: costOf(body.cost),
     skipped_models: list<SkippedModel>(body.skipped_models).filter((m) => m && typeof m.by === "string" && typeof m.on === "string"),
     price_changes: list<PriceChange>(body.price_changes).filter((c) => c && typeof c.model_id === "string" && typeof c.by === "string" && typeof c.now === "number"),
     spec_guess: typeof body.spec_guess === "string" && body.spec_guess.trim() ? body.spec_guess.trim() : null,
-    can_try: body.can_try === true,
+    can_try: body.can_try === true || (body.can_try == null && recipe !== null),
   };
 }
 
@@ -216,6 +230,31 @@ export async function sharedModels(): Promise<SharedModel[]> {
   return list<SharedModel>(body?.models);
 }
 
+export type AskReply = {
+  preview?: boolean;
+  shown?: boolean;
+  held?: boolean;
+  quiet?: boolean;
+  wait?: boolean;
+  reply?: string | null;
+  error?: "too-big" | "unreadable" | "too-long" | null;
+  walk?: { key: string; text: string; at: number | null }[];
+};
+
+/** The host's chat, answered from their setup. Null or preview: use today's lines. */
+/** A Test answer the host keeps, for Training. The reply route stores it. */
+export async function keepReplyExample(chatId: string, ask: string, answer: string): Promise<boolean> {
+  const body = await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, {
+    method: "POST",
+    json: { keep: true, ask, answer },
+  });
+  return body !== null;
+}
+
+export async function askReply(chatId: string, json: Record<string, unknown>): Promise<AskReply | null> {
+  return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, { method: "POST", json })) as AskReply | null;
+}
+
 export async function tryMyChat(text: string): Promise<ReplyLine[] | null> {
   const body = await call("/api/v2/chats/setup/try", { method: "POST", json: { body: text } });
   return body ? list<ReplyLine>(body.messages) : null;
@@ -276,7 +315,8 @@ export type Draft = {
 
 export async function getDrafts(): Promise<Draft[] | null> {
   const body = await call("/api/v2/chats/setup/drafts", { method: "GET" });
-  return body ? list<Draft>(body.drafts) : null;
+  if (!body || body.drafts == null) return null;
+  return list<Draft>(body.drafts);
 }
 
 /** Send one draft: as drafted, or with the host's own words. */

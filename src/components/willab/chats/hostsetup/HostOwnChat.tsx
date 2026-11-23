@@ -3,10 +3,14 @@
 import { useState, type ReactNode } from "react";
 import { TapRow } from "../../WillQuestion";
 import { LetterCircle } from "../ChatList";
+import { TopBar } from "../TopBar";
 import { HostAboutLines } from "../HostChat";
-import { tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
+import { askReply, tryMyChat, type HostRecipe } from "@/services/api/hostSetup";
+import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
+import { visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
 import { W } from "./hostSetupCopy";
-import { Box, Dots, Frame, Mine, Say } from "./SetupBits";
+import { Dots, Frame, Mine, Say } from "./SetupBits";
+import ChatComposer from "../ChatComposer";
 
 /* -------------------------------------------------------------------------- */
 /*  "Test my chat" (backend N618 item 8; FIRST-20): the host's own chat opens */
@@ -33,30 +37,48 @@ export default function HostOwnChat({ name, recipe, onBack, bar = null, about = 
   const [waiting, setWaiting] = useState(false);
   const [useful, setUseful] = useState(false);
   const add = (...lines: Line[]) => setLog((was) => [...was, ...lines]);
-  const send = (v: string) => {
-    add({ me: v });
+  const send = async (v: string) => {
+    const entry = { me: v };
+    add(entry);
     setUseful(false);
     setWaiting(true);
-    void tryMyChat(v).then((lines) => {
-      setWaiting(false);
-      if (!lines) return;
+    let kept = false;
+    try {
+      const got = await askReply(readOwnChat().id || "your-chat", { text: v, kind: "text" });
+      const seen = visitorKind(got);
+      if (seen === "reply" && got?.reply) {
+        add({ w: got.reply }, { w: W.useful });
+        setUseful(true);
+        kept = true;
+        return true;
+      }
+      if (seen === "held" || seen === "host" || seen === "wait") {
+        add({ w: seen === "held" ? W.replyHeld : seen === "wait" ? W.replyWait : W.replyHost });
+        kept = true;
+        return true;
+      }
+      const lines = await tryMyChat(v);
+      if (!lines) return false;
       add(...lines.map((l) => ({ w: l.body, by: l.by })), { w: W.useful });
       setUseful(true);
-    });
+      kept = true;
+      return true;
+    } finally {
+      setWaiting(false);
+      if (!kept) setLog((was) => was.filter((line) => line !== entry));
+    }
   };
+  const header = bar ?? (
+    <TopBar
+      circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
+      title={name}
+      subtitle={recipe.spec}
+      onBack={onBack}
+    />
+  );
   return (
     <div data-host-own-chat="" className="flex min-h-0 flex-1 flex-col">
-      <Frame
-        bar={bar}
-        onBack={onBack}
-        circle={<LetterCircle id={`own-${name}`} name={name} size={36} />}
-        title={
-          <span className="flex flex-col leading-tight">
-            {name}
-            <small className="text-[12.5px] font-normal text-muted-foreground">{recipe.spec}</small>
-          </span>
-        }
-      >
+      <Frame bar={header} onBack={onBack} dock={null}>
         <HostAboutLines lines={about} />
         {log.map((m, k) => (m.me ? <Mine key={k}>{m.me}</Mine> : <Say key={k} by={m.by}>{m.w}</Say>))}
         {asking ? (
@@ -84,7 +106,7 @@ export default function HostOwnChat({ name, recipe, onBack, bar = null, about = 
           />
         ) : null}
       </Frame>
-      {asking ? null : <Box placeholder={W.message(name)} onSend={send} />}
+      <ChatComposer placeholder={W.message(name)} busy={waiting} onSend={asking ? undefined : (words) => send(words.trim())} />
     </div>
   );
 }

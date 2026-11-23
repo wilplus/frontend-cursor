@@ -8,13 +8,19 @@ OUTCOME
       not sent again.
   O3  A moved document also counts as out of date; any other refusal is an
       error.
-PROVES   O1 -> "PUTs the whole document with the version it was edited from"
+  O4  The server receives the current revision and paragraph lineage, and
+      returns the head needed for the next edit.
+  O5  Refused processing authority leaves the draft available to retry.
+PROVES   O1 -> "keeps the legacy caller shape for callers without enrollment state"
          O2 -> "reports a supersede instead of RETRYING it over the new version"
          O3 -> "supersedes on a document-moved refusal and fails the save on any other"
+         O4 -> "sends the current CAS enrollment state and carries the returned head forward"
+         O5 -> "surfaces an authority refusal without retrying the draft"
 WHY      The old retry re-sent pre-Take words over the text a just-landed Take
          built (Never-rule 5).
 */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Part } from "@/lib/willab/documentParts";
 import { saveIdealUserEdit } from "./idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
@@ -44,7 +50,7 @@ afterEach(() => {
 });
 
 describe("saveIdealUserEdit", () => {
-  it("PUTs the whole document with the version it was edited from", async () => {
+  it("keeps the legacy caller shape for callers without enrollment state", async () => {
     mockFetch({ status: 200, body: { saved: true, version: 4 } });
     const r = await saveIdealUserEdit("arc1", "the whole doc", 3);
     expect(r).toEqual({ ok: true, version: 4 });
@@ -75,9 +81,64 @@ describe("saveIdealUserEdit", () => {
       ok: false, reason: "error",
     });
   });
-});
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
+  it("sends the current CAS enrollment state and carries the returned head forward", async () => {
+    mockFetch({
+      status: 200,
+      body: {
+        ideal_text_user_edit_contract_version: "ideal-text-user-edit-cas-v2",
+        saved: true,
+        arc_id: "arc1",
+        source_document_version: 3,
+        previous_user_text_revision: null,
+        result_user_text_revision: "1",
+        result_user_text_sha256: "b".repeat(64),
+        desired_parts_lineage_sha256: "c".repeat(64),
+        part_revisions: [
+          { part_id: "part-1", revision_id: "1", action: "owner_part_created" },
+        ],
+        dataset_eligible: false,
+      },
+    });
+    const r = await saveIdealUserEdit("arc1", "new words", 3, {
+      current: {
+        ownerEdit: null,
+        desiredParts: [
+          { id: "part-1", text: "new words", locked: false },
+        ] satisfies Part[],
+      },
+    });
+    expect(r).toMatchObject({
+      ok: true,
+      version: null,
+      ownerEdit: {
+        userTextRevision: "1",
+        userTextSha256: "b".repeat(64),
+        parts: [
+          { id: "part-1", position: 0, text: "new words", currentPartRevisionId: "1" },
+        ],
+      },
+    });
+    const body = calls[0].body as Record<string, unknown>;
+    expect(body).toMatchObject({
+      text: "new words",
+      version: 3,
+      expected_user_text_revision: null,
+      expected_user_text_sha256: null,
+      parts: {
+        expected_parts: [],
+        desired_parts: [{ position: 0, part_id: "part-1", text: "new words" }],
+      },
+    });
+    expect(body.idempotency_key).toEqual(expect.any(String));
+  });
+
+  it("surfaces an authority refusal without retrying the draft", async () => {
+    mockFetch({ status: 403, body: { code: "PROCESSING_AUTHORIZATION_REQUIRED" } });
+    expect(await saveIdealUserEdit("arc1", "words", 3)).toEqual({
+      ok: false,
+      reason: "authority",
+    });
+    expect(calls).toHaveLength(1);
+  });
 });

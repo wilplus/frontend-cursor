@@ -18,11 +18,13 @@ import {
   type TempoStretch,
 } from "@/lib/willab/tempoStep";
 import PaceScale from "../pace/PaceScale";
+import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
+import { tryCopy } from "@/lib/willab/chatBuilder/screenCopy";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import { ONE_THING_COPY } from "../idealEditCopy";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
-import WalkFooter from "./WalkFooter";
+import WalkFooter, { WalkMic } from "./WalkFooter";
 import WalkPlayer from "./WalkPlayer";
 import RecordingBar from "../RecordingBar";
 import { WalkSpeakerBubble, useMountedAsPast, useWalkPart } from "./WalkThread";
@@ -90,9 +92,10 @@ export default function WalkTempo({
    *  (backend N435 item 7), else "Tempo". */
   mark?: string;
 }) {
+  const copy = tryCopy(usePublishedCoach());
   const opening = tempoOpening(stretch, one);
   const most = one ? ONE_THING_TEMPO_TRIES : TEMPO_MAX_TRIES;
-  const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n) : afterTry(t.result, t.landed, n));
+  const linesFor = (t: TempoPlayed, n: number) => (one ? oneThingTempoLines(t.landed, n, copy) : afterTry(t.result, t.landed, n));
   const past = useMountedAsPast();
   const part = useWalkPart();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -320,13 +323,12 @@ export default function WalkTempo({
     }
     if (phase === "closed") return <WalkFooter pill={{ label: W.next, onClick: onDone, testId: "walk-forward" }} />;
     if (phase === "commented" && !one) {
-      return <WalkFooter dot outline pill={{ label: W.again, onClick: () => void begin(), testId: "walk-practise" }} />;
+      return <WalkMic action={{ label: W.again, onClick: () => void begin(), testId: "walk-practise" }} />;
     }
     return (
-      <WalkFooter
-        dot
-        pill={{ label: one ? ONE_THING_COPY.tryIt : W.ready, onClick: () => void begin(), testId: "walk-tempo-ready" }}
-        links={[{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }]}
+      <WalkMic
+        action={{ label: one ? ONE_THING_COPY.tryIt : W.ready, onClick: () => void begin(), testId: "walk-tempo-ready" }}
+        secondary={{ label: W.skip, onClick: skip, testId: "walk-tempo-skip" }}
       />
     );
   }

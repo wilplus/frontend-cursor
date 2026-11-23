@@ -15,6 +15,7 @@
 # CLAUDE.md section that locks them.
 
 # ── Ideal Text (founder, 2026-09-28; amended by the locks of 09-30, 10-05, 10-06)
+src/components/willab/PageHeader.tsx
 src/components/willab/IdealTextOverlay.tsx
 src/components/willab/IdealTextHeading.tsx
 src/components/willab/IdealTextMenu.tsx
@@ -36,7 +37,8 @@ src/lib/willab/walkMotion.ts
 # https://claude.ai/artifact/CXHqV7paTVT4iVSA5uiyrV tab 1)
 src/components/willab/NextTakeShareScreen.tsx
 src/lib/willab/nextTakeShare.ts
-# The one recording bar: the trash, then the walk's strip (founder 2026-10-31, backend N314)
+# The shared composer, including active recording (founder 2026-11-23, backend N667)
+src/components/willab/chats/ChatComposer.tsx
 src/components/willab/RecordingBar.tsx
 
 # ── The coach panel V2 (founder, 2026-10-07); the founder's Library and
@@ -48,7 +50,6 @@ src/app/admin/errors/
 
 # ── The recording screens (founder, 2026-10-07, N59; amended 2026-10-12, N70)
 src/components/willab/LabOverlay.tsx
-src/components/willab/FinishTakeButton.tsx
 src/components/willab/RecordingRoadmap.tsx
 src/components/willab/recordingCopy.ts
 src/components/willab/useRecordingGestures.ts

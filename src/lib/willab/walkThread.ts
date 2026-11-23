@@ -61,7 +61,10 @@ export function walkStepDraft(e: WalkThreadEntry): LoungeMessageDraft {
     role: e.author === "speaker" ? "user" : "bot",
     kind: "walk_step",
     body: e.body,
-    clientId: stableUuid([e.take, e.key, e.moment ?? "", e.attempt ?? "", e.author].join("|")),
+    clientId: stableUuid([
+      e.take, e.key, e.moment ?? "", e.attempt ?? "", e.author,
+      ...(typeof e.extra?.practice_run_id === "string" ? [e.extra.practice_run_id] : []),
+    ].join("|")),
     metadata: {
       take_session_id: e.take,
       arc_id: e.arcId,
@@ -662,7 +665,7 @@ export function shownStep(
  *  bubble, a new message (D5). Every other step is in the Feedback walk. */
 export function chatDrawsStep(m: LoungeMessage): boolean {
   const meta = m.metadata ?? {};
-  return m.kind !== "walk_step" || meta.step === "end" || meta.coach_update === true;
+  return m.kind !== "walk_step" || meta.step === "end" || meta.coach_update === true || meta.walk_state_only === true;
 }
 
 /** One Take's walk, as the chat draws it. */

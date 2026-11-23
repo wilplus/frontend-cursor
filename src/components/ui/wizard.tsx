@@ -1,7 +1,8 @@
 "use client";
 
-import { X, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 
 /* -------------------------------------------------------------------------- */
 /*  wizard — the shared onboarding chrome (founder 2026-07-27)                 */
@@ -67,9 +68,8 @@ export function StepHead({
 
 /** Back · the step dots · a trailing slot.
  *
- *  The two side slots are a FIXED width and mirror each other, so the dots stay
- *  optically centred whether or not either side is filled — and so nothing in
- *  the trailing slot (a ✕, say) can overlap the dots at any breakpoint. */
+ *  The two side slots mirror each other, so the marks stay in their original
+ *  centred position whether or not Back or the trailing close is present. */
 export function WizardProgress({
   count,
   current,
@@ -92,7 +92,11 @@ export function WizardProgress({
   backLabel?: string;
 }) {
   return (
-    <div className="mb-6 flex items-center gap-3">
+    <div
+      className="relative mb-6 flex min-h-11 items-center"
+      role="group"
+      aria-label="Setup progress"
+    >
       <div className="w-16">
         {showBack && onBack && current > 0 ? (
           <button
@@ -104,7 +108,10 @@ export function WizardProgress({
           </button>
         ) : null}
       </div>
-      <div className="flex flex-1 items-center justify-center gap-1.5">
+      <div
+        data-wizard-progress
+        className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5"
+      >
         {Array.from({ length: count }, (_, i) => (
           <span
             key={i}
@@ -121,7 +128,7 @@ export function WizardProgress({
           />
         ))}
       </div>
-      <div className="flex w-16 justify-end">{trailing}</div>
+      <div className="ml-auto flex w-16 justify-end">{trailing}</div>
     </div>
   );
 }
@@ -136,16 +143,7 @@ export function WizardCancel({
   onClick: () => void;
   ariaLabel?: string;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={ariaLabel}
-      className="-mr-2.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-    >
-      <X className="h-5 w-5" aria-hidden />
-    </button>
-  );
+  return <OverlayCloseButton onClick={onClick} ariaLabel={ariaLabel} />;
 }
 
 /** A tappable preset. The neutral foreground when selected — orange stays

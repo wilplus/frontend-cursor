@@ -12,7 +12,7 @@ import WalkFooter from "@/components/willab/walk/WalkFooter";
 import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
-import RecordingStrip from "@/components/willab/walk/RecordingStrip";
+import ChatComposer from "@/components/willab/chats/ChatComposer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import {
@@ -218,7 +218,7 @@ function Practise(ctx: WalkCtx) {
       onClose={ctx.close}
       footer={
         <WalkFooter links={[{ label: WALK_COPY.skip, onClick: ctx.forward }]}>
-          <RecordingStrip elapsed={ctx.elapsed} stopLabel={COPY.pillStop} onStop={ctx.forward} />
+          <ChatComposer recording={{ elapsedMs: ctx.elapsed * 1000, stopLabel: COPY.pillStop, stop: ctx.forward, discard: ctx.back }} />
         </WalkFooter>
       }
     >

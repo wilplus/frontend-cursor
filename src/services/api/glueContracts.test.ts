@@ -42,7 +42,6 @@ import { fetchLineBankNext, recordLineShown } from "./lineBank";
 import { fetchBlockVariants, fetchIdealTextRevisions, selectBlockVariant } from "./blockVariants";
 import { setPartHelperWordsFromTake, setPartLock, setPartRootPhrase } from "./partLock";
 import { fetchArcFeedback } from "./arcFeedback";
-import { fetchStrengths } from "./strengths";
 import { fetchVoiceAlbum, saveMomentNote } from "./voiceAlbum";
 import { fetchPracticeQueue, savePracticeAnswer } from "./voiceAlbumPractice";
 import { fetchParagraphHistory } from "./bookmarkHistory";
@@ -101,7 +100,6 @@ const CASES: Case[] = [
   ["setPartRootPhrase walk", () => setPartRootPhrase("a1", "p1", "words", { text: "words", start: 0, end: 5, whole: true }), { status: 200, json: {} }],
   ["setPartHelperWordsFromTake", () => setPartHelperWordsFromTake("a1", "p1", "go", 2), { status: 200, json: {} }],
   ["fetchArcFeedback", () => fetchArcFeedback("a1"), { status: 200, json: {} }],
-  ["fetchStrengths", () => fetchStrengths(), { status: 200, json: {} }],
   ["fetchVoiceAlbum", () => fetchVoiceAlbum(), { status: 200, json: { projects: [] } }],
   ["saveMomentNote", () => saveMomentNote("a1", "s1", "note"), { status: 200, json: { note: {} } }],
   ["fetchPracticeQueue", () => fetchPracticeQueue(), { status: 200, json: { mine: [], general: [] } }],

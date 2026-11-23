@@ -5,7 +5,6 @@ import { ENTER_OFFSET_PX, type Dir } from "@/lib/willab/recordingGesture";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
-import FinishTakeButton from "./FinishTakeButton";
 import { isFirstTakeDeck } from "@/lib/willab/firstTake";
 import { isDefaultDeckText } from "@/lib/willab/defaultDeck";
 import {
@@ -13,6 +12,7 @@ import {
   recordingSlidesInLocale,
 } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
+import { practiceSlideRange, type PracticeResumeSelection } from "@/lib/willab/practiceResume";
 
 export interface RecordingRoot {
   slideIndex: number;
@@ -24,13 +24,12 @@ export interface RecordingRoot {
  * The canonical manual rehearsal navigator (founder lock 2026-10-12, the
  * recording screens, N70).
  *
- * BUTTONS, NOT SCROLLING. Back and Next slide sit under the strip; on the
- * last slide Next slide becomes the red Finish take, the only way a Take
- * ends from here. ← → change the slide too (N70.1). No slide dots.
+ * Back and Next slide sit above the composer. Arrow keys change slides too.
+ * The mic slot enables Finish take on the last slide.
  *
  * ONLY THE SLIDE AND ITS HELPER WORDS MOVE, sideways: Next sends them out to
  * the left and lands the next ones from the right; Back the reverse. The top
- * bar, the strip and the buttons are not touched by a move. Every slide
+ * bar, the composer and the buttons are not touched by a move. Every slide
  * change reaches the overlay's setter, which timestamps it into the timeline
  * the backend buckets words with. Nothing here follows audio.
  */
@@ -58,21 +57,21 @@ export default function RecordingRoadmap({
   currentSlide,
   roots,
   onSlideChange,
-  strip,
-  onFinish,
+  composer,
   asks = null,
+  practiceSelection = null,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
   currentSlide: number;
   roots: RecordingRoot[];
   onSlideChange: (slideIndex: number) => void;
-  /** The clock and its bar, drawn above the buttons. */
-  strip: ReactNode;
-  onFinish: () => void;
+  composer: ReactNode;
   /** An answer's person: "{name} asks" over the question (backend N441 item 7). */
   asks?: string | null;
+  practiceSelection?: PracticeResumeSelection | null;
 }) {
+  const { first, last: lastSlide } = practiceSlideRange(practiceSelection, slides.length);
   const locale = useUiLocale();
   const copy = recordingCopy(locale);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -108,9 +107,9 @@ export default function RecordingRoadmap({
   const canGo = useCallback(
     (dir: Dir) => {
       const next = currentSlideRef.current + dir;
-      return next >= 0 && next < slides.length;
+      return next >= first && next <= lastSlide;
     },
-    [slides.length]
+    [first, lastSlide]
   );
 
   const { glide, enter } = useRecordingGestures({
@@ -130,7 +129,7 @@ export default function RecordingRoadmap({
 
   const goToSlide = useCallback(
     (index: number) => {
-      const next = Math.min(Math.max(index, 0), slides.length - 1);
+      const next = Math.min(Math.max(index, first), lastSlide);
       if (slides.length === 0 || next === currentSlideRef.current) return;
       const dir: Dir = next < currentSlideRef.current ? -1 : 1;
       glide(dir, () => {
@@ -139,7 +138,7 @@ export default function RecordingRoadmap({
         onSlideChangeRef.current(next);
       });
     },
-    [glide, slides.length]
+    [glide, slides.length, first, lastSlide]
   );
 
   /** Back / Next slide. After a mouse click the focus goes back to the page,
@@ -158,7 +157,7 @@ export default function RecordingRoadmap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const last = currentSlide >= slides.length - 1;
+  const last = currentSlide >= lastSlide;
   const { poster, tall } = stageLook(slides, presentationRef, asks, roots);
 
   return (
@@ -222,26 +221,20 @@ export default function RecordingRoadmap({
 
       <div
         data-testid="recording-strip"
-        className="relative z-10 -mx-3 shrink-0 bg-background px-1 pt-2 pb-[env(safe-area-inset-bottom)]"
+        className="relative z-10 -mx-3 shrink-0 bg-background pt-2"
       >
-        {strip}
-        {/* The coach panel's pair: equal halves, 48px, 16px corners. With
-            one slide there is nothing to go back to: Finish take alone, the
-            full row (backend N441 item 6). */}
-        <div className="mt-2.5 flex gap-2.5">
-          {slides.length > 1 ? (
+        <div className="flex gap-2.5 px-2">
+          {lastSlide > first ? (
             <button
               type="button"
               onClick={press(currentSlide - 1)}
-              disabled={currentSlide === 0}
+              disabled={currentSlide === first}
               className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
             >
               {copy.back}
             </button>
           ) : null}
-          {last ? (
-            <FinishTakeButton onClick={onFinish} className="h-12 flex-1 rounded-2xl text-[15px]" />
-          ) : (
+          {last ? null : (
             <button
               type="button"
               onClick={press(currentSlide + 1)}
@@ -251,6 +244,7 @@ export default function RecordingRoadmap({
             </button>
           )}
         </div>
+        {composer}
       </div>
     </>
   );

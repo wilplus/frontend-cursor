@@ -286,9 +286,20 @@ function appendIdempotencyKey(form: FormData, input: LabUploadInput): void {
   form.append("upload_idempotency_key", input.uploadIdempotencyKey);
 }
 
+/** The name the Take's audio goes up under. The backend stores it by this
+ *  name's extension (and serves it by its type), so the iPhone app's m4a
+ *  (backend N655, N662) goes up as `lab.m4a`; everything else, the web
+ *  recorder's WebM included, keeps `lab.webm` as before. */
+export function labAudioName(audio: Blob): string {
+  return audio.type.toLowerCase().startsWith("audio/mp4") ? "lab.m4a" : "lab.webm";
+}
+
+/** The website route's body ceiling (Vercel, about 4.5 MB). */
+const BFF_BODY_LIMIT_BYTES = 4_400_000;
+
 function buildLabUploadForm(input: LabUploadInput): FormData {
   const form = new FormData();
-  form.append("audio_file", input.audioBlob, "lab.webm");
+  form.append("audio_file", input.audioBlob, labAudioName(input.audioBlob));
   form.append("topic", input.topic);
   appendPresentFields(form, [["audience", input.audience]]);
 
@@ -332,6 +343,7 @@ async function postLabUpload(
   form: FormData,
   headers: Record<string, string>,
   signal?: AbortSignal,
+  audioBytes = 0,
 ): Promise<Response> {
   const post = (url: string) =>
     fetch(url, {
@@ -358,6 +370,11 @@ async function postLabUpload(
     // the very take the speaker just threw away — through the second URL,
     // where nothing is listening for the abort. Rethrow instead.
     if (signal?.aborted) throw error;
+    // TOO LARGE FOR THE WEBSITE ROUTE (backend N662): it would answer 413,
+    // which the device copy reads as a refusal for good and deletes the
+    // Take. Stay a connection failure instead: the copy is kept and sent
+    // again through the Worker once it can be reached (N556).
+    if (audioBytes > BFF_BODY_LIMIT_BYTES) throw error;
     return post("/api/v2/lab/recordings");
   }
 }
@@ -615,7 +632,7 @@ export async function submitLabRecording(
 
   let response: Response;
   try {
-    response = await postLabUpload(form, headers, signal);
+    response = await postLabUpload(form, headers, signal, input.audioBlob.size);
   } catch {
     // READ THE SIGNAL, not the exception. Browsers disagree about what an
     // aborted fetch rejects with (AbortError vs a DOMException vs a plain

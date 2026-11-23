@@ -22,7 +22,7 @@ export type ChipAction =
   | "start_first_recording";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
-  trainings: "Your presentations",
+  trainings: "Your projects",
   audit: "Open audit",
   create_new_project: "Create new project",
   replace_pdf: "Replace PDF",

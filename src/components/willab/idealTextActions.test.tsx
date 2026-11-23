@@ -13,8 +13,11 @@ OUTCOME
       community shape with sending off). A choice kept on the phone from
       before is dropped, never applied. Nobody in my list: no line. A read
       that does not answer still records within 1.5 s.
+  O3  Both rehearsal choices follow the active UI language and invoke their
+      own action, while the served readiness label and its dot stay intact.
 PROVES   O1 -> "is ● Record Take N and a grey Close, the one way out"
          O2 -> "records at once with nothing sent, whatever was chosen before; its line is Only me"
+         O3 -> "as a Polish-speaking user, I can choose either rehearsal scope in my UI language"
 WHY      Founder lock 2026-10-12, sections 4 and 9; locked Ideal Text screen.
          O2: founder 2026-11-10, backend N626 ("I don't want to send it to
          others now"; "Nothing by default"), replacing the remembered
@@ -49,6 +52,7 @@ vi.mock("./LoungeThreadContext", () => ({
 }));
 
 import IdealTextActions from "./IdealTextActions";
+import UiLocaleProvider from "@/components/ui/UiLocaleProvider";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 
 let root: Root;
@@ -99,17 +103,36 @@ describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps delivery status out of the Ideal Text action area", () => {
+  it("offers rehearse and continue side by side with the fragment readiness", () => {
     render({
       practiceDecision: {
-        continueLabel: "Continue practice",
-        onContinue: vi.fn(),
-        onRepeat: vi.fn(),
+        deliveryLabel: "Almost",
+        onFragment: vi.fn(),
+        onWholePresentation: vi.fn(),
       },
     });
-    expect(host.querySelector("[data-practice-status]")).toBeNull();
-    expect(host.textContent).not.toContain("Not yet there");
-    expect(labels()).toEqual(["Continue practice", "Repeat this fragment"]);
+    const decision = host.querySelector("[data-practice-decision]")!;
+    expect(labels()).toEqual(["Repeat this fragment", "Rehearse whole presentation"]);
+    expect(decision.querySelector("[data-practice-status]")?.textContent).toContain("Almost");
+  });
+
+  it("as a Polish-speaking user, I can choose either rehearsal scope in my UI language", () => {
+    const onFragment = vi.fn();
+    const onWholePresentation = vi.fn();
+    act(() => root.render(createElement(UiLocaleProvider, { initialLocale: "pl" },
+      createElement(IdealTextActions, {
+        ...BASE,
+        practiceDecision: { deliveryLabel: "Almost", onFragment, onWholePresentation },
+      }),
+    )));
+    expect(labels()).toEqual(["Powtórz ten fragment", "Przećwicz całą prezentację"]);
+    act(() => buttons()[0].click());
+    expect(onFragment).toHaveBeenCalledTimes(1);
+    expect(onWholePresentation).not.toHaveBeenCalled();
+    act(() => buttons()[1].click());
+    expect(onWholePresentation).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("[data-practice-status]")?.textContent).toBe("Almost");
+    expect(host.querySelector("[data-practice-status] span")?.getAttribute("style")).toContain("background-color");
   });
 });
 

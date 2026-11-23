@@ -27,6 +27,7 @@ const harness = vi.hoisted(() => ({
   visible: [] as LoungeMessage[],
   reloadGate: null as Promise<void> | null,
   reads: 0,
+  owner: "user-a",
   query: vi.fn(),
   willQuestion: vi.fn(),
   thread: null as ReturnType<typeof import("./useLoungeThread").useLoungeThread> | null,
@@ -38,7 +39,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "token") }));
-vi.mock("./useUserId", () => ({ useUserId: () => "user-a" }));
+vi.mock("./useUserId", () => ({ useUserId: () => harness.owner }));
 vi.mock("./useSignedIn", () => ({ useSignedIn: () => true }));
 vi.mock("@/services/api/chatQuery", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -48,10 +49,17 @@ vi.mock("@/services/api/willQuestion", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   postWillQuestion: (...args: unknown[]) => harness.willQuestion(...args),
 }));
+// The lounge warms these after boot. Left real, the Ideal Text walk is still
+// loading when this file's environment is torn down, and Vitest fails the run
+// even though every test passed.
+vi.mock("./IdealTextOverlay", () => ({ default: () => null }));
+vi.mock("./walk/WalkOverlay", () => ({ default: () => null }));
+vi.mock("@/components/life/LifeChatLayer", () => ({ LifeChatCard: () => null }));
 
 import Lounge from "./Lounge";
 import { LoungeThreadProvider, useLoungeThreadCtx } from "./LoungeThreadContext";
 import { setOpenPlace } from "./chats/loungePlace";
+import { writeExploreArc } from "@/lib/willab/exploreArc";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -126,10 +134,12 @@ beforeEach(() => {
   harness.visible = [];
   harness.reloadGate = null;
   harness.reads = 0;
+  harness.owner = "user-a";
   harness.thread = null;
   harness.query.mockReset();
   harness.willQuestion.mockReset().mockResolvedValue(true);
   localStorage.clear();
+  sessionStorage.clear();
   setOpenPlace("speaking");
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -165,9 +175,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderLounge(): Promise<HTMLTextAreaElement> {
+async function renderLounge(signedIn = true): Promise<HTMLTextAreaElement> {
   await act(async () => root.render(
-    <LoungeThreadProvider signedIn>
+    <LoungeThreadProvider signedIn={signedIn}>
       <ThreadProbe />
       <Lounge state={"lounge_idle" as never} onStart={() => undefined} dispatch={() => undefined} />
     </LoungeThreadProvider>,
@@ -183,6 +193,150 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("typed answer in the main Will/Lounge chat", () => {
+  it("retries the guest's local write after refresh without generating the answer again", async () => {
+    const { LOUNGE_LOCAL_KEY, readLocalLoungeThread } = await import("@/lib/funnel/loungeLocalThread");
+    const original = Storage.prototype.setItem;
+    let refuse = true;
+    const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (refuse && key === LOUNGE_LOCAL_KEY && value.includes("Start at the opening.")) {
+        throw new Error("Storage full");
+      }
+      original.call(this, key, value);
+    });
+    try {
+      harness.query.mockResolvedValue({ answer: "Start at the opening." });
+      const field = await renderLounge(false);
+      enter(field, "Where do I start?");
+      send(field);
+      await flush();
+      expect(readLocalLoungeThread().map((m) => m.role)).toEqual(["user"]);
+      expect(host.querySelector("[data-chat-turn-error]")).toBeTruthy();
+      act(() => root.unmount());
+      root = createRoot(host);
+      refuse = false;
+      await renderLounge(false);
+      act(() => host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!.click());
+      await flush();
+      expect(readLocalLoungeThread().map((m) => m.role)).toEqual(["user", "bot"]);
+      expect(ownWords("Where do I start?")).toHaveLength(1);
+      expect(harness.query).toHaveBeenCalledTimes(1);
+      expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    } finally {
+      storage.mockRestore();
+    }
+  });
+
+  it("keeps the original scoped HTTP turn through failure and remount, and reconciles an early server reply once", async () => {
+    const projectWord = { ...QUESTION, body: "A project answer", metadata: {
+      projectId: "arc-a", typed_project_turn: true, will_question_step: "reply", private_detail: "off wire",
+    } };
+    const otherProject = { ...projectWord, client_id: "b", body: "Other project", metadata: {
+      project_id: "arc-b", typed_project_turn: true, will_question_step: "reply",
+    } };
+    harness.rows = [projectWord, otherProject];
+    const api = await vi.importActual<typeof import("@/services/api/chatQuery")>("@/services/api/chatQuery");
+    harness.query.mockImplementation(api.postChatQuery);
+    const requests: { history: unknown[]; client_id: string; client_created_at: string }[] = [];
+    const first = deferred<Response>();
+    const retry = deferred<Response>();
+    const original = globalThis.fetch;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).endsWith("/chat/query")) return original(input, init);
+      requests.push(JSON.parse(String(init?.body)));
+      return requests.length === 1 ? first.promise : retry.promise;
+    });
+    const field = await renderLounge();
+    const words = "What changed in my opening?";
+    enter(field, "  " + words + "  ");
+    send(field);
+    await flush();
+    expect(requests[0]).toMatchObject({ question: words, place: "speaking", persist: true, history_source: "screen" });
+    expect(requests[0].history).toEqual([
+      { role: "assistant", content: "A project answer", metadata: { arc_id: "arc-a" } },
+      { role: "assistant", content: "Other project", metadata: { arc_id: "arc-b" } },
+    ]);
+    await act(async () => harness.thread!.reload());
+    expect(ownWords(words)).toHaveLength(1);
+    await act(async () => first.resolve(new Response("{}", { status: 504 })));
+    expect(host.querySelector("[data-chat-turn-error] button")).toBeTruthy();
+    expect(harness.appended.filter((m) => m.role === "bot")).toHaveLength(0);
+
+    // The first server page still has neither half of the turn. A fresh
+    // provider and composer have only tab storage to recover it from.
+    act(() => root.unmount());
+    root = createRoot(host);
+    harness.owner = "another-speaker";
+    await renderLounge();
+    expect(ownWords(words)).toHaveLength(0);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    harness.owner = "user-a";
+    await renderLounge();
+    expect(ownWords(words)).toHaveLength(1);
+    const button = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    act(() => { button.click(); button.click(); });
+    await flush();
+    expect(requests).toEqual([requests[0], requests[0]]);
+
+    const user = harness.appended.find((m) => m.client_id === requests[0].client_id)!;
+    const bot = { ...user, client_id: "stored-bot", role: "bot" as const, body: "Your opening is clearer.",
+      metadata: { place: "speaking", reply_to_client_id: user.client_id } };
+    harness.rows.push(user, bot);
+    await act(async () => harness.thread!.reload());
+    await act(async () => retry.resolve(Response.json({
+      answer: bot.body, persisted: true, persisted_client_id: bot.client_id,
+    })));
+    expect(harness.visible.filter((m) => m.client_id === bot.client_id)).toHaveLength(1);
+    act(() => root.unmount());
+    root = createRoot(host);
+    await renderLounge();
+    expect(ownWords(words)).toHaveLength(1);
+    expect(host.textContent?.split(bot.body)).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    expect(requests).toHaveLength(2);
+  });
+
+  it("settles a send interrupted by navigation from the server row without resending it", async () => {
+    harness.rows = [];
+    const request = deferred<never>();
+    harness.query.mockReturnValue(request.promise);
+    const field = await renderLounge();
+    enter(field, "Keep this turn");
+    send(field);
+    await flush();
+    const user = harness.appended[0]!;
+    act(() => root.unmount());
+    await act(async () => request.reject(new Error("lost response")));
+    harness.rows = [user, { ...user, client_id: "reply", role: "bot", body: "Here it is.",
+      metadata: { reply_to_client_id: user.client_id, place: "speaking" } }];
+    root = createRoot(host);
+    await renderLounge();
+    expect(ownWords(user.body)).toHaveLength(1);
+    expect(host.textContent?.split("Here it is.")).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    expect(harness.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an acknowledged reply through a stale first page and removes the receipt on the server echo", async () => {
+    harness.rows = [];
+    harness.query.mockResolvedValue({ persisted: true, persisted_client_id: "ack", answer: "A clear opening." });
+    const field = await renderLounge();
+    enter(field, "How was it?");
+    send(field);
+    await flush();
+    act(() => root.unmount());
+    root = createRoot(host);
+    await renderLounge();
+    expect(ownWords("How was it?")).toHaveLength(1);
+    expect(host.textContent?.split("A clear opening.")).toHaveLength(2);
+    expect(host.querySelector("[data-chat-turn-error]")).toBeNull();
+    const user = harness.appended[0]!;
+    harness.rows = [user, { ...user, id: "database-row", client_id: "ack", role: "bot", body: "A clear opening." }];
+    await act(async () => harness.thread!.reload());
+    expect(host.textContent?.split("A clear opening.")).toHaveLength(2);
+    expect(Object.keys(sessionStorage).filter((key) => key.startsWith("willab.chat.pending"))).toEqual([]);
+    expect(harness.query).toHaveBeenCalledTimes(1);
+  });
+
   it("renders a tapped option immediately and reconciles it with the backend row once", async () => {
     const request = deferred<boolean>();
     harness.willQuestion.mockImplementation(async () => {
@@ -275,7 +429,8 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
 
     expect(ownWords("The leadership team needs to decide")).toHaveLength(1);
-    expect(field.disabled).toBe(true);
+    expect(field.disabled).toBe(false);
+    expect(field.form?.getAttribute("aria-busy")).toBe("true");
     expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
     const query = harness.query.mock.calls[0]![0] as {
       clientId: string;
@@ -286,7 +441,7 @@ describe("typed answer in the main Will/Lounge chat", () => {
       sessionId: "take-a",
       place: "speaking",
       persist: true,
-      history: [{ role: "assistant", content: "Who needs to act on this?" }],
+      history: [{ role: "assistant", metadata: { arc_id: "arc-a" }, content: "Who needs to act on this?" }],
     }));
     const optimistic = harness.appended.find((message) => message.role === "user")!;
     expect(query.clientId).toBe(optimistic.client_id);
@@ -389,7 +544,7 @@ describe("typed answer in the main Will/Lounge chat", () => {
       (node) => node.textContent === "Yes, actually—we did spot a pattern.",
     )!;
     expect(Boolean(own.compareDocumentPosition(reply) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    expect(host.textContent).toContain("Your presentations");
+    expect(host.textContent).toContain("Your projects");
     expect(thread.scrollTop).toBe(1_600);
     expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(0);
 
@@ -409,6 +564,41 @@ describe("typed answer in the main Will/Lounge chat", () => {
     await flush();
     expect(ownWords("did you spot any patterns?")).toHaveLength(1);
     expect(host.textContent).toContain("Yes, actually—we did spot a pattern.");
+  });
+
+  it("shows free-form Speaking-coach words immediately even when a project is current", async () => {
+    harness.rows = [];
+    writeExploreArc("user-a", "arc-current", 2);
+    const request = deferred<{ answer: string; persisted: boolean }>();
+    harness.query.mockReturnValue(request.promise);
+    const field = await renderLounge();
+    const thread = host.querySelector("[data-thread]") as HTMLDivElement;
+    const metrics = scrollMetrics(thread);
+    thread.scrollTop = 0;
+
+    enter(field, "Hi");
+    send(field);
+    await flush();
+
+    expect(ownWords("Hi")).toHaveLength(1);
+    expect(thread.scrollTop).toBe(1_200);
+    expect(host.querySelectorAll("[data-typing-dots]")).toHaveLength(1);
+    const optimistic = harness.appended.find(
+      (message) => message.role === "user" && message.body === "Hi",
+    )!;
+    expect(optimistic.metadata).toEqual(expect.objectContaining({ place: "speaking" }));
+    expect(optimistic.metadata).not.toHaveProperty("arc_id");
+
+    thread.scrollTop = 0;
+    metrics.setHeight(1_600);
+    await act(async () => request.resolve({
+      answer: "Hi! What would you like to practise?",
+      persisted: true,
+    }));
+    await flush();
+    expect(host.textContent).toContain("Hi! What would you like to practise?");
+    expect(ownWords("Hi")).toHaveLength(1);
+    expect(thread.scrollTop).toBe(1_600);
   });
 
   it("does not replay an old terminal walk line as the answer to a new message", async () => {

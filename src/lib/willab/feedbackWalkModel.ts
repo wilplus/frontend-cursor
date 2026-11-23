@@ -24,8 +24,8 @@ import type { PraiseReason } from "@/lib/willab/praiseReason";
 import { clearerPieces, type ClearerPieces } from "./clearerPieces";
 import { phraseSelection, type PhraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import { planForWalk } from "./chatBuilder/runtime";
 import {
-  buildWalkPlan,
   stepForMoment,
   walkMomentGroups,
   walkMoments,
@@ -412,10 +412,12 @@ export function buildFeedbackWalk<R = unknown>(input: {
   /** The One thing walk judges one other speaker's moment: from Take 2
    *  (N309 item 2). */
   judge?: boolean;
+  /** A published coach document. Absent, or refused, is today's plan. */
+  coach?: import("./chatBuilder/types").CoachDefinition | null;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
-  const plan = buildWalkPlan({
+  const plan = planForWalk(input.coach, {
     // A rewrite the walk cannot draw is no Clearer version to the plan
     // either, so the fix falls to its voice (`voiceToo`, backend N548) or to
     // none, never to a Clearer version screen the walk then drops (4.4).
@@ -482,7 +484,11 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
  *  open ones). A step the plan has is opened on itself; anything else opens
  *  on the moment's action step (what it asks or asked, its praise just
  *  above). Null when this walk has no step for it. */
-export type WalkStepTarget = { step?: string | null; moment?: number | null; take?: string | null; part?: string | null };
+export type WalkStepTarget = {
+  step?: string | null; moment?: number | null; take?: string | null; part?: string | null;
+  practise?: boolean;
+  snippet?: string | null;
+};
 export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
   if (!target) return null;
   const byPart = (s: WalkStep) => s.moment != null && model.moments[s.moment]?.partId === target.part;
