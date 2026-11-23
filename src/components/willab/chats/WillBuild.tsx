@@ -25,6 +25,7 @@ import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
 import Experiments from "./experiments/AiDoor";
+import BuilderSubchats from "./BuilderSubchats";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -138,7 +139,9 @@ function PartHistory({ onClose }: { onClose: () => void }) {
   return null;
 }
 
-export default function WillBuild({ onBack }: { onBack: () => void }) {
+type SaveBuiltChat = (doc: import("@/lib/willab/chatBuilder/types").CoachDefinition) => Promise<boolean>;
+
+export default function WillBuild({ onBack, onSaveChat }: { onBack: () => void; onSaveChat?: SaveBuiltChat }) {
   const setup = useKnownSetup();
   // Opened, one's chat is Live when there is something to try, else Build
   // (backend N642 item 3).
@@ -195,6 +198,7 @@ export default function WillBuild({ onBack }: { onBack: () => void }) {
       name={name}
       tools={tools}
       onBack={onBack}
+      onSaveChat={onSaveChat}
       headerBack={headerBack}
       coachDoc={draft.doc}
       recipe={recipe}
@@ -253,6 +257,7 @@ function BuildScreen(p: {
   name: string;
   tools: ReactNode;
   onBack: () => void;
+  onSaveChat?: SaveBuiltChat;
   headerBack: () => void;
   coachDoc: import("@/lib/willab/chatBuilder/types").CoachDefinition | null;
   recipe: HostRecipe | null;
@@ -341,16 +346,27 @@ function BuildDesk({ p, top, doc }: {
   top: ReactNode;
   doc: import("@/lib/willab/chatBuilder/types").CoachDefinition | null;
 }) {
+  const [saveFailed, setSaveFailed] = useState(false);
+  const saveChat = (definition: NonNullable<typeof doc>) => {
+    if (!p.onSaveChat) return;
+    void p.onSaveChat(definition).then((ok) => setSaveFailed(!ok));
+  };
   return (
     <Cover>
       {p.rowOpen ? null : top}
       {p.rowOpen ? <PartHistory onClose={p.closePart} /> : null}
+      {saveFailed && doc ? <button type="button" className="min-h-11 px-4 text-left text-sm underline" onClick={() => saveChat(doc)}>Retry saving chat</button> : null}
       <div className={p.active ? "hidden" : `no-scrollbar flex min-h-0 flex-1 flex-col ${p.talk ? "overflow-hidden" : "overflow-y-auto"}`}>
         {p.talk ? (
           <TalkBuild
             onList={() => { p.setTalk(false); if (p.local) p.setTable(true); }}
             onTry={() => p.setVisitor(true)}
-            onReady={() => { p.setTalk(false); p.setTable(true); }}
+            onReady={() => {
+              p.setTalk(false);
+              p.setTable(true);
+              const saved = readTalkDefinition();
+              if (saved) saveChat(saved);
+            }}
           />
         ) : (
           <>
@@ -359,6 +375,7 @@ function BuildDesk({ p, top, doc }: {
               source={p.table && !p.setup?.recipe ? p.local : null}
               onPart={(part) => p.openPart(part.part)}
             />
+            {p.table && <BuilderSubchats />}
             {p.table ? (
               <button type="button" data-looks-right="" className="mx-4 mb-4 min-h-11 rounded-full bg-primary px-4 text-[16px] font-medium text-primary-foreground" onClick={() => { markTileStep("settings", true); p.setTable(false); p.setVisitor(true); }}>Looks right</button>
             ) : null}

@@ -15,6 +15,7 @@ import { readTalkDraft } from "@/lib/willab/chatBuilder/talkDraft";
 import { readOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { fileTooBig, visitorKind } from "@/lib/willab/chatBuilder/replyPrompt";
 import { audioTooBig, audioTooLong, readWav } from "@/lib/willab/chatBuilder/voiceMeasures";
+import { fetchBuiltChatTurns, keepBuiltChatTurn, type BuiltChatTurn } from "@/services/api/chatStructure";
 
 /* The chat as a visitor meets it on the shared link. A send uses the
    server when it answers, and the chat's own words when it does not. */
@@ -44,29 +45,63 @@ function localReply(doc: CoachDefinition, kind: "text" | "rec"): string[] {
   return [line, extra].filter((item): item is string => Boolean(item && item.trim()));
 }
 
-export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
+export default function VisitorTry({ name, doc, sends, onBack, onWorks, section }: {
   name: string;
   doc: CoachDefinition;
   sends: SendKind[];
   onBack: () => void;
   /** The host says the test is done. */
   onWorks?: () => void;
+  section?: { id: string; question?: string; owner: string };
 }) {
-  const hello = doc.chat.hello;
-  const taps = doc.chat.taps;
+  const hello = section?.question ?? doc.chat.hello;
+  const taps = section?.question ? [] : doc.chat.taps;
+  const sectionId = section?.id;
+  const pendingKey = section ? `willab:builder-turn:${section.owner}:${section.id}` : null;
   const [lines, setLines] = useState<Bubble[]>(hello ? [{ who: "them", text: hello }] : []);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [pair, setPair] = useState<{ ask: string; answer: string } | null>(null);
+  const [unsaved, setUnsaved] = useState<BuiltChatTurn | null>(null);
+  const [historyReady, setHistoryReady] = useState(!section);
+  const [historyFailed, setHistoryFailed] = useState(false);
+  const [retryRead, setRetryRead] = useState(0);
+  const pendingSend = useRef(false);
   useEffect(() => {
+    if (!sectionId || !pendingKey) return;
+    let active = true;
+    void fetchBuiltChatTurns(sectionId).then((turns) => {
+      if (!active) return;
+      setHistoryFailed(!turns);
+      setHistoryReady(Boolean(turns));
+      if (!turns) return;
+      let pending: BuiltChatTurn | null = null;
+      try { pending = JSON.parse(sessionStorage.getItem(pendingKey) ?? "null"); } catch { /* private window */ }
+      if (pending && turns.some((turn) => turn.client_id === pending?.client_id)) {
+        try { sessionStorage.removeItem(pendingKey); } catch { /* private window */ }
+        pending = null;
+      }
+      setUnsaved(pending);
+      setLines([
+        ...(hello ? [{ who: "them" as const, text: hello }] : []),
+        ...(pending ? [...turns, pending] : turns).flatMap((turn): Bubble[] =>
+          [{ who: "me", text: turn.question }, { who: "them", text: turn.answer }]),
+      ]);
+    }).catch(() => { if (active) setHistoryFailed(true); });
+    return () => { active = false; };
+  }, [sectionId, pendingKey, hello, retryRead]);
+  useEffect(() => {
+    if (sectionId) return;
     let live = true;
     void askReply(readOwnChat().id || "your-chat", { text: "hello", kind: "text" }).then((remote) => {
       if (live && !remote) setNote(W.voiceOff);
     });
     return () => { live = false; };
-  }, []);
+  }, [sectionId]);
   const replyLines = async (words: string, kind: "text" | "rec", extra?: Record<string, unknown>): Promise<Bubble[]> => {
-    const remote = await askReply(readOwnChat().id || "your-chat", { text: words, kind, ...extra });
+    const remote = await askReply(readOwnChat().id || "your-chat", {
+      text: words, kind, ...extra, ...(sectionId ? { section_id: sectionId } : {}),
+    });
     const seen = visitorKind(remote);
     if (seen === "reply" && remote?.shown && remote.walk?.length && !remote.held) {
       return remote.walk.map((beat) => ({ who: "them" as const, text: beat.text, at: beat.at }));
@@ -82,19 +117,42 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
     if (text) return [{ who: "them", text }];
     return localReply(doc, kind).map((line) => ({ who: "them", text: line }));
   };
+  const save = async (receipt: BuiltChatTurn) => {
+    if (!sectionId || !pendingKey) return;
+    if (!await keepBuiltChatTurn(sectionId, receipt).catch(() => false)) {
+      setUnsaved(receipt);
+      return;
+    }
+    try { sessionStorage.removeItem(pendingKey); } catch { /* private window */ }
+    setUnsaved(null);
+  };
+  const keep = async (question: string, reply: Bubble[]) => {
+    if (!pendingKey) return;
+    const answer = reply.map((bubble) => bubble.text).join("\n\n");
+    if (!answer) return;
+    const receipt = { client_id: globalThis.crypto.randomUUID(), question, answer };
+    try { sessionStorage.setItem(pendingKey, JSON.stringify(receipt)); } catch { /* private window */ }
+    await save(receipt);
+  };
   const say = async (text: string, kind: "text" | "rec") => {
     const words = text.trim();
-    if (!words || busy) return;
+    if (!words || busy || pendingSend.current || unsaved || !historyReady) return;
+    pendingSend.current = true;
     markTileStep("test", true);
     setLines((was) => [...was, { who: "me", text: words }]);
     setBusy(true);
-    const reply = await replyLines(words, kind);
-    setLines((was) => [...was, ...reply]);
-    setPair({ ask: words, answer: reply.map((line) => line.text).join(" ") });
-    setBusy(false);
+    try {
+      const reply = await replyLines(words, kind);
+      setLines((was) => [...was, ...reply]);
+      setPair({ ask: words, answer: reply.map((line) => line.text).join(" ") });
+      await keep(words, reply);
+    } finally {
+      pendingSend.current = false;
+      setBusy(false);
+    }
   };
   const sendFile = async (file: File, fileKind: "photo" | "file") => {
-    if (busy) return;
+    if (busy || unsaved || !historyReady) return;
     markTileStep("test", true);
     if (fileTooBig(fileKind, file.size)) {
       setLines((was) => [...was, { who: "me", text: file.name }, { who: "them", text: W.fileTooBig }]);
@@ -112,6 +170,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
     }
     const reply = await replyLines(file.name, "text", { kind: fileKind, data, mime: file.type, name: file.name });
     setLines((was) => [...was, ...reply]);
+    await keep(file.name, reply);
     setBusy(false);
   };
   const sound = useRef<HTMLAudioElement | null>(null);
@@ -136,6 +195,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
     setBusy(true);
     const reply = await replyLines("A recording", "rec", { kind: "rec", data, mime: blob.type || "audio/webm", name: "talk.webm" });
     setLines((was) => [...was, ...reply]);
+    await keep("A recording", reply);
     setBusy(false);
   };
   const clip = useRef<MediaRecorder | null>(null);
@@ -174,6 +234,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
     <div data-visitor-try="" className="flex min-h-0 flex-1 flex-col bg-background">
       <TopBar circle={<OwnAvatar id={`visit-${name}`} name={name} size={36} />} title={name} onBack={onBack} />
       <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
+        {historyFailed ? <button type="button" className="self-start underline" onClick={() => setRetryRead((n) => n + 1)}>Try again</button> : null}
         {note ? <p data-voice-note="" className="m-0 text-[15px] text-muted-foreground">{note}</p> : null}
         {lines.map((line, n) => (
           line.at != null ? (
@@ -183,7 +244,8 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
           )
         ))}
       </div>
-      {taps.length || onWorks ? (
+      {unsaved ? <button type="button" className="min-h-11 self-start px-4 text-sm underline" onClick={() => void save(unsaved)}>Try again</button> : null}
+      {historyReady && (taps.length || onWorks) ? (
         <div className="px-3 pb-1">
           <TapRow
             even
@@ -200,7 +262,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
           />
         </div>
       ) : null}
-      <ChatBarRow>
+      {historyReady && !unsaved ? <ChatBarRow>
         {sends.includes("rec") ? (
           <button type="button" aria-label="Send a recording" data-visitor-rec="" data-recording={live ? "" : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground" onClick={() => void onRec()}>
             <Mic className="h-5 w-5" aria-hidden />
@@ -221,7 +283,7 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks }: {
         {sends.includes("text") ? (
           <BarBox hint={W.message(name)} open grow onSend={async (words) => { await say(words, "text"); return true; }} />
         ) : null}
-      </ChatBarRow>
+      </ChatBarRow> : null}
     </div>
   );
 }

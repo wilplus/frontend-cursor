@@ -20,7 +20,11 @@ import {
 import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
 import { takeLoungeHistory } from "@/services/api/bootPrefetch";
 import { markChatBootSettled } from "@/lib/chatBoot";
-import { clearPendingChatTurns } from "@/lib/willab/chatTurnOutbox";
+import { clearPendingChatConversation, clearPendingChatTurns } from "@/lib/willab/chatTurnOutbox";
+
+function isSpeakingChatText(message: LoungeMessage): boolean {
+  return message.kind === "text" && message.metadata?.place === "speaking" && !message.metadata?.arc_id;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  useLoungeThread — the willab Lounge's persistent chat history (§3/§11)    */
@@ -377,6 +381,21 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;
   }, [signedIn, withKept]);
+
+  useEffect(() => {
+    if (!signedIn || !owner) return;
+    const onDeleted = () => {
+      clearPendingChatConversation(owner, JSON.stringify(["lounge", "speaking", null]));
+      for (const [id, item] of keptRef.current) {
+        if (isSpeakingChatText(item.message)) keptRef.current.delete(id);
+      }
+      lastPage.current = startRead();
+      setMessages((current) => current.filter((message) => !isSpeakingChatText(message)));
+      void reload().catch(() => undefined);
+    };
+    window.addEventListener("willab:speaking-chat-deleted", onDeleted);
+    return () => window.removeEventListener("willab:speaking-chat-deleted", onDeleted);
+  }, [owner, signedIn, reload]);
 
   // The guest's chat was merged into this account after the thread loaded
   // (GuestProjectClaim): read it again so the Take's bubbles show now.

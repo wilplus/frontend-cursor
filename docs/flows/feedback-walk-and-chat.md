@@ -81,6 +81,16 @@ personality or challenge/threat state from voice alone (N663).
 
 ## 1. The rules
 
+### Speaking Coach projects and Take review (N666)
+
+The existing Speaking Coach row opens the general conversation. Its chevron independently reveals owned projects. Each project opens its conversation directly. The general conversation shows the latest project update and can open the same project conversation and recorder with the project selected. General advice and project questions keep their own history.
+
+A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. Accepted interventions add runs to the selected Take. The Takes list and each Take's run history can be collapsed.
+
+Feedback, Practise, and Ideal text have equal buttons and open one step at a time for that Take. Feedback plays the picked recording moment. Practise opens its optional activity and offers another try on repeat. Ask coach carries the project, Take and available slide or moment back to the project conversation. A retry keeps the same turn identity and scope through reload. The project chat shows either a message input or a recording action in its bottom bar.
+
+Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
+
 ### A · After a Take
 
 - **A1** While the Take processes, the waiting screen stays on screen. Once

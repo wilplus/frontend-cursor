@@ -41,6 +41,12 @@ the surface is mounted inside the desktop canvas.
 
 ## 1. The rules
 
+### Ideal text in Take review (N666)
+
+Ideal text is the third step of the selected Take's review. It opens under the shared page header with the slide images, readable text, and orange helper words. Each slide can send a question to the same Take's project conversation. The conversation keeps a link back to the slide.
+
+Current text uses the existing versioned edit flow. A historical Take's annotations and text edits are saved on that Take. Closing and reopening the review brings back saved edits.
+
 The whole-document editor mounts in RootLayout's content slot above the
 global footer, outside the project canvas. Its shared header lays out Back,
 the complete title/subtitle and the canonical X in one row. Save, Back, X,

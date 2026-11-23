@@ -524,6 +524,7 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
+  projectUpdate,
   onStartPlanRecording,
   dispatch,
   initialBestPresentationArcId = null,
@@ -548,6 +549,7 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
+  projectUpdate?: ReactNode;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
    *  with the topic filled in from the voice message, no feelings check; or,
    *  on a first-Take plan, the five questions at once (backend N401), and
@@ -2368,6 +2370,7 @@ export default function Lounge({
             return withHostRows(i, drawShown(item, i));
           })
         )}
+        <PlaceOnly place={place} in={["speaking"]}>{projectUpdate}</PlaceOnly>
         {/* A host's chat's own messages after its newest Take (N648 item 8). */}
         {hostRowsAfter()}
 

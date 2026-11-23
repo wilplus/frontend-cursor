@@ -45,6 +45,25 @@ const state = vi.hoisted(() => ({
   willQuestion: vi.fn(),
 }));
 const trainingApi = vi.hoisted(() => ({ fetchTrainings: vi.fn() }));
+const reviewApi = vi.hoisted(() => ({
+  idealText: vi.fn(),
+  revisions: vi.fn(),
+  notes: vi.fn(),
+  runs: vi.fn(),
+}));
+vi.mock("@/services/api/idealText", async (load) => ({
+  ...await load<typeof import("@/services/api/idealText")>(),
+  fetchIdealText: reviewApi.idealText,
+}));
+vi.mock("@/services/api/blockVariants", async (load) => ({
+  ...await load<typeof import("@/services/api/blockVariants")>(),
+  fetchIdealTextRevisions: reviewApi.revisions,
+}));
+vi.mock("@/services/api/takeReview", () => ({
+  readReviewCopy: reviewApi.notes,
+  saveReviewCopy: vi.fn(),
+  readReviewRuns: reviewApi.runs,
+}));
 const arcSetup = vi.hoisted(() => ({
   fetch: vi.fn(async () => ({ slides: [{ title: "Opening", body: "" }, { title: "Close", body: "" }] })),
 }));
@@ -169,7 +188,7 @@ beforeEach(() => {
   state.willQuestion.mockReset().mockResolvedValue(true);
   state.appendRecoverable.mockReset().mockImplementation((draft: LoungeMessageDraft) => {
     const stamped = stampLoungeMessage(draft, newestStamp(state.messages));
-    state.messages = [...state.messages, stamped];
+    state.messages = [...state.messages.filter((row) => row.client_id !== stamped.client_id), stamped];
     const stored = Promise.resolve(true);
     return { message: stamped, stored, retry: () => stored };
   });
@@ -261,6 +280,80 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("project conversation", () => {
+  it("reopens the selected Take and retries an anchored review question once after reload", async () => {
+    const twoTakes = {
+      ...project,
+      takeCount: 2,
+      takes: [...project.takes, { ...project.takes[0], sessionId: "take-b", takeIndex: 2 }],
+      practiceCoverage: { practised: 2, total: 8, unit: "slides" as const },
+    };
+    reviewApi.notes.mockResolvedValue({ revision: 0, document: {} });
+    reviewApi.runs.mockResolvedValue({ "take-a": [{ id: "run", at: "2026-11-23T10:00:00.000Z", kind: "tempo" }] });
+    reviewApi.revisions.mockResolvedValue({ kind: "ready", revisions: [{
+      takeIndex: 1, revision: 1, text: "An early decision.", slides: [0], presentationRef: null,
+      helperWords: [{ slideIndex: 0, phrases: ["decision"] }],
+    }] });
+    reviewApi.idealText.mockResolvedValue({
+      kind: "single", latestTakeSessionId: "take-b", ideal: { text: "The newest words.", keyMoments: [] },
+      suggestions: [{
+        takeSessionId: "take-a", walkSlot: "weakest", snippetId: "segment-a",
+        quote: "The older moment.", rewriteMove: "Pause here.", evidence: { slideIndex: 0 },
+      }],
+    });
+    state.chatQuery.mockRejectedValueOnce(new Error("connection dropped")).mockResolvedValueOnce({
+      answer: "Pause before the last sentence.", persisted: true, persisted_client_id: "matched-answer",
+      row_metadata: { arc_id: "arc-a", take_session_id: "take-a", review_focus: { step: "ideal", slide_index: 0 } },
+    });
+    const click = async (container: ParentNode, label: string) => {
+      const button = [...container.querySelectorAll("button")].find((item) => item.textContent?.trim() === label);
+      expect(button).toBeDefined();
+      await act(async () => button!.click());
+    };
+
+    render(twoTakes);
+    await flush();
+    const bubble = host.querySelector("[data-take-review-message]")!;
+    expect(bubble.textContent).toContain("2 of 8 slides");
+    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    expect(host.querySelector("[data-project-question-composer]")).toBeNull();
+    await click(bubble, "2 Takes · 1 practice run");
+    await click(bubble, "Take 1 · 1 practice run");
+    await click(bubble, "Feedback");
+    let review = host.querySelector("[data-take-review]")!;
+    expect(review.textContent).toContain("The older moment.");
+    await click(review, "Practise");
+    expect(review.getAttribute("data-review-step")).toBe("practise");
+    expect(review.textContent).toContain("Practised before");
+    await click(review, "Ideal text");
+    expect(review.textContent).toContain("An early decision.");
+    expect(review.textContent).not.toContain("The newest words.");
+    await click(review, "Ask coach");
+    expect(host.querySelector("[data-project-record]")).toBeNull();
+    enterAnswer("How should I open this slide?");
+    submitAnswer();
+    await flush();
+    const sent = state.chatQuery.mock.calls[0][0];
+    expect(sent).toMatchObject({
+      projectId: "arc-a", sessionId: "take-a", historySource: "screen",
+      presentationContext: { review_focus: { step: "ideal", slide_index: 0 } },
+    });
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    render(twoTakes);
+    await flush();
+    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    expect(retry).not.toBeNull();
+    await act(async () => retry.click());
+    expect(state.chatQuery.mock.calls[1][0]).toEqual(sent);
+    expect(state.messages.filter((row) => row.client_id === sent.clientId)).toHaveLength(1);
+    expect(state.messages.filter((row) => row.client_id === "matched-answer")).toHaveLength(1);
+    await click(host, "Take 1 · Slide 1 · Back to review");
+    review = host.querySelector("[data-take-review]")!;
+    expect(review.getAttribute("data-review-step")).toBe("ideal");
+    expect(review.textContent).toContain("An early decision.");
+  });
+
   it("keeps contextual follow-ups available after the setup questions finish", async () => {
     state.chatQuery.mockResolvedValue({
       answer: "Try returning to the decision from your opening.",
@@ -269,6 +362,9 @@ describe("project conversation", () => {
     });
     render();
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    const askCoach = [...host.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Ask coach")!;
+    act(() => askCoach.click());
+    expect(host.querySelector("[data-project-record]")).toBeNull();
     enterAnswer("How should I finish this talk?");
     submitAnswer();
     await flush();

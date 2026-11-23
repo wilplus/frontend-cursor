@@ -1177,6 +1177,7 @@ export function useDeckFeedbackWalk(args: {
   }, [persistedWalkState]);
   // What the closing summary hears (lock 2026-10-12, section 3).
   const heardRef = useRef<WalkHeard>({ practice: null, words: [] });
+  const tempoRunId = useRef<string | null>(null);
   const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
     hear(heardRef.current, entry.key, entry.author, entry.body);
     const { thread: to, take: on, arcId } = threadRef.current;
@@ -1219,7 +1220,10 @@ export function useDeckFeedbackWalk(args: {
         const opening = tempoOpening(tempo, one);
         say("tempo:open", "app", [...opening.lines, ...(opening.withScale ? [opening.withScale] : [])].join("\n"), null, words ? { fix_tip: (tempo.reading === "slow" ? ONE_THING_COPY.slowTip : ONE_THING_COPY.paceTip)(words.text) } : undefined);
       } else if (event.kind === "try") {
-        say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, { path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000) });
+        say("tempo:try", "speaker", TEMPO_COPY.tryLabel(event.n), event.n, {
+          path: event.path.slice(0, 300).map((v) => Math.round(v * 1000) / 1000),
+          ...(tempoRunId.current ? { practice_run_id: tempoRunId.current } : {}),
+        });
         // The Sniper as the One thing walk's fix says its own words (N309).
         const lines = one ? oneThingTempoLines(event.landed, event.n, tryCopy(publishedCoach)) : afterTry(event.result, event.landed, event.n);
         say("tempo:comment", "app", lines.join("\n"), event.n);
@@ -1476,6 +1480,25 @@ export function useDeckFeedbackWalk(args: {
     return true;
   }, []);
 
+  const openPickedPractice = useCallback((target: WalkStepTarget): boolean => {
+    const source = liveAll ?? model;
+    const actions = new Set(["tempo", "clearer", "exVideo", "practise", "processing", "improved", "encourage", "thanks", "late"]);
+    const matches = (step: WalkStep) => !target.snippet || (
+      step.key === "tempo" ? tempo?.snippetId === target.snippet
+        : step.moment != null && source.moments[step.moment]?.clip?.snippetId === target.snippet
+    );
+    const first = source.plan.find((step) => actions.has(step.key) && matches(step));
+    if (!first) return false;
+    const steps = source.plan.filter((step) => actions.has(step.key) && (
+      first.key === "tempo" ? step.key === "tempo" : step.key !== "tempo" && step.moment === first.moment
+    ));
+    tempoRunId.current = first.key === "tempo" ? globalThis.crypto.randomUUID() : null;
+    setReplaying({ ...source, scroll: false, plan: [
+      { key: "page", overlay: false }, ...steps, { key: "end", overlay: false },
+    ] });
+    return openAt(1, true);
+  }, [liveAll, model, tempo, openAt]);
+
   const coachSeenRef = useRef(coachSeen);
   coachSeenRef.current = coachSeen;
   // A Lounge bubble of another Take: this page holds the latest Take's
@@ -1504,6 +1527,8 @@ export function useDeckFeedbackWalk(args: {
   }, [walkCompleted, replayReady, buildWhole, ownAnswers, openAt, waitsOn]);
   const review = useCallback((target?: WalkStepTarget | null, from: "chat" | "page" = "chat"): boolean => {
     if (otherTake(target)) return true;
+    if (target?.practise) return openPickedPractice(target);
+    tempoRunId.current = null;
     setReplaying(null);
     const lens = from === "chat";
     // THE COACH'S DOOR (founder 2026-10-21, WIL-93: "ok do it"): the coach's
@@ -1562,7 +1587,7 @@ export function useDeckFeedbackWalk(args: {
     }
     setReplaying(model);
     return openAt(liveAt ?? walkStart(model), false, lens);
-  }, [model, walkCompleted, practiceWasDeferred, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, liveAll, waitsOn, ownAnswers, threadEnd, openLeftToDo]);
+  }, [model, walkCompleted, practiceWasDeferred, coachOnly, openAt, otherTake, replayReady, buildReplay, buildWhole, liveAll, waitsOn, ownAnswers, threadEnd, openLeftToDo, openPickedPractice]);
 
   const openPart = useCallback((partId: string): boolean => review({ part: partId }, "page"), [review]);
 
