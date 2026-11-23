@@ -1,3 +1,4 @@
+import { noteSwipeBack } from "@/lib/phone/swipeBack";
 import { useEffect, useRef } from "react";
 
 /* -------------------------------------------------------------------------- */
@@ -39,6 +40,15 @@ import { useEffect, useRef } from "react";
 /** Module-level LIFO of mounted overlay dismissers (tokens). The top entry is
  *  the visually-top overlay — the only one allowed to act on a popstate. */
 const dismissStack: symbol[] = [];
+/** The overlays that use Back for their own steps (an onBack handler): the
+ *  iPhone's edge swipe stays off while one of them is on top (N681). */
+const stepsOnBack = new Set<symbol>();
+
+/** Tells the app whether its edge swipe may go back (backend N681 item 2). */
+function noteTop(): void {
+  const top = dismissStack[dismissStack.length - 1];
+  noteSwipeBack({ topClosesOnBack: top !== undefined && !stepsOnBack.has(top) });
+}
 
 /** How many throwaway entries this module currently has on the history stack.
  *  Needed because a HAND-OFF can leave more than one outstanding (see the
@@ -55,6 +65,8 @@ export function backDismissDepth(): number {
 function removeFromStack(token: symbol): void {
   const i = dismissStack.lastIndexOf(token);
   if (i >= 0) dismissStack.splice(i, 1);
+  stepsOnBack.delete(token);
+  noteTop();
 }
 
 export function useBackDismiss(
@@ -79,6 +91,8 @@ export function useBackDismiss(
     if (typeof window === "undefined") return;
     const token = Symbol("backDismiss");
     dismissStack.push(token);
+    if (onBackRef.current) stepsOnBack.add(token);
+    noteTop();
     // True once a Back/swipe (popstate) has already popped an entry for us. The
     // unmount cleanup must then NOT call back() again — a second pop would walk
     // PAST /chat (e.g. to /login, which can sit in the stack).
