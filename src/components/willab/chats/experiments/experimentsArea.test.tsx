@@ -11,7 +11,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import AiDoor from "./AiDoor";
 import Experiments from "./Experiments";
-import { readInterventions, resetExperimentStore } from "@/services/api/experiments";
+import { readInterventions, readTakes, resetExperimentStore } from "@/services/api/experiments";
 import { loadPromptFile } from "@/lib/willab/experiments/promptsYaml";
 import { leaksHiddenWord, optionLabel } from "@/lib/willab/experiments/words";
 import promptText from "@/lib/willab/experiments/prompts_v1.yaml?raw";
@@ -46,6 +46,7 @@ describe("the experiment screens", () => {
     await flush();
   };
   const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
+  const promptId = () => container.querySelector("[data-prompt-id]")?.getAttribute("data-prompt-id");
   const question = async (words: string) => {
     const input = container.querySelector<HTMLInputElement>("[data-experiment-composer] input");
     if (!input?.form) throw new Error("missing question box");
@@ -89,21 +90,32 @@ describe("the experiment screens", () => {
     await act(async () => {
       root.render(createElement(Experiments, { onBindBack: (fn) => { back = fn; } }));
     });
+    expect(container.querySelector("[data-exp-go='session']")?.textContent).toContain("Preview five questions");
     await click("[data-exp-go='session']");
-    expect(container.querySelector("[data-ai-disclosure]")?.textContent).toContain("does not name a feeling");
-    await question("I agree");
+    expect(container.textContent).toContain("uses sample readings");
+    await question("Where is the Record button?");
     expect(screen()).toBe("consent");
-    expect(lastReply()).toContain("That choice tells me what you allow.");
+    expect(lastReply()).toContain("shared test chat");
     await click("[data-pair='consent'] [data-choice='yes']");
-    await click("[data-pair='page'] [data-choice='no']");
     expect(screen()).toBe("baseline");
+    expect(container.textContent).toContain("Preview · 1 of 5");
     expect(container.querySelector("[data-prompt-text]")?.textContent).toBe(file.prompts[0].text);
+    expect(container.querySelector("[data-pair='said'] [data-choice='yes']")?.textContent).toBe("Use sample answer");
 
-    const c5 = file.prompts.findIndex((prompt) => prompt.id === "c5");
-    for (let i = 0; i < c5; i += 1) await click("[data-pair='said'] [data-choice='no']");
+    await click("[data-pair='said'] [data-choice='yes']");
+    await click("[data-pair='energy'] [data-choice='low']");
+    await click("[data-pair='feeling'] [data-choice='tense']");
+    await click("[data-pair='save'] [data-choice='yes']");
+    expect(screen()).toBe("baseline");
+    expect(readTakes()).toMatchObject([{ prompt_id: "b1", audio_name: null, analysis: null }]);
+    for (const id of ["b2", "b3", "p1"]) {
+      expect(promptId()).toBe(id);
+      await click("[data-pair='said'] [data-choice='no']");
+    }
     expect(screen()).toBe("take");
-    expect(container.querySelector("[data-prompt-id]")?.getAttribute("data-prompt-id")).toBe("c5");
-    expect(container.querySelector("[data-prompt-text]")?.textContent).toBe(file.prompts[c5].text);
+    expect(promptId()).toBe("c1");
+    expect(container.textContent).toContain("Preview · 5 of 5");
+    expect(container.querySelector("[data-prompt-text]")?.textContent).toBe(file.prompts.find((item) => item.id === "c1")?.text);
     expect(container.querySelector("[data-special]")).toBeNull();
 
     await click("[data-pair='said'] [data-choice='yes']");
@@ -111,14 +123,14 @@ describe("the experiment screens", () => {
     expect([...container.querySelectorAll("[data-pair='feeling'] button")].map((button) => button.getAttribute("data-choice"))).toEqual([...file.self_report.feeling]);
     await click("[data-pair='energy'] [data-choice='low']");
     await click("[data-pair='feeling'] [data-choice='tense']");
-    expect(container.querySelector("[data-prompt-text]")?.textContent).toContain("Policz na głos");
     await click("[data-pair='save'] [data-choice='yes']");
     await flush();
     expect(screen()).toBe("reading");
-    expect(container.textContent).toContain("Reading your take");
+    expect(container.textContent).toContain("Loading sample feedback");
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1200)); });
     expect(screen()).toBe("analysis");
     const reading = container.querySelector("[data-experiments]")?.textContent ?? "";
+    expect(reading).toContain("Sample feedback");
     expect(leaksHiddenWord(reading)).toBeNull();
     expect(reading).toContain("vs your baseline");
     expect(reading).toContain("vs the reference");
@@ -135,13 +147,18 @@ describe("the experiment screens", () => {
     await click("[data-pair='mode'] [data-choice='rules']");
     expect(screen()).toBe("rules");
 
-    for (let i = 0; i < 6 && screen() !== "menu"; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       await act(async () => { back?.(); });
       await flush();
     }
+    expect(screen()).toBe("analysis");
+    await click("[data-pair='next'] [data-choice='no']");
+    expect(screen()).toBe("preview-complete");
+    await click("[data-exp-screen='preview-complete'] button");
     expect(screen()).toBe("menu");
     await click("[data-exp-go='library']");
     expect(container.querySelector("[data-prompt-text]")?.textContent).toBe(file.prompts[0].text);
+    expect(container.textContent).toContain("1 of 14");
     await act(async () => { back?.(); });
     await flush();
     await click("[data-pair='pages'] [data-choice='yes']");

@@ -15,6 +15,26 @@ const steps = {
     more: "Start a session to go through the questions in order. Open a sample reading to see what the experiment measures, or Practice rules to see how those measurements turn into a suggestion.",
     next: "Tap what you want to open. Use Next page to see more choices.",
   },
+  "preview-start": {
+    about: "The five-question preview shows the order of the pilot and uses sample readings.",
+    next: "Tap Open preview to see the first question.",
+  },
+  "preview-question": {
+    about: "This is a sample question. The Record button is in the shared test chat after a participant agrees to take part.",
+    next: "Tap Use sample answer to see the ratings, or Skip this one to move on.",
+  },
+  "preview-rating": {
+    about: "The sample ratings show where a participant would describe their energy and how they felt.",
+    next: "Pick one option for each, then tap Continue.",
+  },
+  "preview-reading": {
+    about: "The preview uses a sample reading to show what feedback looks like.",
+    next: "The example will open in a moment.",
+  },
+  "preview-complete": {
+    about: "The pilot uses three calm questions, one positive question, and one challenging question.",
+    next: "Tap Done to return to Experiments.",
+  },
   consent: {
     about: "This step asks permission to use your answer in the experiment.",
     next: "Tap I agree to start, or Not now to leave. That choice tells me what you allow.",
@@ -98,6 +118,11 @@ const topics = [
     terms: /\b(private|privacy|consent|permission|who (can|sees|gets)|data|sharing)\b/i,
     short: "You choose whether to join the experiment and whether to allow a researcher copy.",
     more: "Read the permission step before starting. In Your data, choose who the copy is for. Use Delete my data to remove your experiment sessions.",
+  },
+  {
+    terms: /\b(record\w*|microphone|audio|who (receives|is invited)|whom|send it|sent to)\b/i,
+    short: "A person who joins the shared test chat can opt in and record. Their feedback stays in their private experiment session.",
+    more: "The host shares the invite and chooses the two comparison questions. Each participant records their own answers after agreeing to take part, and sees their own results.",
   },
   {
     terms: /\b(threshold|minimum|stricter|looser|how close|match(ing)? score)\b/i,
