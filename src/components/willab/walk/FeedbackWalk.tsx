@@ -14,7 +14,7 @@ import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import { PLAN_COPY } from "@/lib/willab/planCopy";
 import WalkPlayer from "./WalkPlayer";
-import WalkFooter from "./WalkFooter";
+import WalkFooter, { WalkMic } from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
 import { practiseThreadFooter, practiseThreadItem, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkQuote, type WalkQuoteIO, type WalkQuotes } from "./useWalkQuote";
@@ -331,7 +331,7 @@ const RECORDER = new Set(["practise", "processing"]);
 
 /** The dock holds a recorder: a practise's, or the tempo step's own. */
 const recorderDocked = (thread: HTMLElement | null) =>
-  thread?.querySelector("[data-walk-dock] [data-walk-recording-strip]") != null;
+  thread?.querySelector("[data-walk-dock] [data-chat-capture]") != null;
 
 /** One part of the thread: a step reached, by its place in the plan. */
 type ThreadPart = { key: string; at: number };
@@ -1508,10 +1508,9 @@ function OneClearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   ) : practiseOff ? (
     <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }} />
   ) : (
-    <WalkFooter
-      dot
-      pill={{ label: ONE_THING_COPY.tryIt, onClick: () => ctx.accept(step, moment), testId: "walk-forward" }}
-      links={[{ label: ONE_THING_COPY.keepMine, onClick: () => ctx.keep(step, moment), testId: "walk-keep" }]}
+    <WalkMic
+      action={{ label: ONE_THING_COPY.tryIt, onClick: () => ctx.accept(step, moment), testId: "walk-forward" }}
+      secondary={{ label: ONE_THING_COPY.keepMine, onClick: () => ctx.keep(step, moment), testId: "walk-keep" }}
     />
   );
   return (
@@ -1999,15 +1998,14 @@ function ThreadFooter<R>({ ctx, step }: { ctx: ScreenCtx<R>; step: WalkStep }) {
       return <WalkFooter pill={{ label: COPY.pagerNext, onClick: on, testId: "walk-forward" }} />;
     }
     return (
-      <WalkFooter
-        dot
-        pill={{ label: ONE_THING_COPY.tryIt, onClick: practise, testId: "walk-practise" }}
-        links={[{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }]}
+      <WalkMic
+        action={{ label: ONE_THING_COPY.tryIt, onClick: practise, testId: "walk-practise" }}
+        secondary={{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }}
       />
     );
   }
   const label = tries === 0 ? WALK_COPY.exercisePractise : COPY.pillPractiseAgain;
-  return <WalkFooter dot outline pill={{ label, onClick: practise, testId: "walk-practise" }} />;
+  return <WalkMic action={{ label, onClick: practise, testId: "walk-practise" }} />;
 }
 
 /** No video fits this problem: the AI clip in the video's place (N71), the

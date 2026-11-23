@@ -539,7 +539,7 @@ describe("the walk on the deck", () => {
     function NextRecording() {
       const { roots } = useRecordingRoots({ arcId, initArc: null, takeIndex: 3, signedIn: true, entering: true });
       return <RecordingRoadmap slides={[...DEFAULT_DECK]} presentationRef={null} currentSlide={1}
-        roots={roots} onSlideChange={() => undefined} strip={null} onFinish={() => undefined} />;
+        roots={roots} onSlideChange={() => undefined} composer={null} />;
     }
     await act(async () => root.render(<NextRecording />));
     expect(container.textContent).toContain("mówić jasno");
@@ -923,6 +923,27 @@ describe("the One thing walk on the deck (founder 2026-10-31, N309)", () => {
       .map(([draft]) => (draft as { metadata: Record<string, unknown> }).metadata)
       .find((m) => m.step === "tempo:open");
     expect(ONE_THING_COPY.lastTime(tipSaid(String(opening?.fix_tip)))).toBe("Last time: keep “retention went up, churn went down” moving. You did.");
+  });
+
+  it("opens the picked Sniper as a live activity even after the Take was reviewed", async () => {
+    const append = vi.fn(async (draft: unknown) => draft);
+    chat.thread = { loading: false, append, reload: vi.fn(async () => undefined), messages: [
+      { client_id: "earlier-try", kind: "walk_step", role: "user", body: "Try 1", metadata: { step: "tempo:try", take_session_id: "take-2" } },
+      { client_id: "finished", kind: "walk_step", role: "bot", body: "", metadata: { step: "end", take_session_id: "take-2" } },
+    ] };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).includes("/review/tempo/take-2")
+      ? new Response(JSON.stringify({ tempo: {
+        reading: "rushed", topic: "that part", slide_index: 1, snippet_id: "picked",
+        said: { before: "", stretch: "retention went up, churn went down", after: "" },
+      } }), { status: 200, headers: { "Content-Type": "application/json" } })
+      : new Response("{}", { status: 404 })));
+    const p = props({ suggestions: [{ ...best, oneFix: "tempo" } as DocumentSuggestion],
+      reviewAt: { practise: true, take: "take-2", snippet: "picked" } });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-tempo");
+    expect(live()!.querySelector("[data-testid='walk-tempo-ready']")).not.toBeNull();
+    expect(live()!.querySelector("[data-testid='walk-tempo-skip']")).not.toBeNull();
   });
 
   it("a Sniper opened, then left with ✕ before a try, is played live from a door while the Take still waits (B10, T)", async () => {

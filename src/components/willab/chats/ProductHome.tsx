@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
-import { Archive, Pencil, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText, uiTextWith, type UiLocale } from "@/lib/uiLocale";
 import type { TrainingArc } from "@/services/api/trainings";
@@ -19,7 +19,11 @@ import ProjectRowMenu, { type RowMenuAction } from "../ProjectRowMenu";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { OWN_CHAT_EVENT, ownChatTitle, readOwnChat, rememberOwnName, startOwnChat } from "@/lib/willab/chatBuilder/ownChat";
 import { W } from "./hostsetup/hostSetupCopy";
-import { readTalkDraft, TALK_DRAFT_EVENT } from "@/lib/willab/chatBuilder/talkDraft";
+import { clearTalkDraft, readTalkDraft, TALK_DRAFT_EVENT } from "@/lib/willab/chatBuilder/talkDraft";
+import type { ChangeStructure, ChatStructure, Subchat } from "@/services/api/chatStructure";
+import { useChatStructure } from "./useChatStructure";
+import { subchatActions } from "./BuilderSubchats";
+import { subscribeToProjectTrainings } from "@/lib/willab/projectTrainings";
 
 /* -------------------------------------------------------------------------- */
 /*  The speaking-coach home. The old people-chat list still reads its backend  */
@@ -40,19 +44,26 @@ export default function ProductHome({
   onOpenProject,
   onStartNewProject,
   onOpenOwnChat,
+  onOpenOwnSection,
   knownProjects,
+  onProjects,
 }: {
   onOpenSpeaking: () => void;
   onOpenProject: (project: TrainingArc) => void;
   onStartNewProject: () => void;
   /** Yes on the info sheet opens Build. */
   onOpenOwnChat?: () => void;
+  onOpenOwnSection?: (name: string, section: Subchat | "main") => void;
   /** A page that already has the project list. Absent: read it. */
   knownProjects?: TrainingArc[];
+  onProjects?: (projects: TrainingArc[]) => void;
 }) {
   const locale = useUiLocale();
   const [projects, setProjects] = useState<TrainingArc[]>(knownProjects ?? []);
   const [status, setStatus] = useState<Status>(knownProjects ? "ready" : "loading");
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const projectsId = useId();
+  const { layout, change } = useChatStructure();
   const [attempt, setAttempt] = useState(0);
   const [sheet, setSheet] = useState(false);
   const [own, setOwn] = useState(readOwnChat());
@@ -87,13 +98,22 @@ export default function ProductHome({
       setProjects(list.filter((project) => !project.archived));
       setStatus("ready");
     });
+    const unsubscribe = subscribeToProjectTrainings((list) => {
+      active = false;
+      setProjects(list.filter((project) => !project.archived));
+      setStatus("ready");
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [attempt, knownProjects]);
+  useEffect(() => { onProjects?.(projects); }, [onProjects, projects]);
 
-  const title = ownChatTitle();
-  const confirm = () => {
+  const title = layout?.published_chat?.name || ownChatTitle();
+  const showOwn = (own.started || layout?.published_chat) && (!layout || layout.builder === "active");
+  const confirm = async () => {
+    if (layout?.builder === "deleted" && !await change({ action: "restore", section: "builder" })) return;
     startOwnChat();
     setSheet(false);
     onOpenOwnChat?.();
@@ -102,22 +122,28 @@ export default function ProductHome({
     <div data-product-home className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         <div className={`${WILLAB_CONTENT_RAIL} flex flex-col px-[15px] pb-6 pt-2`}>
-          {own.started ? (
-            <HomeRow
-              id="own-chat"
-              title={title}
-              pinned
-              circle={<OwnAvatar id="own-chat" name={title} size={48} />}
-              onOpen={() => onOpenOwnChat?.()}
-            />
-          ) : null}
+          {showOwn ? <BuilderChatGroup title={title} layout={layout} change={change}
+            onEdit={onOpenOwnChat} onOpenSection={onOpenOwnSection} /> : null}
+          {!layout || layout.coach === "active" ? <>
           <HomeRow
             id="speaking-coach"
             title={uiText(locale, "speakingCoach")}
             circle={<WillMark size={48} />}
+            actions={status !== "ready" || projects.length ? (
+              <button
+                type="button"
+                aria-label={uiText(locale, projectsOpen ? "hideProjects" : "showProjects")}
+                aria-controls={projectsId}
+                aria-expanded={projectsOpen}
+                onClick={() => setProjectsOpen((open) => !open)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+              >
+                <ChevronDown aria-hidden className={`h-4 w-4 ${projectsOpen ? "" : "-rotate-90"}`} />
+              </button>
+            ) : null}
             onOpen={onOpenSpeaking}
           />
-          <div data-product-projects className="min-h-[56px]">
+          <div id={projectsId} hidden={!projectsOpen} data-product-projects className="min-h-[56px]">
             {status === "loading" ? (
               <ProjectsLoading locale={locale} />
             ) : status === "error" ? (
@@ -152,7 +178,13 @@ export default function ProductHome({
               ))
             )}
           </div>
-          {own.started ? null : (
+          </> : layout.coach === "deleted" ? (
+            <HomeRow id="new-speaking-coach" title="Start a new Speaking coach chat"
+              circle={<WillMark size={48} />} onOpen={() => void change({ action: "restore", section: "coach" })
+                .then((ok) => { if (ok) { setStatus("loading"); setAttempt((n) => n + 1); onOpenSpeaking(); } })} />
+          ) : null}
+          <ArchivedChats layout={layout} title={title} coachTitle={uiText(locale, "speakingCoach")} change={change} />
+          {showOwn || layout?.builder === "archived" ? null : (
             <HomeRow
               id="start-own-chat"
               title={uiText(locale, "startOwnChat")}
@@ -335,6 +367,67 @@ function ProjectCircle({ project }: { project: Pick<TrainingArc, "arcId" | "cove
       <span className="pointer-events-none absolute inset-0 bg-black/[0.06]" />
     </span>
   );
+}
+
+function ArchivedChats({ layout, title, coachTitle, change }: {
+  layout: ChatStructure | null; title: string; coachTitle: string; change: (action: ChangeStructure) => Promise<boolean>;
+}) {
+  if (!layout) return null;
+  const children = layout.builder === "active" ? layout.subchats.filter((item) => item.archived) : [];
+  if (layout.coach !== "archived" && layout.builder !== "archived" && children.length === 0) return null;
+  const restore = (section: string) => void change({ action: "restore", section });
+  return <details className="py-2 text-sm">
+    <summary className="min-h-10 cursor-pointer">Archived chats</summary>
+    {layout.coach === "archived" ? <HomeRow id="archived-speaking" title={coachTitle}
+      circle={<WillMark size={48} />} onOpen={() => restore("coach")} subtitle="Restore" /> : null}
+    {layout.builder === "archived" ? <HomeRow id="archived-own" title={title}
+      circle={<OwnAvatar id="own-chat" name={title} size={48} />} onOpen={() => restore("builder")} subtitle="Restore" /> : null}
+    {children.map((child) => <HomeRow key={child.id} id={child.id} title={child.title} subtitle="Restore"
+      actions={<ProjectRowMenu label={child.title} actions={subchatActions(child, change)} />}
+      onOpen={() => restore(child.id)} />)}
+  </details>;
+}
+
+function BuilderChatGroup({ title, layout, change, onEdit, onOpenSection }: {
+  title: string; layout: ChatStructure | null; change: (action: ChangeStructure) => Promise<boolean>;
+  onEdit?: () => void; onOpenSection?: (name: string, section: Subchat | "main") => void;
+}) {
+  const groupId = useId();
+  const [expanded, setExpanded] = useState(true);
+  const children = layout?.subchats.filter((item) => !item.archived) ?? [];
+  const openMain = () => {
+    if (layout && (layout.published_chat || readTalkDraft()?.ready || children.length) && onOpenSection) {
+      onOpenSection(title, "main");
+    } else onEdit?.();
+  };
+  const actions: RowMenuAction[] = [
+    { label: "Edit", icon: Pencil, onRun: async () => { onEdit?.(); return true; } },
+    { label: "Archive", icon: Archive, onRun: () => change({ action: "archive", section: "builder" }) },
+    { label: "Delete", icon: Trash2, destructive: true,
+      confirm: { title: `Delete ${title}?`, body: "This deletes the main conversation and all of its subchats and saved conversations.", confirmLabel: "Delete" },
+      onRun: async () => {
+        const deleted = await change({ action: "delete", section: "builder" });
+        if (deleted) clearTalkDraft();
+        return deleted;
+      } },
+  ];
+  return <>
+    <HomeRow id="own-chat" title={title} pinned circle={<OwnAvatar id="own-chat" name={title} size={48} />} onOpen={openMain}
+      actions={layout ? <div className="flex items-center">
+        {children.length ? <button type="button" aria-label={expanded ? "Hide subchats" : "Show subchats"}
+          aria-controls={groupId} aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+          <ChevronDown aria-hidden className={`h-4 w-4 ${expanded ? "" : "-rotate-90"}`} />
+        </button> : null}
+        <ProjectRowMenu label={title} actions={actions} />
+      </div> : null} />
+    <div id={groupId} hidden={!expanded}>
+      {children.map((child) => <HomeRow key={child.id} id={child.id} title={child.title}
+        circle={<PersonCircle id={child.id} name={child.title} size={48} />}
+        actions={<ProjectRowMenu label={child.title} actions={subchatActions(child, change)} />}
+        onOpen={() => onOpenSection?.(title, child)} />)}
+    </div>
+  </>;
 }
 
 function HomeRow({

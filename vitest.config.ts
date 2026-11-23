@@ -1,12 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-/**
- * Minimal vitest config. The only thing it adds over the defaults is the
- * `@/` → `src/` path alias (mirrors tsconfig `paths`), so tests can import
- * modules that value-import `@/…` at runtime (type-only `@/` imports were
- * already erased, which is why earlier tests passed without this).
- */
+/** Match source aliases and keep component tests independent of deployed credentials. */
 export default defineConfig({
   // tsconfig says jsx: "preserve" (Next.js compiles JSX itself). Vite's
   // transform honours that and leaves JSX in place, so any component test
@@ -15,6 +10,11 @@ export default defineConfig({
   oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
+    // Use a loopback endpoint for browser auth helpers in component tests.
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon",
+    },
     // DOM/animation suites share CPU with the app. Bound concurrency so a
     // busy workstation cannot starve their effects and five-second budget.
     maxWorkers: 2,

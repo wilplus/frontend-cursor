@@ -48,9 +48,9 @@ describe("the experiment screens", () => {
   const screen = () => container.querySelector("[data-exp-screen]")?.getAttribute("data-exp-screen");
   const promptId = () => container.querySelector("[data-prompt-id]")?.getAttribute("data-prompt-id");
   const question = async (words: string) => {
-    const input = container.querySelector<HTMLInputElement>("[data-experiment-composer] input");
+    const input = container.querySelector<HTMLTextAreaElement>("[data-experiment-composer] [data-chat-input]");
     if (!input?.form) throw new Error("missing question box");
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
     await act(async () => {
       set?.call(input, words);
       input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -99,6 +99,9 @@ describe("the experiment screens", () => {
     await click("[data-pair='consent'] [data-choice='yes']");
     expect(screen()).toBe("baseline");
     expect(container.textContent).toContain("Preview · 1 of 5");
+    expect(container.querySelectorAll("[data-chat-composer]")).toHaveLength(1);
+    expect(container.querySelector("[data-chat-input]")?.hasAttribute("disabled")).toBe(false);
+    expect(container.querySelector("[data-chat-mic]")?.hasAttribute("disabled")).toBe(true);
     expect(container.querySelector("[data-prompt-text]")?.textContent).toBe(file.prompts[0].text);
     expect(container.querySelector("[data-pair='said'] [data-choice='yes']")?.textContent).toBe("Use sample answer");
 

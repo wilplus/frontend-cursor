@@ -1,5 +1,7 @@
 # Day report
 
+> Historical layout audit. The [shared composer](../flows/feedback-walk-and-chat.md#shared-composer-n667) defines the current bottom bar.
+
 > **Label: Reference.** Founder-Approved: Artur, 17 November 2026, document the day. Branch `cursor/chat-builder-phase1-027f`. Not merged. Nothing written to production.
 
 ## This round

@@ -64,3 +64,10 @@ export function clearPendingChatTurns(owner: string) {
   for (const key of fallback.keys()) if (key.startsWith(start)) fallback.delete(key);
   notifyChatTurns();
 }
+
+export function clearPendingChatConversation(owner: string, conversation: string) {
+  const key = chatTurnKey(owner, conversation);
+  try { sessionStorage.removeItem(key); } catch { /* private window */ }
+  fallback.delete(key);
+  notifyChatTurns();
+}

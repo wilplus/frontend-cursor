@@ -34,10 +34,10 @@ async function waitForServer() {
   throw new Error("dev server did not start");
 }
 
-const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox"] });
+const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox", "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] });
 async function run(width, height) {
   const tag = `${width}x${height}`;
-  const context = await browser.newContext({ viewport: { width, height }, permissions: ["clipboard-read", "clipboard-write"] });
+  const context = await browser.newContext({ viewport: { width, height }, permissions: ["clipboard-read", "clipboard-write", "microphone"] });
   await context.route("**/*", (route) => {
     const url = route.request().url();
     if (url.startsWith(base)) return route.continue();
@@ -188,6 +188,10 @@ async function run(width, height) {
   await deadEnd("Test");
   check(`${tag} Test has one top bar`, await bars() === 1);
   await page.locator("[data-visitor-rec]").click();
+  await page.waitForTimeout(500);
+  await page.locator("[data-chat-mic][data-recording]").click();
+  await page.locator("[data-visitor-try] audio").waitFor();
+  await page.locator("[data-visitor-try] [data-chat-send]").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-visitor-line='them']").length > 1);
   check(`${tag} a visitor send gets the chat's reply`, (await page.locator("[data-visitor-try]").innerText()).includes("It notices hedging"));
   await page.locator("[data-visitor-try] button[aria-label='Back']").click();

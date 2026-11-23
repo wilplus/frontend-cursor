@@ -697,7 +697,7 @@ function LiveThread({
     if (!dock) return;
     const read = () => {
       const any = dock.childElementCount > 0;
-      const recording = dock.querySelector("[data-walk-recording-strip]") !== null;
+      const recording = dock.querySelector("[data-chat-capture]") !== null;
       // Only a Skip: a link that leads elsewhere ("Keep mine" records) waits
       // with the step.
       const label = dock.querySelector<HTMLElement>(DOCK_SKIP)?.textContent?.trim() || null;

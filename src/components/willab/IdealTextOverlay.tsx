@@ -189,6 +189,8 @@ export default function IdealTextOverlay({
   projectFlow = false,
   notice = null,
   reviewAt = null,
+  takeReviewEdit = false,
+  onPracticeUnavailable,
   onClose,
   onReadAloud,
 }: {
@@ -200,6 +202,8 @@ export default function IdealTextOverlay({
   };
   /** With "review": the Lounge step tapped, where the walk opens. */
   reviewAt?: WalkStepTarget | null;
+  takeReviewEdit?: boolean;
+  onPracticeUnavailable?: () => void;
   /** W4/W5 — true while a take for this arc is still analysing. While true
    *  the overlay shows its LOADING state instead of fetching (a fetch now
    *  would return LAST take's document and render it as if it were this
@@ -337,7 +341,7 @@ export default function IdealTextOverlay({
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
-  const [editingIdealText, setEditingIdealText] = useState(false);
+  const [editingIdealText, setEditingIdealText] = useState(takeReviewEdit);
   const [exporting, setExporting] = useState(false);
   const [exportChooserOpen, setExportChooserOpen] = useState(false);
   const [exportFormat, setExportFormat] =
@@ -463,6 +467,11 @@ export default function IdealTextOverlay({
       r: Extract<IdealTextResult, { kind: "single" }>,
       markCorePainted: boolean,
     ): boolean => {
+      if (takeReviewEdit && r.latestTakeSessionId !== reviewTake) {
+        setEditingIdealText(false);
+        setStatus("pending");
+        return false;
+      }
       // F2 — a refetch of the Take on screen keeps its bars, coach note and
       // key moments (with any status just decided) until each is replaced.
       const keep = mayCarry(firstLoad, shownTakeRef.current, r.latestTakeSessionId);
@@ -556,7 +565,8 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake, takeRetry, retryFailed]);
+  }, [arcId, analysisPending, refetchNonce, mediaNonce, mediaSettled, coachTake, takeRetry, retryFailed,
+    takeReviewEdit, reviewTake]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -1130,10 +1140,10 @@ export default function IdealTextOverlay({
               showCoachBubble(coachTake ?? null);
               requestExit();
             }}
-            onLensReveal={lens.reveal}
-            onWalkEnd={walkEndFor(coachOnly, requestExit, lens)}
+            onLensReveal={walkRevealFor(lens.reveal, onPracticeUnavailable)}
+            onWalkEnd={walkEndFor(coachOnly, requestExit, lens, reviewAt)}
             onWalkClose={() => {
-              if (lens.onRef.current) requestExit();
+              if (reviewAt?.practise || lens.onRef.current) requestExit();
             }}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
@@ -1337,7 +1347,7 @@ export default function IdealTextOverlay({
         onClose={() => setTimelineOpen(false)}
       />
       <IdealTextEditorLayer
-        open={editingIdealText}
+        open={editorReady(editingIdealText, displayText)}
         initial={displayText}
         onCancel={() => setEditingIdealText(false)}
         onSave={(next) => saveDocument(next)}
@@ -1554,8 +1564,17 @@ function walkEndFor(
   coachOnly: boolean,
   close: () => void,
   lens: { onRef: { current: boolean }; reveal: () => void },
+  target?: WalkStepTarget | null,
 ): () => void {
-  return () => (coachOnly && lens.onRef.current ? close() : lens.reveal());
+  return () => (target?.practise || (coachOnly && lens.onRef.current) ? close() : lens.reveal());
+}
+
+function walkRevealFor(reveal: () => void, onPracticeUnavailable?: () => void): () => void {
+  return onPracticeUnavailable ?? reveal;
+}
+
+function editorReady(editing: boolean, text: string): boolean {
+  return editing && Boolean(text.trim());
 }
 
 // Founder-Approved: source thread 01a1d59c-9be3-7640-b932-b4cbf92ab66e, 2026-11-18; project practice preserves the locked Ideal Text route while the selected Feedback Walk receives its exact Take and range and never falls back to Ideal Text.

@@ -360,9 +360,9 @@ describe("the practise screen", () => {
     expect(now()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
     // While the mic opens: the trash and the strip, no Stop (N350 item 5).
     expect(recorder()!.querySelector("button[aria-label='Throw it away']")).not.toBeNull();
-    expect(recorder()!.querySelector("button[aria-label='Stop']")).toBeNull();
+    expect(recorder()!.querySelector("button[aria-label='Stop']")?.hasAttribute("disabled")).toBe(true);
     act(() => mic.open());
-    expect(recorder()!.querySelector("[data-walk-recording-strip] button[aria-label='Stop']")).not.toBeNull();
+    expect(recorder()!.querySelector("[data-chat-mic][data-recording][aria-label='Stop']")).not.toBeNull();
     answers = ["hang"];
     stop();
     expect(screen()).toBe("walk-screen-processing");
@@ -575,7 +575,7 @@ describe("a try not yet better (founder 2026-10-23, N120)", () => {
     expect(againBubble(spans[0])).toBe(true);
     expect(spans[spans.length - 1]).toBe(AI_CLIP_BANK.AIend[1]);
     expect(live()!.textContent).not.toContain("Not yet. Listen to how you sound");
-    expect(live()!.querySelector("[data-testid='walk-practise']")!.textContent).toBe(COPY.pillPractiseAgain);
+    expect(live()!.querySelector("[data-testid='walk-practise']")!.getAttribute("aria-label")).toBe(COPY.pillPractiseAgain);
     expect(live()!.querySelector("[data-testid='walk-forward']")).toBeNull();
   });
 });
@@ -590,8 +590,8 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
     await settle(150);
     expect(screen()).toBe("walk-screen-exVideo");
     // No tries yet: Practise alone, white with the black stroke and the dot; no Next, no Skip.
-    expect(practisePill()!.dataset.walkPillOutline).toBe("true");
-    expect(practisePill()!.textContent).toBe(WALK_COPY.exercisePractise);
+    expect(practisePill()!.hasAttribute("data-chat-mic")).toBe(true);
+    expect(practisePill()!.getAttribute("aria-label")).toBe(WALK_COPY.exercisePractise);
     expect(nextPill()).toBeNull();
     expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
     // Try 1, not yet: Practise again alone.
@@ -600,7 +600,7 @@ describe("the Exercise screen as one thread (founder 2026-10-16, 2026-10-18)", (
     expect(screen()).toBe("walk-screen-practise");
     await tryAndRead();
     expect(text()).toContain(WALK_COPY.practiseN(1));
-    expect(practisePill()!.textContent).toBe(COPY.pillPractiseAgain);
+    expect(practisePill()!.getAttribute("aria-label")).toBe(COPY.pillPractiseAgain);
     expect(nextPill()).toBeNull();
     // The steps before stay above in the same chat (founder 2026-10-20).
     expect(text()).toContain(PRAISE_ITEM.praiseWords![0]);

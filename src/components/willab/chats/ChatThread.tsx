@@ -12,17 +12,15 @@ import { NOT_NOW } from "@/lib/willab/leaveWords";
 import { PLAN_COPY, fmtDay, fmtShort, isoDay } from "@/lib/willab/planCopy";
 import {
   UNDO_MS,
-  askedBefore,
-  markPlusSeen,
   onAnswerSent,
-  plusSeen,
   sendAgain,
   undoAnswer,
   usePendingAnswer,
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
-import AskSheet from "./AskSheet";
-import { BarMiddle, BarPlus, ChatBarRow, RECORD_YOUR_ANSWER, ThanksTaps, middleOf, photoWaits, recordInSheet, takesFor, thanksDue, useFilePicker, usePhotoPicker, type Takes } from "./ChatBar";
+import ChatComposer, { type ComposerFileAction } from "./ChatComposer";
+import { RECORD_YOUR_ANSWER, RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, ThanksTaps, composerModes, photoWaits, takesFor, thanksDue, type Takes } from "./ChatBar";
+import { TYPE_YOUR_ANSWER } from "../WillQuestion";
 import { photoForUpload } from "./photoForUpload";
 import {
   answerChatSetup,
@@ -54,7 +52,7 @@ export { TopBar, WillTopBar } from "./TopBar";
 import { fetchChatTake, type ChatTake } from "@/services/api/takeSends";
 import { fmtClock } from "@/components/willab/willabHelpers";
 import { markChatOpened } from "./chatOpened";
-import { SEND_PICKED, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
+import { SEND_PICKED, askName, answersOf, joinedAsks, joinedThanks, joinedYourLink } from "./joinCopy";
 import { MonthGrid } from "../plan/MonthGrid";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
 
@@ -65,7 +63,7 @@ import { clockTime, dayKey, dayLabel } from "./chatTime";
 /*  the circle with the first letter, the name and who they are. Then the     */
 /*  Lounge's own chat design (N301): its grey and orange bubbles, no picture  */
 /*  beside them, each with its time; the messages start at the bottom, by the */
-/*  bar, under the day ("Today"). The locked bar (N610, ./ChatBar.tsx): two   */
+/*  composer, under the day ("Today").                                       */
 /*  places, the "+" on the left, which never moves and opens "Ask {name}"    */
 /*  (a question recorded over the default presentation, N498; "Send a        */
 /*  photo"), and the one thing to do now in the middle: "Ask {name}" while   */
@@ -683,21 +681,6 @@ function SentLine({ children }: { children: ReactNode }) {
   );
 }
 
-/** The plan's black button with the red dot, in the bar's place. */
-export function RecordAnswerButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-chat-record-answer=""
-      className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-full bg-foreground text-[15px] font-medium text-background"
-    >
-      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-      {RECORD_YOUR_ANSWER}
-    </button>
-  );
-}
-
 /** A short sound and, where the device allows it, a small buzz on every
  *  send (backend N368 item 3). Quiet when the browser refuses either. */
 let audio: AudioContext | null = null;
@@ -769,114 +752,53 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   );
 }
 
-/** The bar in a chat with a person (backend N610, ./ChatBar.tsx): the "+"
- *  and the one thing to do now, with the "+"'s sheet. "Send" for several
- *  picked answers (N487) and "Sending to {name}…" (N368) stand in the
- *  middle while they last. Was (N483, N600): the three emoji in the middle,
- *  a small mic on the right in a host's chat. */
+/** The chat recipe controls the actions available in the shared composer. */
 function PeopleBar({
-  chat,
-  takes,
-  legacy,
-  asked,
-  status,
-  fresh,
-  onPlus,
-  onRecordAnswer,
-  onSay,
-  onPhoto,
-  onFile,
+  chat, takes, legacy, asked, status, busy, onRecordAnswer, onSay, onPhoto, onFile,
 }: {
   chat: Chat;
   takes: Takes;
-  /** answer_with, not They send: a taps-only chat still records a question. */
   legacy: boolean;
-  /** What the chat asks of me now. */
-  asked: { question: string | null; slides?: string[]; taps: boolean; photo: boolean };
-  /** What stands in the middle for now: "Send", or "Sending to {name}…". */
+  asked: { question: string | null; slides?: string[]; taps: boolean; photo: string | null };
   status: ReactNode;
-  /** The "+" orange: not tapped yet, nothing asked of you. */
-  fresh: boolean;
-  onPlus: () => void;
+  busy: boolean;
   onRecordAnswer?: (answer: AnswerFor) => void;
-  /** Typed words; `answers`: they answer what the chat asks. */
   onSay: (words: string, answers: boolean) => Promise<boolean>;
-  onPhoto: (photo: File) => void;
-  onFile: (file: File) => void;
+  onPhoto: (photo: File, asked: string | null) => Promise<boolean>;
+  onFile: (file: File) => Promise<boolean>;
 }) {
-  const [sheet, setSheet] = useState(false);
-  const [typing, setTyping] = useState(false);
-  const picker = usePhotoPicker(onPhoto);
-  const files = useFilePicker(onFile);
-  const base = { chatId: chat.id, name: chat.title, customer: chat.kind === "customer" };
-  const middle = middleOf(takes, { answer: asked.question !== null, taps: asked.taps, photo: asked.photo });
-  const answers = middle !== "ask" && middle !== "ask-box";
-  // A chat that takes only typing has no recording in it.
-  const recordQuestion =
-    onRecordAnswer && recordInSheet(takes, legacy)
-      ? () => {
-          // Always the default presentation (N483 item 4).
-          setSheet(false);
-          onRecordAnswer({ ...base, question: "", asks: true });
-        }
-      : undefined;
+  const answering = asked.question !== null;
+  const typedAnswer = answering || asked.taps;
+  const modes = composerModes(takes, { answer: answering, photo: Boolean(asked.photo) }, legacy);
+  const mic = !onRecordAnswer || !modes.mic ? undefined : {
+    label: answering ? RECORD_YOUR_ANSWER : RECORD_YOUR_QUESTION,
+    disabled: busy,
+    attrs: answering ? { "data-chat-record-answer": "" } : { "data-chat-record-question": "" },
+    start: () => onRecordAnswer({
+      chatId: chat.id, name: chat.title, customer: chat.kind === "customer",
+      question: asked.question ?? "", slides: asked.slides, ...(!answering ? { asks: true } : {}),
+    }),
+  };
+  const files: ComposerFileAction[] = [];
+  if (!busy && modes.photo) files.push({
+    label: asked.photo ? "Add a photo" : SEND_A_PHOTO,
+    accept: "image/*",
+    scope: asked.photo ?? chat.id,
+    sendFile: (file) => onPhoto(file, asked.photo),
+  });
+  if (!busy && modes.file) files.push({ label: SEND_A_FILE, sendFile: onFile });
   return (
-    <>
-      <BarPlus
-        fresh={fresh}
-        onClick={() => {
-          onPlus();
-          setSheet(true);
-        }}
-      />
-      {status ?? (
-        <BarMiddle
-          middle={middle}
-          name={chat.title}
-          typing={typing && middle === "record-answer"}
-          onAsk={() => setSheet(true)}
-          onRecordAnswer={() => onRecordAnswer?.({ ...base, question: asked.question ?? "", slides: asked.slides })}
-          onPhoto={picker.pick}
-          onType={(words) => onSay(words, answers)}
-          onTypingDone={() => setTyping(false)}
-        />
-      )}
-      {picker.input}
-      {files.input}
-      {sheet ? (
-        <AskSheet
-          name={chat.title}
-          answers={answers}
-          firstTime={!askedBefore()}
-          onClose={() => setSheet(false)}
-          onRecord={recordQuestion}
-          onType={
-            takes.type && middle === "record-answer"
-              ? () => {
-                  setSheet(false);
-                  setTyping(true);
-                }
-              : undefined
-          }
-          onPhoto={
-            takes.photo
-              ? () => {
-                  setSheet(false);
-                  picker.pick();
-                }
-              : undefined
-          }
-          onFile={
-            takes.file
-              ? () => {
-                  setSheet(false);
-                  files.pick();
-                }
-              : undefined
-          }
-        />
-      ) : null}
-    </>
+    <ChatComposer
+      placeholder={asked.photo ? "Add a photo" : typedAnswer ? TYPE_YOUR_ANSWER : askName(chat.title)}
+      onSend={takes.type ? (words) => onSay(words, typedAnswer && !asked.photo) : undefined}
+      textDisabled={Boolean(asked.photo)}
+      maxLength={2000}
+      voiceRequired={answering && modes.mic && !modes.text}
+      mic={mic}
+      files={files}
+      busy={busy}
+      above={status}
+    />
   );
 }
 
@@ -884,7 +806,7 @@ let localSeq = 0;
 
 /** The link owner's question waiting in this chat (backend N487 item 4):
  *  its answers under the newest message, "Not now" under them (N610 item
- *  4), "Send" for the bar's middle when
+ *  4), "Send" for the composer when
  *  it takes several, and the date sheet for "Yes" to the hurry. A tap
  *  answers at once; what follows comes back and joins the thread. */
 function useSetupQuestion(
@@ -986,8 +908,6 @@ export default function ChatThread({
   const [through, setThrough] = useState<string | null>(null);
   const [joinedAsksFirst, setJoinedAsksFirst] = useState(false);
   const [joinedBy, setJoinedBy] = useState<string | null>(null);
-  // The "+" asks them (N483 item 4): "Ask {name}"; orange until first tapped.
-  const [plusNew, setPlusNew] = useState(() => !plusSeen() && !askedBefore());
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [profile, setProfile] = useState(false);
   // Block and Report (N466): from their profile; blocked, the bar says so.
@@ -1056,9 +976,10 @@ export default function ChatThread({
   // nothing. While the chat asks for one, it answers that question.
   const sendFile = async (file: File) => {
     const sent = await sendChatFile(chat.id, file, file.name);
-    if (!sent) return;
+    if (!sent) return false;
     sendTick();
     setMessages((list) => [...(list ?? []), sent]);
+    return true;
   };
   const sendPhoto = async (photo: File, asked: string | null) => {
     const { blob, name } = await photoForUpload(photo);
@@ -1067,9 +988,10 @@ export default function ChatThread({
       return sent ? [sent] : null;
     };
     const sent = asked ? await answerChatPhoto(chat.id, asked, blob, name) : await one();
-    if (!sent) return;
+    if (!sent) return false;
     sendTick();
     setMessages((list) => [...(list ?? []), ...sent]);
+    return true;
   };
 
   // Their question, their Take, or a photo they ask for: the middle answers,
@@ -1132,33 +1054,23 @@ export default function ChatThread({
           {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
         </div>}
       </div>
-      {/* The locked bar inside (centred, 4px between, 44px tall inside; N483)
-          and 8px around it: above, on each side, below (N505). */}
-      <ChatBarRow>
-        {safety.blocked ? (
-          <BlockedBar name={chat.title} onUnblock={safety.unblock} />
-        ) : (
-          <PeopleBar
-            chat={chat}
-            takes={takes}
-            legacy={legacy}
-            asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo !== null }}
-            status={
-              setup.send ??
-              (pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null)
-            }
-            fresh={plusNew && !pending && !asks}
-            onPlus={() => {
-              markPlusSeen();
-              setPlusNew(false);
-            }}
-            onRecordAnswer={onRecordAnswer}
-            onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
-            onPhoto={(photo) => void sendPhoto(photo, answer.photo)}
-            onFile={(file) => void sendFile(file)}
-          />
-        )}
-      </ChatBarRow>
+      {safety.blocked ? (
+        <ChatComposer textDisabled above={<BlockedBar name={chat.title} onUnblock={safety.unblock} />} />
+      ) : (
+        <PeopleBar
+          key={chat.id}
+          chat={chat}
+          takes={takes}
+          legacy={legacy}
+          asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo }}
+          status={setup.send ?? (pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null)}
+          busy={Boolean(pending || setup.send)}
+          onRecordAnswer={onRecordAnswer}
+          onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
+          onPhoto={sendPhoto}
+          onFile={sendFile}
+        />
+      )}
       {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
       {setup.sheet}
       {toast}

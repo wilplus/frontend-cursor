@@ -61,7 +61,10 @@ export function walkStepDraft(e: WalkThreadEntry): LoungeMessageDraft {
     role: e.author === "speaker" ? "user" : "bot",
     kind: "walk_step",
     body: e.body,
-    clientId: stableUuid([e.take, e.key, e.moment ?? "", e.attempt ?? "", e.author].join("|")),
+    clientId: stableUuid([
+      e.take, e.key, e.moment ?? "", e.attempt ?? "", e.author,
+      ...(typeof e.extra?.practice_run_id === "string" ? [e.extra.practice_run_id] : []),
+    ].join("|")),
     metadata: {
       take_session_id: e.take,
       arc_id: e.arcId,

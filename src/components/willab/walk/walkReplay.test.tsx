@@ -170,7 +170,7 @@ describe("the finished walk, played again", () => {
     expect(live()!.textContent).toContain(WALK_COPY.practiseN(2));
     // A scroll (N259): nothing under the thread, nothing recorded or written.
     expect(noButtons()).toBe(true);
-    expect(live()!.querySelector("[data-walk-recording-strip], [data-testid='walk-stop']")).toBeNull();
+    expect(live()!.querySelector("[data-chat-capture], [data-testid='walk-stop']")).toBeNull();
     expect(calls).toEqual([]);
   });
 

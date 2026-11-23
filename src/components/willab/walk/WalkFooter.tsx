@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import ChatComposer from "../chats/ChatComposer";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkFooter — one black pill, grey links under it, never beside it          */
@@ -45,6 +46,17 @@ export function WalkLink({ action }: { action: WalkAction }) {
     >
       {action.label}
     </button>
+  );
+}
+
+/** Start or retry a spoken exercise from the mic slot. */
+export function WalkMic({ action, secondary }: { action: WalkAction; secondary?: WalkAction }) {
+  return (
+    <ChatComposer
+      voiceRequired
+      mic={{ start: action.onClick, label: action.label, disabled: action.disabled, attrs: { "data-testid": action.testId } }}
+      above={secondary ? <WalkLink action={secondary} /> : null}
+    />
   );
 }
 

@@ -166,7 +166,7 @@ async function makeOwn(teach = true) {
 }
 /** Where the person types: the app's bottom bar in the setup (N647 item 9),
  *  the box in "Test my chat". */
-const field = () => container.querySelector<HTMLInputElement | HTMLTextAreaElement>("[data-chat-box] input, textarea")!;
+const field = () => container.querySelector<HTMLInputElement | HTMLTextAreaElement>("[data-chat-input]")!;
 async function type(words: string) {
   const ta = field();
   const proto = ta instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;

@@ -24,6 +24,9 @@ export type UiCopyKey =
   | "deleteFailed"
   | "tryAgain"
   | "speakingCoach"
+  | "showProjects"
+  | "hideProjects"
+  | "chooseProject"
   | "startOwnChat"
   | "startNewProject"
   | "createNewProject"
@@ -100,6 +103,9 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Couldn't delete. Try again.",
     tryAgain: "Try again",
     speakingCoach: "Speaking coach",
+    showProjects: "Show projects",
+    hideProjects: "Hide projects",
+    chooseProject: "Projects",
     startOwnChat: "Start your own chat",
     startNewProject: "Start a new project",
     createNewProject: "Create new project",
@@ -162,6 +168,9 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     deleteFailed: "Nie udało się usunąć. Spróbuj ponownie.",
     tryAgain: "Spróbuj ponownie",
     speakingCoach: "Trener wystąpień",
+    showProjects: "Pokaż projekty",
+    hideProjects: "Ukryj projekty",
+    chooseProject: "Projekty",
     startNewProject: "Rozpocznij nowy projekt",
     createNewProject: "Utwórz nowy projekt",
     startFirstProject: "Rozpocznij pierwszy projekt",

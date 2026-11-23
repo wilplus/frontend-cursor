@@ -64,7 +64,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Plan, WayInView } from "@/services/api/plan";
-import { WillBarMiddle, dockFor } from "./PlanDock";
+import { willComposerMic, dockFor } from "./PlanDock";
+import ChatComposer from "../chats/ChatComposer";
 import { planRowFor, type PlanRowCtx } from "./PlanRows";
 import { usePlanLounge } from "./usePlanLounge";
 import { WayInTop } from "./WayIn";
@@ -187,17 +188,12 @@ function Chat({ messages, inFlight = false }: { messages: LoungeMessage[]; inFli
         {plan.asks}
       </div>
       {plan.dock}
-      <form data-bar="">
-        {plan.barMiddle ?? (
-          <WillBarMiddle
-            hear={plan.hear}
-            next={{ arcId: "arc-1", takeIndex: 1 }}
-            held={plan.recordWaits}
-            onRecord={() => {}}
-            onFirst={() => {}}
-          />
-        )}
-      </form>
+      <div data-bar="">
+        {plan.barMiddle}
+        <ChatComposer recording={plan.recording} voiceRequired={Boolean(plan.hear)}
+          mic={willComposerMic({ hear: plan.hear, next: { arcId: "arc-1", takeIndex: 1 },
+            held: plan.recordWaits, onRecord: () => {}, onFirst: () => {} })} />
+      </div>
     </>
   );
 }
@@ -297,7 +293,7 @@ it("FT-06: \"That's right\" keeps it; \"Change it\" brings \"Tell me what to cha
   const what = will("Tell me what to change.", { way_in: "profile", plan_ask: "way_in_voice" });
   await show(planWith({ asking: "profile" }), [CARD, will("Change it", { way_in: "profile" }), what]);
   expect(host.querySelector("[data-way-in-ask]")).toBeNull();
-  expect(bar().textContent).toBe("Record your answer");
+  expect(bar().querySelector("[data-chat-mic]")?.getAttribute("aria-label")).toBe("Record your answer");
 });
 
 it("FT-06: others see the card only after \"That's right\": the app keeps nothing itself, the tap goes to the backend", async () => {
@@ -482,8 +478,8 @@ it("WAYIN-N604-1: \"Tell me what you'd like to do, and I'll show you where.\" of
 
 it("WAYIN-N592-4: \"Record Take 2\" stays faded until the walk is done", async () => {
   await show(planWith({ done: ["set", "next"], walk_ready: true }), []);
-  const button = () => bar().querySelector("button") as HTMLButtonElement;
-  expect(button().textContent).toContain("Record Take 2");
+  const button = () => bar().querySelector("[data-chat-mic]") as HTMLButtonElement;
+  expect(button().getAttribute("aria-label")).toBe("Record Take 2");
   expect(button().disabled).toBe(true);
   await show(planWith({ done: ["set", "next"], walk_ready: true, walk_done: true, record_next: true }), []);
   expect(button().disabled).toBe(false);
