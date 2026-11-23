@@ -188,7 +188,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const signUpLine = (
     <p className="text-center text-base sm:text-sm">
       Don&apos;t have an account?{" "}
-      <Link href={signupHref} className="text-orange-500 hover:underline">
+      <Link href={signupHref} className="relative text-orange-500 hover:underline after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']">
         Sign up
       </Link>
     </p>

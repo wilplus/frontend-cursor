@@ -29,7 +29,7 @@ export default function InviteLanding() {
     <div data-invite-landing="" className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
       <Link
         href="/login"
-        className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] px-2 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+        className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] px-2 py-1 text-[14px] after:absolute after:-inset-y-2 after:-inset-x-1 after:content-[''] text-muted-foreground transition-colors hover:text-foreground"
       >
         {INVITE_COPY.signIn}
       </Link>
@@ -64,7 +64,7 @@ export default function InviteLanding() {
         </div>
         <Link
           href={WAITLIST_HREF}
-          className="mt-1 px-2 py-1 text-[13px] text-muted-foreground underline decoration-foreground/30 underline-offset-[3px] hover:text-foreground"
+          className="relative mt-1 px-2 py-1 text-[13px] text-muted-foreground underline after:absolute after:-inset-y-2 after:inset-x-0 after:content-[''] decoration-foreground/30 underline-offset-[3px] hover:text-foreground"
         >
           {INVITE_COPY.joinWaitlist}
         </Link>

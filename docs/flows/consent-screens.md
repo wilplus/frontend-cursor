@@ -416,6 +416,19 @@ the only way in.
   card, because the signed off line says something was deleted; a line for
   them waits for the founder's words (§3).
 
+### In the iPhone app: no footer, 44-point taps (backend N674)
+
+- **No website footer in the app** (item 1). "WillpowerLab 2026 · EN/PL ·
+  About us · Blog · Privacy" is left out inside the iPhone app (the server
+  reads the app's user agent, so it never flashes); on the website it stays.
+  The language follows the iPhone's own. The menu (☰) carries **About us**,
+  **Blog** and **Privacy**, the footer's own words and pages, in the app only,
+  under the rows above.
+- **44-point tap targets** (item 2) on the first page and on Sign in:
+  **Sign in**, **No link yet? Join the waitlist** and **Sign up** each get an
+  invisible tap area of at least 44 points around the same words. Nothing on
+  screen moves.
+
 ## 2. In flight
 
 One line per piece of work: `item · what it is · the rules it touches · where it stands · PR`. The session
@@ -481,6 +494,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-23 · N674 items 1 and 2 · in the iPhone app the website footer is left out and the menu carries About us, Blog and Privacy; Sign in, the waitlist link and Sign up get 44-point tap areas, nothing on screen moving · FE (this PR)
 - 2026-11-18 · N664 · an `acceptance_required` status, including a newer policy after an earlier receipt, always opens the ordinary full consent screen and blocks normal app use until the current policy is accepted; a known mid-session refusal blocks synchronously before the policy read completes and remains blocked through a read failure, hiding and making the mounted app inert while the consent screen occupies the document's top layer · BE/FE (this PR)
 - 2026-11-16 · founder approval · the acceptance gate fails open when its retired authorization endpoint rejects, so a missing legacy consent route cannot strand the signed-in app on a loading or error screen; the current admission boundary remains unchanged (`Phase1AcceptanceGate.tsx`) · FE (this PR)
 - 2026-11-16 · the shared menu no longer exposes the legacy personal-chat invitation control; the fixed early-coach admission URL and product-sharing links remain · FE (this task)
