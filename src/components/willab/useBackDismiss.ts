@@ -59,7 +59,8 @@ function removeFromStack(token: symbol): void {
 
 export function useBackDismiss(
   onClose: () => void,
-  onBack?: () => boolean
+  onBack?: () => boolean,
+  enabled = true,
 ): () => void {
   // Keep the latest callbacks without re-running the effect (a new closure each
   // render must NOT push a fresh history entry).
@@ -76,7 +77,7 @@ export function useBackDismiss(
   const navigatingAwayRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
     const token = Symbol("backDismiss");
     dismissStack.push(token);
     // True once a Back/swipe (popstate) has already popped an entry for us. The
@@ -136,7 +137,7 @@ export function useBackDismiss(
         window.history.go(-n);
       });
     };
-  }, []);
+  }, [enabled]);
 
   // Call this immediately before triggering a forward navigation that will
   // unmount the overlay (e.g. router.push("/signup")), so the unmount cleanup

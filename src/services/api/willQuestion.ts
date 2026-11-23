@@ -51,3 +51,27 @@ export async function postWillQuestionVoice(
     return false;
   }
 }
+
+/** Hear a spoken follow-up; the existing chat outbox sends its words. */
+export async function transcribeTakeFollowUp(
+  arcId: string, takeSessionId: string, audio: Blob, durationMs: number,
+): Promise<{ text: string; durationMs: number } | null> {
+  const form = new FormData();
+  const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `follow-up.${ext}`);
+  form.append("duration_ms", String(Math.round(durationMs)));
+  form.append("take_session_id", takeSessionId);
+  form.append("transcribe_only", "1");
+  try {
+    const reply = await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/will-question/voice`, {
+      method: "POST", cache: "no-store", timeoutMs: 60_000, body: form,
+    });
+    if (reply.kind !== "response" || !reply.ok) return null;
+    const body = reply.body as { text?: unknown; duration_ms?: unknown } | null;
+    return typeof body?.text === "string" && body.text.trim()
+      ? { text: body.text, durationMs: typeof body.duration_ms === "number" ? body.duration_ms : durationMs }
+      : null;
+  } catch {
+    return null;
+  }
+}

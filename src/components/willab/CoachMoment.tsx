@@ -205,12 +205,14 @@ function PracticeActions({ preview, wording, onPractise, onDecision, busy, statu
   </div>;
 }
 
-function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attachment }: {
+function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attachment, inline, replayOnly }: {
   reference: CoachMomentReference;
   clip: NonNullable<Awaited<ReturnType<typeof fetchCoachMoment>>>;
   refreshClip: () => Promise<void>;
   recordingDock: HTMLDivElement | null;
   attachment: ChatArtifactContent | null;
+  inline: boolean;
+  replayOnly: boolean;
 }) {
   const copy = REPLY_COPY[useUiLocale()];
   const [open, setOpen] = useState(false);
@@ -220,7 +222,7 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [savedDecision, setSavedDecision] = useState<Wording | null>(null);
-  const { preview, wording, history } = useMomentReview(reference, open && reference.practise, refreshKey);
+  const { preview, wording, history } = useMomentReview(reference, (open || inline) && reference.practise, refreshKey);
   const kept = wording ?? savedDecision;
   const related = relatedPractice(history, reference.snippet_id, preview?.practiceId);
   const attempts = related.some(isSavedPracticeAttempt);
@@ -258,7 +260,10 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   </MediaRefreshProvider>;
   const intervention = <MomentIntervention
     text={attachment?.intervention} practice={unavailable ? null : preview} practising={practising}
-    actions={preview ? <PracticeActions preview={preview} wording={kept} busy={saving} status={status}
+    actions={preview ? replayOnly ? <div className="space-y-2">
+      <ArtifactText text={preview.instruction ?? undefined} />
+      <PracticeDemo preview={preview} />
+    </div> : <PracticeActions preview={preview} wording={kept} busy={saving} status={status}
       onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} /> : null}
     engine={preview && practising ? <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history }}>
       <IdealTextOverlay arcId={reference.arc_id} reviewTake={reference.take_session_id} reviewTakeIndex={clip.takeIndex}
@@ -266,11 +271,17 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
         reviewAt={reviewAt}
         onClose={closePractice} onPracticeUnavailable={() => { setUnavailable(true); closePractice(); }} />
     </InlineWalkHost.Provider> : null} />;
-  const output = momentOutput(kept, savedLabel, !practising && attempts ? related : [], attachment?.output);
+  const output = momentOutput(kept, savedLabel, !inline && !practising && attempts ? related : [], attachment?.output);
   const description = kept ? savedLabel : attempts ? copy.practice : attachment?.preview ?? describeClip(clip, copy.moment);
+  const interventionContent = attachment?.intervention || (preview && !unavailable) ? intervention : null;
+  if (inline) return <div className="min-w-0 space-y-2" data-coach-moment>
+    {moment}
+    {interventionContent}
+    {output}
+  </div>;
   return <div className="w-full min-w-0" data-coach-moment>
     <ChatArtifact title={attachment?.title ?? copy.feedback} preview={description} moment={moment}
-      intervention={attachment?.intervention || (preview && !unavailable) ? intervention : null} output={output}
+      intervention={interventionContent} output={output}
       hideMinimise={practising || saving} onOpenChange={(next) => {
         setOpen(next);
         if (!next) { setPractising(false); setUnavailable(false); }
@@ -301,26 +312,29 @@ function MomentIntervention({ text, practice, practising, actions, engine }: {
   </div>;
 }
 
-function CoachMomentCard({ reference, recordingDock, attachment }: {
+function CoachMomentCard({ reference, recordingDock, attachment, inline, replayOnly }: {
   reference: CoachMomentReference; recordingDock: HTMLDivElement | null; attachment: ChatArtifactContent | null;
+  inline: boolean; replayOnly: boolean;
 }) {
   const [clip, setClip] = useState<Awaited<ReturnType<typeof fetchCoachMoment>>>(null);
   const refresh = useCallback(async () => setClip(await fetchCoachMoment(reference).catch(() => null)), [reference]);
   useEffect(() => { void refresh(); }, [refresh]);
-  if (!clip) return <StructuredReplyArtifact content={attachment} />;
+  if (!clip) return <StructuredReplyArtifact content={attachment} inline={inline} />;
   return <CoachMomentReview reference={reference} clip={clip} refreshClip={refresh}
-    recordingDock={recordingDock} attachment={attachment} />;
+    recordingDock={recordingDock} attachment={attachment} inline={inline} replayOnly={replayOnly} />;
 }
 
-export default function CoachMoment({ raw, artifact, project, recordingDock = null }: {
+export default function CoachMoment({ raw, artifact, project, recordingDock = null, inline = false, replayOnly = false }: {
   raw: unknown;
   artifact?: unknown;
   project?: string;
   recordingDock?: HTMLDivElement | null;
+  inline?: boolean;
+  replayOnly?: boolean;
 }) {
   const reference = useMemo(() => coachMomentFromMetadata(raw), [raw]);
   const attachment = chatArtifactContent(artifact);
-  if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact content={attachment} />;
+  if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact content={attachment} inline={inline} />;
   return <CoachMomentCard key={`${reference.arc_id}:${reference.take_session_id}:${reference.snippet_id}`}
-    reference={reference} recordingDock={recordingDock} attachment={attachment} />;
+    reference={reference} recordingDock={recordingDock} attachment={attachment} inline={inline} replayOnly={replayOnly} />;
 }

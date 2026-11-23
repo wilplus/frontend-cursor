@@ -29,10 +29,12 @@ import { useRecoverableSrc } from "@/lib/media/mediaRefresh";
 export default function CoachVideo({
   src: rawSrc,
   className,
+  compact = false,
   onError,
 }: {
   src: string;
   className?: string;
+  compact?: boolean;
   /** Told when the <video> errors, for a host that manages its own link. */
   onError?: () => void;
 }) {
@@ -83,6 +85,7 @@ export default function CoachVideo({
         // A tall video's box is only as wide as the video: no dark bars
         // beside it, and it sits at the bubble's left.
         adapts && orientation === "portrait" && "w-fit max-w-full self-start",
+        compact && "max-w-[min(100%,300px)]",
       )}
     >
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -93,7 +96,7 @@ export default function CoachVideo({
         preload="metadata"
         className={cn(
           "aspect-video w-full",
-          adapts && orientation === "portrait" && "h-[min(60vh,480px)] w-auto max-w-full",
+          adapts && orientation === "portrait" && (compact ? "h-[min(36vh,210px)] w-auto max-w-full" : "h-[min(60vh,480px)] w-auto max-w-full"),
         )}
         style={adapts && ratio ? { aspectRatio: String(ratio) } : undefined}
         onPlay={(event) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { useVoiceNote } from "../useVoiceNote";
 import type { ComposerMic, ComposerRecording, ComposerVoiceDraft } from "./ChatComposer";
@@ -11,22 +11,25 @@ const VOICE_COPY = {
 };
 
 export function useComposerVoice({
-  onSend, maxSeconds, enabled = true, held = false, label, attrs,
+  onSend, maxSeconds, enabled = true, held = false, label, attrs, scope,
 }: {
-  onSend: (audio: Blob) => Promise<boolean> | boolean;
+  onSend: (audio: Blob, durationMs: number) => Promise<boolean> | boolean;
   maxSeconds: number;
   enabled?: boolean;
   held?: boolean;
   label?: string;
   attrs?: ComposerMic["attrs"];
+  scope?: string;
 }) {
   const copy = VOICE_COPY[useUiLocale()];
-  const [audio, setAudio] = useState<Blob | null>(null);
+  const [take, setTake] = useState<{ audio: Blob; durationMs: number; scope?: string } | null>(null);
+  const capturedIn = useRef(scope);
+  const audio = take?.scope === scope ? take?.audio : undefined;
   const [src, setSrc] = useState("");
   const [error, setError] = useState(false);
   const note = useVoiceNote({
     maxSeconds,
-    onDone: async ({ audio }) => setAudio(audio),
+    onDone: async ({ audio, durationMs }) => setTake({ audio, durationMs, scope: capturedIn.current }),
     onUnavailable: () => setError(true),
   });
 
@@ -36,9 +39,12 @@ export function useComposerVoice({
     setSrc(url);
     return () => URL.revokeObjectURL(url);
   }, [audio]);
+  useEffect(() => {
+    if (capturedIn.current !== scope && note.phase === "recording") note.cancel();
+  }, [note, scope]);
 
   const mic: ComposerMic | undefined = enabled ? {
-    start: () => { setError(false); void note.start(); },
+    start: () => { capturedIn.current = scope; setError(false); void note.start(); },
     label: audio ? copy.again : label,
     disabled: held || note.phase !== "idle",
     attrs,
@@ -48,10 +54,10 @@ export function useComposerVoice({
   } : undefined;
   const voiceDraft: ComposerVoiceDraft | undefined = audio && enabled ? {
     preview: <audio src={src} aria-label={copy.listen} controls preload="metadata" className="h-10 w-40 sm:w-52" />,
-    discard: () => { setAudio(null); setSrc(""); },
+    discard: () => { setTake(null); setSrc(""); },
     send: async () => {
-      if (!await onSend(audio)) return false;
-      setAudio(null);
+      if (!take || !await onSend(audio, take.durationMs)) return false;
+      setTake(null);
       setSrc("");
       return true;
     },

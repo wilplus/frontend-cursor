@@ -1,7 +1,11 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
 import ChatComposer, { type ComposerFileAction } from "./chats/ChatComposer";
+import { ChatArtifactScope } from "./chats/ChatArtifact";
+import { useComposerVoice } from "./chats/useComposerVoice";
+import LoungeTakeConversation, { type TakeCitation } from "./LoungeTakeConversation";
+import { takeSessionOf } from "@/lib/willab/takeExchange";
 import type { PlanLounge } from "./plan/usePlanLounge";
 import { willComposerMic } from "./plan/PlanDock";
 import { Button } from "@/components/ui/button";
@@ -153,13 +157,14 @@ import {
   useStrengths,
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
-import { postWillQuestion } from "@/services/api/willQuestion";
+import { postWillQuestion, transcribeTakeFollowUp } from "@/services/api/willQuestion";
 import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
   isProjectMessage,
   isReplayedTerminalReply,
   openProjectQuestion,
+  projectIdOf,
   projectConversationHistory,
   projectMessageStaysInLounge,
   typedProjectErrorMetadata,
@@ -527,6 +532,7 @@ function useLoungeDraft(scope: string) {
 
 function LoungeComposer({
   place, openChat, draft, plan, keyLine, notebook, nextTake, held, busy, onSend, onFirst, onRecord, onProjects, onUpload, onSlides,
+  citation, clearCitation, voice,
 }: {
   place: LoungePlace | null;
   openChat: string | null;
@@ -543,6 +549,9 @@ function LoungeComposer({
   onProjects: () => void;
   onUpload: () => void;
   onSlides?: () => void;
+  citation?: TakeCitation | null;
+  clearCitation?: () => void;
+  voice?: ReturnType<typeof useComposerVoice>;
 }) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const speaking = !openChat && !wordsAlways(place);
@@ -585,11 +594,16 @@ function LoungeComposer({
       onValue={draft.setDraft}
       onSend={onSend}
       busy={busy}
-      voiceRequired={Boolean(hear || keyLine.sending && speaking)}
-      mic={mic}
-      recording={guidedRecording ?? notebookRecording}
+      voiceRequired={!citation?.focus && Boolean(hear || keyLine.sending && speaking)}
+      mic={voice?.mic ?? mic}
+      recording={voice?.recording ?? guidedRecording ?? notebookRecording}
+      voiceDraft={voice?.voiceDraft}
+      above={citation?.quote ? <div className="flex items-center gap-2 border-l-2 border-border pl-3 text-xs text-muted-foreground">
+        <p className="min-w-0 flex-1 truncate">{citation.quote}</p>
+        <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={clearCitation}>×</button>
+      </div> : undefined}
       files={files}
-      status={uploadError ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError}</p> : null}
+      status={uploadError || voice?.error ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError || voice?.error}</p> : null}
     />
   );
 }
@@ -668,13 +682,18 @@ export default function Lounge({
   const sidebar = useWorkspaceSidebar();
   const ownsProjectConversations = onProjectTakeReady !== undefined;
   const openChat = useOpenChat();
-  const composerScope = JSON.stringify(["lounge", userId, place, openChat]);
+  const viewScope = useContext(ChatArtifactScope);
+  const composerScope = JSON.stringify(["lounge", userId, place, openChat, viewScope]);
   const outbox = useChatTurnOutbox(thread, userId, JSON.stringify(["lounge", place, openChat]));
   const { messages } = outbox;
   const { reload } = thread;
   const draft = useLoungeDraft(composerScope);
   const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
   const { value: draftText, setDraft: setDraftText, focus: focusComposer } = draft;
+  const [citation, setCitation] = useState<TakeCitation | null>(null);
+  const currentCitation = useRef(citation);
+  currentCitation.current = citation;
+  useEffect(() => { setCitation(null); }, [composerScope]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
   // for them nothing below mounts and this component behaves exactly as it did
@@ -684,6 +703,20 @@ export default function Lounge({
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [thinkingHere, setBotThinking] = useState(false);
   const botThinking = outbox.busy(thinkingHere);
+  const reviewVoice = useComposerVoice({
+    enabled: Boolean(citation?.focus && thread.signedIn),
+    held: botThinking || !outbox.ready,
+    maxSeconds: 120,
+    label: "Record your answer",
+    scope: citation?.focus ? JSON.stringify([composerScope, citation.takeId, citation.focus]) : undefined,
+    onSend: async (audio, duration) => {
+      if (!citation?.focus || !outbox.isCurrent()) return false;
+      const spoken = await transcribeTakeFollowUp(citation.arcId, citation.takeId, audio, duration);
+      if (!spoken || currentCitation.current !== citation || !outbox.isCurrent()) return false;
+      await sendTypedTurn(beginTypedTurn(spoken.text, null, spoken.text, spoken.durationMs));
+      return true;
+    },
+  });
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -736,7 +769,7 @@ export default function Lounge({
       if (isPersistedTerminalReplay(m, messages)) continue;
       // Project-specific Takes, feedback and questions live in that project's
       // chat. Will keeps only cross-project patterns, principles and mindset.
-      if (isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
+      if (!openChat && isProjectMessage(m) && ((ownsProjectConversations && place === "speaking") || !projectMessageStaysInLounge(m))) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -754,7 +787,7 @@ export default function Lounge({
     // One action at a time (founder 2026-10-20): the message after a Take
     // waits, undrawn, under its ask; the card comes first.
     return afterTakeOrder(items);
-  }, [messages, place, ownsProjectConversations]);
+  }, [messages, place, ownsProjectConversations, openChat]);
   // The thread in the order it is drawn (founder 2026-10-20): what the
   // chat reads as "the newest" is what shows last.
   const drawn = useMemo(() => threadItems.map((item) => item.message), [threadItems]);
@@ -785,6 +818,24 @@ export default function Lounge({
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);
   const shownItems = useMemo(() => inPairs(drawnItems, (item) => item.message.client_id, pairs), [drawnItems, pairs]);
+  const takeConversations = useMemo(() => {
+    const groups = new Map<string, { arcId: string; takeId: string; rows: LoungeMessage[]; anchor?: string }>();
+    if (!openChat && !(ownsProjectConversations && place === "speaking")) return groups;
+    for (const { message } of threadItems) {
+      const takeId = takeSessionOf(message);
+      const arcId = projectIdOf(message);
+      if (!takeId || !arcId || message.metadata?.take_exchange === false || !shownIn(message, place, openChat)) continue;
+      const group = groups.get(takeId) ?? { arcId, takeId, rows: [] };
+      if (group.arcId !== arcId) continue;
+      group.rows.push(message);
+      groups.set(takeId, group);
+    }
+    for (const { message } of shownItems) {
+      const group = groups.get(takeSessionOf(message) ?? "");
+      if (group && !group.anchor) group.anchor = message.client_id;
+    }
+    return groups;
+  }, [openChat, ownsProjectConversations, place, shownItems, threadItems]);
   const hostRows = useMemo(
     () => hostRowsAround(hostMessages, shownItems.map((item) => item.message.client_created_at)),
     [hostMessages, shownItems],
@@ -1926,6 +1977,10 @@ export default function Lounge({
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
     const typedQuestion = openProjectQuestion(shownMessages);
+    if (citation) {
+      await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft));
+      return;
+    }
     const retry = outbox.turns.findLast((turn) =>
       turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
     if (retry) {
@@ -2105,25 +2160,32 @@ export default function Lounge({
     }
   }
 
-  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string) {
-    const project = projectQuestionTurn(question);
-    const hint = typedHint(place, project?.arcId, openChat);
-    const metadata = project ? {
+  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, durationMs?: number) {
+    const questionProject = projectQuestionTurn(question);
+    const arcId = citation?.arcId ?? questionProject?.arcId;
+    const takeId = citation?.takeId ?? questionProject?.takeSessionId;
+    const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
+    const reviewFocus = citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined;
+    const hint = typedHint(openChat && citation ? null : place, arcId, openChat);
+    const metadata = arcId && takeId ? {
       ...hint,
       ...typedProjectTurnMetadata({
-        arcId: project.arcId, takeSessionId: project.takeSessionId,
-        questionClientId: project.row.client_id, role: "answer", place,
+        arcId, takeSessionId: takeId,
+        questionClientId: scopedQuestion?.client_id ?? "", role: "answer", place: openChat && citation ? null : place,
       }),
+      ...(reviewFocus ? { review_focus: reviewFocus } : {}),
+      ...(citation ? { take_exchange: true } : {}),
+      ...(durationMs === undefined ? {} : { will_voice: true, duration_ms: durationMs }),
     } : hint;
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
-    const history = project
-      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), project.arcId)
+    const history = arcId
+      ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arcId)
       : regularScreenHistory(screen);
-    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, question, {
+    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, scopedQuestion, {
       question: q, history, historySource: thread.signedIn ? "screen" : undefined,
-      projectId: project?.arcId, sessionId: project?.takeSessionId, place, persist: thread.signedIn,
-      presentationContext: currentPresentationContext(),
+      projectId: arcId, sessionId: takeId, place, persist: thread.signedIn,
+      presentationContext: { ...currentPresentationContext(), ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
     });
     rememberPlace(turn.user.client_id, place);
     return turn;
@@ -2136,19 +2198,21 @@ export default function Lounge({
     setBotThinking(true);
     setActiveOffer((open) => open === "feedback_check" ? null : open);
     atBottomRef.current = true;
-    const project = projectQuestionTurn(turn.question);
+    const { projectId, sessionId } = turn.request;
+    const reviewFocus = turn.request.presentationContext?.review_focus;
+    const project = projectId && sessionId ? { arcId: projectId, takeSessionId: sessionId } : null;
     try {
       const result = await outbox.deliver(turn, (response) => {
         const body = chatReplyBody(response, project ? null : "I know nothing about that, at least yet 😏");
         if (!body || isReplayedTerminalReply(body, messages)) throw new Error("Missing contextual reply");
         const projectMeta = project ? typedProjectTurnMetadata({
           arcId: project.arcId, takeSessionId: project.takeSessionId,
-          questionClientId: project.row.client_id, role: "reply", place,
+          questionClientId: turn.question?.client_id ?? "", role: "reply", place: openChat && reviewFocus ? null : place,
         }) : null;
         return {
           role: "bot", kind: "text", body,
-          metadata: { ...typedHint(place, project?.arcId, openChat), ...chatReplyMetadata(response),
-            ...projectMeta, ...response.row_metadata },
+          metadata: { ...typedHint(openChat && reviewFocus ? null : place, project?.arcId, openChat), ...chatReplyMetadata(response),
+            ...projectMeta, ...response.row_metadata, ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
         };
       });
       if (!result || !outbox.isCurrent()) return;
@@ -2235,6 +2299,21 @@ export default function Lounge({
   };
   const drawShown = (item: ThreadItem, i: number) => {
     const id = item.message.client_id;
+    const take = item.message.metadata?.take_exchange !== false
+      ? takeConversations.get(takeSessionOf(item.message) ?? "") : undefined;
+    if (take) {
+      if (take.anchor !== id) return null;
+      return <LoungeTakeConversation key={composerScope + ":" + take.takeId} arcId={take.arcId} takeId={take.takeId}
+        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock}
+        onCitation={(next) => {
+          setCitation((current) => next ?? (current?.takeId === take.takeId ? null : current));
+          if (next?.quote) focusComposer();
+        }} onReload={() => { void reload(); }}
+        renderFooter={(message) => {
+          const failed = outbox.turns.find((turn) => turn.user.client_id === message.client_id && !outbox.isSending(turn));
+          return failed ? <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} /> : null;
+        }} />;
+    }
     const walk = walkAt.get(id);
     if (!walk) return drawItem(item, i);
     const cardId = pairs.cardOf.get(id);
@@ -2557,6 +2636,8 @@ export default function Lounge({
           nextTake={goodbye.recordNext ?? restingTake(messages, userId)}
           held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
           busy={botThinking || !outbox.ready}
+          citation={citation} voice={reviewVoice}
+          clearCitation={() => setCitation((current) => current ? { ...current, focus: undefined, quote: undefined } : null)}
           onSend={handleSend} onFirst={startFirst} onRecord={recordNext} onProjects={sidebar?.show ?? onStart}
           onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
         />

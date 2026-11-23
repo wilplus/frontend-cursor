@@ -14,6 +14,8 @@ backend repo unless they start with `src/`. Rewriting §1 in the present tense i
 
 Much of this lock was superseded for the walk on 2026-10-06: the walk through the text, praise, practise and the helper words inside the walk are on the walk's page ([`feedback-walk-and-chat.md`](feedback-walk-and-chat.md), C and F), and **where the walk's page covers the same thing, the walk's page wins**. What stays here is the Ideal Text page's own lock.
 
+The Ideal Text in a Take exchange uses the full width of the chat area and scrolls with the conversation. The current Take uses the existing document and menu. An earlier Take reads and exports its own revision and saves review edits against that Take. Other conversation bubbles resume below the document. (Founder approval in the Take design thread, 23 November 2026.)
+
 ### The loading frame
 
 When a Take's document is still assembling, the Ideal Text page uses the same

@@ -108,6 +108,7 @@ vi.mock("./IdealTextOverlay", () => ({
     coachTake,
     reviewTake,
     reviewSlideRange,
+    inlineDocument,
     requireFeedbackWalk,
     projectFlow,
     onClose,
@@ -117,6 +118,7 @@ vi.mock("./IdealTextOverlay", () => ({
     coachTake?: string | null;
     reviewTake?: string | null;
     reviewSlideRange?: { startSlide: number; endSlide: number } | null;
+    inlineDocument?: boolean;
     requireFeedbackWalk?: boolean;
     projectFlow?: boolean;
     onClose?: () => void;
@@ -124,7 +126,8 @@ vi.mock("./IdealTextOverlay", () => ({
     createElement(
       "div",
       {
-        "data-testid": practiceDecision ? "decision" : "result",
+        "data-testid": inlineDocument ? "inline-ideal" : practiceDecision ? "decision" : "result",
+        "data-chat-document": inlineDocument ? "" : undefined,
         "data-overlay-mode": initialMode ?? "notebook",
         "data-coach-take": coachTake ?? "",
         "data-review-take": reviewTake ?? "",
@@ -134,7 +137,7 @@ vi.mock("./IdealTextOverlay", () => ({
         "data-require-feedback-walk": requireFeedbackWalk ? "true" : "false",
         "data-project-flow": projectFlow ? "true" : "false",
       },
-      practiceDecision
+      inlineDocument ? "The current opening." : practiceDecision
         ? createElement(
             "div",
             null,
@@ -357,33 +360,25 @@ describe("project conversation", () => {
     await flush();
     const entry = host.querySelector('[data-project-take="take-a"]')!;
     expect(entry.querySelectorAll("[data-take-review-message]")).toHaveLength(1);
-    expect(entry.querySelector("[data-take-review-message]")?.textContent).toContain("1 practice run");
     expect(entry.querySelector("[data-take-review]")).toBeNull();
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
-    expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
     let review = await openTake("take-a");
-    expect(review.textContent).toContain("The older moment.");
-    expect(reviewApi.steps).toHaveBeenCalledWith("arc-a", "take-a");
-    await clickText(review, "Practise");
-    expect(review.getAttribute("data-review-step")).toBe("practise");
-    expect(review.querySelector("[data-take-practice-history]")?.textContent).toContain("My earlier practice.");
-    expect(review.textContent).not.toContain("Somebody else's practice.");
-    await clickText(review, "Minimise");
-    expect(entry.querySelector("[data-take-review]")).toBeNull();
-    review = await openTake("take-a");
+    expect(reviewApi.steps).toHaveBeenCalledWith("arc-a", "take-a", true, undefined);
     expect(review.textContent).toContain("My earlier practice.");
-    await clickText(review, "Ideal text");
-    expect(review.textContent).toContain("An early decision.");
-    expect(review.textContent).not.toContain("The newest words.");
-    await clickText(review.querySelector('[data-review-slide="0"]')!, "Ask coach");
-    expect(host.querySelector("[data-project-record]")).not.toBeNull();
+    expect(review.textContent).not.toContain("Somebody else's practice.");
+    expect(review.querySelector("nav")).toBeNull();
+    const script = review.querySelector("[data-chat-document]")!;
+    expect(script.textContent).toContain("An early decision.");
+    expect(script.textContent).not.toContain("The newest words.");
+    expect(before(review.querySelector('[data-project-message="older-attempt"]') ?? review.querySelector('[data-row="me"]')!, script)).toBe(true);
+    await clickText(review, "The older moment.");
     enterAnswer("How should I open this slide?");
     submitAnswer();
     await flush();
     const sent = state.chatQuery.mock.calls[0][0];
     expect(sent).toMatchObject({
       projectId: "arc-a", sessionId: "take-a", historySource: "screen",
-      presentationContext: { review_focus: { step: "ideal", slide_index: 0 } },
+      presentationContext: { review_focus: { step: "feedback", snippet_id: "segment-a", slide_index: 0 } },
     });
 
     act(() => root.unmount());
@@ -391,16 +386,15 @@ describe("project conversation", () => {
     render(twoTakes);
     await flush();
     expect(host.querySelector("[data-take-review]")).toBeNull();
-    const retry = host.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
+    review = await openTake("take-a");
+    expect(review.textContent).toContain("My earlier practice.");
+    expect(review.textContent).toContain("An early decision.");
+    const retry = review.querySelector<HTMLButtonElement>("[data-chat-turn-error] button")!;
     expect(retry).not.toBeNull();
     await act(async () => retry.click());
     expect(state.chatQuery.mock.calls[1][0]).toEqual(sent);
     expect(state.messages.filter((row) => row.client_id === sent.clientId)).toHaveLength(1);
     expect(state.messages.filter((row) => row.client_id === "matched-answer")).toHaveLength(1);
-    await clickText(host, "Take 1 · Slide 1 · Back to review");
-    review = host.querySelector<HTMLElement>("[data-take-review]")!;
-    expect(review.getAttribute("data-review-step")).toBe("ideal");
-    expect(review.textContent).toContain("An early decision.");
   });
 
   it("keeps contextual follow-ups available after the setup questions finish", async () => {
@@ -454,10 +448,8 @@ describe("project conversation", () => {
   it("combines practice history and Ideal text in one result card", async () => {
     render();
     const review = await openTake("take-a");
-    expect(review.textContent).toContain("Progress · 45%");
-    expect(review.textContent).toContain("Slides 1–2");
     expect(review.textContent).not.toContain("Almost");
-    expect(review.querySelector('[data-review-section="feedback"]')).not.toBeNull();
+    expect(review.querySelector("nav")).toBeNull();
     expect(review.querySelector('[data-review-section="ideal"]')?.textContent).toContain("The current opening.");
     expect(host.querySelector("[data-project-record]")?.getAttribute("aria-label")).toBe("Continue recording");
     expect(host.querySelector("[data-chat-input]")).not.toBeNull();
@@ -503,22 +495,12 @@ describe("project conversation", () => {
     });
   });
 
-  it("keeps the fragment decision when Ideal Text opens from the card", async () => {
+  it("keeps the Ideal Text in the same chat scroll", async () => {
     render();
     const review = await openTake("take-a");
-    await clickText(review, "Open Ideal text");
-
-    expect(host.querySelector('[data-testid="decision"]')).not.toBeNull();
-    expect(host.textContent).toContain("Rehearse whole presentation");
-    expect(host.textContent).toContain("Repeat this fragment");
-    expect(host.querySelector("[data-readiness]")?.getAttribute("data-readiness")).toBe("Almost");
-    expect(host.querySelector('[data-testid="result"]')).toBeNull();
-
-    act(() => [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Repeat this fragment",
-    )!.click());
-    expect(onRecord).toHaveBeenCalledWith("arc-a");
-    expect(localStorage.getItem("willab_practice_resume:v1:user-a:arc-a")).toContain('"startSlide":1');
+    expect(review.querySelector('[data-chat-document]')?.textContent).toBe("The current opening.");
+    expect(host.querySelector('[data-project-question-composer]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="decision"]')).toBeNull();
   });
 
   it("keeps the selected Take and range on Feedback while Ideal Text remains separate", async () => {
@@ -546,10 +528,9 @@ describe("project conversation", () => {
         },
       ],
     };
-    render(twoTakes);
-
-    const review = await openTake("take-a");
-    await clickText(review, "Review feedback");
+    render(twoTakes, false, { initialReview: { take: twoTakes.takes[0], focus: { step: "feedback" }, openWalk: true } });
+    const review = host.querySelector<HTMLElement>("[data-take-review]")!;
+    await flush();
 
     const feedbackOverlay = review.querySelector('[data-testid="result"]')!;
     expect(feedbackOverlay.getAttribute("data-overlay-mode")).toBe("review");
@@ -559,9 +540,7 @@ describe("project conversation", () => {
     expect(feedbackOverlay.getAttribute("data-require-feedback-walk")).toBe("true");
 
     await clickText(feedbackOverlay, "Close");
-    await clickText(review, "Ideal text");
-
-    expect(review.dataset.reviewStep).toBe("ideal");
+    await flush();
     expect(review.querySelector('[data-review-section="ideal"]')?.textContent).toContain("The current opening.");
     expect(review.querySelector('[data-testid="result"]')).toBeNull();
   });
@@ -681,7 +660,11 @@ describe("project conversation", () => {
         chips: ["Leadership", "My team", "Customers"],
       }),
     ];
+    state.messages = state.messages.map((row, index) => ({
+      ...row, client_created_at: new Date(Date.UTC(2026, 10, 23, 8, 0, index)).toISOString(),
+    }));
     render();
+    await openTake("take-a");
 
     const card = host.querySelector("[data-take-review-message]")!;
     const summary = host.querySelector('[data-project-message="summary"]')!;
@@ -693,15 +676,7 @@ describe("project conversation", () => {
     expect(host.textContent).not.toContain("Good job. See you next time.");
     expect(host.querySelector("[data-project-record]")).not.toBeNull();
     expect(host.querySelector("[data-chat-header]")).not.toBeNull();
-    expect(host.querySelector("[data-will-answers]")).not.toBeNull();
-    expect(host.querySelector('textarea[aria-label="Answer about this take"]')).not.toBeNull();
-    expect(host.textContent).toContain("Leadership");
-    expect(host.textContent).toContain("My team");
-
-    const somethingElse = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Something else",
-    )!;
-    await act(async () => somethingElse.click());
+    expect(host.querySelector("[data-will-answers]")).toBeNull();
     expect(host.querySelector('textarea[aria-label="Answer about this take"]')).not.toBeNull();
 
     state.messages = [
@@ -718,6 +693,9 @@ describe("project conversation", () => {
       message("answer", "My team", "user", { will_question_step: "answer" }),
       message("reply", "That helps me understand the context.", "bot", { will_question_step: "reply" }),
     ];
+    state.messages = state.messages.map((row, index) => ({
+      ...row, client_created_at: new Date(Date.UTC(2026, 10, 23, 8, 0, index)).toISOString(),
+    }));
     render();
 
     const reply = host.querySelector('[data-project-message="reply"]')!;
@@ -746,7 +724,7 @@ describe("project conversation", () => {
       }
       return accepted;
     });
-    render();
+    render({ ...project, takes: [{ ...project.takes[0], feedbackAvailable: false }] });
 
     const choices = host.querySelector("[data-will-answers]")!;
     const composer = host.querySelector("[data-project-question-composer]")!;
@@ -789,6 +767,7 @@ describe("project conversation", () => {
       }),
     ];
     render();
+    await openTake("take-a");
     enterAnswer("A mixed room of leaders and specialists");
     submitAnswer();
 
@@ -875,6 +854,7 @@ describe("project conversation", () => {
       }),
     ];
     render();
+    await openTake("take-a");
     const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
     const metrics = scrollMetrics(scroller);
     scroller.scrollTop = 0;
@@ -930,6 +910,7 @@ describe("project conversation", () => {
       }),
     ];
     render();
+    await openTake("take-a");
     const scroller = host.querySelector("[data-project-scroll]") as HTMLDivElement;
     scrollMetrics(scroller, 1_400);
     const exact = "  Keep the decision simple.  ";
@@ -960,7 +941,7 @@ describe("project conversation", () => {
       }),
     ];
     state.willQuestion.mockResolvedValue(false);
-    render();
+    render({ ...project, takes: [{ ...project.takes[0], feedbackAvailable: false }] });
     const leadership = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Leadership",
     )!;
@@ -992,6 +973,7 @@ describe("project conversation", () => {
       row_metadata: { will_question_step: "thanks" },
     });
     render();
+    await openTake("take-a");
     enterAnswer("What should I practise next?");
     submitAnswer();
     await flush();
@@ -1012,6 +994,7 @@ describe("project conversation", () => {
       }),
     ];
     render();
+    await openTake("take-a");
     const exact = "  Keep the decision simple.  ";
     enterAnswer(exact);
     submitAnswer();
@@ -1109,6 +1092,7 @@ describe("project conversation", () => {
       }),
     ];
     render();
+    await openTake("take-a");
     const exact = "  Keep the owner explicit.  ";
     enterAnswer(exact);
     submitAnswer();
@@ -1132,9 +1116,9 @@ describe("project conversation", () => {
   });
 
   it("keeps the post-walk close inside the project conversation", async () => {
-    render();
-    const review = await openTake("take-a");
-    await clickText(review, "Review feedback");
+    render(project, false, { initialReview: { take: project.takes[0], focus: { step: "feedback" }, openWalk: true } });
+    const review = host.querySelector<HTMLElement>("[data-take-review]")!;
+    await flush();
     const result = review.querySelector('[data-testid="result"]')!;
     await clickText(result, "Close");
     expect(host.querySelector('[data-testid="result"]')).toBeNull();

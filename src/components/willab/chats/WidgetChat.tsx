@@ -29,6 +29,8 @@ import {
 } from "@/components/willab/chats/joinCopy";
 import { TOP_NAV_SEPARATOR_CLASS } from "@/components/TopNavbar";
 import { ChatMessageWithArtifact } from "./ReplyArtifact";
+import { TakeConversation } from "./TakeConversation";
+import { linkedTakeReplies } from "@/lib/willab/takeExchange";
 
 /* -------------------------------------------------------------------------- */
 /*  The website chat (backend N591, N595, N606, N610; rules: docs/flows/      */
@@ -437,6 +439,13 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
   // Thanks (N610 item 5): after the host's recorded answer, in a chat
   // without typing, three taps above the bar; one tap sends it and they go.
   const thanks = thanksDue(writes, messages, [waiting, signUpCard, busy]);
+  const takeThreads = linkedTakeReplies(messages);
+  const drawMessage = (message: ChatMessage, inlineTake = false) => (
+    <ChatMessageWithArtifact key={message.id} message={message} inlineTake={inlineTake}
+      recordedReply={!message.mine && message.kind === "voice" && message.meta?.question !== true}>
+      <Bubble token={token} guest={guest ?? ""} message={message} />
+    </ChatMessageWithArtifact>
+  );
 
   return (
     <section data-widget-chat="" aria-label={name} className="fixed inset-0 flex flex-col overflow-hidden rounded-[22px] bg-background text-foreground">
@@ -456,12 +465,14 @@ export default function WidgetChat({ token, name, welcome = [], writes: firstWri
               </div>
             ))
           : null}
-        {messages.map((m) => (
-          <ChatMessageWithArtifact key={m.id} message={m}
-            recordedReply={!m.mine && m.kind === "voice" && m.meta?.question !== true}>
-            <Bubble token={token} guest={guest ?? ""} message={m} />
-          </ChatMessageWithArtifact>
-        ))}
+        {messages.filter((message) => !takeThreads.replies.has(message.id)).map((message) => {
+          const take = takeThreads.members.get(message.id);
+          if (!take) return drawMessage(message);
+          const title = typeof message.meta?.project_title === "string" ? message.meta.project_title : "Take";
+          return <TakeConversation key={message.id} title={title} preview={take.slice(1).map((row) => row.words || row.body).find(Boolean)}>
+            {take.map((row) => drawMessage(row, true))}
+          </TakeConversation>;
+        })}
         {state.signedUp && state.noticeTo ? (
           <p data-widget-signed-up="" className="mx-auto mt-1 max-w-[86%] rounded-[10px] bg-muted px-2.5 py-1.5 text-center text-[12.5px] text-muted-foreground">
             {widgetSignedUp(state.noticeTo)}

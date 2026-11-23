@@ -225,6 +225,18 @@ function liveOpenPartId(
  *  words in one natural scroll, without a scroller per slide or the wheel
  *  and touch steps between slides. */
 const ONE_PAGE = true;
+const DECK_LAYOUT = {
+  chat: {
+    root: "w-full min-w-0", stage: "min-w-0", scroll: "space-y-7",
+    slide: "flex w-full min-w-0 flex-col gap-4",
+  },
+  overlay: {
+    root: "flex h-full min-h-0 w-full flex-col bg-background",
+    stage: "relative min-h-0 flex-1 outline-none",
+    scroll: "scrollbar-none h-full overflow-y-auto overscroll-y-contain",
+    slide: WILLAB_CONTENT_RAIL + " flex flex-col gap-4 px-6 py-6 sm:px-10",
+  },
+};
 
 /** The coach's word for the Take on screen, or null when the word belongs
  *  to another Take (founder 2026-10-20). Since backend N77 (#1212) the
@@ -268,6 +280,7 @@ export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
   chrome = "full",
+  inlineDocument = false,
   document: doc,
   parts,
   suggestions: servedSuggestions,
@@ -434,8 +447,11 @@ export default function TranscriptReviewDeck({
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
   renderNextStep?: () => React.ReactNode;
+  /** The enclosing chat owns the scroll when the Ideal Text reads inline. */
+  inlineDocument?: boolean;
 }) {
   const inlineWalk = useInlineWalkHost() !== null;
+  const layout = DECK_LAYOUT[inlineDocument ? "chat" : "overlay"];
   const summaryByParagraph = useMemo(() => {
     const grouped = new Map<string, ConfidentMomentSummary["items"]>();
     for (const item of confidentMomentSummary?.items ?? []) {
@@ -1268,7 +1284,7 @@ export default function TranscriptReviewDeck({
 
   return (
     <div
-      className={inlineWalk ? "contents" : "flex h-full min-h-0 w-full flex-col bg-background"}
+      className={inlineWalk ? "contents" : layout.root}
       {...linkageAttrs(grouping, chunks, piecePartIds)}
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
@@ -1314,9 +1330,9 @@ export default function TranscriptReviewDeck({
           handler. */}
       {inlineWalk ? null : <div
         ref={stageRef}
-        tabIndex={deckReady ? 0 : -1}
+        tabIndex={inlineDocument ? undefined : deckReady ? 0 : -1}
         onKeyDown={(e) => {
-          if (!deckReady) return;
+          if (inlineDocument || !deckReady) return;
           const fwd =
             e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
           const back = e.key === "ArrowUp" || e.key === "PageUp";
@@ -1339,14 +1355,14 @@ export default function TranscriptReviewDeck({
              key press does not. */
           goTo({ slide: posRef.current.slide + (fwd ? 1 : -1), chunk: 0 });
         }}
-        className="relative min-h-0 flex-1 outline-none"
+        className={layout.stage}
       >
         <div
           ref={scrollerRef}
           // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
           // would bypass the chunk gate through the kicker area, so the
           // track only moves via goTo/dots/keys.
-          className={deckReady ? "scrollbar-none h-full overflow-y-auto overscroll-y-contain" : "hidden"}
+          className={deckReady ? layout.scroll : "hidden"}
         >
           {screens.map((g, gi) => (
             <section
@@ -1359,7 +1375,7 @@ export default function TranscriptReviewDeck({
               // ONE CENTRED READING COLUMN on desktop (founder 2026-09-28),
               // about 65 characters of the deck's type; a phone keeps its
               // full width.
-              className={`${WILLAB_CONTENT_RAIL} flex flex-col gap-4 px-6 py-6 sm:px-10`}
+              className={layout.slide}
             >
               {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
                   B): the slide as a small tile, its kicker, and the pencil.

@@ -19,6 +19,8 @@ import {
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
 import ChatComposer, { type ComposerFileAction } from "./ChatComposer";
+import { TakeConversation } from "./TakeConversation";
+import { linkedTakeReplies } from "@/lib/willab/takeExchange";
 import { RECORD_YOUR_ANSWER, RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, ThanksTaps, composerModes, photoWaits, takesFor, thanksDue, type Takes } from "./ChatBar";
 import { TYPE_YOUR_ANSWER } from "../WillQuestion";
 import { photoForUpload } from "./photoForUpload";
@@ -426,11 +428,12 @@ type ChatRowProps = {
   sentLine: string;
   /** The other person, for a Take they sent ("{name} sent you Take {n}"). */
   name?: string;
+  inlineTake?: boolean;
 };
 
 export function ChatRow(props: ChatRowProps) {
   const { message } = props;
-  return <ChatMessageWithArtifact message={message}
+  return <ChatMessageWithArtifact message={message} inlineTake={props.inlineTake}
     quote={isRecordedReply(message) ? <AnswerQuote insideArtifact message={message}>{null}</AnswerQuote> : undefined}>
     <ChatRowBody {...props} />
   </ChatMessageWithArtifact>;
@@ -1014,6 +1017,18 @@ export default function ChatThread({
   const asks = [answer.question, answer.photo, setup.answers].some(Boolean);
   // Thanks, one tap, after a person's answer where nothing types (N610 item 5).
   const thanks = thanksDue(takes, messages, [pending, asks, safety.blocked]);
+  const takeThreads = linkedTakeReplies(messages ?? []);
+  const drawMessage = (message: ChatMessage, inlineTake = false) => (
+    <AssistantSays key={message.id} name={assistantName} message={message}>
+      <AnswerQuote message={message}>
+        <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
+          <ReplyBy message={message} chatId={chat.id}>
+            <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} inlineTake={inlineTake} />
+          </ReplyBy>
+        </TakeAnswersUnder>
+      </AnswerQuote>
+    </AssistantSays>
+  );
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
@@ -1035,17 +1050,13 @@ export default function ChatThread({
             <JoinedLine text={joinedYourLink(joinedBy)} />
           ) : null}
           <AssistantAbout host={host} />
-          {withDays(messages).flatMap(({ day, message }) => [
+          {withDays(messages.filter((message) => !takeThreads.replies.has(message.id))).flatMap(({ day, message }) => [
               ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              <AssistantSays key={message.id} name={assistantName} message={message}>
-                <AnswerQuote message={message}>
-                  <TakeAnswersUnder message={message} onOpenChat={onOpenChat}>
-                    <ReplyBy message={message} chatId={chat.id}>
-                      <ChatRow chatId={chat.id} message={message} onPhoto={setFullPhoto} sentLine={SENT} name={chat.title} />
-                    </ReplyBy>
-                  </TakeAnswersUnder>
-                </AnswerQuote>
-              </AssistantSays>,
+              takeThreads.members.has(message.id) ? <TakeConversation key={chat.id + ":" + message.id}
+                title={takeTopic(message)}
+                preview={takeThreads.members.get(message.id)?.slice(1).map((row) => row.words || row.body).find(Boolean)}>
+                {takeThreads.members.get(message.id)?.map((row) => drawMessage(row, true))}
+              </TakeConversation> : drawMessage(message),
               ...(chosenDeadline(message.meta?.setup_answer)
                 ? [<DeadlineLine key={`deadline-${message.id}`} iso={chosenDeadline(message.meta?.setup_answer)!} />]
                 : []),

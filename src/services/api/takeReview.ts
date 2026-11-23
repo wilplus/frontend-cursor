@@ -18,8 +18,11 @@ export async function readReviewRuns(project: string): Promise<ReviewRuns | null
 }
 
 /** Match the write-side walk identity, beyond the general chat's first page. */
-export async function readReviewSteps(project: string, take: string): Promise<LoungeMessage[]> {
-  const res = await bffFetch(reviewPath(project) + "/runs?take=" + encodeURIComponent(take), { cache: "no-store" });
+export async function readReviewSteps(project: string, take: string, exchange = false, chat?: string): Promise<LoungeMessage[]> {
+  const query = new URLSearchParams({ take });
+  if (exchange) query.set("exchange", "1");
+  if (chat) query.set("chat", chat);
+  const res = await bffFetch(reviewPath(project) + "/runs?" + query.toString(), { cache: "no-store" });
   if (res.kind !== "response" || !res.ok) return [];
   const messages = (res.body as { messages?: LoungeMessage[] } | null)?.messages;
   return Array.isArray(messages) ? messages : [];
