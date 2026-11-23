@@ -14,6 +14,7 @@ import NativePush from "@/components/pwa/NativePush";
 import NativeLinks from "@/components/pwa/NativeLinks";
 import NativeLaunchScreen from "@/components/pwa/NativeLaunchScreen";
 import NativeKeyboard from "@/components/pwa/NativeKeyboard";
+import NativeAppearance from "@/components/pwa/NativeAppearance";
 import BookingReturn from "@/components/booking/BookingReturn";
 import {
   resolveUiLocaleFromRequest,
@@ -133,6 +134,7 @@ export default function RootLayout({
           <NativeLinks />
           <NativeLaunchScreen />
           <NativeKeyboard />
+          <NativeAppearance />
           {/* Side-effect-only: claim the guest graph, then send the exact parked
               Project Take after OAuth. Renders nothing. */}
           <PendingCoachSend />

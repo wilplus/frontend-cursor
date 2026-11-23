@@ -81,6 +81,12 @@
        Next slide pill), the record red marks capture. */
     --record: 5 79% 54%;
     --record-foreground: 0 0% 100%;
+    /* Your own messages and the main button (Next slide, Try it): black
+       with white text; inverted in dark mode (N679). */
+    --mine: 0 0% 7%;
+    --mine-foreground: 0 0% 100%;
+    --cta: 0 0% 7%;
+    --cta-foreground: 0 0% 100%;
   }
 
   /*
@@ -104,26 +110,45 @@
     /* inherits :root — the rebrand palette. No overrides. */
   }
 
+  /* DARK MODE (backend N678 item 2, N679; the page "Dark Mode Palette"):
+     a true black ground, raised surfaces a near-black grey, your own
+     messages and the main button inverted to white, the orange a touch
+     lighter, the record red, confident green and waiting amber each lifted to
+     read on black. Only in the iPhone app, while the ring row `dark_mode` is
+     on and the iPhone is dark (NativeAppearance.tsx sets <html class="dark">).
+     Light mode is :root above, unchanged. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --primary: 24 95% 53%;
-    /* The record signal reads slightly brighter on the dark surface. */
-    --record: 5 85% 60%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 95%;
+    --card: 240 3% 11%;
+    --card-foreground: 0 0% 95%;
+    --muted: 240 3% 11%;
+    --muted-foreground: 240 3% 61%;
+    --accent: 22 60% 14%;
+    --accent-foreground: 22 100% 65%;
+    --destructive: 3 100% 64%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 240 2% 18%;
+    --border: 240 2% 18%;
+    --ring: 22 100% 59%;
+    --primary: 22 100% 59%;
+    --primary-foreground: 0 0% 100%;
+    --journal-media: 40 8% 10%;
+    --chat-bubble-bot: 240 3% 11%;
+    --success: 145 63% 49%;
+    --affirm: 151 50% 53%;
+    --affirm-foreground: 0 0% 4%;
+    --pending: 36 100% 63%;
+    --emphasis: 9 80% 62%;
+    --record: 3 100% 64%;
     --record-foreground: 0 0% 100%;
-    /* Same hue, lifted and desaturated: 34% lightness on a 4.9% background is
-       a bookmark nobody can see. Its foreground goes dark for the same
-       reason. */
-    --affirm: 152 45% 55%;
-    --affirm-foreground: 0 0% 7%;
+    /* Your own messages and the main button: black on white in light,
+       white on black in dark (N679). */
+    --mine: 0 0% 95%;
+    --mine-foreground: 0 0% 4%;
+    --cta: 0 0% 95%;
+    --cta-foreground: 0 0% 4%;
+    color-scheme: dark;
   }
 }
 
