@@ -48,6 +48,7 @@ import {
 import OverlayCloseButton from "./OverlayCloseButton";
 import { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { useVoiceNote } from "./useVoiceNote";
+import RecordingBar from "./RecordingBar";
 import ChatComposer from "./chats/ChatComposer";
 import LoadingState from "./LoadingState";
 import WalkStage from "./walk/WalkStage";
