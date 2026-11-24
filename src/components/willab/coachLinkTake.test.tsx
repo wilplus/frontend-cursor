@@ -51,11 +51,7 @@ afterEach(() => {
 });
 
 const linkProps = (searchParams: Record<string, string>) =>
-  ChatPage({ searchParams }).props.children.props as {
-    idealTextArcId: string | null;
-    idealTextMode: string | null;
-    idealTextTake: string | null;
-  };
+  ChatPage({ searchParams }).props.children.props as { take: string | null; coach: boolean };
 
 /** The server's journey answer: Take 1's word when the read names Take 1,
  *  nothing for Take 2 (on screen), as backend N77 serves it. */
@@ -97,16 +93,16 @@ describe("the coach's link names the word's Take (backend N77)", () => {
     ];
     for (const link of links) {
       const props = linkProps(link);
-      expect(props).toMatchObject({ idealTextArcId: "arc-1", idealTextMode: "feedback", idealTextTake: TAKE_1 });
-      const opened = await openedWord(props.idealTextTake, { coachOnly: true });
+      expect(props).toEqual({ take: TAKE_1, coach: true });
+      const opened = await openedWord(props.take, { coachOnly: true });
       expect(opened.url).toContain(`take=${TAKE_1}`);
       expect(opened.word).toMatchObject({ text: "Slow down on the price.", takeIndex: 1, takeSessionId: TAKE_1 });
     }
 
     // O2: an old link carries no Take; the read asks for none.
     const old = linkProps({ lens: "arc-1" });
-    expect(old.idealTextTake).toBeNull();
-    const before = await openedWord(old.idealTextTake, { coachOnly: true });
+    expect(old).toEqual({ take: null, coach: true });
+    const before = await openedWord(old.take, { coachOnly: true });
     expect(before.url).not.toContain("take=");
     expect(before.word).toBeNull();
 

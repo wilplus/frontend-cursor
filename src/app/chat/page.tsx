@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import ChatPageClient from "./page.client";
 import LoadingState from "@/components/willab/LoadingState";
+import { chatLinkOf } from "@/lib/willab/chatLink";
 
 /** Avoid static prerender (search params + client subtree). */
 export const dynamic = "force-dynamic";
@@ -18,57 +19,12 @@ export default function ChatPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  // Phase-aware param: `?session=<id>` is the canonical deep-link
-  // (post-finalize redirect, admin email) for the review→roleplay
-  // loop. The legacy `?sourceSnippet=` / `?intent=` deep-links from
-  // the old contextual-chat era are now resolved by the page itself —
-  // if `session` isn't present but `sourceSnippet` is, we treat it
-  // as a request to jump into review for that snippet's parent
-  // session. For now we forward both so existing email links keep
-  // working until backend stops emitting them.
-  const sessionId = firstQueryValue(searchParams.session);
-  // D3 — user results email deep-link: `?insight=<id>` opens the in-Lounge
-  // InsightsOverlay for that session on mount. User-side (the ResultsReadyEmail
-  // CTA). The coach's `?review=` deep link left with the take-review overlay
-  // (founder 2026-09-30, B3; P2-19).
-  const insightSessionId = firstQueryValue(searchParams.insight);
-  // C — best-presentation deep-link: `?arc=<arc_id>` opens the in-Lounge
-  // BestPresentationOverlay for that arc on mount (the "best presentation ready"
-  // card / email CTA).
-  const bestPresentationArcId = firstQueryValue(searchParams.arc);
-  // The coach-feedback email CTA: `?idealArc=<arc_id>` opens THAT arc's ideal
-  // text on mount (founder 2026-08-15). The email whose whole subject is "your
-  // coach reviewed this talk" used to land on bare /chat and leave the student
-  // hunting the right bubble. Distinct from `?arc=` (best presentation).
-  // The lens screen's own address (founder 2026-10-14): `?lens=<arc_id>`
-  // opens that project's walk as its own screen, on the coach's feedback
-  // (the WhatsApp link), or the review with `&mode=review`.
-  const lensArcId = firstQueryValue(searchParams.lens);
-  const idealTextArcId = firstQueryValue(searchParams.idealArc) ?? lensArcId;
-  // `&feedback=1` (founder 2026-09-25, Q28 A): open with the sheet already on
-  // the coach's first reviewed moment.
-  const review = lensArcId !== null && firstQueryValue(searchParams.mode) === "review";
-  // `&take=<session_id>` (founder 2026-10-21, backend N77): the Take the
-  // coach wrote on, named by the WhatsApp and email links, so a word left on
-  // an earlier Take opens as that Take's word. Without it, as before.
-  const idealTextTake = firstQueryValue(searchParams.take);
-  const idealTextMode =
-    firstQueryValue(searchParams.feedback) === "1" || (lensArcId !== null && !review)
-      ? "feedback"
-      : review
-        ? "review"
-        : null;
-
+  // One link (backend N691 item 3): `?take=` opens the chat on that Take's
+  // coach bubble. Older links are read by chatLinkOf and dropped on arrival.
+  const link = chatLinkOf((name) => firstQueryValue(searchParams[name]));
   return (
     <Suspense fallback={<LoadingState placement="viewport" />}>
-      <ChatPageClient
-        sessionId={sessionId}
-        insightSessionId={insightSessionId}
-        bestPresentationArcId={bestPresentationArcId}
-        idealTextArcId={idealTextArcId}
-        idealTextMode={idealTextMode}
-        idealTextTake={idealTextTake}
-      />
+      <ChatPageClient take={link.take} coach={link.coach} />
     </Suspense>
   );
 }

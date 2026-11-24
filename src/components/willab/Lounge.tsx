@@ -84,7 +84,6 @@ import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
 import type { IdealTextRevision } from "@/services/api/blockVariants";
-import { lensAddress } from "@/lib/willab/lensScreen";
 import { startOpenTrace } from "@/lib/willab/openTrace";
 import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLineDraft, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
@@ -95,7 +94,7 @@ import {
 } from "@/lib/willab/exploreArc";
 import { clearInsightsReady, setPendingSend } from "./sendStatus";
 import { readParked } from "./willabParked";
-import { COACH_BUBBLE_ATTR, useCoachBubbleFocus } from "./useCoachBubbleFocus";
+import { COACH_BUBBLE_ATTR, showCoachBubble, useCoachBubbleFocus } from "./useCoachBubbleFocus";
 import { guestNeedsAccount } from "./GuestSignUpDialog";
 import ReadySignUpScreen from "./ReadySignUpScreen";
 import { useWallMoment } from "./wallMoment";
@@ -639,10 +638,8 @@ export default function Lounge({
   onProjectTakeReady,
   onStartPlanRecording,
   dispatch,
-  initialBestPresentationArcId = null,
-  initialIdealTextArcId = null,
-  initialIdealTextMode = null,
-  initialIdealTextTake,
+  coachLink = false,
+  linkTake = null,
   recordingProgress = null,
   waitHandedOver,
   onWaitHandedOverShown,
@@ -670,19 +667,11 @@ export default function Lounge({
   onStartPlanRecording?: (topic: string | null, start?: PlanStart) => void;
   /** What happened; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
-  /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
-   *  for that arc once on mount. */
-  initialBestPresentationArcId?: string | null;
-  /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
-   *  that arc once on mount — the coach-feedback email's CTA. */
-  initialIdealTextArcId?: string | null;
-  /** With `&feedback=1` or `?lens=`, open that notebook on the coach's
-   *  feedback; with `?lens=&mode=review`, on the review. */
-  initialIdealTextMode?: "feedback" | "review" | null;
-  /** With `&take=<session_id>` (founder 2026-10-21, backend N77): the Take
-   *  the coach's link names; the coach-only walk opens on that Take's word.
-   *  For that open only: closing the notebook forgets it. */
-  initialIdealTextTake?: string | null;
+  /** `/chat?take=` or a coach's older link (backend N691 item 3): once the
+   *  thread has painted, the chat shows the coach's bubble for `linkTake`,
+   *  else the newest one. */
+  coachLink?: boolean;
+  linkTake?: string | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
   /** The Take the Lab just handed over: its wait stays on screen here
@@ -1010,42 +999,17 @@ export default function Lounge({
     setIdealTextArcId(arcId);
   }
 
-  // D3 — user results email deep-link (/chat?insight=<id>): open the insights
-  // overlay for that session once on mount. Not coach-gated (InsightsOverlay
-  // fetches the owner-auth readout); fire-once so closing it doesn't reopen.
-
-  // C — the old best-presentation deep-link (/chat?arc=<arc_id>). Best
-  // Presentation is retired (L1; second plan, 2026-10-05): the link opens the
-  // arc's Ideal Text instead, once on mount, so closing it doesn't reopen.
-  const bestPresLinkOpenedRef = useRef(false);
+  // The one link (backend N691 item 3): the chat opens on the coach's
+  // bubble for the Take the link names, else the newest, once the thread has
+  // painted. No screen opens; the bubble is the way in.
+  const coachLinkShownRef = useRef(false);
   useEffect(() => {
-    if (bestPresLinkOpenedRef.current || !initialBestPresentationArcId) return;
-    bestPresLinkOpenedRef.current = true;
-    openIdealText(initialBestPresentationArcId);
-    // openIdealText is a plain function of this render; the link fires once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBestPresentationArcId]);
-
-  // THE COACH-FEEDBACK EMAIL LANDS ON THE TEXT ITSELF (founder 2026-08-15:
-  // "does the link from the email lead to this particular ideal text that
-  // holds these reviews? if not make it a deep link").
-  //
-  // It did not — the CTA opened bare /chat, so the one email that is entirely
-  // about ONE talk handed the student a thread to search. Same fire-once shape
-  // as the best-presentation link above: closing the notebook must not reopen
-  // it, or the student cannot get back to the chat the link landed them in.
-  const idealLinkOpenedRef = useRef(false);
-  useEffect(() => {
-    if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
-    idealLinkOpenedRef.current = true;
-    if (initialIdealTextMode) setIdealTextLaunchMode(initialIdealTextMode);
-    // The Take the link names (backend N77): its word, not the latest's.
-    setIdealTextCoachTake(initialIdealTextTake ?? null);
-    // The link's lens comes off the entry under the overlay, which sets it
-    // on its own: closing it never lands back on the lens.
-    lensAddress(null);
-    setIdealTextArcId(initialIdealTextArcId);
-  }, [initialIdealTextArcId, initialIdealTextMode, initialIdealTextTake]);
+    if (coachLinkShownRef.current || !coachLink) return;
+    return afterChatBoot(() => {
+      coachLinkShownRef.current = true;
+      showCoachBubble(linkTake ?? null);
+    });
+  }, [coachLink, linkTake]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
