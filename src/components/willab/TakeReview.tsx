@@ -25,14 +25,11 @@ import { InlineWalkHost, scrollWithinProject } from "./walk/InlineWalkHost";
 import { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
 import { ConversationBubble } from "./chats/TakeConversation";
 import TakeConversationMessage from "./chats/TakeConversationMessage";
-import type { FeedbackWalkSlideRange } from "./useDeckFeedbackWalk";
 
 export type ReviewFocus = NonNullable<NonNullable<ChatQueryArgs["presentationContext"]>["review_focus"]>;
 export type TakeReviewTarget = {
   take: TrainingTake;
   focus: ReviewFocus;
-  walkRange?: FeedbackWalkSlideRange;
-  openWalk?: boolean;
   /** An archived exchange can be played back and discussed in the composer. */
   replay?: boolean;
   /** The current Take is unfolding in the chat. */
@@ -142,13 +139,18 @@ function liveRevision(head: Extract<IdealTextResult, { kind: "single" }>, take: 
   };
 }
 
-async function loadArtifact(project: string, take: TrainingTake, snippet?: string): Promise<Artifact> {
-  const [doc, versions] = await Promise.all([fetchIdealText(project), fetchIdealTextRevisions(project)]);
+function takeDocument(doc: IdealTextResult, versions: Awaited<ReturnType<typeof fetchIdealTextRevisions>>, take: TrainingTake) {
   const live = doc.kind === "single" && doc.latestTakeSessionId === take.sessionId;
   const version = versions.kind === "ready"
     ? versions.revisions.find((row) => row.takeIndex === take.takeIndex) ?? null : null;
   const revision = live && doc.kind === "single"
     ? { ...(version ?? liveRevision(doc, take)), text: doc.ideal.text } : version;
+  return { revision, live };
+}
+
+async function loadArtifact(project: string, take: TrainingTake, snippet?: string): Promise<Artifact> {
+  const [doc, versions] = await Promise.all([fetchIdealText(project), fetchIdealTextRevisions(project)]);
+  const { revision, live } = takeDocument(doc, versions, take);
   const evidence = await latestEvidence(project, take.sessionId, doc, snippet);
   if (evidence.moment || (live && !snippet)) return { revision, evidence, live };
   // The published per-Take fallback joins by session id. It must never
@@ -168,23 +170,18 @@ function focusFor(step: Step, moment: FeedbackKeyMoment | null): ReviewFocus {
   };
 }
 
-type Engine = "walk" | "practise";
-
-function ReviewEngine({ arc, target, evidence, mode, recordingDock, savedSteps, onClose }: {
+function ReviewPractice({ arc, take, evidence, recordingDock, savedSteps, onClose }: {
   arc: string;
-  target: TakeReviewTarget;
+  take: TrainingTake;
   evidence: ReviewEvidence | undefined;
-  mode: Engine;
   recordingDock: HTMLDivElement | null;
   savedSteps: readonly LoungeMessage[];
   onClose: () => void;
 }) {
-  const { take, walkRange } = target;
   return <InlineWalkHost.Provider value={{ recordingDock, savedSteps, conversation: true }}>
     <IdealTextOverlay arcId={arc} reviewTake={take.sessionId} reviewTakeIndex={take.takeIndex}
-      initialMode="review" reviewSlideRange={walkRange} requireFeedbackWalk
-      coachTake={mode === "walk" ? take.sessionId : undefined}
-      reviewAt={mode === "practise" ? { practise: true, take: take.sessionId, snippet: evidence?.moment?.snippetId ?? null } : null}
+      initialMode="review" reviewSlideRange={take.recordedRange} requireFeedbackWalk
+      reviewAt={{ practise: true, take: take.sessionId, snippet: evidence?.moment?.snippetId ?? null }}
       onPracticeUnavailable={onClose} onClose={onClose} />
   </InlineWalkHost.Provider>;
 }
@@ -270,7 +267,7 @@ function reviewContextFocus(
 function TakeReviewDocument({
   artifact, take, project, copy, draft, saveMessage, savingEdit, onPracticeEnded, onEdit, onSave,
 }: {
-  artifact: Artifact | null;
+  artifact: Pick<Artifact, "live" | "revision"> | null;
   take: TrainingTake;
   project: TrainingArc;
   copy: ReviewRevision | null;
@@ -293,9 +290,36 @@ function TakeReviewDocument({
   </div>;
 }
 
+/** A document offered by an ordinary reply opens at that reply's position. */
+export function InlineTakeIdealText({ project, take, exitRef, onClose }: {
+  project: TrainingArc;
+  take: TrainingTake;
+  exitRef: MutableRefObject<ReviewExit | null>;
+  onClose: () => void;
+}) {
+  const [document, setDocument] = useState<Pick<Artifact, "live" | "revision"> | null>();
+  const [request, setRequest] = useState(0);
+  const { copy, draft, setDraft, saveMessage, savingEdit, exit } = useReviewEdits(project.arcId, take.sessionId, request, exitRef);
+  useEffect(() => {
+    let active = true;
+    void Promise.all([fetchIdealText(project.arcId), fetchIdealTextRevisions(project.arcId)]).then(([doc, versions]) => {
+      if (!active) return;
+      const result = takeDocument(doc, versions, take);
+      setDocument(result.live || result.revision ? result : null);
+    }, () => { if (active) setDocument(null); });
+    return () => { active = false; };
+  }, [project.arcId, take, request]);
+  if (document === undefined) return <TypingDots label="Loading Ideal Text" />;
+  if (!document) return <button type="button" className={LINK}
+    onClick={() => { setDocument(undefined); setRequest((n) => n + 1); }}>Reload Ideal Text</button>;
+  return <TakeReviewDocument artifact={document} take={take} project={project} copy={copy}
+    draft={draft?.ideal_sections} saveMessage={saveMessage} savingEdit={savingEdit} onPracticeEnded={onClose}
+    onEdit={(sections) => setDraft({ ideal_sections: sections })} onSave={() => void exit()} />;
+}
+
 export default function TakeReview({
   project, target, runs, messages, chat, recordingDock, exitRef, focusRef, onClose, onAsk, onPracticeEnded, renderFooter,
-  rememberOpening,
+  rememberOpening, savedWordings, onWordingSaved,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
@@ -310,12 +334,14 @@ export default function TakeReview({
   onPracticeEnded: () => void;
   renderFooter?: (message: LoungeMessage) => ReactNode;
   rememberOpening?: (draft: LoungeMessageDraft) => Promise<unknown>;
+  savedWordings?: ReadonlySet<string>;
+  onWordingSaved?: () => void;
 }) {
   const { take } = target;
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [engine, setEngine] = useState<Engine | null>(() => target.openWalk ? "walk" : null);
+  const [practising, setPractising] = useState(false);
   const [savedSteps, setSavedSteps] = useState<LoungeMessage[]>([]);
   const { copy, draft, setDraft, saveMessage, savingEdit, exit } = useReviewEdits(project.arcId, take.sessionId, refresh, exitRef);
   const article = useRef<HTMLDivElement | null>(null);
@@ -388,21 +414,22 @@ export default function TakeReview({
     scrollWithinProject(node ?? article.current?.querySelector("[data-chat-document]"));
   }, [artifact, target.focus.step, target.focus.slide_index]);
 
-  function closeEngine() {
-    setEngine(null);
+  function closePractice() {
+    setPractising(false);
     onPracticeEnded();
     setRefresh((v) => v + 1);
   }
 
   useBackDismiss(() => void exit(onClose), () => {
-    if (!engine) return false;
-    closeEngine();
+    if (!practising) return false;
+    closePractice();
     return true;
-  }, Boolean(engine));
+  }, practising);
 
   const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote, live: inConversation });
   const row = (message: LoungeMessage, footer = renderFooter?.(message)) => <TakeConversationMessage key={message.client_id} message={message}
     project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
+    wordingSaved={savedWordings?.has(message.client_id)} onWordingSaved={onWordingSaved}
     onRefer={(snippet, words) => refer({ step: "feedback", snippet_id: snippet }, words)}
     footer={footer} />;
   const document = <TakeReviewDocument artifact={artifact} take={take} project={project} copy={copy}
@@ -438,18 +465,18 @@ export default function TakeReview({
     <div className={WILLAB_CONTENT_RAIL}>
       <TakeReviewStatus project={project} take={take} replay={target.replay} loading={!artifact} failed={failed} onRetry={() => setRefresh((v) => v + 1)} />
     </div>
-    {!seenWalk && !engine ? <ReviewOpening moment={openingMoment} text={copy?.document.feedback ?? opening} onRefer={refer} /> : null}
-    {engine ? <div className={WILLAB_CONTENT_RAIL} data-review-section={engine === "practise" ? "practise" : undefined}>
-      <ReviewEngine arc={project.arcId} target={target} mode={engine} evidence={artifact?.evidence}
-        recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closeEngine} />
+    {!seenWalk && !practising ? <ReviewOpening moment={openingMoment} text={copy?.document.feedback ?? opening} onRefer={refer} /> : null}
+    {practising ? <div className={WILLAB_CONTENT_RAIL} data-review-section="practise">
+      <ReviewPractice arc={project.arcId} take={take} evidence={artifact?.evidence}
+        recordingDock={recordingDock} savedSteps={history.filter((message) => message.kind === "walk_step")} onClose={closePractice} />
     </div> : before.map((message) => row(message))}
-    {!engine ? <ReviewPracticeOffer evidence={artifact?.evidence} target={target} seenWalk={seenWalk}
-      onTry={() => setEngine("practise")} /> : null}
-    {!engine ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
+    {!practising ? <ReviewPracticeOffer evidence={artifact?.evidence} target={target} seenWalk={seenWalk}
+      onTry={() => setPractising(true)} /> : null}
+    {!practising ? undrawnRuns.map((run) => <ConversationBubble key={run.id} speaker>
       {run.kind === "tempo" ? "Sniper" : "Voice practice"} · <time dateTime={run.at}>{new Date(run.at).toLocaleString()}</time>
     </ConversationBubble>) : null}
-    {!engine ? document : null}
-    {!engine ? after.map((message) => row(message)) : null}
+    {!practising ? document : null}
+    {!practising ? after.map((message) => row(message)) : null}
   </div>;
 }
 
@@ -492,15 +519,12 @@ function TakeReviewStatus({ project, take, replay, loading, failed, onRetry }: {
 }) {
   const latest = !project.takes.some((item) => item.takeIndex > take.takeIndex);
   const coverage = project.practiceCoverage;
-  const range = project.practiceChunks.find((chunk) => chunk.latestSessionId === take.sessionId);
+  const range = take.recordedRange;
   return <>
     {!replay ? <p className="text-[13px] text-muted-foreground">
       <strong className="font-medium text-foreground">Take {take.takeIndex} is ready.</strong>
       {latest && coverage?.total ? <> You’ve practised {coverage.practised} of {coverage.total} {coverage.unit}.</> : null}
-      {latest && !coverage?.total && project.practiceProgress > 0 ? <> Progress · {Math.round(project.practiceProgress)}%</> : null}
-      {range ? <> · Slides {range.startSlide}–{range.endSlide}
-        {range.attempts > 0 ? ` · ${range.attempts} ${range.attempts === 1 ? "attempt" : "attempts"}` : null}
-      </> : null}
+      {range ? <> · Slides {range.startSlide}–{range.endSlide}</> : null}
     </p> : null}
     {failed ? <button type="button" className={BUTTON} onClick={onRetry}>Try again</button> :
       loading ? <TypingDots label="Loading feedback" /> : null}

@@ -618,7 +618,6 @@ export default function WillabSurface({
           beforeLeaveRef={projectExit}
           initialDraft={projectDrafts.current.get(draftKey) ?? ""}
           onDraftChange={(draft) => projectDrafts.current.set(draftKey, draft)}
-          analysisPending={pickerSettle.pending}
           recordingInProgress={recordingInProgress}
           pendingRecording={projectTake.pending.find((take) => take.projectId === pickedProject.arcId)}
           onOpenPendingRecording={projectTake.openWait}

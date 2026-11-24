@@ -8,10 +8,9 @@ import {
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
 import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
-import { outboxOwner } from "@/lib/willab/voiceNoteOutbox";
+import { keepChatReplyAudio, outboxOwner } from "@/lib/willab/voiceNoteOutbox";
 import type { ChatQueryResponse } from "@/services/api/chatQuery";
-import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
-import { fetchArcSetup } from "@/services/api/arcSetup";
+import { postWillQuestion, transcribeChatAnswer, type SpokenChatAnswer } from "@/services/api/willQuestion";
 import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
@@ -36,8 +35,6 @@ import {
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useChatTurnOutbox, type PendingChatTurn } from "./useChatTurnOutbox";
 import { ChatTurnRetry } from "./ChatTurnRetry";
-import FeedbackWalkCard, { type FeedbackWalkChunk } from "./FeedbackWalkCard";
-import IdealTextOverlay from "./IdealTextOverlay";
 import TakeTranscriptSheet from "./TakeTranscriptSheet";
 import TypingDots from "./TypingDots";
 import { PendingRecordingBubbles, RecordingProcessingBubble } from "./ProjectRecordingBubbles";
@@ -49,11 +46,11 @@ import { TopBar } from "./chats/TopBar";
 import { useBackDismiss } from "./useBackDismiss";
 import { useUserId } from "./useUserId";
 import { refreshLiveIdealDoc } from "./ReportCard";
-import { clearPracticeResume, readPracticeCheckpoint } from "@/lib/willab/practiceResume";
+import { clearPracticeResume } from "@/lib/willab/practiceResume";
 import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
+import TakeReview, { InlineTakeIdealText, REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
@@ -67,33 +64,6 @@ import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHo
 import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
 import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
-
-type Opened = "walk" | "ideal" | null;
-
-type ProjectReviewSelection = {
-  coachTake: string | null;
-  reviewTake: string | null;
-  reviewTakeIndex: number | null;
-  reviewSlideRange: { startSlide: number; endSlide: number } | null;
-};
-
-function projectReviewSelection(
-  opened: Opened,
-  practice: FeedbackWalkChunk | null,
-): ProjectReviewSelection {
-  if (opened !== "walk" || !practice) {
-    return { coachTake: null, reviewTake: null, reviewTakeIndex: null, reviewSlideRange: null };
-  }
-  return {
-    coachTake: practice.latestSessionId,
-    reviewTake: practice.latestSessionId,
-    reviewTakeIndex: practice.takeIndex ?? null,
-    reviewSlideRange: {
-      startSlide: practice.startSlide,
-      endSlide: practice.endSlide,
-    },
-  };
-}
 
 type PendingTapTurn = {
   question: LoungeMessage;
@@ -176,92 +146,6 @@ type AcceptedProjectTake = {
   takeIndex: number | null;
 };
 
-function acceptedProjectTake(
-  messages: readonly LoungeMessage[],
-  arcId: string,
-): AcceptedProjectTake | null {
-  const message = messages.findLast((candidate) => {
-    const metadata = candidate.metadata ?? {};
-    return candidate.kind === "recording_summary" &&
-      metadata.arc_id === arcId &&
-      typeof metadata.session_id === "string" &&
-      metadata.session_id.length > 0;
-  });
-  const sessionId = message?.metadata?.session_id;
-  if (typeof sessionId !== "string") return null;
-  const takeIndex = message?.metadata?.take_index;
-  return {
-    sessionId,
-    takeIndex: typeof takeIndex === "number" ? takeIndex : null,
-  };
-}
-
-function neutralTakeChunk({
-  sessionId,
-  takeIndex,
-  checkpoint,
-  feedbackAvailable,
-}: {
-  sessionId: string;
-  takeIndex: number;
-  checkpoint: number;
-  feedbackAvailable: boolean;
-}): FeedbackWalkChunk {
-  return {
-    startSlide: 1,
-    endSlide: Math.max(1, checkpoint + 1),
-    attempts: null,
-    deliveryLabel: null,
-    latestSessionId: sessionId,
-    takeIndex,
-    pendingLabel: `Take ${Math.max(1, takeIndex)}`,
-    pendingStatus: feedbackAvailable ? "Feedback ready" : "Processing",
-  };
-}
-
-function projectPracticeView(
-  project: TrainingArc,
-  messages: readonly LoungeMessage[],
-  checkpoint: number,
-): { hasPractice: boolean; chunks: FeedbackWalkChunk[] } {
-  const latestTake = [...project.takes]
-    .sort((a, b) => a.takeIndex - b.takeIndex)
-    .at(-1) ?? null;
-  const accepted = acceptedProjectTake(messages, project.arcId);
-  const acceptedAlreadyListed = accepted !== null && project.takes.some(
-    (take) => take.sessionId === accepted.sessionId,
-  );
-  const takeIndexBySession = new Map(project.takes.map((take) => [take.sessionId, take.takeIndex]));
-  const knownChunks: FeedbackWalkChunk[] = project.practiceChunks.map((chunk) => ({
-    ...chunk,
-    takeIndex: takeIndexBySession.get(chunk.latestSessionId) ?? null,
-  }));
-  const acceptedPending = accepted && !acceptedAlreadyListed
-    ? neutralTakeChunk({
-        sessionId: accepted.sessionId,
-        takeIndex: accepted.takeIndex ?? Math.max(1, project.takeCount + 1),
-        checkpoint,
-        feedbackAvailable: false,
-      })
-    : null;
-  const fallback = knownChunks.length === 0 && !acceptedPending && latestTake
-    ? neutralTakeChunk({
-        sessionId: latestTake.sessionId,
-        takeIndex: latestTake.takeIndex,
-        checkpoint,
-        feedbackAvailable: latestTake.feedbackAvailable,
-      })
-    : null;
-  return {
-    hasPractice: project.takeCount > 0 || latestTake !== null || accepted !== null,
-    chunks: [
-      ...knownChunks,
-      ...(fallback ? [fallback] : []),
-      ...(acceptedPending ? [acceptedPending] : []),
-    ],
-  };
-}
-
 function replyBody(response: ChatQueryResponse, messages: readonly LoungeMessage[]): string {
   const bubbles = response.bubbles?.map((bubble) => bubble.trim()).filter(Boolean) ?? [];
   const answer = bubbles.length > 0 ? bubbles.join("\n\n") : response.answer?.trim() ?? "";
@@ -270,15 +154,7 @@ function replyBody(response: ChatQueryResponse, messages: readonly LoungeMessage
 }
 
 function projectVersion(project: TrainingArc): string {
-  const latest = project.takes.at(-1);
-  return JSON.stringify({
-    takeCount: project.takeCount,
-    progress: project.practiceProgress,
-    latest: latest
-      ? [latest.sessionId, latest.takeIndex, latest.feedbackAvailable, latest.reviewAvailable]
-      : null,
-    chunks: project.practiceChunks,
-  });
+  return JSON.stringify([project.takeCount, project.takes, project.practiceCoverage]);
 }
 
 function useProjectRecordingLifecycle({
@@ -453,7 +329,7 @@ function useProjectPracticeHistory(project: TrainingArc, messages: readonly Loun
     }).catch(() => undefined);
     return () => { current = false; };
   }, [project.arcId, enabled, receipts, refresh]);
-  return { enabled, runs, refreshRuns: () => setRefresh((n) => n + 1) };
+  return { runs, refreshRuns: () => setRefresh((n) => n + 1) };
 }
 
 function ProjectReviewContext({ target, onClear }: {
@@ -479,7 +355,7 @@ function ProjectChatHeader({ project, onBack }: {
 function samePending(
   turn: PendingChatTurn, answer: string, take: string | undefined, question: LoungeMessage | null, focus: ReviewFocus | undefined,
 ): boolean {
-  return turn.request.question === answer && turn.request.sessionId === take &&
+  return !turn.user.metadata?.will_voice && turn.request.question === answer && turn.request.sessionId === take &&
     turn.question?.client_id === question?.client_id &&
     JSON.stringify(turn.request.presentationContext?.review_focus) === JSON.stringify(focus);
 }
@@ -498,6 +374,17 @@ function questionInTakeView(
   const questionTake = takeSessionOf(active ?? {});
   if (review) return questionTake === review.take.sessionId ? active : null;
   return reviewed.has(questionTake ?? "") ? null : active;
+}
+
+function leaveAfterSave(exit: ReviewExit | null, action: () => void) {
+  if (exit) exit(action);
+  else action();
+}
+
+function idealOfferTake(message: LoungeMessage | undefined, takes: readonly TrainingTake[]) {
+  if (!message || message.role !== "bot" || !offersIdealText(message)) return undefined;
+  const take = takeSessionOf(message);
+  return takes.find((item) => item.sessionId === take);
 }
 
 function placementForTurn(
@@ -552,7 +439,6 @@ function ProjectProcessingStatus({ active, failed, retrying, marker, onRetry }: 
 
 export default function ProjectChat({
   project,
-  analysisPending = false,
   recordingInProgress = false,
   handoffTake = null,
   pendingRecording,
@@ -566,7 +452,6 @@ export default function ProjectChat({
   onRecordingSettled,
 }: {
   project: TrainingArc;
-  analysisPending?: boolean;
   /** Set when this chat returns from its own recorder. It bridges the short
    *  gap before the accepted Take has a session/processing marker. */
   recordingInProgress?: boolean;
@@ -583,7 +468,10 @@ export default function ProjectChat({
 }) {
   const workspace = useWorkspaceSidebar();
   const reviewExit = useRef<ReviewExit | null>(null);
-  const leavingReview = useCallback((action: () => void) => (reviewExit.current ?? ((afterSave) => afterSave()))(action), []);
+  const documentExit = useRef<ReviewExit | null>(null);
+  const leavingReview = useCallback((action: () => void) =>
+    leaveAfterSave(reviewExit.current, () => leaveAfterSave(documentExit.current, action)), []);
+  const [openedIdealReply, setOpenedIdealReply] = useState<string | null>(null);
   const back = () => leavingReview(onBack);
   useBackDismiss(back);
   const userId = useUserId();
@@ -605,8 +493,6 @@ export default function ProjectChat({
     handoffTake,
     onRecordingSettled,
   });
-  const [opened, setOpened] = useState<Opened>(null);
-  const [openedPractice, setOpenedPractice] = useState<FeedbackWalkChunk | null>(null);
   const [takeReview, setTakeReview] = useState<TakeReviewTarget | null>(initialReview);
   const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -624,12 +510,11 @@ export default function ProjectChat({
   const slides = useUpdateSlides(activeProject.arcId, {
     hasDeck: activeProject.takes.some((take) => take.hasSlides), takeCount: activeProject.takeCount,
   });
-  const { enabled: takeReviewEnabled, runs, refreshRuns } = useProjectPracticeHistory(activeProject, thread.messages);
+  const { runs, refreshRuns } = useProjectPracticeHistory(activeProject, thread.messages);
   const [openedTranscript, setOpenedTranscript] = useState<{
     sessionId: string;
     takeIndex: number;
   } | null>(null);
-  const reviewSelection = projectReviewSelection(opened, openedPractice);
   const [draft, setDraft] = useState(initialDraft);
   useEffect(() => { onDraftChange?.(draft); }, [draft, onDraftChange]);
   const [sendingHere, setSending] = useState(false);
@@ -639,7 +524,6 @@ export default function ProjectChat({
   const pendingTyped = latestTypedAnswer(outbox);
   const sendingRef = useRef(false);
   const [pendingTap, setPendingTap] = useState<PendingTapTurn | null>(null);
-  const [slideCount, setSlideCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(
     () => withProjectChatPlacement(orderedProjectMessages(outbox.messages, activeProject.arcId)).filter(
@@ -658,17 +542,30 @@ export default function ProjectChat({
   const reviewContext = askTarget ?? takeReview;
   const currentReviewContext = useRef(reviewContext);
   currentReviewContext.current = reviewContext;
+  const voiceScope = JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]);
+  const [preparedVoice, setPreparedVoice] = useState<{
+    scope: string; answer: SpokenChatAnswer; target: ReturnType<typeof turnTarget>;
+  } | null>(null);
+  const stagedVoice = preparedVoice?.scope === voiceScope ? preparedVoice : null;
   const voice = useComposerVoice({
     enabled: thread.signedIn,
     held: sending || !outbox.ready,
     maxSeconds: 120,
     label: "Record your answer",
-    scope: JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]),
-    onSend: async (audio, duration) => {
+    prepareOnStop: true,
+    scope: voiceScope,
+    onSend: async (audio, duration, turnId) => {
       if (!outbox.isCurrent()) return false;
-      const take = reviewContext ? { arcId: activeProject.arcId, takeId: reviewContext.take.sessionId } : undefined;
-      const spoken = await transcribeChatAnswer(audio, duration, take);
-      return spoken && outbox.isCurrent() && currentReviewContext.current === reviewContext ? answerText(undefined, spoken) : false;
+      const captured = turnTarget();
+      const take = captured.take ? { arcId: activeProject.arcId, takeId: captured.take } : undefined;
+      const spoken = await transcribeChatAnswer(audio, duration, take, {
+        turnId, projectId: activeProject.arcId, snippetId: captured.focus?.snippet_id,
+      });
+      if (!spoken || !turnId || !outbox.isCurrent() || currentReviewContext.current !== reviewContext) return false;
+      const answer = { ...spoken, turnId, audio };
+      setPreparedVoice({ scope: voiceScope, answer, target: captured });
+      setDraft(spoken.text);
+      return true;
     },
   });
   const typingAnswer = activeQuestion !== null && typingQuestion === activeQuestion.client_id;
@@ -676,12 +573,6 @@ export default function ProjectChat({
   const chips = Array.isArray(questionMeta.chips)
     ? questionMeta.chips.filter((chip): chip is string => typeof chip === "string" && chip.length > 0)
     : [];
-  const checkpoint = readPracticeCheckpoint(userId, activeProject.arcId);
-  const { hasPractice, chunks: practiceChunks } = projectPracticeView(
-    activeProject,
-    thread.messages,
-    checkpoint,
-  );
   const recordingTakes = [...activeProject.takes].sort(
     (a, b) => a.takeIndex - b.takeIndex,
   );
@@ -703,17 +594,6 @@ export default function ProjectChat({
       recordingTakes.at(-1)?.sessionId, freshReview?.sessionId].join(":"),
   );
 
-  useEffect(() => {
-    let active = true;
-    void fetchArcSetup(activeProject.arcId).then((setup) => {
-      if (!active || !setup) return;
-      // Deckless practice uses the product's three-part default deck.
-      setSlideCount(Math.max(1, setup.slides.length || 3));
-    });
-    return () => {
-      active = false;
-    };
-  }, [activeProject.arcId]);
 
   async function answerChip(choice: string): Promise<void> {
     const take = questionMeta.take_session_id;
@@ -762,36 +642,36 @@ export default function ProjectChat({
     await answerChip(choice);
   }
 
-  async function answerText(retry?: PendingChatTurn, spoken?: { text: string; durationMs: number }): Promise<boolean> {
-    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
+  function turnTarget(retry?: PendingChatTurn) {
     const review = reviewContext;
     const questionInView = questionInTakeView(activeQuestion, review, reviewedTakeIds);
-    const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview);
-    const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, questionInView, target, retry);
+    const documentTake = idealOfferTake(ordinaryMessages.find((row) => row.client_id === openedIdealReply), recordingTakes);
+    const idealFocus: TakeReviewTarget | null = documentTake ? { take: documentTake, focus: { step: "ideal" } } : null;
+    const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview ?? idealFocus);
+    return { ...typedQuestionTarget(activeProject, questionInView, target, retry), review, target };
+  }
+
+  function beginTypedTurn(
+    answer: string, captured: ReturnType<typeof turnTarget>, spoken?: SpokenChatAnswer, hasAudio = false,
+  ) {
+    const { focus, question, take, review, target } = captured;
     const arc = activeProject.arcId;
-    if (!answer || sending || sendingRef.current || !outbox.ready) return false;
-    const existing = retry ?? outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus));
-    if (existing && outbox.isSending(existing)) return false;
-    sendingRef.current = true;
-    setSending(true);
-    if (!spoken) setDraft((current) => !retry || current === retry.draft ? "" : current);
-    setTypingQuestion(null);
-    pinBottom();
     const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
-    const focusMetadata = reviewFocus ? { review_focus: reviewFocus } : {};
+    const focusMetadata = focus ? { review_focus: focus } : {};
     const placement = placementForTurn(review, target ?? null, question);
     resumeLiveFeedback(placement.live_take_feedback);
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
-    const turn = existing ?? outbox.begin(spoken ? answer : draft, {
-      role: "user", kind: "text", body: answer, metadata: {
+    return outbox.begin(spoken ? answer : draft, {
+      role: "user", kind: "text", body: answer, clientId: spoken?.turnId, metadata: {
         ...typedProjectTurnMetadata({ ...scope, role: "answer" }),
         ...placement,
         ...focusMetadata,
-        ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs } : {}),
+        ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs, ...(hasAudio ? { voice_clip: true } : {}) } : {}),
       },
     }, question, {
       question: answer, history: projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arc),
       historySource: "screen", projectId: arc, sessionId: take, place: "speaking", persist: thread.signedIn,
+      voiceReceipt: spoken?.receipt,
       presentationContext: {
         has_current_project: true, completed_takes: Math.max(activeProject.takeCount, activeProject.takes.length),
         has_pdf: activeProject.takes.some((t) => t.hasSlides),
@@ -799,19 +679,46 @@ export default function ProjectChat({
         ...focusMetadata,
       },
     });
+  }
+
+  async function deliverTypedTurn(turn: PendingChatTurn) {
+    const scope = { arcId: activeProject.arcId, takeSessionId: turn.request.sessionId ?? undefined,
+      questionClientId: turn.question?.client_id ?? "", place: "speaking" };
     try {
       const result = await outbox.deliver(turn, (response) => {
+        const exchange = turn.user.metadata?.take_exchange;
         return { role: "bot", kind: "text", body: replyBody(response, thread.messages),
           metadata: { ...typedProjectTurnMetadata({ ...scope, role: "reply" }), ...response.row_metadata,
             ...(offersNextTake(response) ? { suggested_action: "record_again" } : {}),
-            ...(turn.user.metadata?.take_exchange === undefined ? {} : { take_exchange: turn.user.metadata.take_exchange }) } };
+            ...(exchange === undefined ? {} : { take_exchange: exchange }) } };
       });
       if (result && outbox.isCurrent()) await refreshAfterReply(result.reply);
     } catch {
       if (outbox.isPending(turn)) {
-        setDraft((current) => current || turn.draft);
-        setTypingQuestion(question?.client_id ?? null);
+        if (!turn.user.metadata?.will_voice) setDraft((current) => current || turn.draft);
+        setTypingQuestion(turn.question?.client_id ?? null);
       }
+    }
+  }
+
+  async function answerText(retry?: PendingChatTurn, spoken?: SpokenChatAnswer, captured = turnTarget(retry)): Promise<boolean> {
+    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
+    if (!answer || sending || sendingRef.current || !outbox.ready) return false;
+    const { focus, question, take } = captured;
+    const existing = retry ?? (spoken ? undefined : outbox.turns.findLast((t) => samePending(t, answer, take, question, focus)));
+    if (existing && outbox.isSending(existing)) return false;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      const hasAudio = spoken ? await keepChatReplyAudio(spoken, userId) : false;
+      if (!outbox.isCurrent()) return false;
+      if (!retry) {
+        setDraft("");
+        if (spoken) setPreparedVoice(null);
+      } else if (!spoken) setDraft((current) => current === retry.draft ? "" : current);
+      setTypingQuestion(null);
+      pinBottom();
+      await deliverTypedTurn(existing ?? beginTypedTurn(answer, captured, spoken, hasAudio));
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -820,7 +727,13 @@ export default function ProjectChat({
   }
 
   function refreshAfterReply(reply: LoungeMessage) {
-    if (offersIdealText(reply)) setAskTarget((current) => current === askTarget ? null : current);
+    if (offersIdealText(reply)) {
+      setAskTarget((current) => current === askTarget ? null : current);
+      const take = idealOfferTake(reply, recordingTakes);
+      if (take && (!isTakeExchangeMessage(reply) || !reviewedTakeIds.has(take.sessionId))) {
+        leaveAfterSave(documentExit.current, () => setOpenedIdealReply(reply.client_id));
+      }
+    }
     return thread.reload();
   }
 
@@ -832,12 +745,6 @@ export default function ProjectChat({
     if (!userId || (await outboxOwner())?.id !== userId || !outbox.isCurrent()) return;
     await thread.append(draft);
   }
-
-  const closeResult = () => {
-    setOpened(null);
-    setOpenedPractice(null);
-    void thread.reload();
-  };
 
   function finishReview() {
     const closed = takeReview?.take.sessionId;
@@ -894,16 +801,12 @@ export default function ProjectChat({
     if (message.role !== "bot") return null;
     const destination = inReview && message.metadata?.review_destination ? reviewLink(message) : null;
     const offer = recordOffer(message);
-    const wording = message.metadata?.coach_wording ? <CoachWordingCard message={message}
-      project={activeProject.arcId} recordingDock={recordingDock}
-      savedReply={linkedWording.has(message.client_id)} onSaved={() => { void thread.reload(); }} /> : null;
-    return destination || offer || wording ? <>{destination}{offer}{wording}</> : null;
+    return destination || offer ? <>{destination}{offer}</> : null;
   }
 
+
   function renderTake(take: TrainingTake) {
-    const chunk = practiceChunks.find((entry) => entry.latestSessionId === take.sessionId);
-    const range = chunk && !chunk.pendingStatus ? { startSlide: chunk.startSlide, endSlide: chunk.endSlide } : undefined;
-    const selected = takeReview?.take.sessionId === take.sessionId ? { ...takeReview, walkRange: range } : null;
+    const selected = takeReview?.take.sessionId === take.sessionId ? { ...takeReview, take } : null;
     const forTake = messages.filter((message) => message.metadata?.take_session_id === take.sessionId);
     const preview = takePreview(forTake);
     return <div key={take.sessionId} data-project-take={take.sessionId} className="flex flex-col gap-2">
@@ -928,6 +831,7 @@ export default function ProjectChat({
         onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
         onClose={() => leavingReview(finishReview)} rememberOpening={rememberLiveOpening}
         onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
+        savedWordings={linkedWording} onWordingSaved={() => { void thread.reload(); }}
         renderFooter={(message) => {
           const retry = failedTurns.get(message.client_id);
           return retry ? <div data-project-chat-error>
@@ -938,7 +842,8 @@ export default function ProjectChat({
     </div>;
   }
 
-  function renderMessage(message: LoungeMessage) {
+  function renderMessage(message: LoungeMessage, ideal?: TrainingTake) {
+    const link = ideal ? null : reviewLink(message);
     return (
       message.role === "system" && message.metadata?.coach_wording_saved === true ? (
         linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
@@ -956,8 +861,9 @@ export default function ProjectChat({
       ) : (
         <Fragment key={message.client_id}>
           {hasTakeReplyContent(message) ? (
-            <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone>
-              {reviewLink(message)}
+            <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone
+              wordingSaved={linkedWording.has(message.client_id)} onWordingSaved={() => { void thread.reload(); }}>
+              {link}
             </TakeConversationMessage>
           ) : (
             <div
@@ -970,7 +876,7 @@ export default function ProjectChat({
             >
               {message.metadata?.human_coach_author === "Artur" && <p className="mb-1 text-[13px] font-medium text-muted-foreground">Artur · Speaking coach</p>}
               {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
-              {reviewLink(message)}
+              {link}
             </div>
           )}
           {replyActions(message)}
@@ -984,52 +890,60 @@ export default function ProjectChat({
     );
   }
 
+  function renderOrdinaryMessage(message: LoungeMessage) {
+    const take = idealOfferTake(message, recordingTakes);
+    const close = () => leaveAfterSave(documentExit.current, () => setOpenedIdealReply(null));
+    return <div key={message.client_id} className="flex min-w-0 flex-col gap-2 empty:hidden">
+      <div className={WILLAB_CONTENT_RAIL + " flex min-w-0 flex-col gap-2 empty:hidden"}>
+        {renderMessage(message, take)}
+      </div>
+      {take ? <TakeConversation title="Ideal text" expanded={openedIdealReply === message.client_id}
+        onExpandedChange={(open) => open
+          ? leaveAfterSave(documentExit.current, () => setOpenedIdealReply(message.client_id))
+          : close()}>
+        <InlineTakeIdealText project={activeProject} take={take} exitRef={documentExit} onClose={close} />
+      </TakeConversation> : null}
+    </div>;
+  }
+
+  function sendDraft(value: string) {
+    return stagedVoice ? answerText(undefined, { ...stagedVoice.answer, text: value.trim() }, stagedVoice.target) : answerText();
+  }
+
+  function changeDraft(value: string) {
+    setDraft(value);
+    if (!value.trim()) setPreparedVoice(null);
+  }
+
+  function composerStatus() {
+    return voice.error ? <p role="alert" className="px-2 pb-1 text-sm">
+      {voice.error} {voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
+    </p> : undefined;
+  }
+
+  function processingStatus() {
+    if (pendingRecording && !recordingTakes.some((take) =>
+      take.uploadKey === pendingRecording.key || take.sessionId === pendingRecording.sessionId)) {
+      return <PendingRecordingBubbles take={pendingRecording} onOpen={() => onOpenPendingRecording?.(pendingRecording)} />;
+    }
+    return <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
+      retrying={retrying} onRetry={() => void retryProcessing()} />;
+  }
+
   return (
     <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className="flex min-h-full w-full flex-col justify-end gap-2">
-          <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
-          {!takeReviewEnabled && hasPractice ? (
-            <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
-              <FeedbackWalkCard
-                progress={activeProject.practiceProgress}
-                chunks={practiceChunks}
-                onFeedback={(chunk) => {
-                  const take = recordingTakes.find((item) => item.sessionId === chunk.latestSessionId);
-                  if (take && !chunk.pendingStatus) {
-                    openReview({ take, focus: { step: "feedback" }, openWalk: true });
-                    return;
-                  }
-                  setOpenedPractice(chunk);
-                  setOpened("walk");
-                }}
-                onIdealText={() => {
-                  setOpenedPractice(null);
-                  setOpened("ideal");
-                }}
-              />
-            </div>
-          ) : null}
-
-          </div>
           {projectTimeline(recordingTakes, ordinaryMessages, messages).map((entry) =>
-            entry.kind === "take" ? renderTake(entry.take) :
-              <div key={entry.message.client_id} className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
-                {renderMessage(entry.message)}
-              </div>
+            entry.kind === "take" ? renderTake(entry.take) : renderOrdinaryMessage(entry.message)
           )}
           <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
-          {pendingRecording && !recordingTakes.some((take) =>
-            take.uploadKey === pendingRecording.key || take.sessionId === pendingRecording.sessionId)
-            ? <PendingRecordingBubbles take={pendingRecording}
-                onOpen={() => onOpenPendingRecording?.(pendingRecording)} />
-            : <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
-                retrying={retrying} onRetry={() => void retryProcessing()} />}
-          {sending ? <TypingDots label="Will is replying" /> : null}
+          {processingStatus()}
+          {sending || voice.sending ? <TypingDots label={voice.sending && !sending ? "Processing your recording" : "Will is replying"} /> : null}
           </div>
         </div>
       </div>
@@ -1040,24 +954,14 @@ export default function ProjectChat({
         inputRef={composerRef}
         above={askTarget ? <ProjectReviewContext target={askTarget} onClear={() => setAskTarget(null)} /> : undefined}
         formAttrs={{ "data-project-question-composer": "" }} placeholder={activeQuestion ? TYPE_YOUR_ANSWER : "Message about this project"}
-        inputLabel="Answer about this take" sendLabel="Send answer" value={draft} onValue={setDraft} onSend={() => answerText()}
-        autoFocus={typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending}
+        inputLabel="Answer about this take" sendLabel="Send answer" value={draft}
+        onValue={changeDraft} onSend={sendDraft}
+        autoFocus={Boolean(stagedVoice) || typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending || voice.sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
         mic={voice.mic}
-        recording={voice.recording} voiceDraft={voice.voiceDraft} status={voice.error ?? undefined} />
+        recording={voice.recording} status={composerStatus()} />
       </div>
       {slides.layer}
-      {opened ? (
-        <IdealTextOverlay
-          arcId={activeProject.arcId}
-          {...reviewSelection}
-          analysisPending={analysisPending}
-          initialMode={opened === "walk" ? "review" : undefined}
-          requireFeedbackWalk={opened === "walk"}
-          projectFlow={opened === "walk"}
-          onClose={closeResult}
-        />
-      ) : null}
       {openedTranscript ? (
         <TakeTranscriptSheet
           projectTopic={activeProject.topic}
@@ -1069,5 +973,3 @@ export default function ProjectChat({
     </div>
   );
 }
-
-// Founder-Approved: the black Feedback CTA stays in the selected Feedback Walk, and project practice shows that fragment's readiness beside the two recording choices, 2026-11-18.

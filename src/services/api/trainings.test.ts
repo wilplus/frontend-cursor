@@ -4,8 +4,10 @@ STORY    As the chat and project surfaces open together, I want one current
          projects.
 OUTCOME  O1  Concurrent and recent reads use one authenticated request.
          O2  A different authenticated user gets a separate result.
+         O3  A Take's range follows the recording on new and older responses.
 PROVES   O1 -> "one fetch is shared and the successful result is reused"
          O2 -> "the cache is scoped to the authenticated identity"
+         O3 -> "retains the recorded slide range on each matching Take"
 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,5 +73,26 @@ describe("shared trainings reads", () => {
       expect.objectContaining({ arcId: "user-b-project" }),
     ]);
     expect(bff.bffFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains the recorded slide range on each matching Take", async () => {
+    bff.bffFetch.mockResolvedValue({
+      ...response("board-pitch"),
+      body: { trainings: [{
+        arc_id: "board-pitch",
+        takes: [
+          { session_id: "legacy", take_index: 1 },
+          { session_id: "current", take_index: 2, recorded_range: { start_slide: 3, end_slide: 5 } },
+        ],
+        practice_chunks: [
+          { latest_session_id: "legacy", start_slide: 1, end_slide: 2, attempts: 4, delivery_label: "Good" },
+          { latest_session_id: "current", start_slide: 6, end_slide: 7, attempts: 1, delivery_label: "Almost" },
+        ],
+      }] },
+    });
+    const [project] = (await fetchTrainings())!;
+    expect(project.takes.map((take) => take.recordedRange)).toEqual([
+      { startSlide: 1, endSlide: 2 }, { startSlide: 3, endSlide: 5 },
+    ]);
   });
 });

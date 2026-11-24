@@ -33,6 +33,7 @@ export interface ChatHistoryEntry {
 
 export interface ChatQueryArgs {
   question: string;
+  voiceReceipt?: string;
   /** Which of the ring's three chats the turn was typed in (backend #1933):
    *  both rows of the turn are stamped with it. Absent: as before. */
   place?: string | null;
@@ -238,6 +239,7 @@ export async function postChatQuery(
         headers: { "Content-Type": "application/json", ...asker },
         body: JSON.stringify({
           question: args.question,
+          voice_receipt: args.voiceReceipt,
           history: args.history,
           history_source: args.historySource,
           session_id: args.sessionId,

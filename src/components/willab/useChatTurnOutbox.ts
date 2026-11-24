@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { postChatQuery, type ChatQueryResponse } from "@/services/api/chatQuery";
+import { attachChatVoice } from "@/services/api/willQuestion";
+import { dropNote, readChatReplyAudio } from "@/lib/willab/voiceNoteOutbox";
 import {
   newestStamp, stampLoungeMessage, type LoungeMessage, type LoungeMessageDraft,
 } from "@/services/api/loungeMessages";
@@ -49,6 +51,7 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
     if (!key) return;
     for (const turn of settled) {
       writes.current.delete(turn.user.client_id);
+      if (turn.user.metadata?.voice_clip === true) void dropNote(turn.user.client_id);
       replaceChatTurn(key, turn.user.client_id);
     }
   }, [key, settled]);
@@ -72,6 +75,7 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
 
   function forget(turn: PendingChatTurn) {
     writes.current.delete(turn.user.client_id);
+    if (turn.user.metadata?.voice_clip === true) void dropNote(turn.user.client_id);
     if (key) replaceChatTurn(key, turn.user.client_id);
   }
 
@@ -89,6 +93,13 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
       // The signed-in query commits both rows. Its acknowledgement is
       // sufficient even if the parallel optimistic append is still waiting.
       const stored = user.retry();
+      if (turn.user.metadata?.voice_clip === true) {
+        if (!(await stored) || !owner || !turn.request.voiceReceipt) throw new Error("Spoken message was not kept");
+        const audio = await readChatReplyAudio(id, owner);
+        if (!audio || !await attachChatVoice(id, audio, turn.request.voiceReceipt)) {
+          throw new Error("Spoken recording was not attached");
+        }
+      }
       const response: ChatQueryResponse = turn.reply ? {} : await postChatQuery({
         ...turn.request, clientId: id, clientCreatedAt: turn.user.client_created_at,
       });
@@ -114,6 +125,7 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
         if (!written || !(await stored)) throw new Error("Local chat turn was not persisted");
       }
       if (response.persisted_client_id) {
+        if (turn.user.metadata?.voice_clip === true) void dropNote(id);
         writes.current.delete(id);
         replaceChatTurn(key, id, { ...turn, request: { question: turn.request.question }, confirmedReply: reply });
       } else {

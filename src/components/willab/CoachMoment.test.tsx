@@ -9,6 +9,7 @@ OUTCOME  O1  An authorized clip and served exercise share the reply bubble and p
          O5  A reply replays only the practice saved for its own moment.
          O6  The rewrite becomes an output only after the speaker's choice is saved.
          O7  A served Sniper or AI audio example appears with the original clip.
+         O8  Requesting AI audio prepares the cited Take’s authorized example in the same bubble.
 PROVES   O1 -> "plays a cited moment and opens its served exercise right in chat"
          O2 -> "keeps the clip when the served intervention is for another moment"
          O3 -> "omits an unauthorized fragment and never looks up its practice"
@@ -16,6 +17,7 @@ PROVES   O1 -> "plays a cited moment and opens its served exercise right in chat
          O5 -> "replays the saved attempt for the cited moment"
          O6 -> "saves an explicit wording choice before showing it as output"
          O7 -> "shows the served Sniper instructions for %s", "plays a supplied AI example beside the recording"
+         O8 -> "prepares requested AI audio on the cited Take and gives it a player in that same bubble", "opens the exact served practice when a requested AI example needs preparation", "checks practice permission before reading or preparing a requested example"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -26,7 +28,7 @@ import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
 const api = vi.hoisted(() => ({
   clip: vi.fn(), document: vi.fn(), tempo: vi.fn(), practiceOn: vi.fn(), steps: vi.fn(), decision: vi.fn(),
-  ai: vi.fn(),
+  ai: vi.fn(), prepareAi: vi.fn(), openPractice: vi.fn(),
 }));
 vi.mock("@/lib/api/bffFetch", () => ({ bffFetch: api.clip }));
 vi.mock("@/services/api/idealText", () => ({ fetchIdealText: api.document }));
@@ -36,7 +38,11 @@ vi.mock("@/services/api/takeReview", () => ({ readReviewSteps: api.steps }));
 vi.mock("@/lib/willab/idealTextDecisions", () => ({ postTrackedDecision: api.decision }));
 vi.mock("@/services/api/aiVoice", async (load) => ({
   ...await load<typeof import("@/services/api/aiVoice")>(),
-  readAiVoice: api.ai, readAiVoiceOnce: api.ai,
+  readAiVoice: api.ai, readAiVoiceOnce: api.ai, ensureAiVoice: api.prepareAi,
+}));
+vi.mock("@/services/api/walkPractise", async (load) => ({
+  ...await load<typeof import("@/services/api/walkPractise")>(),
+  walkPractiseIO: () => ({ open: api.openPractice }),
 }));
 vi.mock("./IdealTextOverlay", () => ({
   default: ({ reviewAt }: { reviewAt: { take: string; snippet: string; practise: boolean } }) =>
@@ -162,7 +168,7 @@ it.each([
   });
   api.tempo.mockResolvedValue({ reading, snippetId: reference.snippet_id, planLevel: "Pace", topic: "the pilot",
     said: { before: "", stretch: words, after: "" } });
-  await act(async () => root.render(<CoachMoment reference={reference} />));
+  await act(async () => root.render(<CoachMoment reference={{ ...reference, intervention: "sniper" }} />));
   const exercise = container.querySelector("[data-coach-intervention]");
   expect(exercise?.textContent).toContain("Sniper");
   expect(exercise?.textContent).toContain(instruction);
@@ -180,6 +186,61 @@ it("plays a supplied AI example beside the recording", async () => {
   const bubble = container.querySelector("[data-bubble]");
   expect(bubble?.textContent).toContain("Let the request land.");
   expect(Array.from(bubble?.querySelectorAll("audio") ?? [], (node) => node.src)).toEqual([recordingUrl, demo]);
+});
+
+it("prepares requested AI audio on the cited Take and gives it a player in that same bubble", async () => {
+  const demo = "https://media.example/requested.mp3";
+  api.clip.mockResolvedValue({
+    kind: "response", ok: true,
+    body: { arc_id: "project", audio_url: recordingUrl, start_offset_ms: 1000, duration_ms: 3000,
+      take_index: 2, practice_id: "own-older-practice" },
+  });
+  api.document.mockResolvedValue({ kind: "single", latestTakeSessionId: "later-take", ideal: { text: words }, suggestions: [] });
+  api.ai.mockResolvedValue({ ok: true, data: { demo: "none", clip: null } });
+  api.prepareAi.mockResolvedValue({ ok: true, data: { demo: "ai_voice", clip: { state: "ready", url: demo, durationMs: 2000 } } });
+  await act(async () => root.render(<TakeConversationMessage standalone project="project" message={{
+    role: "bot", kind: "text", body: "Oto ten fragment.", client_id: "reply-requested", client_created_at: "",
+    metadata: { coach_moment: { ...reference, intervention: "ai_audio" } },
+  }} />));
+  const bubble = container.querySelector("[data-bubble]");
+  expect(bubble?.textContent).toContain("Oto ten fragment.");
+  expect(Array.from(bubble?.querySelectorAll("audio") ?? [], (node) => node.src)).toEqual([recordingUrl, demo]);
+  expect(api.clip).toHaveBeenCalledWith("/api/v2/user/lounge/moment/moment?take_session_id=take-2&intervention=ai_audio", { cache: "no-store" });
+  expect(api.prepareAi).toHaveBeenCalledWith("own-older-practice");
+  expect(api.openPractice).not.toHaveBeenCalled();
+  expect(container.querySelector("[data-practice]")).toBeNull();
+});
+
+it("opens the exact served practice when a requested AI example needs preparation", async () => {
+  const exact = { ...suggestion, evidence: {
+    projectId: "project", takeSessionId: "take-2", slideIndex: 0, paragraphIndex: 0, start: 0, end: words.length,
+  } };
+  api.document.mockResolvedValue({
+    kind: "single", latestTakeSessionId: "take-2", ideal: { text: words },
+    suggestions: [{ ...exact, id: "other-clip", snippetId: "another" }, exact],
+  });
+  api.openPractice.mockResolvedValue("this-moment");
+  api.ai.mockResolvedValue({ ok: true, data: { demo: "none", clip: null } });
+  api.prepareAi.mockResolvedValue({ ok: true, data: { demo: "ai_voice", clip: { state: "ready",
+    url: "https://media.example/requested.mp3", durationMs: 2000 } } });
+  await act(async () => root.render(<CoachMoment reference={{ ...reference, intervention: "ai_audio" }} />));
+  expect(api.openPractice).toHaveBeenCalledExactlyOnceWith(exact, { kind: "exercise" });
+  expect(api.prepareAi).toHaveBeenCalledExactlyOnceWith("this-moment");
+  expect(container.querySelectorAll("audio")).toHaveLength(2);
+});
+
+it("checks practice permission before reading or preparing a requested example", async () => {
+  api.practiceOn.mockResolvedValue(false);
+  api.clip.mockResolvedValue({
+    kind: "response", ok: true,
+    body: { arc_id: "project", audio_url: recordingUrl, start_offset_ms: 1000, duration_ms: 3000,
+      take_index: 2, practice_id: "own-practice" },
+  });
+  await act(async () => root.render(<CoachMoment reference={{ ...reference, intervention: "ai_audio" }} />));
+  expect(container.querySelector("audio")?.src).toBe(recordingUrl);
+  expect(container.querySelector('[data-coach-intervention] [role="status"]')?.textContent).toContain("unavailable for this fragment");
+  expect(api.ai).not.toHaveBeenCalled();
+  expect(api.prepareAi).not.toHaveBeenCalled();
 });
 
 it("drops the automatic transcript footer while keeping ordinary chat text", () => {

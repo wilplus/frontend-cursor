@@ -19,7 +19,7 @@ import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
-import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
+import { linkedSavedWordings } from "./CoachWordingCard";
 import { coachWording } from "@/services/api/coachWording";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -164,7 +164,8 @@ import {
   useStrengths,
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
-import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
+import { postWillQuestion, transcribeChatAnswer, type SpokenChatAnswer } from "@/services/api/willQuestion";
+import { keepChatReplyAudio } from "@/lib/willab/voiceNoteOutbox";
 import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
@@ -541,6 +542,14 @@ function useLoungeDraft(scope: string) {
   return { value: drafts[scope] ?? "", setDraft, field, focus };
 }
 
+function LoungeComposerStatus({ uploadError, voice }: { uploadError: string | null; voice?: ReturnType<typeof useComposerVoice> }) {
+  if (!uploadError && !voice?.error) return null;
+  return <p role="alert" className="pb-1 text-sm text-destructive">
+    {uploadError || voice?.error}
+    {!uploadError && voice?.retry ? <button type="button" onClick={() => void voice.retry?.()} className="ml-1 underline">Try again</button> : null}
+  </p>;
+}
+
 function LoungeComposer({
   place, openChat, draft, plan, keyLine, notebook, held, busy, onSend, onProjects, onUpload, onSlides,
   citation, clearCitation, voice,
@@ -599,7 +608,7 @@ function LoungeComposer({
       value={draft.value}
       onValue={draft.setDraft}
       onSend={onSend}
-      busy={busy}
+      busy={busy || voice?.sending}
       voiceRequired={!citation?.focus && Boolean(hear || keyLine.sending && speaking)}
       mic={mic}
       recording={voice?.recording ?? guidedRecording ?? notebookRecording}
@@ -609,7 +618,7 @@ function LoungeComposer({
         <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={clearCitation}>×</button>
       </div> : undefined}
       files={files}
-      status={uploadError || voice?.error ? <p role="alert" className="pb-1 text-sm text-destructive">{uploadError || voice?.error}</p> : null}
+      status={<LoungeComposerStatus uploadError={uploadError} voice={voice} />}
     />
   );
 }
@@ -713,17 +722,33 @@ export default function Lounge({
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [thinkingHere, setBotThinking] = useState(false);
   const botThinking = outbox.busy(thinkingHere);
+  const prepareOnStop = !openChat && !wordsAlways(place);
+  const voiceScope = JSON.stringify([composerScope, citation?.takeId, citation?.focus]);
+  const [preparedVoice, setPreparedVoice] = useState<{ scope: string; answer: SpokenChatAnswer } | null>(null);
+  const stagedVoice = preparedVoice?.scope === voiceScope ? preparedVoice : null;
+  useEffect(() => { if (!draftText.trim()) setPreparedVoice(null); }, [draftText]);
   const reviewVoice = useComposerVoice({
     enabled: thread.signedIn,
     held: botThinking || !outbox.ready,
     maxSeconds: 120,
+    prepareOnStop,
     label: "Record your answer",
-    scope: JSON.stringify([composerScope, citation?.takeId, citation?.focus]),
-    onSend: async (audio, duration) => {
+    scope: voiceScope,
+    onSend: async (audio, duration, turnId) => {
       if (!outbox.isCurrent()) return false;
-      const spoken = await transcribeChatAnswer(audio, duration, citation ?? undefined);
+      const linked = projectQuestionTurn(openProjectQuestion(shownMessages));
+      const target = citation ?? (linked ? { arcId: linked.arcId, takeId: linked.takeSessionId } : undefined);
+      const spoken = await transcribeChatAnswer(audio, duration, target, prepareOnStop ? {
+        turnId, projectId: target?.arcId, snippetId: citation?.focus?.snippet_id,
+      } : undefined);
       if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== composerScope || !outbox.isCurrent()) return false;
-      return handleSend(spoken);
+      if (prepareOnStop) {
+        if (!turnId) return false;
+        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, audio } });
+        setDraftText(spoken.text);
+        return true;
+      }
+      return handleSend({ ...spoken, turnId });
     },
   });
   // F2/F7 — the offer (one of Will's asks) whose action pair is open in
@@ -1995,21 +2020,35 @@ export default function Lounge({
     return target ? <RecordNextTakeLink offer={message.metadata} onRecord={() => { void recordNext(target); }} /> : null;
   }
 
-  async function handleSend(spoken?: { text: string; durationMs: number }): Promise<boolean> {
+  async function handleSend(spoken?: SpokenChatAnswer): Promise<boolean> {
     const submittedDraft = spoken?.text ?? draftText;
     const q = submittedDraft.trim();
     if (!q || botThinking || sendingRef.current || !outbox.ready) return false;
+    if (spoken?.audio && spoken.turnId && userId) {
+      sendingRef.current = true;
+      try {
+        await keepChatReplyAudio(spoken, userId);
+      } finally {
+        sendingRef.current = false;
+      }
+      if (!outbox.isCurrent()) return false;
+      const question = openProjectQuestion(shownMessages);
+      setDraftText("");
+      setPreparedVoice(null);
+      await sendTypedTurn(beginTypedTurn(q, question, submittedDraft, spoken));
+      return true;
+    }
     if (!spoken) setDraftText("");
     // Free words under a Take's open Will question are a real chat turn. The
     // tap endpoint accepts only its fixed choices and otherwise answers with
     // a generic acknowledgement; typed words need the contextual model path.
     const typedQuestion = openProjectQuestion(shownMessages);
     if (citation) {
-      await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken?.durationMs));
+      await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken));
       return true;
     }
-    const retry = outbox.turns.findLast((turn) =>
-      turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
+    const retry = spoken ? undefined : outbox.turns.findLast((turn) =>
+      !turn.user.metadata?.will_voice && turn.request.question === q && turn.question?.client_id === typedQuestion?.client_id);
     if (retry) {
       await sendTypedTurn(retry);
       return true;
@@ -2033,7 +2072,7 @@ export default function Lounge({
       if (!spoken) setDraftText(submittedDraft);
       return false;
     }
-    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken?.durationMs));
+    await sendTypedTurn(beginTypedTurn(q, typedQuestion, submittedDraft, spoken));
     return true;
   }
 
@@ -2188,7 +2227,7 @@ export default function Lounge({
     }
   }
 
-  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, durationMs?: number) {
+  function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, spoken?: SpokenChatAnswer) {
     const questionProject = projectQuestionTurn(question);
     const arcId = citation?.arcId ?? questionProject?.arcId;
     const takeId = citation?.takeId ?? questionProject?.takeSessionId;
@@ -2203,15 +2242,18 @@ export default function Lounge({
       ...(reviewFocus ? { review_focus: reviewFocus } : {}),
       ...(citation ? { take_exchange: true } : {}),
     } : null;
-    const metadata = { ...hint, ...scope, ...(durationMs === undefined ? {} : { will_voice: true, duration_ms: durationMs }) };
+    const metadata = { ...hint, ...scope, ...(spoken ? {
+      will_voice: true, duration_ms: spoken.durationMs, ...(spoken.audio && spoken.receipt ? { voice_clip: true } : {}),
+    } : {}) };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
     const history = arcId
       ? projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arcId)
       : regularScreenHistory(screen);
-    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, metadata }, scopedQuestion, {
+    const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, clientId: spoken?.turnId, metadata }, scopedQuestion, {
       question: q, history, historySource: thread.signedIn ? "screen" : undefined,
       projectId: arcId, sessionId: takeId, place, persist: thread.signedIn,
+      voiceReceipt: spoken?.receipt,
       presentationContext: { ...currentPresentationContext(), ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
     });
     rememberPlace(turn.user.client_id, place);
@@ -2257,7 +2299,7 @@ export default function Lounge({
         await thread.append(withHint(failure, typedHint(place, null, openChat)));
         outbox.forget(turn);
       } else {
-        setDraftText((draft) => draft || turn.draft);
+        if (!turn.user.metadata?.voice_clip) setDraftText((draft) => draft || turn.draft);
       }
     } finally {
       sendingRef.current = false;
@@ -2331,7 +2373,7 @@ export default function Lounge({
     if (take) {
       if (take.anchor !== id) return null;
       return <LoungeTakeConversation key={composerScope + ":" + take.takeId} arcId={take.arcId} takeId={take.takeId}
-        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock}
+        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock} savedWordings={savedWordings}
         onCitation={(next) => {
           setCitation((current) => next ?? (current?.takeId === take.takeId ? null : current));
           if (next?.quote) focusComposer();
@@ -2339,12 +2381,7 @@ export default function Lounge({
         renderFooter={(message) => {
           const failed = outbox.turns.find((turn) => turn.user.client_id === message.client_id && !outbox.isSending(turn));
           if (failed) return <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} />;
-          const offer = recordOffer(message, take.arcId);
-          const wording = message.role === "bot" && message.metadata?.coach_wording ? (
-            <CoachWordingCard message={message} project={take.arcId} recordingDock={recordingDock}
-              savedReply={savedWordings.has(message.client_id)} onSaved={() => { void reload(); }} />
-          ) : null;
-          return offer || wording ? <>{offer}{wording}</> : null;
+          return recordOffer(message, take.arcId);
         }} />;
     }
     const walk = walkAt.get(id);
@@ -2672,7 +2709,9 @@ export default function Lounge({
           busy={botThinking || !outbox.ready}
           citation={citation} voice={reviewVoice}
           clearCitation={() => setCitation((current) => current ? { ...current, focus: undefined, quote: undefined } : null)}
-          onSend={handleSend} onProjects={sidebar?.show ?? onStart}
+          onSend={() => stagedVoice && draftText.trim()
+            ? handleSend({ ...stagedVoice.answer, text: draftText.trim() })
+            : handleSend()} onProjects={sidebar?.show ?? onStart}
           onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
         />
       </div>
@@ -3247,6 +3286,7 @@ function BubbleBody({
     );
   }
   if (message.role === "user") {
+    if (hasTakeReplyContent(message)) return <TakeConversationMessage message={message} standalone />;
     return (
       <div data-row="me" data-bubble="" className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
         {/* FE-13 — both sides of the thread, so a link the user pasted works
@@ -3258,13 +3298,12 @@ function BubbleBody({
   if (message.role === "bot") {
     return (
       <>
-        {showTakeArtifacts && hasTakeReplyContent(message) ? (
+        {hasTakeReplyContent(message, showTakeArtifacts) ? (
           <TakeConversationMessage message={message} recordingDock={recordingDock} standalone />
         ) : <SequentialBotBubbles
           chunks={splitBotMessage(showTakeArtifacts ? withoutCoachTranscriptFooter(message.body) : speakingCoachReplyText(message))}
           animate={animate}
         />}
-        {showTakeArtifacts ? <CoachWordingCard message={message} recordingDock={recordingDock} /> : null}
         <BotWays
           metadata={message.metadata}
           onChip={onChip}

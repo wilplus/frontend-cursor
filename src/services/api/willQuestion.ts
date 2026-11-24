@@ -52,14 +52,32 @@ export async function postWillQuestionVoice(
   }
 }
 
-/** Hear a spoken follow-up; the existing chat outbox sends its words. */
+export type SpokenChatAnswer = { text: string; durationMs: number; receipt?: string; turnId?: string; audio?: Blob };
+
+export const chatVoicePath = (turn: string) => "/api/v2/chat/voice/" + encodeURIComponent(turn);
+
+export async function attachChatVoice(turn: string, audio: Blob, receipt: string): Promise<boolean> {
+  const mime = audio.type.includes("mp4") ? "audio/mp4" : audio.type.includes("ogg") ? "audio/ogg" :
+    audio.type.includes("wav") ? "audio/wav" : "audio/webm";
+  const form = new FormData();
+  form.append("audio", new Blob([audio], { type: mime }), "answer." + mime.split("/")[1]);
+  form.append("voice_receipt", receipt);
+  const result = await bffFetch(chatVoicePath(turn), { method: "POST", body: form, timeoutMs: 30_000 });
+  return result.kind === "response" && result.ok;
+}
+
+/** Hear this recording once. Carry its authorised evidence with the outbox turn. */
 export async function transcribeChatAnswer(
   audio: Blob, durationMs: number, take?: { arcId: string; takeId: string },
-): Promise<{ text: string; durationMs: number } | null> {
+  attempt?: { turnId?: string; projectId?: string; snippetId?: string },
+): Promise<SpokenChatAnswer | null> {
   const form = new FormData();
   const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
   form.append("audio", audio, `follow-up.${ext}`);
   form.append("duration_ms", String(Math.round(durationMs)));
+  if (attempt?.turnId) form.append("voice_turn_id", attempt.turnId);
+  if (attempt?.projectId) form.append("project_id", attempt.projectId);
+  if (attempt?.snippetId) form.append("snippet_id", attempt.snippetId);
   const path = take
     ? `/api/v2/explore/arc/${encodeURIComponent(take.arcId)}/will-question/voice`
     : "/api/v2/chat/voice";
@@ -72,9 +90,13 @@ export async function transcribeChatAnswer(
       method: "POST", cache: "no-store", timeoutMs: 60_000, body: form,
     });
     if (reply.kind !== "response" || !reply.ok) return null;
-    const body = reply.body as { text?: unknown; duration_ms?: unknown } | null;
+    const body = reply.body as { text?: unknown; duration_ms?: unknown; voice_receipt?: unknown } | null;
     return typeof body?.text === "string" && body.text.trim()
-      ? { text: body.text, durationMs: typeof body.duration_ms === "number" ? body.duration_ms : durationMs }
+      ? {
+        text: body.text, durationMs: typeof body.duration_ms === "number" ? body.duration_ms : durationMs,
+        ...(attempt?.turnId ? { turnId: attempt.turnId } : {}),
+        ...(typeof body.voice_receipt === "string" ? { receipt: body.voice_receipt } : {}),
+      }
       : null;
   } catch {
     return null;

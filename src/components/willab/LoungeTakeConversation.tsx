@@ -12,7 +12,7 @@ import TypingDots from "./TypingDots";
 export type TakeCitation = { arcId: string; takeId: string; focus?: ReviewFocus; quote?: string; takeIndex: number | null };
 
 export default function LoungeTakeConversation({
-  arcId, takeId, rows, chat, recordingDock, onCitation, onReload, renderFooter,
+  arcId, takeId, rows, chat, recordingDock, onCitation, onReload, renderFooter, savedWordings,
 }: {
   arcId: string;
   takeId: string;
@@ -22,6 +22,7 @@ export default function LoungeTakeConversation({
   onCitation: (citation: TakeCitation | null) => void;
   onReload: () => void;
   renderFooter?: (message: LoungeMessage) => ReactNode;
+  savedWordings?: ReadonlySet<string>;
 }) {
   const [open, setOpen] = useState(false);
   const [project, setProject] = useState<TrainingArc | null>(null);
@@ -54,10 +55,12 @@ export default function LoungeTakeConversation({
     {project && take ? <TakeReview project={project} target={{ take, focus: { step: "feedback" }, replay: true }}
       runs={[]} messages={rows} chat={chat} recordingDock={recordingDock} exitRef={exit}
       onClose={() => change(false)} onPracticeEnded={onReload} renderFooter={renderFooter}
+      savedWordings={savedWordings} onWordingSaved={onReload}
       onAsk={({ focus, quote }) => onCitation({ arcId, takeId, takeIndex, focus, quote })} />
     : loaded ? rows.filter(isTakeExchangeMessage).map((message) =>
       <TakeConversationMessage key={message.client_id} message={message} project={arcId} recordingDock={recordingDock}
         footer={renderFooter?.(message)} replayOnly
+        wordingSaved={savedWordings?.has(message.client_id)} onWordingSaved={onReload}
         onRefer={(snippet, quote) => onCitation({ arcId, takeId, takeIndex, focus: { step: "feedback", snippet_id: snippet }, quote })} />,
     ) : <TypingDots label="Loading feedback" />}
   </TakeConversation>;

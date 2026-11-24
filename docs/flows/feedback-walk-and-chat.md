@@ -112,13 +112,17 @@ When asked about the last two recordings, Speaking Coach compares those authoris
 
 The conversation opens at its original place in the chat and uses the full reading area. Each reply and speaker turn has its own bubble. The original clip, coach video, AI example, suggested wording, and saved Sniper trace or attempt appear where they were sent. Saved exercises can be replayed. A quote from an exact moment carries the Take and available moment reference into the regular composer. A spoken follow-up is heard under the existing recording authorization and its words enter the same chat query and outbox path. Retry keeps the original turn, recording context, and referenced moment.
 
-The Ideal Text opens below the recorded walk in the same scroll, with its existing editing, copy, delivery and export actions. Other long generated documents occupy the same width. Later follow-ups continue in ordinary chat bubbles. The Take preview is shared by project and hosted coaching chats and by member and website threads with replies linked to an authorized Take. The conversation's own permissions determine the media and text it serves. (Founder approval in the Take design thread, 23 November 2026. Amends N670 and N673.)
+The Ideal Text opens below the recorded walk in the same scroll, with its existing editing, copy, delivery and export actions. Other long generated documents occupy the same width. Later follow-ups continue in ordinary chat bubbles. When the coach offers Ideal Text in the main project conversation, the document opens directly under that reply. Its preview reopens it in the same place. The Take preview is shared by project and hosted coaching chats and by member and website threads with replies linked to an authorized Take. The conversation's own permissions determine the media and text it serves. An explicit request such as "pokażesz mi AI audio tego?" uses the cited Take and moment. Available AI audio, Sniper, and coach video open with the recording in the reply. A rephrase keeps its words and practice in that same reply. The audio request uses the existing practice and voice permissions. (Founder approval in the Take design thread, 23 November 2026. Amends N670 and N673.)
 
 Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
 
 In Project Chat, each recording and its recap appear where the Take happened. Earlier messages stay above newer Takes, and later replies follow them.
 
+The standalone Progress card is retired (N689). Open the Take's conversation for feedback, saved practice and Ideal Text. The recorded slide range belongs to the Take and supplies its practice scope.
+
 ### Shared composer (N667)
+
+In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. When only transcription is available from the server, the audio plays in the current app session. A server-accepted practice recording carries its own delivery evidence and keeps its source across a network retry.
 
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,

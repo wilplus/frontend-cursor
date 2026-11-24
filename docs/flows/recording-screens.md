@@ -462,6 +462,8 @@ green); the app shows the speaker's own slides, unchanged.
 
 ### Fragment and whole rehearsal (2026-11-23)
 
+The Take's recorded slide range supplies the review and practice scope (N689). The retired Progress card's browser checkpoint is gone.
+
 The project Ideal Text's two choices share `PracticeResumeSelection` in
 `src/lib/willab/practiceResume.ts`. A fragment is an inclusive 1-based slide
 span. On mic start `LabOverlay` resolves it against the loaded deck, starts on

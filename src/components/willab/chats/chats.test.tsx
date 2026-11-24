@@ -49,8 +49,6 @@ const arc = (arcId: string, topic: string, archived = false): TrainingArc => ({
   coverRef: null,
   deletion: null,
   archived,
-  practiceProgress: 0,
-  practiceChunks: [],
 });
 
 let root: Root;

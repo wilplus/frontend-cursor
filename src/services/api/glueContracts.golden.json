@@ -562,9 +562,7 @@
           "coverRef": null,
           "deletion": null,
           "archived": false,
-          "lastTakeAt": null,
-          "practiceProgress": 0,
-          "practiceChunks": []
+          "lastTakeAt": null
         }
       ]
     },

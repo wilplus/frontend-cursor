@@ -59,8 +59,6 @@ const arc = (
   coverRef,
   deletion: null,
   archived,
-  practiceProgress: 0,
-  practiceChunks: [],
 });
 
 let root: Root;

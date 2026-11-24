@@ -146,6 +146,7 @@ O2 -> ""still refuses a signed-out read while it holds a copy""
 O3 -> ""keeps the flag-off body too, and never an error""",Founder 2026-10-18: the price list is the same for everyone.
 src/app/api/v2/user/confidence-practice/[practiceId]/attempts/[attemptId]/check/route.test.ts,Story,"As a speaker practising, I want the check of my attempt to reach the right practice and attempt, so that my practice result comes back.","O1  The check is POSTed with an empty body to the backend path for this
 practice and attempt, with odd characters in the ids kept safe.","O1 -> ""relays an empty check body to the encoded attempt path""",
+src/app/api/v2/user/lounge/moment/[snippetId]/route.test.ts,Story,"As a speaker, I can request an AI example on the exact clip I heard in my chat.",O1  The chat proxy sends the specific fragment and recognized AI audio request and keeps the response private.,"O1 -> ""passes an AI audio request for the cited Take through to the backend""",
 src/app/api/v2/user/takes/[takeSessionId]/feedback-response/route.test.ts,Story,"As a speaker changing my answer to a piece of feedback, I want the server's reply to reach the sheet unchanged, so that my new answer shows as saved.","O1  A changed answer is POSTed to the backend for this Take and the 200
 ""revised"" reply comes back exactly as sent.
 O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""passes the 200 revised body through unchanged""
@@ -397,13 +398,15 @@ O3  An unavailable clip stays out of the reply.
 O4  Older automatic transcript footers disappear while normal text stays.
 O5  A reply replays only the practice saved for its own moment.
 O6  The rewrite becomes an output only after the speaker's choice is saved.
-O7  A served Sniper or AI audio example appears with the original clip.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
+O7  A served Sniper or AI audio example appears with the original clip.
+O8  Requesting AI audio prepares the cited Take’s authorized example in the same bubble.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
 O2 -> ""keeps the clip when the served intervention is for another moment""
 O3 -> ""omits an unauthorized fragment and never looks up its practice""
 O4 -> ""drops the automatic transcript footer while keeping ordinary chat text""
 O5 -> ""replays the saved attempt for the cited moment""
 O6 -> ""saves an explicit wording choice before showing it as output""
-O7 -> ""shows the served Sniper instructions for %s"", ""plays a supplied AI example beside the recording""",
+O7 -> ""shows the served Sniper instructions for %s"", ""plays a supplied AI example beside the recording""
+O8 -> ""prepares requested AI audio on the cited Take and gives it a player in that same bubble"", ""opens the exact served practice when a requested AI example needs preparation"", ""checks practice permission before reading or preparing a requested example""",
 src/components/willab/ConsentAsk.test.tsx,Story,"As a speaker asked for consent in the chat, I want Yes to save it as the Data & consent page does and No to save nothing, so that my answer means what I chose.","O1  The card shows the question's own words and Read more.
 O2  Yes saves the consent and closes the ask.
 O3  No saves nothing and closes the ask.","O1 -> ""shows the question's own words with Read more""
@@ -423,12 +426,6 @@ O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feed
 src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
 and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
-src/components/willab/FeedbackWalkCard.test.tsx,Story,"As a speaker, I want one compact view of every slide range I have practised, so that I can see where to continue without confusing effort with delivery quality.","O1 Only the latest chunk shows until I ask for earlier chunks.
-O2 One chunk reserves no empty history-control space and both
-destinations open for that chunk.
-O3 No delivery status dot or label is shown on the card.","O1 -> ""shows only the latest chunk until earlier chunks are requested""
-O2 -> ""omits the history control for one chunk and opens the latest destinations""
-O3 -> ""keeps the status out of the result card while its actions still work""","Founder-approved Feedback Walk handoff, 2026-11-16."
 src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to name how I feel before I record, or skip it, and as a guest not to be asked at all.","O1  Signed in, the check offers a Skip every time it shows.
 O2  Skipping goes on to the recording set-up and keeps no feeling.
 O3  Naming a feeling keeps it and goes on, with nothing said back.
@@ -553,15 +550,14 @@ O3  The refusal blocks synchronously and stays blocked if the policy read
 fails; a slow network never creates a usable gap.","O1 -> ""a newer policy blocks the app in the full consent flow""
 O2 -> ""a mid-session policy refusal blocks and resumes only after acceptance""
 O3 -> ""a known refusal blocks before the policy read completes""","Founder 2026-11-18, backend N664."
-src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
+src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want recordings and feedback in the conversation where they happened, with the app's shared chat controls.","O1  The Take's own conversation contains its Ideal Text.
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
 O4  Recording another Take is offered by a chat reply. Ideal Text
 keeps its document tools and slide previews.
-O5  The project-card CTAs keep the selected Take and route distinct:
-Feedback opens its exact Feedback Walk range; Ideal Text stays
-on Ideal Text.
+O5  Starting practice from a review reply uses the selected Take's
+exact recorded range and closes back into its chat.
 O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
 O7  A refused quick choice remains one durable user turn with one
@@ -576,14 +572,14 @@ O11 A new recording offer after Ideal Text survives earlier wording
 and a failed history refresh.
 O12 A reply can cite and explain a fragment from another Take without
 putting that fragment's identifier in the current Take's next request.","O10 -> ""saves the proposed wording and shows it when the project reopens""
-O1 -> ""puts the result before the project conversation""
+O1 -> ""keeps the Ideal Text in the same chat scroll""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""starts another Take only from the served chat action""
-O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
+O5 -> ""practises the older Take on its recorded slide range""
 O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
 O7 -> ""keeps a refused quick choice once with one recoverable error""
-O8 -> ""sends a spoken answer in the current project before its first Take""
+O8 -> ""shows an editable spoken draft and attaches playback only on send"", ""shows the sent text and plays the recording in this app session with a transcription-only response""
 O9 -> ""opens feedback on the published strength and keeps practice on the selected fix""
 O11 -> ""keeps a fresh recording offer after Ideal Text even when history refresh fails""
 O12 -> ""shows the coach's cited fragment and keeps the next turn in the active Take""","Founder lock, 2026-11-16: no bespoke project-chat chrome or pills; release-blocking chat audit, 2026-11-17."
@@ -2457,9 +2453,8 @@ O2  With helper words already saved, Next does not open the word picker.","O1 ->
 O2 -> Next opens the helper words on unsaved words only",
 src/lib/willab/partsFromCorePieces.test.ts,Story,"As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.",O1  Paragraphs built from the server's pieces keep the server's paragraph identities.,O1 -> keeps the core's Paragraph identity,Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
 src/lib/willab/practiceResume.test.ts,Story,"As a speaker continuing a project, I want my chosen fragment to apply to one Take, so that later practices keep their own choices.","O1  The choice is scoped to account and project.
-O2  The durable checkpoint is the slide where recording actually
-stopped, not the slide where it began.","O1 -> ""keeps my fragment private to my account and project""
-O2 -> ""keeps the actual stopping slide after consuming the selection""",Founder 2026-11-15: timer and fragment choice belong to continuation.
+O2  A consumed recording choice clears before the next Take.","O1 -> ""keeps my fragment private to my account and project""
+O2 -> ""clears the recording choice after it is consumed""",Founder 2026-11-15: timer and fragment choice belong to continuation.
 src/lib/willab/praiseLane.test.ts,Story,"As a speaker, I want praise to compare me only to myself and never show a number, so that feedback is personal and in words.","O1  No praise line compares me to others (""than most/others/average""); the
 lines that compare say ""you usually"".
 O2  No praise line carries a digit. Never-1: feedback is in words.","O1 -> ""compares them to THEMSELVES, never to other speakers""
@@ -2901,8 +2896,10 @@ O2 -> ""reads afresh after a write""",
 src/services/api/trainingCorpus.test.ts,Story,"As a coach labelling clips, I want never to see the machine's rating or score, so that my judgement stays blind.","O1  The clips I label carry no machine rating or score, even if the
 server sent one.","O1 -> ""never surfaces a band or machine read even if one were served (N1)""",Never-rule 2: no coach sees the machine's guess before answering.
 src/services/api/trainings.test.ts,Story,"As the chat and project surfaces open together, I want one current trainings read shared by them, without ever seeing another account's projects.","O1  Concurrent and recent reads use one authenticated request.
-O2  A different authenticated user gets a separate result.","O1 -> ""one fetch is shared and the successful result is reused""
-O2 -> ""the cache is scoped to the authenticated identity""",
+O2  A different authenticated user gets a separate result.
+O3  A Take's range follows the recording on new and older responses.","O1 -> ""one fetch is shared and the successful result is reused""
+O2 -> ""the cache is scoped to the authenticated identity""
+O3 -> ""retains the recorded slide range on each matching Take""",
 src/services/api/userProfile.test.ts,Guard,"Concurrent profile reads share one request, and a failed read is not shared, so page load does not hammer the backend and one blip does not stick.","Each caller fetching its own profile; or a failed (null) read being
 served to every later caller for the rest of the window.","one request -> ""serves every caller from one request""
 no failure  -> ""does not share a failed read: the next caller asks again""","If removed: A change to the shared read could multiply profile requests per page, or pin a signed-in coach to ""no profile"" after one error."

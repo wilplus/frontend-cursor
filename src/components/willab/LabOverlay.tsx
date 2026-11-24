@@ -97,7 +97,6 @@ import {
   readPracticeResume,
   practiceSlideRange,
   type PracticeResumeSelection,
-  writePracticeCheckpoint,
 } from "@/lib/willab/practiceResume";
 
 /* -------------------------------------------------------------------------- */
@@ -726,7 +725,6 @@ export default function LabOverlay({
     ) {
       consumedBlobRef.current = s.audioBlob;
       durationRef.current = s.durationSec;
-      if (!answer && arcId) writePracticeCheckpoint(userId, arcId, currentSlide);
       setBlob(s.audioBlob);
       dispatch("recording_stopped");
       if (answer) answerRecorded(s.durationSec * 1000);
