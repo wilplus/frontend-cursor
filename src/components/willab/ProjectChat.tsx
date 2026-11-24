@@ -7,6 +7,8 @@ import {
   stampLoungeMessage,
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
+import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
+import { outboxOwner } from "@/lib/willab/voiceNoteOutbox";
 import type { ChatQueryResponse } from "@/services/api/chatQuery";
 import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
@@ -305,10 +307,13 @@ function useProjectRecordingLifecycle({
 
   useEffect(() => {
     setLiveProject(project);
+  }, [project]);
+
+  useEffect(() => {
     const incoming = handoffTake !== null && handoffTake !== settledSession.current;
     if (incoming) returnToReview.current = true;
     setRecordingActive(recordingInProgress || incoming);
-  }, [project, recordingInProgress, handoffTake]);
+  }, [recordingInProgress, handoffTake]);
 
   useEffect(() => {
     const sync = () => {
@@ -492,6 +497,14 @@ function questionInTakeView(
   return reviewed.has(questionTake ?? "") ? null : active;
 }
 
+function placementForTurn(
+  review: TakeReviewTarget | null,
+  focus: TakeReviewTarget | null,
+  question: LoungeMessage | null,
+) {
+  return { take_exchange: Boolean(review || question), live_take_feedback: Boolean(review?.live || focus?.live) };
+}
+
 function takePreview(messages: readonly LoungeMessage[]): string | null {
   const feedback = messages.filter((message) =>
     message.role === "bot" && isTakeExchangeMessage(message) && message.body.trim(),
@@ -670,7 +683,7 @@ export default function ProjectChat({
   const ordinaryMessages = visibleMessages.filter((message) =>
     !isTakeExchangeMessage(message) || !reviewedTakeIds.has(takeSessionOf(message) ?? ""));
   useEffect(() => {
-    if (freshReview) leavingReview(() => setTakeReview({ take: freshReview, focus: { step: "feedback" } }));
+    if (freshReview) leavingReview(() => setTakeReview({ take: freshReview, focus: { step: "feedback" }, live: true }));
   }, [freshReview, leavingReview]);
   const pinBottom = useProjectChatScroll(
     scrollRef,
@@ -754,12 +767,13 @@ export default function ProjectChat({
     pinBottom();
     const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
     const focusMetadata = reviewFocus ? { review_focus: reviewFocus } : {};
-    const inTakeExchange = Boolean(review || question);
+    const placement = placementForTurn(review, target ?? null, question);
+    resumeLiveFeedback(placement.live_take_feedback);
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const turn = existing ?? outbox.begin(spoken ? answer : draft, {
       role: "user", kind: "text", body: answer, metadata: {
         ...typedProjectTurnMetadata({ ...scope, role: "answer" }),
-        take_exchange: inTakeExchange,
+        ...placement,
         ...focusMetadata,
         ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs } : {}),
       },
@@ -769,7 +783,7 @@ export default function ProjectChat({
       presentationContext: {
         has_current_project: true, completed_takes: Math.max(activeProject.takeCount, activeProject.takes.length),
         has_pdf: activeProject.takes.some((t) => t.hasSlides),
-        take_exchange: inTakeExchange,
+        ...placement,
         ...focusMetadata,
       },
     });
@@ -793,6 +807,15 @@ export default function ProjectChat({
       setSending(false);
     }
     return true;
+  }
+
+  function resumeLiveFeedback(live: boolean) {
+    if (live && takeReview?.replay) setTakeReview({ ...takeReview, replay: false, live: true });
+  }
+
+  async function rememberLiveOpening(draft: LoungeMessageDraft) {
+    if (!userId || (await outboxOwner())?.id !== userId || !outbox.isCurrent()) return;
+    await thread.append(draft);
   }
 
   const closeResult = () => {
@@ -900,13 +923,13 @@ export default function ProjectChat({
                 {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
                 runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit} focusRef={reviewFocusRef}
                 onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
-                onClose={finishReview}
+                onClose={() => leavingReview(finishReview)} rememberOpening={rememberLiveOpening}
                 onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
                 renderFooter={(message) => {
                   const retry = failedTurns.get(message.client_id);
                   return retry ? <div data-project-chat-error>
                     <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(retry)} />
-                  </div> : replyActions(message, true);
+                  </div> : replyActions(message, !selected.live && message.metadata?.live_take_feedback !== true);
                 }} /> : null}
               </TakeConversation> : null}
             </div>;

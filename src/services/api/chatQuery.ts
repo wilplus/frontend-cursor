@@ -71,6 +71,7 @@ export interface ChatQueryArgs {
     has_pdf: boolean;
     /** Where a project chat turn should appear after it has been saved. */
     take_exchange?: boolean;
+    live_take_feedback?: boolean;
     review_focus?: {
       step: "feedback" | "practise" | "ideal";
       slide_index?: number;
