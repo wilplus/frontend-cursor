@@ -748,6 +748,8 @@ describe("project conversation", () => {
     expect(host.querySelector("[data-processing-bubble]")).toBeNull();
     expect(host.querySelector('[role="dialog"][aria-label="Processing your take"]')).toBeNull();
     expect(host.querySelector('[data-project-take="take-b"] [data-take-review]')).not.toBeNull();
+    render(project, false, { handoffTake: null });
+    expect(host.querySelector('[data-project-take="take-b"] [data-take-review]')).not.toBeNull();
     expect(host.querySelector('[data-project-take="take-a"] [data-take-review-message]')).not.toBeNull();
     expect(host.querySelector('[data-project-take="take-c"] [data-take-review]')).toBeNull();
     expect(host.textContent).not.toContain("Good");
