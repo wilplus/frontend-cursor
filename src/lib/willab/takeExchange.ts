@@ -5,6 +5,11 @@ import type { TrainingTake } from "@/services/api/trainings";
 
 export const readyForReview = (take: TrainingTake) => take.reviewAvailable ?? take.feedbackAvailable;
 
+export function offersIdealText(message: Pick<LoungeMessage, "metadata">): boolean {
+  const destination = message.metadata?.review_destination as { step?: unknown } | undefined;
+  return destination?.step === "ideal";
+}
+
 export function takeSessionOf(message: Pick<LoungeMessage, "metadata">): string | null {
   const id = message.metadata?.take_session_id ?? message.metadata?.session_id;
   return typeof id === "string" && id ? id : null;

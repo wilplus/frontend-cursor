@@ -5,6 +5,7 @@ import { Quote } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
+import { takeSessionOf } from "@/lib/willab/takeExchange";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { withoutCoachTranscriptFooter } from "../willabHelpers";
 import CoachMoment from "../CoachMoment";
@@ -45,10 +46,11 @@ export default function TakeConversationMessage({
     {ai ? <LoungeAiVoiceBubble inline body="" practiceId={ai.practiceId} then={ai.then} fallback={ai.fallback}
       seed={message.client_id} avatar={null} /> : null}
   </> : null;
+  const refer = reference && reference.take_session_id !== takeSessionOf(message) ? undefined : onRefer;
   return <>
     <div {...marker} className="contents">
       {showBubble ? <ConversationBubble speaker={own}>
-        <TakeMessageCaption text={text} snippet={snippet} onRefer={onRefer} linkify={standalone} />
+        <TakeMessageCaption text={text} snippet={snippet} onRefer={refer} linkify={standalone} />
         {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
           startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
           durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}

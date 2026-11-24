@@ -1,5 +1,5 @@
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import type { ChatHistoryEntry } from "@/services/api/chatQuery";
+import type { ChatHistoryEntry, ChatQueryResponse } from "@/services/api/chatQuery";
 import { afterTakeOrder } from "@/components/willab/afterTake";
 
 export const TYPED_PROJECT_TURN = "typed_project_turn";
@@ -11,14 +11,28 @@ export const CHAT_FAILURE_BODY =
 
 const comparableBody = (body: string) => body.trim().replace(/\s+/g, " ");
 
+export type RecordingOffer = {
+  suggested_action?: unknown;
+  suggested_actions?: unknown;
+};
+
+export function offersNextTake(offer?: RecordingOffer | null): boolean {
+  return offer?.suggested_action === "record_again" ||
+    (Array.isArray(offer?.suggested_actions) && offer.suggested_actions.includes("record_again"));
+}
+
 /** A terminal after-Take line is product state, not a contextual reply. */
 export function isReplayedTerminalReply(
   body: string,
-  messages: readonly Pick<LoungeMessage, "body" | "metadata">[],
+  messages: readonly Pick<LoungeMessage, "client_id" | "body" | "metadata">[],
+  response: ChatQueryResponse,
 ): boolean {
   const reply = comparableBody(body);
+  const offered = response.persisted === true && response.persisted_client_id &&
+    (offersNextTake(response) || offersNextTake(response.row_metadata));
   return reply.length > 0 && messages.some(
-    (message) => message.metadata?.next_take === true && comparableBody(message.body) === reply,
+    (message) => message.metadata?.next_take === true && comparableBody(message.body) === reply &&
+      (!offered || message.client_id === response.persisted_client_id),
   );
 }
 
@@ -27,7 +41,9 @@ export function isPersistedTerminalReplay(
   message: Pick<LoungeMessage, "client_id" | "role" | "body" | "metadata">,
   messages: readonly Pick<LoungeMessage, "client_id" | "role" | "body" | "metadata">[],
 ): boolean {
-  if (message.role !== "bot" || message.metadata?.next_take === true) return false;
+  const meta = message.metadata;
+  if (message.role !== "bot" || meta?.next_take === true ||
+      (offersNextTake(meta) && typeof meta?.reply_to_client_id === "string")) return false;
   return messages.some(
     (candidate) => candidate.client_id !== message.client_id &&
       candidate.role === "bot" &&

@@ -16,6 +16,7 @@ import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
   isReplayedTerminalReply,
+  offersNextTake,
   openProjectQuestion,
   orderedProjectMessages,
   projectConversationHistory,
@@ -54,8 +55,8 @@ import { usePinThreadBottom } from "./usePinThreadBottom";
 import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
-import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
-import { isTakeExchangeMessage, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
+import RecordNextTakeLink from "./chats/RecordNextTakeLink";
+import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
@@ -259,11 +260,11 @@ function projectPracticeView(
   };
 }
 
-function replyBody(response: ChatQueryResponse): string | null {
+function replyBody(response: ChatQueryResponse, messages: readonly LoungeMessage[]): string {
   const bubbles = response.bubbles?.map((bubble) => bubble.trim()).filter(Boolean) ?? [];
-  if (bubbles.length > 0) return bubbles.join("\n\n");
-  const answer = response.answer?.trim() ?? "";
-  return answer || null;
+  const answer = bubbles.length > 0 ? bubbles.join("\n\n") : response.answer?.trim() ?? "";
+  if (!answer || isReplayedTerminalReply(answer, messages, response)) throw new Error("Missing contextual reply");
+  return answer;
 }
 
 function projectVersion(project: TrainingArc): string {
@@ -502,7 +503,10 @@ function placementForTurn(
   focus: TakeReviewTarget | null,
   question: LoungeMessage | null,
 ) {
-  return { take_exchange: Boolean(review || question), live_take_feedback: Boolean(review?.live || focus?.live) };
+  return {
+    take_exchange: Boolean(review || question),
+    live_take_feedback: Boolean(review?.live || focus?.live || focus?.focus.step === "ideal"),
+  };
 }
 
 function takePreview(messages: readonly LoungeMessage[]): string | null {
@@ -789,14 +793,12 @@ export default function ProjectChat({
     });
     try {
       const result = await outbox.deliver(turn, (response) => {
-        const body = replyBody(response);
-        if (!body || isReplayedTerminalReply(body, thread.messages)) throw new Error("Missing contextual reply");
-        return { role: "bot", kind: "text", body,
+        return { role: "bot", kind: "text", body: replyBody(response, thread.messages),
           metadata: { ...typedProjectTurnMetadata({ ...scope, role: "reply" }), ...response.row_metadata,
             ...(offersNextTake(response) ? { suggested_action: "record_again" } : {}),
             ...(turn.user.metadata?.take_exchange === undefined ? {} : { take_exchange: turn.user.metadata.take_exchange }) } };
       });
-      if (result && outbox.isCurrent()) await thread.reload();
+      if (result && outbox.isCurrent()) await refreshAfterReply(result.reply);
     } catch {
       if (outbox.isPending(turn)) {
         setDraft((current) => current || turn.draft);
@@ -807,6 +809,11 @@ export default function ProjectChat({
       setSending(false);
     }
     return true;
+  }
+
+  function refreshAfterReply(reply: LoungeMessage) {
+    if (offersIdealText(reply)) setAskTarget((current) => current === askTarget ? null : current);
+    return thread.reload();
   }
 
   function resumeLiveFeedback(live: boolean) {
@@ -856,7 +863,7 @@ export default function ProjectChat({
     const label = typeof coords.slide_index === "number" ? ` · Slide ${coords.slide_index + 1}` : "";
     const title = offeredStep?.label ?? "Take " + take.takeIndex + label + " · Back to review";
     return <button type="button" className="block min-h-11 text-xs underline" onClick={() => openReview({
-      take, focus: coords as ReviewFocus,
+      take, focus: coords as ReviewFocus, openedFromAt: message.client_created_at,
     })}>{title}</button>;
   }
 

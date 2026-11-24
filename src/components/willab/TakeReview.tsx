@@ -12,7 +12,7 @@ import { readReviewCopy, readReviewSteps, saveReviewCopy, type ReviewCopy, type 
 import type { TrainingArc, TrainingTake } from "@/services/api/trainings";
 import type { ChatQueryArgs } from "@/services/api/chatQuery";
 import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
-import { mergeTakeExchange } from "@/lib/willab/takeExchange";
+import { mergeTakeExchange, offersIdealText } from "@/lib/willab/takeExchange";
 import { isPersistedTerminalReplay, orderedProjectMessages } from "@/lib/willab/projectChat";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import IdealTextOverlay from "./IdealTextOverlay";
@@ -38,6 +38,8 @@ export type TakeReviewTarget = {
   /** The current Take is unfolding in the chat. */
   live?: boolean;
   quote?: string;
+  /** The reply whose link opened this view. Later replies can change the composer context. */
+  openedFromAt?: string;
 };
 export type ReviewExit = (afterSave: () => void) => void;
 type Step = ReviewFocus["step"];
@@ -198,8 +200,7 @@ function useReviewOpening(takeId: string, evidence: ReviewEvidence | undefined, 
 }
 
 function isLiveIdealOffer(row: LoungeMessage): boolean {
-  return row.metadata?.live_take_feedback === true &&
-    (row.metadata?.review_destination as Partial<ReviewFocus> | undefined)?.step === "ideal";
+  return row.metadata?.live_take_feedback === true && offersIdealText(row);
 }
 
 function liveFeedbackRows(rows: readonly LoungeMessage[]) {
@@ -244,13 +245,25 @@ function useLiveOpening(
 }
 
 function reviewContextFocus(
-  focus: ReviewFocus, offer: LoungeMessage | undefined, lastMoment: LoungeMessage | undefined,
+  target: TakeReviewTarget, project: string, offer: LoungeMessage | undefined, lastMoment: LoungeMessage | undefined,
   moment: FeedbackKeyMoment | null, opening: FeedbackKeyMoment | null,
 ): ReviewFocus {
-  if (focus.step === "ideal") return focus;
-  if (offer && (!lastMoment || offer.client_created_at >= lastMoment.client_created_at)) return { step: "ideal" };
+  const { focus, take, openedFromAt } = target;
+  const openedIdealAt = focus.step === "ideal" ? openedFromAt ?? "" : "";
+  const offeredIdealAt = offer?.client_created_at ?? "";
+  const idealAt = openedIdealAt > offeredIdealAt ? openedIdealAt : offeredIdealAt;
+  if (idealAt && (!lastMoment || idealAt >= lastMoment.client_created_at)) {
+    return focus.step === "ideal" ? focus : { step: "ideal" };
+  }
+  if (focus.step === "ideal" && !idealAt) return focus;
   const selected = coachMomentFromMetadata(lastMoment?.metadata?.coach_moment);
-  if (selected) return { step: selected.practise ? "practise" : "feedback", snippet_id: selected.snippet_id };
+  if (selected?.arc_id === project) {
+    // The clip may come from another Take. Its reply stays in this exchange,
+    // and the coach can recover the source from the saved turn.
+    return selected.take_session_id === take.sessionId
+      ? { step: selected.practise ? "practise" : "feedback", snippet_id: selected.snippet_id }
+      : { step: "feedback" };
+  }
   return focusFor(focus.step, focus.step === "practise" ? moment : opening);
 }
 
@@ -340,8 +353,9 @@ export default function TakeReview({
   const { strength, moment: openingMoment, opening, praise } = useReviewOpening(take.sessionId, artifact?.evidence, history);
   useLiveOpening(target, project, artifact, history, strength, praise, rememberOpening);
   const inConversation = Boolean(target.live || history.some((item) => item.metadata?.live_take_feedback === true));
-  const idealOffer = history.find(isLiveIdealOffer);
-  const lastMoment = inConversation ? history.findLast((item) => item.metadata?.coach_moment != null) : undefined;
+  const idealOffer = history.findLast(isLiveIdealOffer);
+  const lastMoment = inConversation ? history.findLast((item) =>
+    coachMomentFromMetadata(item.metadata?.coach_moment)?.arc_id === project.arcId) : undefined;
   const seenWalk = history.some((row) =>
     row.kind === "walk_step" && row.role === "bot" && (row.body.trim() || row.metadata?.clip),
   );
@@ -350,13 +364,13 @@ export default function TakeReview({
 
   useEffect(() => {
     if (!focusRef) return;
-    const focus = reviewContextFocus(target.focus, idealOffer, lastMoment, moment, openingMoment);
+    const focus = reviewContextFocus(target, project.arcId, idealOffer, lastMoment, moment, openingMoment);
     const active = { take, focus, live: inConversation };
     focusRef.current = active;
     return () => {
       if (focusRef.current === active) focusRef.current = null;
     };
-  }, [focusRef, target.focus, take, moment, openingMoment, idealOffer, lastMoment, inConversation]);
+  }, [focusRef, target, project.arcId, take, moment, openingMoment, idealOffer, lastMoment, inConversation]);
 
   useEffect(() => {
     article.current?.focus({ preventScroll: true });
@@ -406,6 +420,7 @@ export default function TakeReview({
         {typeof followUp === "string" ? <ConversationBubble><p className="whitespace-pre-wrap">{followUp}</p></ConversationBubble> : null}
         <div className={WILLAB_CONTENT_RAIL}>{renderFooter?.(message)}</div>
       </div> : row(message))}
+      {!idealOffer && target.focus.step === "ideal" ? document : null}
       {failed && !rows.length ? <div className={WILLAB_CONTENT_RAIL}>
         <TakeReviewStatus project={project} take={take} replay failed loading={false} onRetry={() => setRefresh((v) => v + 1)} />
       </div> : null}

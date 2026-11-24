@@ -37,7 +37,8 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
   const saved = useMemo(() => key ? readChatTurns(key) : [], [key, version]);
   const writes = useRef(new Map<string, RecoverableAppend>());
   const settled = useMemo(() => {
-    const bots = thread.messages.filter((m) => m.role === "bot");
+    const localReplies = new Set(saved.map((turn) => turn.confirmedReply?.client_id));
+    const bots = thread.messages.filter((row) => row.role === "bot" && (row.id || !localReplies.has(row.client_id)));
     const ids = new Set(bots.map((m) => m.metadata?.reply_to_client_id));
     const persisted = new Set(bots.filter((m) => m.id).map((m) => m.client_id));
     return saved.filter((t) => ids.has(t.user.client_id) ||
@@ -103,7 +104,9 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
       }
       let reply: LoungeMessage;
       if (thread.signedIn) {
-        reply = thread.appendLocalOnly({ ...replyOf(response), clientId: response.persisted_client_id });
+        const draft = replyOf(response);
+        reply = thread.appendLocalOnly({ ...draft, clientId: response.persisted_client_id,
+          metadata: { ...draft.metadata, reply_to_client_id: id } });
       } else {
         reply = turn.reply ?? stampLoungeMessage(replyOf(response), newestStamp([...messages, turn.user]));
         replaceChatTurn(key, id, { ...turn, reply });
@@ -130,7 +133,7 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
     busy: (local: boolean) => local || turns.some((t) => active.has(t.user.client_id)),
     isSending: (t: PendingChatTurn) => active.has(t.user.client_id),
     isPending: (t: PendingChatTurn) => key !== null && current.current === key &&
-      readChatTurns(key).some((savedTurn) => savedTurn.user.client_id === t.user.client_id),
+      readChatTurns(key).some((savedTurn) => savedTurn.user.client_id === t.user.client_id && !savedTurn.confirmedReply),
     isCurrent: () => key !== null && current.current === key,
   };
 }
