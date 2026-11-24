@@ -234,12 +234,13 @@ const PRACTICE_STEPS = new Set(["tempo", "clearer", "exVideo", "practise", "proc
 /** The practice this plan serves on the nominated clip. */
 export function pickedPracticeSteps(
   source: FeedbackWalkModel, snippet: string | null | undefined, tempoSnippet: string | null | undefined,
+  matchesStep: (step: WalkStep) => boolean = () => true,
 ): WalkStep[] {
   const actions = source.plan.filter((step) => PRACTICE_STEPS.has(step.key));
-  const first = actions.find((step) => !snippet || (
+  const first = actions.find((step) => matchesStep(step) && (!snippet || (
     step.key === "tempo" ? tempoSnippet === snippet
       : step.moment != null && source.moments[step.moment]?.clip?.snippetId === snippet
-  ));
+  )));
   if (!first) return [];
   return actions.filter((step) => first.key === "tempo"
     ? step.key === "tempo"

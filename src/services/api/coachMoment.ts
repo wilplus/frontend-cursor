@@ -1,3 +1,4 @@
+import { outcomeCall } from "@/lib/api/bffCall";
 import { bffFetch } from "@/lib/api/bffFetch";
 
 const CHAT_INTERVENTIONS = ["ai_audio", "sniper", "coach_video"] as const;
@@ -18,6 +19,14 @@ export function coachMomentFromMetadata(raw: unknown): CoachMomentReference | nu
       !take_session_id || typeof snippet_id !== "string" || !snippet_id) return null;
   const tool = CHAT_INTERVENTIONS.find((value) => value === intervention);
   return { arc_id, take_session_id, snippet_id, practise: practise === true, ...(tool ? { intervention: tool } : {}) };
+}
+
+export function prepareCoachMomentAudio({ arc_id, take_session_id, snippet_id }: CoachMomentReference) {
+  return outcomeCall(
+    `/api/v2/user/lounge/moment/${encodeURIComponent(snippet_id)}/ai-voice`,
+    { method: "POST", body: { arc_id, take_session_id } },
+    (data) => typeof data.practice_id === "string" ? data.practice_id : null,
+  );
 }
 
 export async function fetchCoachMoment(moment: CoachMomentReference) {
