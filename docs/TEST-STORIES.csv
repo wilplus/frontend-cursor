@@ -677,6 +677,12 @@ O4  A save the server refuses hands the deck the signed
 O2 -> ""the same answer sends nothing""
 O3 -> ""a rewrite never reopens""
 O4 -> ""a failed save hands the deck the signed notice""","Founder QA1 A, decisions log N51.5; build plan D-FW-9."
+src/components/willab/chatMomentReachesCoach.test.tsx,Story,"As a coach, I want every moment a speaker meets in their chat to reach my queue, so that no speaker's Take goes unheard (backend N691 item 1; the promise the Feedback walk kept before it moved into the chat).","O1  A coach reply that shows a moment records it as opened, once,
+with what it showed beside it.
+O2  The speaker's own message that cites a moment records nothing.
+O3  A record that failed is tried again the next time it shows.","O1 -> ""a moment shown in the chat reaches the coach once""
+O2 -> ""the speaker's own message records nothing""
+O3 -> ""a failed record is tried again""",
 src/components/willab/chats/ChatComposer.test.tsx,Story,"As a chat user, I want files, typing, and recording in the same composer so I can switch input without losing a draft.","O1  Recording keeps the mic position and restores the typed and file drafts.
 O2  A refusal leaves a draft available for retry and an in-flight send is not duplicated.
 O3  A queued attachment can be sent only in its original question scope.","O1 -> ""keeps a typed draft and an attachment during recording, then submits each once""
