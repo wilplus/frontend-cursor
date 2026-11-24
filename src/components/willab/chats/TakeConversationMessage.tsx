@@ -21,6 +21,7 @@ import { RichText } from "../RichText";
 import { isSavedPracticeAttempt, PastAttempt } from "../TakeReviewPracticeHistory";
 import WalkPlayer from "../walk/WalkPlayer";
 import { useUserId } from "../useUserId";
+import { noteMomentReached, shownInChat } from "@/lib/willab/momentReached";
 import { ArtifactText, artifactDocument } from "./ReplyArtifact";
 import { ConversationBubble, ConversationDocument } from "./TakeConversation";
 import HumanCoachHandoff from "./HumanCoachHandoff";
@@ -41,6 +42,7 @@ export default function TakeConversationMessage({
   children?: ReactNode;
 }) {
   const { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff, wording } = useMemo(() => takeMessageParts(message), [message]);
+  useMomentReached({ own, reference, clip, video });
   const marker = { "data-project-message": project ? message.client_id : undefined };
   if (isSavedPracticeAttempt(message)) return <div {...marker} className={WILLAB_CONTENT_RAIL}><PastAttempt row={message} /></div>;
   if (ai && message.kind === "walk_step" && !audio && !video && !reference && !artifact) return <div {...marker} className={WILLAB_CONTENT_RAIL}>
@@ -81,6 +83,21 @@ function takeMessageExample(id: string, video: string | null, ai: ReturnType<typ
     {ai ? <LoungeAiVoiceBubble inline body="" practiceId={ai.practiceId} then={ai.then} fallback={ai.fallback}
       seed={id} avatar={null} /> : null}
   </>;
+}
+
+/** The coach's queue hears every moment the chat shows (backend N691 item 1). */
+function useMomentReached({ own, reference, clip, video }: {
+  own: boolean;
+  reference: ReturnType<typeof coachMomentFromMetadata>;
+  clip: Record<string, unknown> | null;
+  video: string | null;
+}): void {
+  const cited = reference?.snippet_id ?? (typeof clip?.snippet_id === "string" ? clip.snippet_id : null);
+  const reached = own ? null : cited;
+  const exercise = Boolean(reference?.practise || reference?.intervention);
+  useEffect(() => {
+    noteMomentReached(reached, shownInChat({ exercise, coachVideo: Boolean(video) }));
+  }, [reached, exercise, video]);
 }
 
 function takeMessageParts(message: LoungeMessage) {

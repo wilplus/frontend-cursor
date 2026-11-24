@@ -122,6 +122,10 @@ In Project Chat, each recording and its recap appear where the Take happened. Ea
 
 The standalone Progress card is retired (N689). Open the Take's conversation for feedback, saved practice and Ideal Text. The recorded slide range belongs to the Take and supplies its practice scope.
 
+#### A moment shown in the chat reaches the coach (N691 item 1)
+
+A coach reply that shows a moment of the speaker's Take records it as opened for the coach's queue, once, with what it showed beside it (an exercise, the coach's video). The speaker's own messages record nothing. This is the record the walk wrote; no answer of the speaker's travels with it (blind coach). `src/lib/willab/momentReached.ts`, from `chats/TakeConversationMessage.tsx`.
+
 ### Shared composer (N667)
 
 In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. When only transcription is available from the server, the audio plays in the current app session. A server-accepted practice recording carries its own delivery evidence and keeps its source across a network retry.
@@ -2584,6 +2588,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-24 · N691 item 1 · A moment shown in a chat reply is recorded as opened for the coach's queue, as the walk recorded it; before this, moments met only in the chat never reached a coach.
 - 2026-11-23 · project rehearsal handoff · the selected Feedback Walk's proven server slide span passes through the one `PracticeResumeSelection` contract to the real recorder. A provisional card cannot invent a practice span from a local checkpoint. Both localized Ideal Text rehearsal choices remain available after Take 1. Current behavior and business-test ownership: [Ideal Text, project rehearsal choices](ideal-text.md#project-rehearsal-choices-2026-11-23) and [recording scope](recording-screens.md#fragment-and-whole-rehearsal-2026-11-23).
 - 2026-11-23 · N667 · The shared composer replaces the separate message and recording layouts in B14, C7, E3 and T. Earlier layouts below are historical.
 
