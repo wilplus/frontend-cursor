@@ -30,7 +30,7 @@ import {
 import { warmIdealTextOpen } from "@/services/api/idealText";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
-import { refreshNewCoachFeedback, type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
+import { type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import {
@@ -68,7 +68,6 @@ import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, {
   reportDateLabel,
-  refreshLiveIdealDoc,
   type FeedbackBubbleTarget,
   type IdealTextRetryTarget,
 } from "./ReportCard";
@@ -83,7 +82,6 @@ import LoadingState from "./LoadingState";
 import type { IdealTextLaunchMode } from "./IdealTextOverlay";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { resolvePastIdealText, type IdealTextPast } from "@/lib/willab/pastIdealText";
-import type { IdealTextRevision } from "@/services/api/blockVariants";
 import { startOpenTrace } from "@/lib/willab/openTrace";
 import { chatDrawsStep, chatWalks, doorOf, feedbackWalkDoor, inPairs, latestShareLine, shareLineDraft, shareLines, walkAnswerRow, walkPairs, type ChatWalk, type ShareLineChange } from "@/lib/willab/walkThread";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
@@ -92,12 +90,8 @@ import {
   readExploreArc,
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
-import { clearInsightsReady, setPendingSend } from "./sendStatus";
-import { readParked } from "./willabParked";
+import { clearInsightsReady } from "./sendStatus";
 import { COACH_BUBBLE_ATTR, showCoachBubble, useCoachBubbleFocus } from "./useCoachBubbleFocus";
-import { guestNeedsAccount } from "./GuestSignUpDialog";
-import ReadySignUpScreen from "./ReadySignUpScreen";
-import { useWallMoment } from "./wallMoment";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { TopUpBubble, TopUpSlot, useTopUpOffer } from "./LoungeTopUpCard";
@@ -106,7 +100,6 @@ import {
   WhatsAppOfferActions,
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
-import { useRouter } from "next/navigation";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { offersUpdateSlides, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
@@ -217,6 +210,7 @@ import { DayLine, dayLinesFor } from "./plan/dayLines";
 import { hostRowsAround, useHostMessages } from "./chats/hostChatMessages";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
+import type { TakeInProject } from "@/lib/willab/takeInProject";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 import { useTakeResend } from "./useTakeResend";
@@ -239,10 +233,7 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // as opening still feels instant): the Ideal Text page, the walk's frame for
 // an older Take, and the Life panel's chat card. `warmOverlays` below fetches
 // their chunks once the thread is in, so a tap finds them ready.
-const IdealTextOverlay = dynamic(() => import("./IdealTextOverlay"), { ssr: false });
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
-// An older Take's card (N375); a press on one warms it (pastIdealText).
-const IdealTextPastVersion = dynamic(() => import("./IdealTextPastVersion"), { ssr: false });
 
 const LOUNGE_THREAD_CLASS = "scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain";
 
@@ -251,27 +242,11 @@ function loungeThreadClass(loading: boolean): string {
   return `${LOUNGE_THREAD_CLASS} [&>:first-child]:mt-auto`;
 }
 
-/** The page a card opened: an older Take's own version, or (none) the live
- *  page given as children (backend N375). */
-function IdealTextPastOr({
-  shown,
-  onClose,
-  onLatest,
-  children,
-}: {
-  shown: { revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null;
-  onClose: () => void;
-  onLatest: () => void;
-  children: ReactNode;
-}) {
-  return shown ? <IdealTextPastVersion {...shown} onClose={onClose} onLatest={onLatest} /> : <>{children}</>;
-}
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
   { ssr: false },
 );
 function warmOverlays(): void {
-  void import("./IdealTextOverlay");
   void import("./walk/WalkOverlay");
   void import("@/components/life/LifeChatLayer");
 }
@@ -374,13 +349,6 @@ function takeAnalysing(
     resume?.status === "analyzing" &&
     (resume.serverState === "processing" || resume.phase === "document")
   ) || settling;
-}
-
-/** The in-flight wait covers only its own project's text (founder
- *  2026-10-20): another project, such as the one the coach's link opens,
- *  is never held behind it. */
-function blocksText(takeInFlight: boolean, inFlightArcId: string | null, openArcId: string): boolean {
-  return takeInFlight && inFlightArcId === openArcId;
 }
 
 /** The composer waits for a Take still landing, and for the history's
@@ -489,36 +457,6 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
   };
 }
 
-/** SIGN UP BEFORE THE TEXT (founder 2026-10-16): a signed-out reader whose
- *  Take is processed is asked for an account; a Take still in flight shows
- *  its wait as before. */
-function guestAsksFirst(signedIn: boolean, takeInFlight: boolean): boolean {
-  return guestNeedsAccount(signedIn) && !takeInFlight;
-}
-
-/** The Ideal Text, or -- for a guest, once the Take is processed -- the ask
- *  in its place (ReadySignUpScreen). */
-function IdealTextForReader({
-  arcId,
-  askFirst,
-  onSignUp,
-  onNotNow,
-  children,
-}: {
-  arcId: string;
-  askFirst: boolean;
-  onSignUp: () => void;
-  onNotNow: () => void;
-  children: ReactNode;
-}) {
-  // The wall's one moment (backend N273 item 5): the Take's most confident.
-  const moment = useWallMoment(arcId, askFirst);
-  return askFirst ? (
-    <ReadySignUpScreen onSignUp={onSignUp} onNotNow={onNotNow} moment={moment} />
-  ) : (
-    <>{children}</>
-  );
-}
 
 /** What "Record your answer" in the composer records: the plan's spoken
  *  question first, else Will's key line (backend N483 item 2, N544). */
@@ -634,6 +572,7 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   onOpenProject,
+  onOpenTakeInProject,
   projectChatActive = false,
   onProjectTakeReady,
   onStartPlanRecording,
@@ -658,6 +597,9 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** Open one project conversation from a durable project card/deep link. */
   onOpenProject?: (arcId: string | null) => void;
+  /** A Take's Ideal Text, or its feedback, in its project chat (backend N691
+   *  item 2): the Ideal Text has no screen of its own. */
+  onOpenTakeInProject?: (arcId: string, pick: TakeInProject) => void;
   projectChatActive?: boolean;
   onProjectTakeReady?: (arcId: string, sessionId: string, scoped: boolean) => void;
   /** The plan's "Start your first recording" (the-plan.md E5): the set-up
@@ -963,40 +905,30 @@ export default function Lounge({
     else onStart();
   }
 
-  /** An older Ideal Text card: its own version, read only (founder
-   *  2026-11-03, backend N375). The newest version opens the live page. */
+  /** An older Ideal Text card opens the Take it was made from, in the
+   *  project chat, with that Take's text (backend N375, N691 item 2). */
   function openPastIdealText(arcId: string, past: IdealTextPast): void {
-    // Which page opens is known before either is drawn: one screen per tap.
     void resolvePastIdealText(arcId, past).then((opened) => {
-      if (opened.kind === "past") {
-        setIdealTextPast({ revision: opened.revision, past, latestTake: opened.latestTake });
-        setIdealTextArcId(arcId);
-        return;
-      }
-      openIdealText(arcId);
-      // Its words were not kept: the page says so (N380).
-      setIdealTextNotice(opened.notice);
+      const takeIndex = opened.kind === "past" ? opened.revision.takeIndex : past.by === "take" ? past.n : null;
+      onOpenTakeInProject?.(arcId, { takeIndex, step: "ideal" });
     });
   }
 
+  /** The Ideal Text ("notebook") or the Take's feedback ("review") opens in
+   *  the project chat (backend N691 items 1 and 2), on the Take a step names,
+   *  else the newest. */
   function openIdealText(
     arcId: string,
     mode: IdealTextLaunchMode = "notebook",
     at: WalkStepTarget | null = null,
   ): void {
-    setIdealTextPast(null);
-    setIdealTextNotice(null);
     startOpenTrace(at?.step ? `${mode}, step ${at.step}` : mode);
-    setIdealTextReviewAt(at);
     openedNewCoachFeedback(arcId);
     if (state === "insights_ready") {
       clearInsightsReady();
       dispatch("insights_opened");
     }
-    setIdealTextLaunchMode(mode);
-    // Only the coach's link names a Take; every other open is the Take on screen's.
-    setIdealTextCoachTake(null);
-    setIdealTextArcId(arcId);
+    onOpenTakeInProject?.(arcId, { sessionId: at?.take ?? null, step: mode === "review" ? "feedback" : "ideal" });
   }
 
   // The one link (backend N691 item 3): the chat opens on the coach's
@@ -1061,14 +993,6 @@ export default function Lounge({
   // ideal-text bubble's notebook.
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
-  const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
-  const router = useRouter();
-  const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
-  const [idealTextLaunchMode, setIdealTextLaunchMode] =
-    useState<IdealTextLaunchMode>("notebook");
-  const [idealTextPast, setIdealTextPast] = useState<{ revision: IdealTextRevision; past: IdealTextPast; latestTake: number | null } | null>(null);
-  const [idealTextNotice, setIdealTextNotice] = useState<string | null>(null);
-  const [idealTextCoachTake, setIdealTextCoachTake] = useState<string | null>(null);
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
   >(null);
@@ -1767,19 +1691,6 @@ export default function Lounge({
     },
     [messages],
   );
-
-  /* SIGN UP BEFORE THE TEXT (founder 2026-10-16): a guest's "Create an
-     account" from the ready screen hands the Take over the way the Lab's
-     does (startUnsignedSend) -- the pending send names the Take, the claim
-     after sign-up owns the project -- and goes to /signup. */
-  function signUpForIdealText(arcId: string): void {
-    const parked = readParked();
-    const sessionId =
-      parked?.projectId === arcId ? parked.sessionId : latestArcSessionId(arcId) ?? null;
-    if (sessionId) setPendingSend(arcId, sessionId);
-    setIdealTextArcId(null);
-    router.push("/signup");
-  }
 
   // The settle stamp: a recording_summary minted AFTER the thread settled is
   // the "just recorded this session" signal. The joke onboarding and the
@@ -2688,53 +2599,6 @@ export default function Lounge({
           takeIndex={feedbackTarget.takeIndex}
           onClose={() => setFeedbackTarget(null)}
         />
-      )}
-      {/* A GUEST'S WAY BACK LANDS ON THE ASK (founder 2026-10-16): while
-          signed out, every open of an Ideal Text -- the recording bubble,
-          the ready line, the review that opens by itself -- shows the ready
-          screen, never the text. The wait in flight still shows as a wait. */}
-      {idealTextArcId && (
-        <IdealTextForReader
-          arcId={idealTextArcId}
-          askFirst={guestAsksFirst(thread.signedIn, takeInFlight)}
-          onSignUp={() => signUpForIdealText(idealTextArcId)}
-          onNotNow={() => setIdealTextArcId(null)}
-        >
-        <IdealTextPastOr
-          shown={idealTextPast}
-          onClose={() => {
-            setIdealTextPast(null);
-            setIdealTextArcId(null);
-          }}
-          onLatest={() => openIdealText(idealTextArcId)}
-        >
-        <IdealTextOverlay
-          arcId={idealTextArcId}
-          initialMode={idealTextLaunchMode}
-          notice={idealTextNotice}
-          coachTake={idealTextCoachTake}
-          reviewAt={idealTextReviewAt}
-          // W4/W5 — while a take is in flight (EITHER phase: analysing, or
-          // the document still assembling) the overlay shows its blocking
-          // state instead of last take's words; when this flips false (the
-          // settle hook resolves) the overlay refetches, so a completion
-          // that lands while the student is READING arrives in place too.
-          // Only on the in-flight Take's own project (founder 2026-10-20).
-          analysisPending={blocksText(takeInFlight, documentSettle.arcId, idealTextArcId)}
-          onClose={() => {
-            // The dot follows what was opened (Q40 B, Q42 A).
-            refreshLiveIdealDoc(idealTextArcId);
-            // So does the "new" outline: read again once the walk's shows
-            // have landed (D-FW-19).
-            if (thread.signedIn) void refreshNewCoachFeedback();
-            setIdealTextArcId(null);
-            setIdealTextLaunchMode("notebook");
-            setIdealTextCoachTake(null);
-            setIdealTextNotice(null);
-          }}
-        />
-        </IdealTextPastOr>
-        </IdealTextForReader>
       )}
       {confidencePracticeId && (
         <ConfidencePracticeOverlay

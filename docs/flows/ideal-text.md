@@ -37,6 +37,10 @@ and slide layout inside the Take exchange and from a direct open.
 
 Ask coach from a Take review returns to the scoped project and uses the [shared composer](feedback-walk-and-chat.md#shared-composer-n667). The Ideal Text menu keeps its document actions. An offer to record a new Take appears in the chat.
 
+### One place for the Ideal Text (N691 item 2)
+
+The Ideal Text is read only in the project chat, in its Take's review. Every way into it from the main chat (the Ideal Text card, an older version's card, the recording bubble, "edit the current slide", the first Take's feedback, a Take finished in the chat) opens the project chat on that Take: the Take named, else the Take at the version's index, else the newest. An older version opens as the Take it was made from. There is no full-screen view from the main chat. `src/lib/willab/takeInProject.ts`, `WillabSurface.tsx` (`openTakeInProject`), `Lounge.tsx` (`openIdealText`).
+
 ### Ideal text in Take review (N666, N670)
 
 Ideal text appears below the feedback and optional practice in the project's open Take review. The Ideal text button goes directly to it. It has the slide images, readable text, and orange helper words. Each slide can send a question to the same Take's project conversation. The conversation keeps a link back to the slide. Open Ideal text reaches the full document and its existing actions from the review.
@@ -536,6 +540,7 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-24 · N691 item 2 · The main chat's full-screen Ideal Text, its older-version screen and the guest's sign-up screen in front of it are gone; every way in opens the Take in its project chat.
 - 2026-11-23 · continuation-scope repair · one consumed scope contract replaces redundant start/time fields; fragment bounds reach the real recorder and whole rehearsal can pass five minutes; EN/PL fixed labels use the active UI locale. Tests exercise actual recording navigation and the microphone/upload boundary. Earlier continuation-footer entries are historical; §1's project rehearsal choices describe current behavior. Requested in this chat; no deployment.
 
 - 2026-11-18 · On a paragraph opened for its saved helper words, “Edit the helper words” opens the helper-word editor with the saved cue selected on the Take that contains it. A replacement from an earlier Take is saved with its source Take and handed to the next recording.

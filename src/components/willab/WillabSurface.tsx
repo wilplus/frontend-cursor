@@ -8,7 +8,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DumpPullBar from "./DumpPullBar";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
-import { hasAcceptedConsentLocally, isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
+import { isLabOverlay, useWillabFlow, type WillabState } from "./useWillabFlow";
 import { countFirstVisit, type FirstVisitStep } from "@/lib/funnel/firstVisit";
 import { useSignedIn } from "./useSignedIn";
 import { usePendingSendHold } from "./usePendingSendHold";
@@ -35,11 +35,11 @@ import {
   markCoachLinkSent,
   readCoachLinkSent,
 } from "@/lib/willab/coachLink";
-import { readParked } from "./willabParked";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { useChatsDoor } from "./chats/useChatsDoor";
 import ChatWorkspace from "./chats/ChatWorkspace";
-import type { ReviewExit } from "./TakeReview";
+import type { ReviewExit, TakeReviewTarget } from "./TakeReview";
+import { takeInProject, type TakeInProject } from "@/lib/willab/takeInProject";
 import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
@@ -89,6 +89,11 @@ function holdActiveChatCapture(): boolean {
 /*  inside LabOverlay until the upload handler (BE ③) lands.                   */
 /* -------------------------------------------------------------------------- */
 
+/** A new opening on a Take mounts the project chat afresh on it. */
+function projectChatKey(arcId: string, review: { key: number } | null): string {
+  return `${arcId}:${review?.key ?? 0}`;
+}
+
 export default function WillabSurface({
   linkTake = null,
   coachLink = false,
@@ -115,6 +120,9 @@ export default function WillabSurface({
   // that project, which is its ideal text. Only "Start a new project" (or
   // resuming its draft) goes into the recording onboarding.
   const [pickedProject, setPickedProject] = useState<TrainingArc | null>(null);
+  /** The Take the project chat opens on, with its Ideal Text or its feedback
+   *  (backend N691 item 2): the one place a Take's text is read. */
+  const [projectReview, setProjectReview] = useState<{ target: TakeReviewTarget; key: number } | null>(null);
   const projectExit = useRef<ReviewExit | null>(null);
   const projectDrafts = useRef(new Map<string, string>());
   // The recorder hands the accepted Take back to its owning conversation.
@@ -198,8 +206,27 @@ export default function WillabSurface({
       }
       pendingProjectHandoff.current = null;
       clearPendingTake();
+      setProjectReview(null);
       setPickedProject(project);
       setHandoffTake(sessionId);
+      flow.closeLab();
+    });
+  }, [clearPendingTake, flow]);
+  /** A Take's Ideal Text, or its feedback, opens in its project chat (backend
+   *  N691 item 2): never as a screen of its own. The Take is the one named,
+   *  else the one at `takeIndex`, else the project's newest. */
+  const openTakeInProject = useCallback((arcId: string, pick: TakeInProject) => {
+    const sequence = ++projectOpenSequence.current;
+    void fetchTrainings({ force: true }).then((projects) => {
+      if (sequence !== projectOpenSequence.current) return;
+      const project = projects?.find((candidate) => candidate.arcId === arcId);
+      if (!project) return;
+      const take = takeInProject(project, pick);
+      pendingProjectHandoff.current = null;
+      clearPendingTake();
+      setHandoffTake(null);
+      setProjectReview(take ? { target: { take, focus: { step: pick.step } }, key: Date.now() } : null);
+      setPickedProject(project);
       flow.closeLab();
     });
   }, [clearPendingTake, flow]);
@@ -320,6 +347,7 @@ export default function WillabSurface({
     pendingProjectHandoff.current = null;
     setRecordingInProgress(false);
     setHandoffTake(null);
+    setProjectReview(null);
     setPickedProject(null);
     clearPendingTake();
   }
@@ -458,6 +486,7 @@ export default function WillabSurface({
           flow.startRecordingSetup();
         }}
         onOpenProject={openProject}
+        onOpenTakeInProject={openTakeInProject}
         projectChatActive={projectTake.chatActive}
         onProjectTakeReady={chats.speakingActive ? (arcId, sessionId, scoped) => {
           if (!scoped || pendingProjectHandoff.current === sessionId) openProject(arcId, sessionId);
@@ -571,8 +600,9 @@ export default function WillabSurface({
           always starts from this project, never from Will. */}
       {pickedProject ? (
         <ProjectChat
-          key={pickedProject.arcId}
+          key={projectChatKey(pickedProject.arcId, projectReview)}
           project={pickedProject}
+          initialReview={projectReview && projectReview.target}
           handoffTake={handoffTake}
           beforeLeaveRef={projectExit}
           initialDraft={projectDrafts.current.get(draftKey) ?? ""}
