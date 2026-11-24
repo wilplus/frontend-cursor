@@ -423,12 +423,6 @@ O5 -> ""never carries one clip's answer onto the next clip (L3)""",Never 1 (feed
 src/components/willab/FeedbackFailedNotice.test.tsx,Story,"As a speaker whose feedback could not be made, I want the app to try again once by itself and then tell me, with Try again, so that I am never left waiting for nothing.","O1  The app retries once by itself, then shows the signed-off sentence
 and a Try again button that retries; it never retries on its own
 again.","O1 -> ""says so, with Try again, when the retry failed too""",Contract 24h: the server sends no stand-in feedback.
-src/components/willab/FeedbackWalkCard.test.tsx,Story,"As a speaker, I want one compact view of every slide range I have practised, so that I can see where to continue without confusing effort with delivery quality.","O1 Only the latest chunk shows until I ask for earlier chunks.
-O2 One chunk reserves no empty history-control space and both
-destinations open for that chunk.
-O3 No delivery status dot or label is shown on the card.","O1 -> ""shows only the latest chunk until earlier chunks are requested""
-O2 -> ""omits the history control for one chunk and opens the latest destinations""
-O3 -> ""keeps the status out of the result card while its actions still work""","Founder-approved Feedback Walk handoff, 2026-11-16."
 src/components/willab/FeelingsCheckIn.test.tsx,Story,"As a speaker, I want to name how I feel before I record, or skip it, and as a guest not to be asked at all.","O1  Signed in, the check offers a Skip every time it shows.
 O2  Skipping goes on to the recording set-up and keeps no feeling.
 O3  Naming a feeling keeps it and goes on, with nothing said back.
@@ -553,15 +547,14 @@ O3  The refusal blocks synchronously and stays blocked if the policy read
 fails; a slow network never creates a usable gap.","O1 -> ""a newer policy blocks the app in the full consent flow""
 O2 -> ""a mid-session policy refusal blocks and resumes only after acceptance""
 O3 -> ""a known refusal blocks before the policy read completes""","Founder 2026-11-18, backend N664."
-src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want the project result first and the conversation in human order, using the app's locked chat controls.","O1  Feedback walk and Ideal Text are one readable first card.
+src/components/willab/ProjectChat.test.tsx,Story,"As a speaker, I want recordings and feedback in the conversation where they happened, with the app's shared chat controls.","O1  The Take's own conversation contains its Ideal Text.
 O2  The summary leads into the question; a held goodbye stays hidden
 and, once released, follows the answer instead of jumping ahead.
 O3  The project uses one chat top bar and the standard answer controls.
 O4  Recording another Take is offered by a chat reply. Ideal Text
 keeps its document tools and slide previews.
-O5  The project-card CTAs keep the selected Take and route distinct:
-Feedback opens its exact Feedback Walk range; Ideal Text stays
-on Ideal Text.
+O5  Starting practice from a review reply uses the selected Take's
+exact recorded range and closes back into its chat.
 O6  An accepted typed answer, its one pending state, and its matched
 reply or recoverable error are always brought into view.
 O7  A refused quick choice remains one durable user turn with one
@@ -576,11 +569,11 @@ O11 A new recording offer after Ideal Text survives earlier wording
 and a failed history refresh.
 O12 A reply can cite and explain a fragment from another Take without
 putting that fragment's identifier in the current Take's next request.","O10 -> ""saves the proposed wording and shows it when the project reopens""
-O1 -> ""puts the result before the project conversation""
+O1 -> ""keeps the Ideal Text in the same chat scroll""
 O2 -> ""keeps the contextual exchange in human order""
 O3 -> ""uses the locked chat bar and answer controls""
 O4 -> ""starts another Take only from the served chat action""
-O5 -> ""keeps the selected Take and range on Feedback while Ideal Text remains separate""
+O5 -> ""practises the older Take on its recorded slide range""
 O6 -> ""shows one pending turn, disables the composer, and scrolls the accepted send and reply into view""
 O7 -> ""keeps a refused quick choice once with one recoverable error""
 O8 -> ""shows an editable spoken draft and attaches playback only on send""
@@ -2457,9 +2450,8 @@ O2  With helper words already saved, Next does not open the word picker.","O1 ->
 O2 -> Next opens the helper words on unsaved words only",
 src/lib/willab/partsFromCorePieces.test.ts,Story,"As a speaker, I want locking a paragraph never to merge my slides into one block of text, so that my deck keeps its slides.",O1  Paragraphs built from the server's pieces keep the server's paragraph identities.,O1 -> keeps the core's Paragraph identity,Reported from real use 2026-09-18: a lock merged the whole presentation into one text.
 src/lib/willab/practiceResume.test.ts,Story,"As a speaker continuing a project, I want my chosen fragment to apply to one Take, so that later practices keep their own choices.","O1  The choice is scoped to account and project.
-O2  The durable checkpoint is the slide where recording actually
-stopped, not the slide where it began.","O1 -> ""keeps my fragment private to my account and project""
-O2 -> ""keeps the actual stopping slide after consuming the selection""",Founder 2026-11-15: timer and fragment choice belong to continuation.
+O2  A consumed recording choice clears before the next Take.","O1 -> ""keeps my fragment private to my account and project""
+O2 -> ""clears the recording choice after it is consumed""",Founder 2026-11-15: timer and fragment choice belong to continuation.
 src/lib/willab/praiseLane.test.ts,Story,"As a speaker, I want praise to compare me only to myself and never show a number, so that feedback is personal and in words.","O1  No praise line compares me to others (""than most/others/average""); the
 lines that compare say ""you usually"".
 O2  No praise line carries a digit. Never-1: feedback is in words.","O1 -> ""compares them to THEMSELVES, never to other speakers""
@@ -2901,8 +2893,10 @@ O2 -> ""reads afresh after a write""",
 src/services/api/trainingCorpus.test.ts,Story,"As a coach labelling clips, I want never to see the machine's rating or score, so that my judgement stays blind.","O1  The clips I label carry no machine rating or score, even if the
 server sent one.","O1 -> ""never surfaces a band or machine read even if one were served (N1)""",Never-rule 2: no coach sees the machine's guess before answering.
 src/services/api/trainings.test.ts,Story,"As the chat and project surfaces open together, I want one current trainings read shared by them, without ever seeing another account's projects.","O1  Concurrent and recent reads use one authenticated request.
-O2  A different authenticated user gets a separate result.","O1 -> ""one fetch is shared and the successful result is reused""
-O2 -> ""the cache is scoped to the authenticated identity""",
+O2  A different authenticated user gets a separate result.
+O3  A Take's range follows the recording on new and older responses.","O1 -> ""one fetch is shared and the successful result is reused""
+O2 -> ""the cache is scoped to the authenticated identity""
+O3 -> ""retains the recorded slide range on each matching Take""",
 src/services/api/userProfile.test.ts,Guard,"Concurrent profile reads share one request, and a failed read is not shared, so page load does not hammer the backend and one blip does not stick.","Each caller fetching its own profile; or a failed (null) read being
 served to every later caller for the rest of the window.","one request -> ""serves every caller from one request""
 no failure  -> ""does not share a failed read: the next caller asks again""","If removed: A change to the shared read could multiply profile requests per page, or pin a signed-in coach to ""no profile"" after one error."

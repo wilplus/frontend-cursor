@@ -738,8 +738,8 @@ export default function Lounge({
       } : undefined);
       if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== composerScope || !outbox.isCurrent()) return false;
       if (prepareOnStop) {
-        if (!spoken.receipt || !turnId) return false;
-        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, audio } });
+        if (!turnId) return false;
+        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, ...(spoken.receipt ? { audio } : {}) } });
         setDraftText(spoken.text);
         return true;
       }

@@ -37,7 +37,6 @@ type Screen =
   | { id: "dial"; name: string }
   | { id: "order" }
   | { id: "colour" }
-  | { id: "card" }
   | { id: "paste" }
   | { id: "pasted"; draft: PluginDraft }
   | { id: "line" }
@@ -106,7 +105,6 @@ export default function CoachBuild({
       { label: "What I notice", onClick: () => setScreen({ id: "notice" }) },
       { label: "The order", onClick: () => setScreen({ id: "order" }) },
       { label: "The colour", onClick: () => setScreen({ id: "colour" }) },
-      { label: "The card", onClick: () => setScreen({ id: "card" }) },
       { label: "A line", onClick: () => setScreen({ id: "line" }) },
       { label: "Paste an intervention", onClick: () => setScreen({ id: "paste" }) },
     ]);
@@ -196,13 +194,6 @@ export default function CoachBuild({
         <button type="submit" className="min-h-11 rounded-full bg-foreground px-4 text-background">Keep</button>
       </form>
     ) : null);
-  }
-
-  if (screen.id === "card") {
-    return ask("The card shows the slide range, the attempts, the delivery word, and the progress bar.", [
-      { label: "Keep all of it", onClick: () => setScreen({ id: "home" }) },
-      { label: "Hide the progress bar", onClick: () => { onChange({ ...doc, shell: { ...doc.shell, historyCard: { showProgress: false } } }); setScreen({ id: "home" }); } },
-    ]);
   }
 
   if (screen.id === "line") {

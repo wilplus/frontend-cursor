@@ -20,24 +20,12 @@ export interface TrainingTake {
   feedbackAvailable: boolean;
   /** The Take's own generated review has finished processing. */
   reviewAvailable?: boolean;
+  /** Inclusive one-based slides that were recorded in this Take. */
+  recordedRange?: { startSlide: number; endSlide: number };
   /** The upload key the Take was sent with; null when it was made another
    *  way; undefined when the server does not say (before backend #1824).
    *  A Take kept on the phone reads it (backend N556 item 3). */
   uploadKey?: string | null;
-}
-
-export type PracticeDeliveryLabel =
-  | "Not yet there"
-  | "Almost"
-  | "Good"
-  | "Strong delivery";
-
-export interface PracticeChunk {
-  startSlide: number;
-  endSlide: number;
-  attempts: number;
-  deliveryLabel: PracticeDeliveryLabel;
-  latestSessionId: string;
 }
 
 export interface TrainingArc {
@@ -62,50 +50,42 @@ export interface TrainingArc {
   /** When the project's newest Take was made (ISO); null = none or not
    *  sent. The project with the newest Take is the current one (N254). */
   lastTakeAt?: string | null;
-  /** Whole-presentation readiness. Per-chunk detector scores are never sent. */
-  practiceProgress: number;
   practiceCoverage?: { practised: number; total: number; unit: "slides" | "sections" };
-  /** Chronological exact slide-range practice history. */
-  practiceChunks: PracticeChunk[];
 }
 
-const DELIVERY_LABELS = new Set<PracticeDeliveryLabel>([
-  "Not yet there",
-  "Almost",
-  "Good",
-  "Strong delivery",
-]);
+type RecordedRange = NonNullable<TrainingTake["recordedRange"]>;
 
-function mapPracticeChunk(raw: unknown): PracticeChunk | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (
-    typeof r.start_slide !== "number" ||
-    typeof r.end_slide !== "number" ||
-    typeof r.attempts !== "number" ||
-    typeof r.latest_session_id !== "string" ||
-    typeof r.delivery_label !== "string" ||
-    !DELIVERY_LABELS.has(r.delivery_label as PracticeDeliveryLabel)
-  ) return null;
-  return {
-    startSlide: Math.max(1, Math.round(r.start_slide)),
-    endSlide: Math.max(1, Math.round(r.end_slide)),
-    attempts: Math.max(1, Math.round(r.attempts)),
-    deliveryLabel: r.delivery_label as PracticeDeliveryLabel,
-    latestSessionId: r.latest_session_id,
-  };
+function mapRecordedRange(raw: unknown): RecordedRange | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const { start_slide: first, end_slide: last } = raw as Record<string, unknown>;
+  if (typeof first !== "number" || typeof last !== "number" ||
+      !Number.isInteger(first) || !Number.isInteger(last) || first < 1 || last < first) return undefined;
+  return { startSlide: first, endSlide: last };
 }
 
-function mapTake(raw: unknown): TrainingTake | null {
+// An older server kept exact ranges on the latest Take of each slide group.
+function legacyRecordedRanges(raw: unknown): Map<string, RecordedRange> {
+  const ranges = new Map<string, RecordedRange>();
+  if (!Array.isArray(raw)) return ranges;
+  for (const entry of raw) {
+    const range = mapRecordedRange(entry);
+    if (range && typeof entry.latest_session_id === "string") ranges.set(entry.latest_session_id, range);
+  }
+  return ranges;
+}
+
+function mapTake(raw: unknown, legacyRanges: ReadonlyMap<string, RecordedRange>): TrainingTake | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.session_id !== "string" || r.session_id.length === 0) return null;
+  const recordedRange = mapRecordedRange(r.recorded_range) ?? legacyRanges.get(r.session_id);
   return {
     sessionId: r.session_id,
     takeIndex: typeof r.take_index === "number" ? r.take_index : 0,
     createdAt: typeof r.created_at === "string" ? r.created_at : null,
     hasSlides: r.has_slides === true,
     feedbackAvailable: r.feedback_available === true,
+    ...(recordedRange ? { recordedRange } : {}),
     ...(typeof r.review_available === "boolean" ? { reviewAvailable: r.review_available } : {}),
     ...("upload_key" in r
       ? { uploadKey: typeof r.upload_key === "string" && r.upload_key ? r.upload_key : null }
@@ -129,13 +109,11 @@ function mapArc(raw: unknown): TrainingArc | null {
   const r = raw as Record<string, unknown>;
   if (typeof r.arc_id !== "string" || r.arc_id.length === 0) return null;
   const coverage = mapCoverage(r.practice_coverage);
+  const legacyRanges = legacyRecordedRanges(r.practice_chunks);
   const takes = (Array.isArray(r.takes) ? r.takes : [])
-    .map(mapTake)
+    .map((take: unknown) => mapTake(take, legacyRanges))
     .filter((t): t is TrainingTake => !!t)
     .sort((a, b) => a.takeIndex - b.takeIndex);
-  const practiceChunks = (Array.isArray(r.practice_chunks) ? r.practice_chunks : [])
-    .map(mapPracticeChunk)
-    .filter((chunk): chunk is PracticeChunk => chunk !== null);
   return {
     arcId: r.arc_id,
     topic:
@@ -167,11 +145,6 @@ function mapArc(raw: unknown): TrainingArc | null {
     archived: r.archived === true,
     lastTakeAt:
       typeof r.last_take_at === "string" && r.last_take_at ? r.last_take_at : null,
-    practiceProgress:
-      typeof r.practice_progress === "number" && Number.isFinite(r.practice_progress)
-        ? Math.max(0, Math.min(100, Math.round(r.practice_progress)))
-        : 0,
-    practiceChunks,
     ...(coverage ? { practiceCoverage: coverage } : {}),
   };
 }

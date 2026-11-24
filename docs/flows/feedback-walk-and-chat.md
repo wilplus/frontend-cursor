@@ -118,9 +118,11 @@ Chat Builder creates a main conversation and can add named subchats in Settings.
 
 In Project Chat, each recording and its recap appear where the Take happened. Earlier messages stay above newer Takes, and later replies follow them.
 
+The standalone Progress card is retired (N689). Open the Take's conversation for feedback, saved practice and Ideal Text. The recorded slide range belongs to the Take and supplies its practice scope.
+
 ### Shared composer (N667)
 
-Stopping the small chat microphone prepares an editable transcript in the same composer. Send posts the text with its playable recording underneath. Each recording carries its own delivery evidence. A retry of a cited fragment compares that recording with its original and keeps the source across a network retry.
+In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. Each recording carries its own delivery evidence. A retry of a cited fragment compares that recording with its original and keeps the source across a network retry.
 
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,

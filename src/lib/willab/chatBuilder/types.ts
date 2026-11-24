@@ -15,7 +15,6 @@ export const SCREENS = [
   "walk.words",
   "walk.done",
   "walk.end",
-  "shell.historyCard",
   "shell.idealText",
   "shell.recording",
   "shell.picker",
@@ -91,7 +90,6 @@ export type CoachDefinition = {
     publicLink: "hardcoded_will";
     invite: string;
     subtitle: string;
-    historyCard: { showProgress: boolean };
     /** Lounge questions already in the product. Not the prototype's three. */
     questions: { q: string; taps: string[] }[];
   };

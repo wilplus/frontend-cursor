@@ -20,8 +20,6 @@ const PROJECTS = [{
   coverRef: null,
   deletion: null,
   archived: false,
-  practiceProgress: 0,
-  practiceChunks: [],
 }] as TrainingArc[];
 
 export default function OwnChatPreviewPage() {

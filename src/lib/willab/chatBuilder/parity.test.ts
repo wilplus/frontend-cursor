@@ -66,10 +66,9 @@ describe("the speaking-coach seed", () => {
     }
   });
 
-  it("keeps digits off the walk lines and on the card only", () => {
+  it("keeps digits off the walk lines", () => {
     const seed = speakingCoachSeed();
     for (const line of fixedLines(seed)) expect(line).not.toMatch(/\d/);
-    expect(seed.shell.historyCard.showProgress).toBe(true);
     expect(JSON.stringify(fixedLines(seed))).not.toContain("%");
   });
 

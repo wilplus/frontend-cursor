@@ -65,7 +65,6 @@ export function speakingCoachSeed(): CoachDefinition {
       publicLink: "hardcoded_will",
       invite: "Tell me what you'd like to do, and I'll show you where.",
       subtitle: "You run this chat.",
-      historyCard: { showProgress: true },
       questions: [],
     },
     will: {
