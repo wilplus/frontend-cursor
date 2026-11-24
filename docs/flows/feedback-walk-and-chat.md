@@ -122,6 +122,10 @@ In Project Chat, each recording and its recap appear where the Take happened. Ea
 
 The standalone Progress card is retired (N689). Open the Take's conversation for feedback, saved practice and Ideal Text. The recorded slide range belongs to the Take and supplies its practice scope.
 
+#### The chat's one link (N691 item 3)
+
+`/chat?take=<Take>` opens the chat and, once the thread has painted, scrolls to the coach's bubble for that Take, or the newest one, which pulses once. No screen opens. The coach's WhatsApp message, the iPhone push and the coach-feedback email send only this. `session` is its old name. Links already sent keep working: the coach's old `lens` and `idealArc` links open the chat on the coach's bubble (their `take`, else the newest), and `lens`, `idealArc`, `arc`, `mode`, `feedback`, `insight` and `session` leave the address on arrival. Signed out, the link goes to log in and back to itself, once per tab. The dump screen opens first only on a plain open. `src/lib/willab/chatLink.ts`, `src/lib/willab/coachLink.ts`, `src/app/chat/`.
+
 ### Shared composer (N667)
 
 In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. When only transcription is available from the server, the audio plays in the current app session. A server-accepted practice recording carries its own delivery evidence and keeps its source across a network retry.
@@ -2584,6 +2588,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-24 · N691 item 3 · One link, `/chat?take=`, opens the chat on the coach's bubble; the lens and Ideal Text links (`lens`, `idealArc`, `arc`, `mode`, `feedback`) and the unused `insight` and `session` no longer open a screen, and leave the address.
 - 2026-11-23 · project rehearsal handoff · the selected Feedback Walk's proven server slide span passes through the one `PracticeResumeSelection` contract to the real recorder. A provisional card cannot invent a practice span from a local checkpoint. Both localized Ideal Text rehearsal choices remain available after Take 1. Current behavior and business-test ownership: [Ideal Text, project rehearsal choices](ideal-text.md#project-rehearsal-choices-2026-11-23) and [recording scope](recording-screens.md#fragment-and-whole-rehearsal-2026-11-23).
 - 2026-11-23 · N667 · The shared composer replaces the separate message and recording layouts in B14, C7, E3 and T. Earlier layouts below are historical.
 

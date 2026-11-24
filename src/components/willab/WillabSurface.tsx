@@ -43,7 +43,6 @@ import type { ReviewExit } from "./TakeReview";
 import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { afterChatBoot } from "@/lib/chatBoot";
-import { warmIdealTextLink } from "@/services/api/idealText";
 import {
   beginSetupDraft,
   beginSetupDraftWithTopic,
@@ -91,28 +90,14 @@ function holdActiveChatCapture(): boolean {
 /* -------------------------------------------------------------------------- */
 
 export default function WillabSurface({
-  sessionId,
-  insightSessionId,
-  bestPresentationArcId,
-  idealTextArcId = null,
-  idealTextMode = null,
-  idealTextTake,
+  linkTake = null,
+  coachLink = false,
 }: {
-  sessionId: string | null;
-  /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
-   *  InsightsOverlay on mount. */
-  insightSessionId: string | null;
-  /** C — best-presentation deep-link target from `/chat?arc=<arc_id>`; opens the
-   *  in-Lounge BestPresentationOverlay on mount. */
-  bestPresentationArcId: string | null;
-  /** `/chat?idealArc=<id>` — the coach-feedback email CTA. */
-  idealTextArcId?: string | null;
-  /** `&feedback=1` or `?lens=`: open on the coach's feedback;
-   *  `?lens=&mode=review`: the review. */
-  idealTextMode?: "feedback" | "review" | null;
-  /** `&take=<session_id>`: the Take the coach's link names (backend N77);
-   *  the coach-only walk opens on that Take's word. */
-  idealTextTake?: string | null;
+  /** `/chat?take=<session_id>` (backend N691 item 3): the Take the link
+   *  names; the chat opens on its coach bubble. */
+  linkTake?: string | null;
+  /** The link asks for the coach's bubble: the Take's, else the newest. */
+  coachLink?: boolean;
 }) {
   const flow = useWillabFlow();
   // The iPhone app has no welcome (founder 2026-11-02): it opens on the chats.
@@ -174,24 +159,13 @@ export default function WillabSurface({
   useEffect(() => {
     if (signedIn) markCoachLinkSent(null);
     const path = `${window.location.pathname}${window.location.search}`;
-    const href = coachLinkLogin({
-      arcId: idealTextArcId,
-      mode: idealTextMode,
-      signedIn,
-      guestArcIds: [
-        readProcessingTake(null)?.arcId,
-        readExploreArc(null)?.arcId,
-        readParked()?.projectId,
-      ],
-      path,
-      sentBefore: readCoachLinkSent(),
-    });
+    const href = coachLinkLogin({ coach: coachLink, signedIn, path, sentBefore: readCoachLinkSent() });
     if (!href) return;
     markCoachLinkSent(path);
     setLinkLogin(href);
     router.replace(href);
-  }, [idealTextArcId, idealTextMode, signedIn, router]);
-  const linkWaits = linkLogin !== null || (idealTextMode === "feedback" && signedIn === null);
+  }, [coachLink, signedIn, router]);
+  const linkWaits = linkLogin !== null || (coachLink && signedIn === null);
   // Warmed after the thread paints (founder 2026-10-16), not beside it: the
   // recording screens' chunks are not what a /chat open waits for.
   useEffect(
@@ -229,19 +203,6 @@ export default function WillabSurface({
       flow.closeLab();
     });
   }, [clearPendingTake, flow]);
-  // The coach's link (?lens= / ?idealArc=): the Ideal Text page's code and
-  // its opening read start now, beside the boot reads, not once the Lounge
-  // has mounted and the code has loaded. The same page opens on the same
-  // read (idealText.ts warmIdealTextLink), only sooner. Past Welcome only:
-  // before it the page does not open. A Take of this project still being
-  // processed on this device holds the page until it lands, and the page
-  // reads then, so nothing is read early for it.
-  useEffect(() => {
-    if (!idealTextArcId || !hasAcceptedConsentLocally()) return;
-    void import("./IdealTextOverlay");
-    if (!userId || readProcessingTake(userId)?.arcId === idealTextArcId) return;
-    warmIdealTextLink(idealTextArcId, idealTextTake ?? null);
-  }, [idealTextArcId, idealTextTake, userId]);
   const userEmail = useUserEmail();
   const founderConsentEligible =
     signedIn === null || userEmail === undefined
@@ -524,10 +485,8 @@ export default function WillabSurface({
           else flow.dispatch("setup_requested");
         }}
         dispatch={flow.dispatch}
-        initialBestPresentationArcId={bestPresentationArcId}
-        initialIdealTextArcId={idealTextArcId}
-        initialIdealTextMode={idealTextMode}
-        initialIdealTextTake={idealTextTake}
+        coachLink={coachLink}
+        linkTake={linkTake}
         recordingProgress={recordingProgress}
         waitHandedOver={waitHandedOver}
         onWaitHandedOverShown={() => setWaitHandedOver(null)}
@@ -661,7 +620,7 @@ export default function WillabSurface({
       {flow.labOverlayOpen && (
         <LabOverlay
           state={flow.state}
-          sessionId={sessionId}
+          sessionId={null}
           dispatch={flow.dispatch}
           onClose={() => {
             if (cancelsPendingProjectRecording(flow.state)) {

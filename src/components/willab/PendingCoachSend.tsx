@@ -13,7 +13,6 @@ import {
 } from "./sendStatus";
 import { notifyPendingSendSettled } from "./usePendingSendHold";
 import { whenNoTakeAtRisk } from "./labLeaveGuard";
-import { lensHref } from "@/lib/willab/lensScreen";
 import { countFirstVisit } from "@/lib/funnel/firstVisit";
 
 /** Completes a parked guest Project Take handoff after authentication. */
@@ -44,16 +43,14 @@ export default function PendingCoachSend() {
           clearPendingSend();
           clearParked();
           setReviewPending(pending.takeId);
-          // THE WALK FIRST (founder 2026-10-18): a new speaker's first screen
-          // after sign-up is their Take's review, as after any Take, not the
-          // chat. The lens address opens it as its own screen; the walk ends
-          // on the Ideal Text, and ✕ shows the chat behind it.
+          // The Take first (founder 2026-10-18): a new speaker's first screen
+          // after sign-up is their Take, in the chat (backend N691 item 3).
           opened = true;
           // The last step of a first visit (backend N271).
           countFirstVisit("walk");
           // The send is done; only the page waits while a Take being recorded
           // here is not yet on the server (backend N560 item 3).
-          const review = lensHref(pending.projectId, "review");
+          const review = `/chat?take=${encodeURIComponent(pending.takeId)}`;
           whenNoTakeAtRisk(() => {
             window.location.href = review;
           });

@@ -168,13 +168,15 @@ mine.","O1 -> ""N601-1: the page is three lines and Join, nothing under it""
 O2 -> ""signed in, Join joins and opens my chat with the one who invited me""
 O3 -> ""signed out, Join goes to sign in and finishes on the way back""
 O4 -> ""WID-29: from the website chat's Sign up, Join signs me up on that chat, after signing in""",
-src/app/chat/page.test.tsx,Story,"As a speaker tapping a WhatsApp or email link, I want to land on my coach's feedback or on the review, so that the link takes me where it says.","O1  A feedback link (lens, or idealArc with feedback) opens the feedback;
-a link with mode=review opens the review; a bare idealArc link opens
-neither.
-O2  Tapped signed out, the coach's link goes to log in and back to the
-same link (WIL-93), once per tab; a project this device holds as a
-guest's work stays on the guest's own screens.","O1 -> ""opens the coach's feedback from the WhatsApp and email links, the review with mode=review""
-O2 -> ""sends a signed-out speaker to log in and back to the coach's link, never a guest's own project""",
+src/app/chat/page.test.tsx,Story,"As a speaker tapping my coach's WhatsApp, push or email link, I want to land in my chat on the coach's word for that Take, so that the link takes me where it says (backend N691 item 3).","O1  `?take=` names the Take and asks for the coach's bubble; `session` is
+its old name; the coach's old `lens` and `idealArc` links still ask
+for the coach's bubble (their Take, else the newest); a plain open
+asks for nothing.
+O2  Every old parameter leaves the address; only `take` stays.
+O3  Tapped signed out, the coach's link goes to log in and back to the
+same link (WIL-93), once per tab.","O1 -> ""reads the one link and the links already sent""
+O2 -> ""keeps only take in the address""
+O3 -> ""sends a signed-out speaker to log in and back to the coach's link""",
 src/app/coach/corpus/corpusJudgeScreen.test.tsx,Story,"As a coach, I want an imported recording to open on the one Judge screen, save only my answer and move to the next unlabelled piece, so that judging is fast and blind.","O1  An import opens the walk's Judge screen and nothing of the workbench's
 labelling chrome (no note field, no Skip, no ""labelled"" count).
 O2  Never-2: before the coach answers, the sheet shows the question and
@@ -2696,14 +2698,10 @@ O2  A handover between 3 s and 30 s old paints and is marked for
 revalidation behind it.
 O3  A handover past 30 s is not painted: the page reads fresh.
 O4  The two enrichment lanes started at settle are requested once, served
-to whichever surface asks, then consumed.
-O5  The coach's link starts the page's read, and the marks' lane, as /chat
-opens; the page opens on them without asking again, and the coach's
-own lane is still read for the Take the link names.","O1 -> ""paints a trusted handover as-is, without a request""
+to whichever surface asks, then consumed.","O1 -> ""paints a trusted handover as-is, without a request""
 O2 -> ""paints a 3-30 s handover and asks for a revalidation""
 O3 -> ""reads fresh past 30 s, never painting the old handover""
-O4 -> ""serves the two lanes to whichever surface asks, without asking again""
-O5 -> ""the coach's link reads the page as /chat opens, and the page opens on that read""","P1 (founder 2026-10-08): the Lounge's read paints the page for up to 30 s, revalidated behind it past the trusted 3 s. Loading time (2026-11-05): the coach's link waited for the Lounge to mount first."
+O4 -> ""serves the two lanes to whichever surface asks, without asking again""","P1 (founder 2026-10-08): the Lounge's read paints the page for up to 30 s, revalidated behind it past the trusted 3 s."
 src/services/api/idealText.pieces.test.ts,Story,"As a speaker, I want each paragraph placed on a slide only when the server says which one, so that a paragraph never lands on a guessed slide.","O1  A slide number outside the deck means no slide placement at all.
 O2  A paragraph without a slide number falls back to one paragraph per
 slide only when the counts match exactly.","O1, O2 -> ""an out-of-range or missing slide_index kills the explicit mapping""",

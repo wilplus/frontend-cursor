@@ -1,17 +1,11 @@
 /* -------------------------------------------------------------------------- */
 /*  THE COACH'S LINK, SIGNED OUT (founder 2026-10-21, WIL-93)                  */
 /*                                                                            */
-/*  The WhatsApp and email links open the coach's feedback (`?lens=<arc>`,     */
-/*  `?idealArc=<arc>&feedback=1`). Tapped where the speaker is not signed in   */
-/*  (WhatsApp's or the mail app's browser, a new phone), the page showed the   */
-/*  guest's "Done" screen, whose "Create an account" went to /signup without   */
-/*  the link: an account holder who logged in from there landed on the chat,  */
-/*  not on the feedback. The link now goes to log in and comes back to        */
-/*  itself; login and sign-up both honour `redirectTo`.                        */
-/*                                                                            */
-/*  The lens writes `?lens=` into the bar for its own walk too, so a guest who */
-/*  reloads mid-Take can carry it: a project this device holds as a guest's    */
-/*  work stays where it is, on the guest's own screens.                        */
+/*  The WhatsApp, push and email links open the coach's bubble in the chat    */
+/*  (`/chat?take=<session_id>`, backend N691 item 3). Tapped where the        */
+/*  speaker is not signed in (WhatsApp's or the mail app's browser, a new     */
+/*  phone), the link goes to log in and comes back to itself; login and       */
+/*  sign-up both honour `redirectTo`.                                          */
 /*                                                                            */
 /*  Once per link per tab: should the server hold a session the browser does  */
 /*  not (a refresh that failed offline), /login sends the speaker straight    */
@@ -22,20 +16,15 @@
 const SENT_KEY = "willab.coach_link_login";
 
 export function coachLinkLogin(link: {
-  /** The project the link opens (`idealArc`, else `lens`). */
-  arcId: string | null;
-  /** "feedback" for the coach's links (see /chat's page). */
-  mode: "feedback" | "review" | null;
+  /** The link asks for the coach's bubble (`?take=`, chatLink.ts). */
+  coach: boolean;
   signedIn: boolean | null;
-  /** The projects this device is working on as a guest. */
-  guestArcIds: readonly (string | null | undefined)[];
   /** The link as opened: path and query. */
   path: string;
   /** The link this tab already sent to log in, if any. */
   sentBefore: string | null;
 }): string | null {
-  if (link.signedIn !== false || link.mode !== "feedback" || !link.arcId) return null;
-  if (link.guestArcIds.includes(link.arcId) || link.sentBefore === link.path) return null;
+  if (link.signedIn !== false || !link.coach || link.sentBefore === link.path) return null;
   return `/login?redirectTo=${encodeURIComponent(link.path)}`;
 }
 
