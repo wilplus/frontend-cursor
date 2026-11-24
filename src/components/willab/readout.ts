@@ -246,6 +246,7 @@ export interface ReadoutPayload {
    *  playback seeks spans of this one file. Falls back to the snippets' shared
    *  parent audio when absent (older payloads). */
   parentAudioRef: string | null;
+  timedThoughts?: { text: string; start: number; end: number }[];
   /** The training-setup audience (B4: session_context.audience or top-level),
    *  suffixed onto Say-It-Stronger insight lines as "(audience: X)". null when
    *  the user left the field blank / older payloads. */
@@ -633,6 +634,11 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
       typeof r.parent_audio_ref === "string" && r.parent_audio_ref.length > 0
         ? r.parent_audio_ref
         : null,
+    ...(Array.isArray(r.timed_thoughts) ? { timedThoughts: r.timed_thoughts.flatMap(item => {
+      const { text, start, end } = obj(item);
+      return typeof text === "string" && typeof start === "number" && typeof end === "number" && end > start
+        ? [{ text, start, end }] : [];
+    }) } : {}),
     audience: pickAudience(r),
     // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
     auditPaid: r.audit_paid !== false,

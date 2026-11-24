@@ -595,7 +595,7 @@ describe("project conversation", () => {
   it("opens the raw transcript for the exact project Take", async () => {
     render();
     act(() => (host.querySelector("[data-project-recording='take-a'] button") as HTMLButtonElement).click());
-    expect(fetchTakeTranscript).toHaveBeenCalledWith("take-a");
+    expect(fetchTakeTranscript).toHaveBeenCalledWith("take-a", expect.any(Function));
     await act(async () => undefined);
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     expect(host.textContent).toContain("Board meeting · Take 1");

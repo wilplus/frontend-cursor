@@ -3,9 +3,10 @@ import { fetchSessionReadout } from "./sessionReadout";
 /** The speaker's raw words for one exact Take. The session endpoint enforces
  * ownership; the caller never supplies an arc as a substitute for the Take
  * identity. */
-export async function fetchTakeTranscript(takeSessionId: string): Promise<string> {
+export async function fetchTakeTranscript(takeSessionId: string, onReadout?: (readout: NonNullable<Awaited<ReturnType<typeof fetchSessionReadout>>>["readout"]) => void): Promise<string> {
   const session = await fetchSessionReadout(takeSessionId);
   if (!session) throw new Error("TRANSCRIPT_UNAVAILABLE");
+  onReadout?.(session.readout);
 
   const slideText = session.readout.slideTranscripts
     .slice()
