@@ -2489,6 +2489,8 @@ src/lib/willab/setupDraft.test.ts,Story,"As a speaker on a shared device, I want
 src/lib/willab/takeHaptics.test.ts,Story,"As a speaker recording in the iPhone app, I want to feel the Take start, the slide move, the Take finish and a Take thrown away, so that I know without looking (backend N678 item 1).","O1  In the app each recording moment gives its own tick.
 O2  In a browser nothing is asked of the phone.","O1 -> ""ticks each recording moment in the app""
 O2 -> ""stays silent in a browser""",
+src/lib/willab/takeInProject.test.ts,Story,"As a speaker, I want every way into a Take's Ideal Text or feedback to open that Take in its project chat, so that the text is a bubble of the chat and never a screen of its own (backend N691 item 2).","O1  The Take a link or card names opens; else the Take at the
+version's index; else the project's newest Take.","O1 -> ""opens the Take named, else the one at its index, else the newest""",
 src/lib/willab/takeOutbox.test.ts,Story,"As a speaker on the iPhone app, I want a Take I finished to stay on my phone until the server has it, and to go up again by itself when I next open the app or my connection comes back, so that closing the app or losing the connection never loses a Take, and it is never made twice or put over a newer one.","O1  A Take whose answer never came goes up again at the next open, with
 the same upload key, and shows as processing with its ""Your
 Recording"" line.

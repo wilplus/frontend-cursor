@@ -2592,6 +2592,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-24 · N691 items 1 and 2 · A Take finished in the main chat, the first Take's "Open your feedback", and the recording bubble open the Take's feedback in its project chat; the walk no longer opens as a screen from the main chat.
 - 2026-11-24 · N691 item 3 · One link, `/chat?take=`, opens the chat on the coach's bubble; the lens and Ideal Text links (`lens`, `idealArc`, `arc`, `mode`, `feedback`) and the unused `insight` and `session` no longer open a screen, and leave the address.
 - 2026-11-24 · N691 item 1 · A moment shown in a chat reply is recorded as opened for the coach's queue, as the walk recorded it; before this, moments met only in the chat never reached a coach.
 - 2026-11-23 · project rehearsal handoff · the selected Feedback Walk's proven server slide span passes through the one `PracticeResumeSelection` contract to the real recorder. A provisional card cannot invent a practice span from a local checkpoint. Both localized Ideal Text rehearsal choices remain available after Take 1. Current behavior and business-test ownership: [Ideal Text, project rehearsal choices](ideal-text.md#project-rehearsal-choices-2026-11-23) and [recording scope](recording-screens.md#fragment-and-whole-rehearsal-2026-11-23).
