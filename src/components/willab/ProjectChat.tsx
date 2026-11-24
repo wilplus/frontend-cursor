@@ -307,10 +307,13 @@ function useProjectRecordingLifecycle({
 
   useEffect(() => {
     setLiveProject(project);
+  }, [project]);
+
+  useEffect(() => {
     const incoming = handoffTake !== null && handoffTake !== settledSession.current;
     if (incoming) returnToReview.current = true;
     setRecordingActive(recordingInProgress || incoming);
-  }, [project, recordingInProgress, handoffTake]);
+  }, [recordingInProgress, handoffTake]);
 
   useEffect(() => {
     const sync = () => {

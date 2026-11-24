@@ -610,8 +610,7 @@ export default function WillabSurface({
       {/* An existing project opens its own conversation. Its two durable
           results reopen the source Feedback walk and Ideal Text; recording
           always starts from this project, never from Will. */}
-      <PendingProjectChat key={projectTake.preview?.key} take={projectTake.preview} onOpen={projectTake.openWait} />
-      {pickedProject && (
+      {pickedProject ? (
         <ProjectChat
           key={pickedProject.arcId}
           project={pickedProject}
@@ -659,7 +658,7 @@ export default function WillabSurface({
             void refreshProjectTrainings();
           }}
         />
-      )}
+      ) : <PendingProjectChat take={projectTake.preview} onOpen={projectTake.openWait} />}
       {flow.labOverlayOpen && (
         <LabOverlay
           state={flow.state}
@@ -680,7 +679,7 @@ export default function WillabSurface({
           onRecordingProgress={setRecordingProgress}
         />
       )}
-      {projectTake.wait ? <PendingProjectWait key={projectTake.wait.key} take={projectTake.wait}
+      {projectTake.wait ? <PendingProjectWait key={`wait:${projectTake.wait.key}`} take={projectTake.wait}
         onClose={closeWait} /> : null}
       {/* The Lab's screens fade back out over the Lounge (Q-B14 A, D-RC-7). */}
       <LabFadeOut open={flow.labOverlayOpen} />
