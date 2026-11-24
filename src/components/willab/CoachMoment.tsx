@@ -1,27 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { usePublishedCoach } from "@/lib/willab/chatBuilder/usePublishedCoach";
 import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import { buildDeckChunks, groupChunksBySlide, withoutUnhearableJudgements } from "@/lib/willab/deckChunks";
 import { buildFeedbackWalk, pickedPracticeSteps } from "@/lib/willab/feedbackWalkModel";
-import { chatArtifactContent, type ChatArtifactContent } from "@/lib/willab/chatArtifact";
+import type { ChatArtifactContent } from "@/lib/willab/chatArtifact";
 import { postTrackedDecision, type DecisionAction } from "@/lib/willab/idealTextDecisions";
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import type { TempoStretch } from "@/lib/willab/tempoStep";
 import { readAiVoice } from "@/services/api/aiVoice";
-import { coachMomentFromMetadata, fetchCoachMoment, type CoachMomentReference } from "@/services/api/coachMoment";
+import { fetchCoachMoment, type CoachMomentReference } from "@/services/api/coachMoment";
 import { readPractiseOffered } from "@/services/api/consentChoices";
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { fetchReviewTempo } from "@/services/api/reviewTempo";
 import { readReviewSteps } from "@/services/api/takeReview";
-import ChatArtifact from "./chats/ChatArtifact";
 import { ArtifactText, StructuredReplyArtifact } from "./chats/ReplyArtifact";
 import IdealTextOverlay from "./IdealTextOverlay";
 import NativeVideo from "./NativeVideo";
-import TakeReviewPracticeHistory, { isSavedPracticeAttempt } from "./TakeReviewPracticeHistory";
+import TakeReviewPracticeHistory from "./TakeReviewPracticeHistory";
 import WalkPlayer from "./walk/WalkPlayer";
 import { InlineWalkHost } from "./walk/InlineWalkHost";
 import { ONE_THING_COPY, WALK_COPY } from "./idealEditCopy";
@@ -154,8 +153,9 @@ function useMomentReview(reference: CoachMomentReference, enabled: boolean, refr
     }).catch(() => undefined);
     return () => { current = false; };
   }, [enabled, reference, refreshKey]);
-  const preview = useMemo(() => context ? practicePreview(context, reference, coach) : null, [context, reference, coach]);
-  const wording = context ? wordingFor(context.document, reference) : null;
+  const preview = useMemo(() => enabled && context ? practicePreview(context, reference, coach) : null,
+    [enabled, context, reference, coach]);
+  const wording = enabled && context ? wordingFor(context.document, reference) : null;
   return { preview, wording, history };
 }
 
@@ -171,27 +171,28 @@ function relatedPractice(history: LoungeMessage[], snippet: string, practiceId?:
 
 const PRACTICE_ACTION = "min-h-11 w-fit rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50";
 const REPLY_COPY = {
-  en: { moment: "Original moment", feedback: "Feedback", saved: "Saved wording",
-    kept: "Kept your wording", practice: "Saved practice", failed: "Couldn’t save your choice. Try again." },
-  pl: { moment: "Fragment nagrania", feedback: "Informacja zwrotna", saved: "Zapisana wersja",
-    kept: "Zachowane słowa", practice: "Zapisana próba", failed: "Nie udało się zapisać. Spróbuj ponownie." },
+  en: { moment: "Original moment", saved: "Saved wording",
+    kept: "Kept your wording", failed: "Couldn’t save your choice. Try again." },
+  pl: { moment: "Fragment nagrania", saved: "Zapisana wersja",
+    kept: "Zachowane słowa", failed: "Nie udało się zapisać. Spróbuj ponownie." },
 };
 
-function PracticeActions({ preview, wording, onPractise, onDecision, busy, status }: {
+function MomentPractice({ preview, wording, onPractise, onDecision, busy, status, replayOnly }: {
   preview: PracticePreview;
   wording: Wording | null;
   onPractise: () => void;
   onDecision: (item: DocumentSuggestion, decision: DecisionAction) => void;
   busy: boolean;
   status: string | null;
+  replayOnly: boolean;
 }) {
   const locale = useUiLocale();
   const rewrite = wording ? null : preview.rewrite;
-  return <div className="grid gap-2" data-coach-intervention>
+  return <div className="grid gap-2">
     <p className="text-sm font-medium">{preview.title}</p>
     {preview.instruction && !wording ? <ArtifactText text={preview.instruction} /> : null}
     <PracticeDemo key={preview.practiceId ?? preview.video ?? preview.title} preview={preview} />
-    {rewrite ? <div className="flex flex-wrap gap-2">
+    {replayOnly ? null : rewrite ? <div className="flex flex-wrap gap-2">
       <button type="button" disabled={busy} className={PRACTICE_ACTION} onClick={() => onDecision(rewrite, "accept")}>
         {locale === "pl" ? "Użyj tej wersji" : "Use this wording"}
       </button>
@@ -205,27 +206,28 @@ function PracticeActions({ preview, wording, onPractise, onDecision, busy, statu
   </div>;
 }
 
-function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attachment, inline, replayOnly }: {
+function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attachment, example, includeHistory, replayOnly }: {
   reference: CoachMomentReference;
   clip: NonNullable<Awaited<ReturnType<typeof fetchCoachMoment>>>;
   refreshClip: () => Promise<void>;
   recordingDock: HTMLDivElement | null;
   attachment: ChatArtifactContent | null;
-  inline: boolean;
+  example?: ReactNode;
+  includeHistory: boolean;
   replayOnly: boolean;
 }) {
   const copy = REPLY_COPY[useUiLocale()];
-  const [open, setOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [practising, setPractising] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [savedDecision, setSavedDecision] = useState<Wording | null>(null);
-  const { preview, wording, history } = useMomentReview(reference, (open || inline) && reference.practise, refreshKey);
+  const { preview, wording, history } = useMomentReview(reference, reference.practise, refreshKey);
+  const practice = unavailable ? null : preview;
+  const running = practising && Boolean(practice);
   const kept = wording ?? savedDecision;
-  const related = relatedPractice(history, reference.snippet_id, preview?.practiceId);
-  const attempts = related.some(isSavedPracticeAttempt);
+  const related = includeHistory && !running ? relatedPractice(history, reference.snippet_id, preview?.practiceId) : [];
   const savedLabel = kept?.decision === "accept" ? copy.saved : copy.kept;
   const snippet = reference.snippet_id;
   const reviewAt = useMemo(() => ({
@@ -258,83 +260,60 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
       durationMs={clip.durationMs} label={copy.moment} look="bare" />
     <ArtifactText text={attachment?.moment ?? preview?.rewrite?.quote ?? undefined} />
   </MediaRefreshProvider>;
-  const intervention = <MomentIntervention
-    text={attachment?.intervention} practice={unavailable ? null : preview} practising={practising}
-    actions={preview ? replayOnly ? <div className="space-y-2">
-      <ArtifactText text={preview.instruction ?? undefined} />
-      <PracticeDemo preview={preview} />
-    </div> : <PracticeActions preview={preview} wording={kept} busy={saving} status={status}
-      onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} /> : null}
-    engine={preview && practising ? <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history, conversation: inline }}>
-      <IdealTextOverlay arcId={reference.arc_id} reviewTake={reference.take_session_id} reviewTakeIndex={clip.takeIndex}
-        initialMode="review" requireFeedbackWalk
-        reviewAt={reviewAt}
-        onClose={closePractice} onPracticeUnavailable={() => { setUnavailable(true); closePractice(); }} />
-    </InlineWalkHost.Provider> : null} />;
-  const output = momentOutput(kept, savedLabel, !inline && !practising && attempts ? related : [], attachment?.output);
-  const description = kept ? savedLabel : attempts ? copy.practice : attachment?.preview ?? describeClip(clip, copy.moment);
-  const interventionContent = attachment?.intervention || (preview && !unavailable) ? intervention : null;
-  if (inline) return <div className="min-w-0 space-y-2" data-coach-moment>
+  return <div className="min-w-0 space-y-2" data-coach-moment>
     {moment}
-    {interventionContent}
-    {output}
+    {attachment?.intervention || example || practice ? <div data-coach-intervention className="space-y-2">
+      <ArtifactText text={attachment?.intervention} />
+      {running ? (
+        <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history, conversation: true }}>
+          <IdealTextOverlay arcId={reference.arc_id} reviewTake={reference.take_session_id} reviewTakeIndex={clip.takeIndex}
+            initialMode="review" requireFeedbackWalk reviewAt={reviewAt}
+            onClose={closePractice} onPracticeUnavailable={() => { setUnavailable(true); closePractice(); }} />
+        </InlineWalkHost.Provider>
+      ) : practice ? (
+        <MomentPractice preview={practice} wording={kept} busy={saving} status={status} replayOnly={replayOnly}
+          onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} />
+      ) : null}
+      {example}
+    </div> : null}
+    {momentOutput(kept, savedLabel, related, attachment?.output)}
   </div>;
-  return <div className="w-full min-w-0" data-coach-moment>
-    <ChatArtifact title={attachment?.title ?? copy.feedback} preview={description} moment={moment}
-      intervention={interventionContent} output={output}
-      hideMinimise={practising || saving} onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) { setPractising(false); setUnavailable(false); }
-      }} />
-  </div>;
-}
-
-function describeClip(clip: { takeIndex: number | null }, label: string) {
-  return clip.takeIndex === null ? label : `Take ${clip.takeIndex} · ${label}`;
 }
 
 function momentOutput(kept: Wording | null, label: string, messages: LoungeMessage[], text?: string) {
   if (!kept && !messages.length && !text) return null;
-  return <div className="space-y-1.5">
+  return <div className="space-y-1.5" data-coach-moment-output>
     {kept ? <div><p className="text-xs text-muted-foreground">{label}</p><ArtifactText text={kept.words} /></div> : null}
     <TakeReviewPracticeHistory messages={messages} runs={[]} />
     <ArtifactText text={text} />
   </div>;
 }
 
-function MomentIntervention({ text, practice, practising, actions, engine }: {
-  text?: string; practice: PracticePreview | null; practising: boolean;
-  actions: React.ReactNode; engine: React.ReactNode;
-}) {
-  return <div className="space-y-2">
-    <ArtifactText text={text} />
-    {practice ? (practising ? engine : actions) : null}
-  </div>;
-}
-
-function CoachMomentCard({ reference, recordingDock, attachment, inline, replayOnly }: {
+function CoachMomentCard({ reference, recordingDock, attachment, example, includeHistory, replayOnly }: {
   reference: CoachMomentReference; recordingDock: HTMLDivElement | null; attachment: ChatArtifactContent | null;
-  inline: boolean; replayOnly: boolean;
+  example?: ReactNode;
+  includeHistory: boolean; replayOnly: boolean;
 }) {
   const [clip, setClip] = useState<Awaited<ReturnType<typeof fetchCoachMoment>>>(null);
   const refresh = useCallback(async () => setClip(await fetchCoachMoment(reference).catch(() => null)), [reference]);
   useEffect(() => { void refresh(); }, [refresh]);
-  if (!clip) return <StructuredReplyArtifact content={attachment} inline={inline} />;
+  if (!clip) return <StructuredReplyArtifact inline content={attachment} example={example} />;
   return <CoachMomentReview reference={reference} clip={clip} refreshClip={refresh}
-    recordingDock={recordingDock} attachment={attachment} inline={inline} replayOnly={replayOnly} />;
+    recordingDock={recordingDock} attachment={attachment} example={example} includeHistory={includeHistory} replayOnly={replayOnly} />;
 }
 
-export default function CoachMoment({ raw, artifact, project, recordingDock = null, inline = false, replayOnly = false }: {
-  raw: unknown;
-  artifact?: unknown;
+export default function CoachMoment({
+  reference, artifact = null, example, project, recordingDock = null, includeHistory = false, replayOnly = false,
+}: {
+  reference: CoachMomentReference | null;
+  artifact?: ChatArtifactContent | null;
+  example?: ReactNode;
   project?: string;
   recordingDock?: HTMLDivElement | null;
-  inline?: boolean;
+  includeHistory?: boolean;
   replayOnly?: boolean;
 }) {
-  const reference = useMemo(() => coachMomentFromMetadata(raw), [raw]);
-  const attachment = chatArtifactContent(artifact);
-  if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact content={attachment} inline={inline} />;
+  if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact inline content={artifact} example={example} />;
   return <CoachMomentCard key={`${reference.arc_id}:${reference.take_session_id}:${reference.snippet_id}`}
-    reference={reference} recordingDock={recordingDock} attachment={attachment} inline={inline} replayOnly={replayOnly} />;
+    reference={reference} recordingDock={recordingDock} attachment={artifact} example={example} includeHistory={includeHistory} replayOnly={replayOnly} />;
 }

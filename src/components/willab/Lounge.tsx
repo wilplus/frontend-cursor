@@ -18,7 +18,7 @@ import Linkified from "./Linkified";
 import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
-import CoachMoment from "./CoachMoment";
+import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
 import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { coachWording } from "@/services/api/coachWording";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
@@ -3257,15 +3257,13 @@ function BubbleBody({
   if (message.role === "bot") {
     return (
       <>
-        {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
-        <SequentialBotBubbles
+        {showTakeArtifacts && hasTakeReplyContent(message) ? (
+          <TakeConversationMessage message={message} recordingDock={recordingDock} standalone />
+        ) : <SequentialBotBubbles
           chunks={splitBotMessage(showTakeArtifacts ? withoutCoachTranscriptFooter(message.body) : speakingCoachReplyText(message))}
           animate={animate}
-        />
-        {showTakeArtifacts ? <>
-          <CoachMoment raw={message.metadata?.coach_moment} artifact={message.metadata?.chat_artifact} recordingDock={recordingDock} />
-          <CoachWordingCard message={message} recordingDock={recordingDock} />
-        </> : null}
+        />}
+        {showTakeArtifacts ? <CoachWordingCard message={message} recordingDock={recordingDock} /> : null}
         <BotWays
           metadata={message.metadata}
           onChip={onChip}

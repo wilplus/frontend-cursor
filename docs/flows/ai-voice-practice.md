@@ -78,6 +78,8 @@ speaker's own voice, said a little better**, then the speaker tries again.
 - **Audio only.** The label L1 and the one player; never the words.
 - **Never plays by itself.** The speaker taps play.
 - The lens and the chat show the same bubble (one thread, stored once).
+- When a Take reply carries an AI example, its player sits inside the reply
+  bubble alongside the cited recording and supplied instruction.
 - No question, no consent screen and no recording task inside the walk.
 - When the clip fails its check, the provider is down, the limits are
   reached, or the AI voice is off: no bubble; the screen is the locked one.

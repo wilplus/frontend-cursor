@@ -46,6 +46,7 @@ export default function LoungeAiVoiceBubble({
   seed,
   avatar,
   onOpen,
+  inline = false,
 }: {
   body: string;
   practiceId: string;
@@ -54,6 +55,8 @@ export default function LoungeAiVoiceBubble({
   fallback?: string | null;
   seed: string;
   avatar: React.ReactNode;
+  /** Use the surrounding reply's bubble for the player and fallback. */
+  inline?: boolean;
   /** A tap on the words turns the lens back on, on this step. */
   onOpen?: () => void;
 }) {
@@ -104,16 +107,17 @@ export default function LoungeAiVoiceBubble({
       <span className={`whitespace-pre-wrap break-words ${className ?? ""}`}>{text}</span>
     );
   return (
-    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+    <div className={inline ? "min-w-0" : "mr-auto flex max-w-[88%] items-end gap-1.5"}>
       {avatar}
       <div
         data-lounge-ai-voice
-        className={`relative flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted py-2 pl-3 text-[15px] leading-[1.45] text-foreground ${onOpen ? "pr-[30px]" : "pr-3"}`}
+        className={inline ? "flex min-w-0 flex-col" :
+          `relative flex min-w-0 flex-1 flex-col rounded-[16px] bg-muted py-2 pl-3 text-[15px] leading-[1.45] text-foreground ${onOpen ? "pr-[30px]" : "pr-3"}`}
       >
-        {gone ? words(fallback as string) : words(first)}
+        {gone ? words(fallback as string) : first ? words(first) : null}
         {ready ? (
           <>
-            <span className="mt-2 flex items-center gap-[7px] text-[13px] font-semibold">
+            <span className={`flex items-center gap-[7px] text-[13px] font-semibold ${inline ? "" : "mt-2"}`}>
               <span
                 aria-hidden
                 className="inline-flex h-[17px] w-[17px] items-center justify-center rounded-[5px] bg-foreground text-[9.5px] font-bold text-background"

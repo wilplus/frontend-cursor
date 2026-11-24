@@ -15,18 +15,19 @@ export function artifactDocument(output?: string): boolean {
   return Boolean(output && (output.length >= 420 || output.includes("\n\n")));
 }
 
-export function StructuredReplyArtifact({ content, momentControl, inline = false }: {
-  content: unknown; momentControl?: ReactNode; inline?: boolean;
+export function StructuredReplyArtifact({ content, momentControl, example, inline = false }: {
+  content: unknown; momentControl?: ReactNode; example?: ReactNode; inline?: boolean;
 }) {
   const artifact = chatArtifactContent(content);
+  if (inline) return artifact || momentControl || example ? <div className="space-y-2">
+    {momentControl}
+    <ArtifactText text={artifact?.moment} />
+    <ArtifactText text={artifact?.intervention} />
+    {example}
+    <ArtifactText text={artifact?.output} />
+  </div> : null;
   if (!artifact) return null;
   const { title, preview, moment, intervention, output } = artifact;
-  if (inline) return <div className="space-y-2">
-    {momentControl}
-    <ArtifactText text={moment} />
-    <ArtifactText text={intervention} />
-    <ArtifactText text={output} />
-  </div>;
   if (artifactDocument(output)) return <>
     {moment || intervention ? <StructuredReplyArtifact content={{ ...artifact, output: undefined }} momentControl={momentControl} /> : momentControl}
     <ConversationDocument title={title}><ArtifactText text={output} /></ConversationDocument>

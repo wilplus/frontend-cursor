@@ -94,7 +94,7 @@ In the inline Walk, the speaker's messages and recordings use the project conver
 
 Speaking Coach and Project Chat both use the speaker's words and available delivery cues from the exact passage. Project Chat uses the authorised Takes in that project, including the selected moment during a review. It answers the speaker's question in context and can give one useful line to say or one thing to try. When delivery is unavailable, the coach describes what the words support.
 
-The owning project plays an exact recording moment beside its reply. If the Picker serves an intervention for that moment, the project reply presents the instruction and available demonstration. Practise opens the activity with the shared microphone. Reopening checks current project access and recording permissions. Speaking Coach uses ordinary text for its advice and guides the speaker to the project for a Take's artifacts. Automatic transcript footers are hidden. Speaker-wide Strengths and weekly principles appear in Speaking Coach (N683).
+The owning project plays the exact recording moment inside its reply bubble, with any supplied exercise and available demonstration. Sniper, a wording exercise, an AI audio example or a coach video uses that same bubble in the live conversation, ordinary follow-ups and reopened Takes. Practise opens the activity with the shared microphone. Reopening checks current project access and recording permissions. Speaking Coach uses ordinary text for its advice and guides the speaker to the project for a Take's artifacts. Automatic transcript footers are hidden. Speaker-wide Strengths and weekly principles appear in Speaking Coach (N683).
 
 #### Speakable wording in coaching replies
 

@@ -61,7 +61,7 @@ import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
 import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
-import CoachMoment from "./CoachMoment";
+import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
 import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
@@ -973,20 +973,23 @@ export default function ProjectChat({
               </div>
             ) : (
               <Fragment key={message.client_id}>
-              <div
-                data-project-message={message.client_id}
-                className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
-                  message.role === "user"
-                    ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
-                    : "mr-auto bg-muted text-foreground"
-                }`}
-              >
-                {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
-                {reviewLink(message)}
-              </div>
-                {message.role === "bot" && <CoachMoment raw={message.metadata?.coach_moment}
-                  artifact={message.metadata?.chat_artifact}
-                  project={activeProject.arcId} recordingDock={recordingDock} />}
+                {hasTakeReplyContent(message) ? (
+                  <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone>
+                    {reviewLink(message)}
+                  </TakeConversationMessage>
+                ) : (
+                  <div
+                    data-project-message={message.client_id}
+                    className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
+                      message.role === "user"
+                        ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
+                        : "mr-auto bg-muted text-foreground"
+                    }`}
+                  >
+                    {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
+                    {reviewLink(message)}
+                  </div>
+                )}
                 {replyActions(message)}
                 {failedTurns.has(message.client_id) && (
                   <div data-project-chat-error>
