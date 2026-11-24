@@ -57,6 +57,7 @@ import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
+import { useHumanCoachReviewRows } from "./chats/useHumanCoachReviewRows";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
@@ -684,7 +685,12 @@ export default function ProjectChat({
     (a, b) => a.takeIndex - b.takeIndex,
   );
   const reviewedTakeIds = new Set(recordingTakes.filter(readyForReview).map((take) => take.sessionId));
-  const ordinaryMessages = visibleMessages.filter((message) =>
+  const humanCoachRows = useHumanCoachReviewRows(activeProject, thread.signedIn);
+  const timeline = humanCoachRows.length
+    ? orderedProjectMessages([...visibleMessages, ...humanCoachRows]
+        .sort((a, b) => a.client_created_at.localeCompare(b.client_created_at)), activeProject.arcId)
+    : visibleMessages;
+  const ordinaryMessages = timeline.filter((message) =>
     !isTakeExchangeMessage(message) || !reviewedTakeIds.has(takeSessionOf(message) ?? ""));
   useEffect(() => {
     if (freshReview) leavingReview(() => setTakeReview({ take: freshReview, focus: { step: "feedback" }, live: true }));
@@ -692,7 +698,7 @@ export default function ProjectChat({
   const pinBottom = useProjectChatScroll(
     scrollRef,
     activeProject.arcId,
-    projectTurnKey(visibleMessages, pendingAnswer, pendingTyped, sending),
+    projectTurnKey(timeline, pendingAnswer, pendingTyped, sending),
   );
 
   useEffect(() => {
@@ -993,6 +999,7 @@ export default function ProjectChat({
                         : "mr-auto bg-muted text-foreground"
                     }`}
                   >
+                    {message.metadata?.human_coach_author === "Artur" && <p className="mb-1 text-[13px] font-medium text-muted-foreground">Artur · Speaking coach</p>}
                     {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
                     {reviewLink(message)}
                   </div>
