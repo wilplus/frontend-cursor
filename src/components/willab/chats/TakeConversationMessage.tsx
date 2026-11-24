@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Quote } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
@@ -9,6 +9,7 @@ import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { withoutCoachTranscriptFooter } from "../willabHelpers";
 import CoachMoment from "../CoachMoment";
 import CoachVideo from "../CoachVideo";
+import Linkified from "../Linkified";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "../LoungeAiVoiceBubble";
 import { RichText } from "../RichText";
 import { isSavedPracticeAttempt, PastAttempt } from "../TakeReviewPracticeHistory";
@@ -16,35 +17,46 @@ import WalkPlayer from "../walk/WalkPlayer";
 import { ArtifactText, artifactDocument } from "./ReplyArtifact";
 import { ConversationBubble, ConversationDocument } from "./TakeConversation";
 
-export default function TakeConversationMessage({ message, project, recordingDock, footer, replayOnly, onRefer }: {
+export default function TakeConversationMessage({
+  message, project, recordingDock, footer, replayOnly, onRefer, standalone = false, children,
+}: {
   message: LoungeMessage;
   project?: string;
   recordingDock?: HTMLDivElement | null;
   footer?: ReactNode;
   replayOnly?: boolean;
   onRefer?: (snippet: string, words: string) => void;
+  /** This reply is outside a Take recap and owns its own practice playback. */
+  standalone?: boolean;
+  children?: ReactNode;
 }) {
-  const { meta, own, clip, audio, video, ai, text, artifact, document, attachment, snippet, showBubble } = takeMessageParts(message);
+  const { own, clip, audio, video, ai, text, artifact, document, reference, snippet } = useMemo(() => takeMessageParts(message), [message]);
   const marker = { "data-project-message": project ? message.client_id : undefined };
   if (isSavedPracticeAttempt(message)) return <div {...marker} className={WILLAB_CONTENT_RAIL}><PastAttempt row={message} /></div>;
-  if (ai) return <div {...marker} className={WILLAB_CONTENT_RAIL}>
+  if (ai && message.kind === "walk_step" && !audio && !video && !reference && !artifact) return <div {...marker} className={WILLAB_CONTENT_RAIL}>
     <LoungeAiVoiceBubble body={text} practiceId={ai.practiceId} then={ai.then} fallback={ai.fallback}
       seed={message.client_id} avatar={null} />
   </div>;
+  const showBubble = [text.trim(), audio, video, ai, reference, artifact?.moment,
+    artifact?.intervention, artifact?.output, children].some(Boolean);
   if (!showBubble && !document && !footer) return null;
+  const example = video || ai ? <>
+    {video ? <CoachVideo compact src={video} /> : null}
+    {ai ? <LoungeAiVoiceBubble inline body="" practiceId={ai.practiceId} then={ai.then} fallback={ai.fallback}
+      seed={message.client_id} avatar={null} /> : null}
+  </> : null;
   return <>
     <div {...marker} className="contents">
-    {showBubble ? <ConversationBubble speaker={own}>
-      <TakeMessageCaption text={text} snippet={snippet} onRefer={onRefer} />
-      {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
-        startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
-        durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
-      {video ? <CoachVideo compact src={video} /> : null}
-      {attachment ? <CoachMoment inline replayOnly={replayOnly} raw={meta.coach_moment}
-        artifact={document ? { ...artifact, output: undefined } : artifact}
-        project={project} recordingDock={recordingDock} /> : null}
-    </ConversationBubble> : null}
-    {document && artifact ? <ConversationDocument title={artifact.title}><ArtifactText text={document} /></ConversationDocument> : null}
+      {showBubble ? <ConversationBubble speaker={own}>
+        <TakeMessageCaption text={text} snippet={snippet} onRefer={onRefer} linkify={standalone} />
+        {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
+          startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
+          durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
+        <CoachMoment replayOnly={replayOnly} reference={reference} example={example} artifact={artifact}
+          project={project} recordingDock={recordingDock} includeHistory={standalone} />
+        {children}
+      </ConversationBubble> : null}
+      {document ? <ConversationDocument title={document.title}><ArtifactText text={document.text} /></ConversationDocument> : null}
     </div>
     {footer ? <div data-take-message-actions={message.client_id} className={WILLAB_CONTENT_RAIL}>{footer}</div> : null}
   </>;
@@ -56,25 +68,31 @@ function takeMessageParts(message: LoungeMessage) {
   const clip = meta.clip && typeof meta.clip === "object" ? meta.clip as Record<string, unknown> : null;
   const audio = typeof clip?.src === "string" ? clip.src : null;
   const video = typeof meta.video === "string" ? meta.video : null;
-  const ai = message.kind === "walk_step" && !own && !audio ? aiVoiceOfMeta(meta) : null;
+  const ai = message.role === "bot" ? aiVoiceOfMeta(meta) : null;
   const text = own ? message.body : withoutCoachTranscriptFooter(message.body);
-  const artifact = own ? null : chatArtifactContent(meta.chat_artifact);
-  const document = artifactDocument(artifact?.output) ? artifact?.output : undefined;
-  const attachment = !own && (meta.coach_moment || artifact);
-  const snippet = [meta.snippet_id, clip?.snippet_id, coachMomentFromMetadata(meta.coach_moment)?.snippet_id]
+  const content = own ? null : chatArtifactContent(meta.chat_artifact);
+  const document = content && artifactDocument(content.output) ? { title: content.title, text: content.output } : null;
+  const artifact = document && content ? { ...content, output: undefined } : content;
+  const reference = message.role === "bot" ? coachMomentFromMetadata(meta.coach_moment) : null;
+  const snippet = [meta.snippet_id, clip?.snippet_id, reference?.snippet_id]
     .find((id): id is string => typeof id === "string");
-  const showBubble = Boolean(text.trim() || audio || video || meta.coach_moment || artifact?.moment ||
-    artifact?.intervention || (artifact?.output && !document));
-  return { meta, own, clip, audio, video, ai, text, artifact, document, attachment, snippet, showBubble };
+  return { own, clip, audio, video, ai, text, artifact, document, reference, snippet };
 }
 
-function TakeMessageCaption({ text, snippet, onRefer }: {
+export function hasTakeReplyContent(message: LoungeMessage): boolean {
+  if (message.role !== "bot") return false;
+  const { artifact, reference, audio, video, ai } = takeMessageParts(message);
+  return Boolean(artifact || reference || audio || video || ai);
+}
+
+function TakeMessageCaption({ text, snippet, onRefer, linkify }: {
   text: string;
   snippet?: string;
   onRefer?: (snippet: string, words: string) => void;
+  linkify: boolean;
 }) {
   if (!text.trim()) return null;
-  if (!snippet || !onRefer) return <p className="whitespace-pre-wrap"><RichText text={text} /></p>;
+  if (!snippet || !onRefer) return <p className="whitespace-pre-wrap">{linkify ? <Linkified text={text} /> : <RichText text={text} />}</p>;
   return <button type="button" onClick={() => onRefer(snippet, text)}
     title="Refer to this moment" className="flex min-h-11 items-start gap-2 whitespace-pre-wrap text-left hover:underline">
     <Quote className="mt-1 size-3.5 shrink-0 text-muted-foreground" aria-hidden />

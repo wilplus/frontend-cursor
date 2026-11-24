@@ -528,10 +528,15 @@ describe("project conversation", () => {
 
   it("shows a saved chat reply under its message with the Take review closed", async () => {
     const scope = { project_chat: true, take_session_id: "take-a" };
+    const clip = "https://media.example/moment.mp3";
+    const demo = "https://media.example/coach.mp4";
     state.messages = [
       message("question", "How should I finish this talk?", "user", { ...scope, take_exchange: false }),
       message("answer", "Return to the decision from your opening.", "bot", {
         ...scope, reply_to_client_id: "question",
+        clip: { src: clip, start_ms: 500, duration_ms: 2000 },
+        video: demo,
+        chat_artifact: { version: 1, title: "Speak the close", intervention: "Pause before the decision." },
       }),
       message("legacy-question", "What should I say first?", "user", scope),
       message("legacy-answer", "Lead with what the board needs to decide.", "bot", {
@@ -541,8 +546,12 @@ describe("project conversation", () => {
     reviewApi.steps.mockResolvedValue(state.messages);
     render();
     expect(host.querySelector("[data-take-review]")).toBeNull();
-    expect(host.querySelector('[data-project-message="answer"]')?.textContent)
-      .toContain("Return to the decision from your opening.");
+    const bubble = host.querySelector('[data-project-message="answer"] [data-bubble]');
+    expect(bubble?.textContent).toContain("Return to the decision from your opening.");
+    expect(bubble?.textContent).toContain("Pause before the decision.");
+    expect(bubble?.querySelector("audio")?.src).toBe(clip);
+    expect(bubble?.querySelector("video")?.src).toBe(demo);
+    expect(host.querySelector("[data-chat-artifact-preview]")).toBeNull();
     expect(host.querySelector('[data-project-message="legacy-answer"]')?.textContent)
       .toContain("Lead with what the board needs to decide.");
     const opened = await openTake("take-a");
