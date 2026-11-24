@@ -20,6 +20,7 @@ import {
   openProjectQuestion,
   orderedProjectMessages,
   projectConversationHistory,
+  projectTimeline,
   typedProjectTurnMetadata,
 } from "@/lib/willab/projectChat";
 import {
@@ -692,7 +693,8 @@ export default function ProjectChat({
   const pinBottom = useProjectChatScroll(
     scrollRef,
     activeProject.arcId,
-    projectTurnKey(visibleMessages, pendingAnswer, pendingTyped, sending),
+    [projectTurnKey(visibleMessages, pendingAnswer, pendingTyped, sending),
+      recordingTakes.at(-1)?.sessionId, freshReview?.sessionId].join(":"),
   );
 
   useEffect(() => {
@@ -892,56 +894,96 @@ export default function ProjectChat({
     return destination || offer || wording ? <>{destination}{offer}{wording}</> : null;
   }
 
+  function renderTake(take: TrainingTake) {
+    const chunk = practiceChunks.find((entry) => entry.latestSessionId === take.sessionId);
+    const range = chunk && !chunk.pendingStatus ? { startSlide: chunk.startSlide, endSlide: chunk.endSlide } : undefined;
+    const selected = takeReview?.take.sessionId === take.sessionId ? { ...takeReview, walkRange: range } : null;
+    const forTake = messages.filter((message) => message.metadata?.take_session_id === take.sessionId);
+    const preview = takePreview(forTake);
+    return <div key={take.sessionId} data-project-take={take.sessionId} className="flex flex-col gap-2">
+      <div className={WILLAB_CONTENT_RAIL}>
+        <div data-project-recording={take.sessionId}
+          className={PROJECT_SPEAKER_BUBBLE + " ml-auto w-fit max-w-[86%] rounded-[18px] px-4 py-3"}>
+          <p className="text-[15px] font-semibold">Your recording · Take {take.takeIndex}</p>
+          <button type="button" onClick={() => setOpenedTranscript({ sessionId: take.sessionId, takeIndex: take.takeIndex })}
+            className="mt-1 text-left text-[13px] underline underline-offset-2">
+            Open raw transcript
+          </button>
+        </div>
+      </div>
+      {selected || readyForReview(take) ? <TakeConversation title={`Take ${take.takeIndex} · Feedback walk`}
+        preview={preview} expanded={Boolean(selected)} showPreview={Boolean(selected?.replay)}
+        onExpandedChange={(open) => {
+          if (open) openReview({ take, replay: true, focus: { step: "feedback" } });
+          else leavingReview(finishReview);
+        }}>
+        {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
+        runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit} focusRef={reviewFocusRef}
+        onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
+        onClose={() => leavingReview(finishReview)} rememberOpening={rememberLiveOpening}
+        onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
+        renderFooter={(message) => {
+          const retry = failedTurns.get(message.client_id);
+          return retry ? <div data-project-chat-error>
+            <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(retry)} />
+          </div> : replyActions(message, !selected.live && message.metadata?.live_take_feedback !== true);
+        }} /> : null}
+      </TakeConversation> : null}
+    </div>;
+  }
+
+  function renderMessage(message: LoungeMessage) {
+    return (
+      message.role === "system" && message.metadata?.coach_wording_saved === true ? (
+        linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
+          <CoachWordingCard key={message.client_id} message={message} project={activeProject.arcId} recordingDock={recordingDock} />
+      ) : message.client_id === activeQuestion?.client_id ? (
+        <div key={message.client_id} data-project-message={message.client_id} className="contents">
+          <WillQuestionBubble
+            body={message.body}
+            chips={chips}
+            open={pendingAnswer === null}
+            disabled={sending}
+            onAnswer={answerChoice}
+          />
+        </div>
+      ) : (
+        <Fragment key={message.client_id}>
+          {hasTakeReplyContent(message) ? (
+            <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone>
+              {reviewLink(message)}
+            </TakeConversationMessage>
+          ) : (
+            <div
+              data-project-message={message.client_id}
+              className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
+                message.role === "user"
+                  ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
+                  : "mr-auto bg-muted text-foreground"
+              }`}
+            >
+              {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
+              {reviewLink(message)}
+            </div>
+          )}
+          {replyActions(message)}
+          {failedTurns.has(message.client_id) && (
+            <div data-project-chat-error>
+              <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />
+            </div>
+          )}
+        </Fragment>
+      )
+    );
+  }
+
   return (
     <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
 
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className="flex min-h-full w-full flex-col justify-end gap-2">
-          {recordingTakes.map((take) => {
-            const chunk = practiceChunks.find((entry) => entry.latestSessionId === take.sessionId);
-            const range = chunk && !chunk.pendingStatus ? { startSlide: chunk.startSlide, endSlide: chunk.endSlide } : undefined;
-            const selected = takeReview?.take.sessionId === take.sessionId ? { ...takeReview, walkRange: range } : null;
-            const forTake = messages.filter((message) => message.metadata?.take_session_id === take.sessionId);
-            const preview = takePreview(forTake);
-            return <div key={take.sessionId} data-project-take={take.sessionId} className="flex flex-col gap-2">
-              <div className={WILLAB_CONTENT_RAIL}>
-              <div data-project-recording={take.sessionId}
-                className={PROJECT_SPEAKER_BUBBLE + " ml-auto w-fit max-w-[86%] rounded-[18px] px-4 py-3"}>
-              <p className="text-[15px] font-semibold">Your recording · Take {take.takeIndex}</p>
-              <button
-                type="button"
-                onClick={() => setOpenedTranscript({
-                  sessionId: take.sessionId,
-                  takeIndex: take.takeIndex,
-                })}
-                className="mt-1 text-left text-[13px] underline underline-offset-2"
-              >
-                Open raw transcript
-              </button>
-              </div>
-              </div>
-              {selected || readyForReview(take) ? <TakeConversation title={`Take ${take.takeIndex} · Feedback walk`}
-                preview={preview} expanded={Boolean(selected)} showPreview={Boolean(selected?.replay)}
-                onExpandedChange={(open) => {
-                  if (open) openReview({ take, replay: true, focus: { step: "feedback" } });
-                  else leavingReview(finishReview);
-                }}>
-                {selected ? <TakeReview key={take.sessionId} project={activeProject} target={selected}
-                runs={runs[take.sessionId] ?? []} messages={forTake} recordingDock={recordingDock} exitRef={reviewExit} focusRef={reviewFocusRef}
-                onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
-                onClose={() => leavingReview(finishReview)} rememberOpening={rememberLiveOpening}
-                onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
-                renderFooter={(message) => {
-                  const retry = failedTurns.get(message.client_id);
-                  return retry ? <div data-project-chat-error>
-                    <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(retry)} />
-                  </div> : replyActions(message, !selected.live && message.metadata?.live_take_feedback !== true);
-                }} /> : null}
-              </TakeConversation> : null}
-            </div>;
-          })}
-          <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2`}>
+          <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
           {!takeReviewEnabled && hasPractice ? (
             <div data-project-results className="mb-2 w-full max-w-[480px] self-start">
               <FeedbackWalkCard
@@ -964,48 +1006,14 @@ export default function ProjectChat({
             </div>
           ) : null}
 
-          {ordinaryMessages.map((message) => (
-            message.role === "system" && message.metadata?.coach_wording_saved === true ? (
-              linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
-                <CoachWordingCard key={message.client_id} message={message} project={activeProject.arcId} recordingDock={recordingDock} />
-            ) : message.client_id === activeQuestion?.client_id ? (
-              <div key={message.client_id} data-project-message={message.client_id} className="contents">
-                <WillQuestionBubble
-                  body={message.body}
-                  chips={chips}
-                  open={pendingAnswer === null}
-                  disabled={sending}
-                  onAnswer={answerChoice}
-                />
+          </div>
+          {projectTimeline(recordingTakes, ordinaryMessages, messages).map((entry) =>
+            entry.kind === "take" ? renderTake(entry.take) :
+              <div key={entry.message.client_id} className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
+                {renderMessage(entry.message)}
               </div>
-            ) : (
-              <Fragment key={message.client_id}>
-                {hasTakeReplyContent(message) ? (
-                  <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone>
-                    {reviewLink(message)}
-                  </TakeConversationMessage>
-                ) : (
-                  <div
-                    data-project-message={message.client_id}
-                    className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
-                      message.role === "user"
-                        ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
-                        : "mr-auto bg-muted text-foreground"
-                    }`}
-                  >
-                    {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
-                    {reviewLink(message)}
-                  </div>
-                )}
-                {replyActions(message)}
-                {failedTurns.has(message.client_id) && (
-                  <div data-project-chat-error>
-                    <ChatTurnRetry disabled={sending || outbox.readingHistory} onRetry={() => void answerText(failedTurns.get(message.client_id))} />
-                  </div>
-                )}
-              </Fragment>
-            )
-          ))}
+          )}
+          <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
           {pendingRecording && !recordingTakes.some((take) =>

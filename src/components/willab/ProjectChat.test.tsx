@@ -358,6 +358,28 @@ describe("project conversation", () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
+  it("keeps earlier Polish turns above a newer recording and its feedback", async () => {
+    state.messages = [
+      { ...message("greeting", "Hej!", "user", { take_exchange: false }), client_created_at: "2026-11-24T12:20:00Z" },
+      { ...message("question", "Nad czym chcesz teraz popracować?", "bot", { take_exchange: false }), client_created_at: "2026-11-24T12:20:02Z" },
+      { ...message("answer", "nad moją prezką!", "user", { take_exchange: false }), client_created_at: "2026-11-24T12:20:10Z" },
+      { ...message("repeated", "Nad czym chcesz teraz popracować?", "bot", { take_exchange: false }), client_created_at: "2026-11-24T12:20:12Z" },
+      { ...message("newer", "I slowed down this time.", "user", { take_exchange: false }), client_created_at: "2026-11-24T12:22:00Z" },
+    ];
+    render({
+      ...project, takeCount: 2,
+      takes: [{ ...project.takes[0]!, createdAt: "2026-11-24T12:10:00Z" },
+        { ...project.takes[0]!, sessionId: "take-b", takeIndex: 2, createdAt: "2026-11-24T12:21:00Z" }],
+    });
+    await flush();
+    const lastOld = host.querySelector('[data-project-message="repeated"]')!;
+    const take = host.querySelector('[data-project-take="take-b"]')!;
+    const latest = host.querySelector('[data-project-message="newer"]')!;
+    expect(before(lastOld, take)).toBe(true);
+    expect(before(take, latest)).toBe(true);
+    expect(take.textContent).toContain("Take 2");
+  });
+
   it("opens feedback on the published strength and keeps practice on the selected fix", async () => {
     reviewApi.idealText.mockResolvedValue({
       kind: "single", latestTakeSessionId: "take-a", ideal: { text: "The current opening.", keyMoments: [] },

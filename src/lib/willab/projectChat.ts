@@ -1,3 +1,4 @@
+import type { TrainingTake } from "@/services/api/trainings";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ChatHistoryEntry, ChatQueryResponse } from "@/services/api/chatQuery";
 import { afterTakeOrder } from "@/components/willab/afterTake";
@@ -183,6 +184,37 @@ export function orderedProjectMessages(messages: readonly LoungeMessage[], arcId
     conversation.splice(lastForTake < 0 ? conversation.length : lastForTake + 1, 0, closing);
   }
   return conversation;
+}
+
+/** Recordings and their recaps occupy one place in the chat, next to the
+ * ordinary turns that happened before and after them. */
+export function projectTimeline(
+  takes: readonly TrainingTake[],
+  ordinary: readonly LoungeMessage[],
+  messages: readonly LoungeMessage[],
+) {
+  const recordedAt = new Map<string, string>();
+  for (const row of messages) {
+    const take = row.metadata?.take_session_id ?? row.metadata?.session_id;
+    if (row.kind === "recording_summary" && typeof take === "string" && !recordedAt.has(take)) {
+      recordedAt.set(take, row.client_created_at);
+    }
+  }
+  const starts = takes.map((take) => {
+    const at = Date.parse(take.createdAt ?? "");
+    return Number.isFinite(at) ? at : Date.parse(recordedAt.get(take.sessionId) ?? "");
+  });
+  const timeline: ({ kind: "take"; take: TrainingTake } | { kind: "message"; message: LoungeMessage })[] = [];
+  let next = 0;
+  for (const message of ordinary) {
+    const at = Date.parse(message.client_created_at);
+    while (next < takes.length && (!Number.isFinite(starts[next]) || starts[next] <= at)) {
+      timeline.push({ kind: "take", take: takes[next++] });
+    }
+    timeline.push({ kind: "message", message });
+  }
+  for (const take of takes.slice(next)) timeline.push({ kind: "take", take });
+  return timeline;
 }
 
 export function openProjectQuestion(messages: readonly LoungeMessage[]): LoungeMessage | null {

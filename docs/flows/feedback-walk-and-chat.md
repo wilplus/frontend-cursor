@@ -112,6 +112,8 @@ The Ideal Text opens below the recorded walk in the same scroll, with its existi
 
 Chat Builder creates a main conversation and can add named subchats in Settings. Each subchat has an opening question and its own saved history. Archive and restore preserve that history. Deleting the main chat includes its subchats. Deleting Speaking Coach lists the projects that are included before starting the existing project deletion process.
 
+In Project Chat, each recording and its recap appear where the Take happened. Earlier messages stay above newer Takes, and later replies follow them.
+
 ### Shared composer (N667)
 
 The same bottom composer serves Speaking Coach, project chats, review
