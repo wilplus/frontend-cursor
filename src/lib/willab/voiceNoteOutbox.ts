@@ -37,6 +37,8 @@ export interface OutboxNote {
   /** Who said it: the signed-in person's user id when it was saved. Absent
    *  on a note saved before notes named their owner (see `mine`). */
   owner?: string;
+  /** A confirmed spoken chat reply goes through that chat's own outbox. */
+  purpose?: "chat-reply";
 }
 
 /** The person signed in on this phone, as the outbox reads them: from the
@@ -145,6 +147,11 @@ export async function dropNote(key: string): Promise<boolean> {
   return (await run("readwrite", (store) => store.delete(key))) !== null;
 }
 
+export async function readChatReplyAudio(key: string, owner: string): Promise<Blob | null> {
+  const note = memory.get(key) ?? (await run<OutboxNote>("readonly", (store) => store.get(key)))?.result;
+  return note?.purpose === "chat-reply" && note.owner === owner ? note.audio : null;
+}
+
 /** This person's notes waiting, oldest first, but for `saying`, the note
  *  being said right now; none while nobody is signed in. A note marked open
  *  by an earlier page (the app closed while it was said) is read as
@@ -156,7 +163,7 @@ export async function waitingNotes(me: OutboxOwner | null, saying = ""): Promise
   const byKey = new Map<string, OutboxNote>();
   for (const note of stored?.result ?? []) byKey.set(note.key, note);
   for (const note of memory.values()) byKey.set(note.key, note);
-  const notes = [...byKey.values()].filter((n) => n.key !== saying && n.audio && n.audio.size > 0 && mine(n, me));
+  const notes = [...byKey.values()].filter((n) => n.purpose !== "chat-reply" && n.key !== saying && n.audio && n.audio.size > 0 && mine(n, me));
   const named = notes.map((n) => (n.owner ? n : { ...n, owner: me.id }));
   await Promise.all(named.filter((n, i) => n !== notes[i]).map(keepNote));
   return named.sort((a, b) => a.at - b.at);

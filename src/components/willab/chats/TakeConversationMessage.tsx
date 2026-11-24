@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Quote } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
@@ -8,6 +8,8 @@ import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { takeSessionOf } from "@/lib/willab/takeExchange";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { humanCoachOffer } from "@/services/api/humanCoach";
+import { chatVoicePath } from "@/services/api/willQuestion";
+import { readChatReplyAudio } from "@/lib/willab/voiceNoteOutbox";
 import { withoutCoachTranscriptFooter } from "../willabHelpers";
 import CoachMoment from "../CoachMoment";
 import CoachVideo from "../CoachVideo";
@@ -16,6 +18,7 @@ import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "../LoungeAiVoiceBubble";
 import { RichText } from "../RichText";
 import { isSavedPracticeAttempt, PastAttempt } from "../TakeReviewPracticeHistory";
 import WalkPlayer from "../walk/WalkPlayer";
+import { useUserId } from "../useUserId";
 import { ArtifactText, artifactDocument } from "./ReplyArtifact";
 import { ConversationBubble, ConversationDocument } from "./TakeConversation";
 import HumanCoachHandoff from "./HumanCoachHandoff";
@@ -40,7 +43,8 @@ export default function TakeConversationMessage({
     <LoungeAiVoiceBubble body={text} practiceId={ai.practiceId} then={ai.then} fallback={ai.fallback}
       seed={message.client_id} avatar={null} />
   </div>;
-  const showBubble = [text.trim(), audio, video, ai, reference, artifact?.moment,
+  const voice = own && message.metadata?.voice_clip === true;
+  const showBubble = [text.trim(), audio, voice, video, ai, reference, artifact?.moment,
     artifact?.intervention, artifact?.output, handoff, children].some(Boolean);
   if (!showBubble && !document && !footer) return null;
   const example = video || ai ? <>
@@ -53,6 +57,7 @@ export default function TakeConversationMessage({
     <div {...marker} className="contents">
       {showBubble ? <ConversationBubble speaker={own}>
         <TakeMessageCaption text={text} snippet={snippet} onRefer={refer} linkify={standalone} />
+        {voice ? <SpokenReply message={message} /> : null}
         {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
           startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
           durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
@@ -86,9 +91,30 @@ function takeMessageParts(message: LoungeMessage) {
 }
 
 export function hasTakeReplyContent(message: LoungeMessage): boolean {
+  if (message.role === "user") return message.metadata?.voice_clip === true;
   if (message.role !== "bot") return false;
   const { artifact, reference, audio, video, ai, handoff } = takeMessageParts(message);
   return Boolean(artifact || reference || audio || video || ai || handoff);
+}
+
+function SpokenReply({ message }: { message: LoungeMessage }) {
+  const user = useUserId();
+  const [local, setLocal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    let src: string | null = null;
+    void readChatReplyAudio(message.client_id, user).then((audio) => {
+      if (!alive || !audio || typeof URL.createObjectURL !== "function") return;
+      src = URL.createObjectURL(audio);
+      setLocal(src);
+    });
+    return () => { alive = false; if (src) URL.revokeObjectURL(src); };
+  }, [message.client_id, user]);
+  return <div className="mt-2">
+    <WalkPlayer look="bare" seed={message.client_id} src={local ?? chatVoicePath(message.client_id)}
+      label="Your recording" durationMs={typeof message.metadata?.duration_ms === "number" ? message.metadata.duration_ms : null} />
+  </div>;
 }
 
 function TakeMessageCaption({ text, snippet, onRefer, linkify }: {

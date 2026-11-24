@@ -120,6 +120,8 @@ In Project Chat, each recording and its recap appear where the Take happened. Ea
 
 ### Shared composer (N667)
 
+Stopping the small chat microphone prepares an editable transcript in the same composer. Send posts the text with its playable recording underneath. Each recording carries its own delivery evidence. A retry of a cited fragment compares that recording with its original and keeps the source across a network retry.
+
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,
 experiments, and spoken practice. Files stay on the left, the message field

@@ -33,7 +33,7 @@ PROVES   O10 -> "saves the proposed wording and shows it when the project reopen
          O5 -> "keeps the selected Take and range on Feedback while Ideal Text remains separate"
          O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
          O7 -> "keeps a refused quick choice once with one recoverable error"
-         O8 -> "sends a spoken answer in the current project before its first Take"
+         O8 -> "shows an editable spoken draft and attaches playback only on send"
          O9 -> "opens feedback on the published strength and keeps practice on the selected fix"
          O11 -> "keeps a fresh recording offer after Ideal Text even when history refresh fails"
          O12 -> "shows the coach's cited fragment and keeps the next turn in the active Take"
@@ -59,6 +59,7 @@ const state = vi.hoisted(() => ({
   chatQuery: vi.fn(),
   willQuestion: vi.fn(),
   transcribeChatAnswer: vi.fn(),
+  attachChatVoice: vi.fn(),
   startVoice: vi.fn(),
 }));
 const wordingApi = vi.hoisted(() => ({ save: vi.fn() }));
@@ -108,19 +109,22 @@ vi.mock("./LoungeThreadContext", () => ({
 vi.mock("@/services/api/chatQuery", () => ({
   postChatQuery: (...args: unknown[]) => state.chatQuery(...args),
 }));
-vi.mock("@/services/api/willQuestion", () => ({
+vi.mock("@/services/api/willQuestion", async (load) => ({
+  ...await load<typeof import("@/services/api/willQuestion")>(),
+  attachChatVoice: (...args: unknown[]) => state.attachChatVoice(...args),
   postWillQuestion: (...args: unknown[]) => state.willQuestion(...args),
   transcribeChatAnswer: (...args: unknown[]) => state.transcribeChatAnswer(...args),
 }));
 // The browser media capture is exercised by the shared composer. Deliver a
 // stopped recording here to verify which request and conversation it reaches.
 vi.mock("./chats/useComposerVoice", () => ({
-  useComposerVoice: ({ label, enabled, onSend }: {
-    label: string; enabled: boolean; onSend: (audio: Blob, duration: number) => Promise<boolean>;
+  useComposerVoice: ({ label, enabled, onSend, prepareOnStop }: {
+    label: string; enabled: boolean; prepareOnStop: boolean;
+    onSend: (audio: Blob, duration: number, turn: string) => Promise<boolean>;
   }) => ({
     mic: enabled ? {
       label,
-      start: () => { state.startVoice(); void onSend(new Blob(["spoken"]), 1800); },
+      start: () => { state.startVoice(prepareOnStop); void onSend(new Blob(["spoken"]), 1800, "d166833f-8b09-400c-8188-5a1306430011"); },
     } : undefined,
   }),
 }));
@@ -224,7 +228,8 @@ beforeEach(() => {
   state.reload.mockReset().mockResolvedValue(undefined);
   state.chatQuery.mockReset().mockResolvedValue({ answer: "That gives us a clear direction." });
   state.willQuestion.mockReset().mockResolvedValue(true);
-  state.transcribeChatAnswer.mockReset().mockResolvedValue({ text: "That was my intention.", durationMs: 1800 });
+  state.transcribeChatAnswer.mockReset().mockResolvedValue({ text: "That was my intention.", durationMs: 1800, receipt: "voice-receipt" });
+  state.attachChatVoice.mockReset().mockResolvedValue(true);
   state.startVoice.mockClear();
   state.appendRecoverable.mockReset().mockImplementation((draft: LoungeMessageDraft) => {
     const stamped = stampLoungeMessage(draft, newestStamp(state.messages));
@@ -345,17 +350,62 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("project conversation", () => {
-  it("sends a spoken answer in the current project before its first Take", async () => {
+  it("shows an editable spoken draft and attaches playback only on send", async () => {
     render({ ...project, takeCount: 0, takes: [], practiceChunks: [] });
     await flush();
     act(() => (host.querySelector("[data-chat-mic]") as HTMLButtonElement).click());
     await flush();
-    expect(state.startVoice).toHaveBeenCalledTimes(1);
-    expect(state.transcribeChatAnswer).toHaveBeenCalledWith(expect.any(Blob), 1800, undefined);
-    expect(state.chatQuery.mock.calls[0][0]).toMatchObject({
-      projectId: "arc-a", question: "That was my intention.", presentationContext: { completed_takes: 0 },
+    expect(state.startVoice).toHaveBeenCalledExactlyOnceWith(true);
+    expect(state.transcribeChatAnswer).toHaveBeenCalledWith(expect.any(Blob), 1800, undefined, {
+      turnId: "d166833f-8b09-400c-8188-5a1306430011", projectId: "arc-a", snippetId: undefined,
     });
+    expect(host.querySelector("textarea")?.value).toBe("That was my intention.");
+    expect(host.querySelector("audio")).toBeNull();
+    expect(state.attachChatVoice).not.toHaveBeenCalled();
+    expect(state.chatQuery).not.toHaveBeenCalled();
+
+    enterAnswer("That was my main intention.");
+    submitAnswer();
+    await flush();
+    expect(state.attachChatVoice).toHaveBeenCalledTimes(1);
+    expect(state.chatQuery.mock.calls[0][0]).toMatchObject({
+      clientId: "d166833f-8b09-400c-8188-5a1306430011",
+      projectId: "arc-a", question: "That was my main intention.", presentationContext: { completed_takes: 0 },
+    });
+    const reply = host.querySelector('[data-project-message="d166833f-8b09-400c-8188-5a1306430011"]');
+    expect(reply?.textContent).toContain("That was my main intention.");
+    expect(reply?.querySelector("[data-walk-player]")).toBeTruthy();
     expect(onRecord).not.toHaveBeenCalled();
+  });
+
+  it("retries the same recording and cited passage without transcribing again", async () => {
+    state.transcribeChatAnswer.mockResolvedValueOnce({ text: "I want the board to approve the plan.", durationMs: 1800, receipt: "voice-receipt" });
+    state.chatQuery.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({
+      answer: "The ending had more room.", persisted: true, persisted_client_id: "voice-reply",
+    });
+    state.messages = [message("clip-offer", "Listen to the ending, then say it again.", "bot", {
+      live_take_feedback: true, snippet_id: "clip-a",
+    })];
+    render(project, false, { initialReview: { take: project.takes[0]!, focus: { step: "feedback" }, live: true } });
+    await flush();
+    act(() => host.querySelector<HTMLButtonElement>('button[title="Refer to this moment"]')!.click());
+    act(() => (host.querySelector("[data-chat-mic]") as HTMLButtonElement).click());
+    await flush();
+    submitAnswer();
+    await flush();
+    const initial = state.chatQuery.mock.calls[0]![0];
+    expect(initial).toMatchObject({
+      voiceReceipt: "voice-receipt", sessionId: "take-a",
+      presentationContext: { review_focus: { snippet_id: "clip-a" } },
+    });
+    await clickText(host, "Try again");
+    expect(state.chatQuery.mock.calls[1]![0]).toMatchObject({
+      voiceReceipt: initial.voiceReceipt, sessionId: initial.sessionId, clientId: initial.clientId,
+      presentationContext: { review_focus: { snippet_id: "clip-a" } },
+    });
+    expect(state.transcribeChatAnswer).toHaveBeenCalledTimes(1);
+    expect(state.attachChatVoice).toHaveBeenCalledTimes(2);
+    expect(state.attachChatVoice.mock.calls[1]).toEqual(state.attachChatVoice.mock.calls[0]);
   });
 
   it("keeps earlier Polish turns above a newer recording and its feedback", async () => {

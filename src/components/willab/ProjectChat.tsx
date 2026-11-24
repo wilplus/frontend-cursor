@@ -8,9 +8,9 @@ import {
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
 import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
-import { outboxOwner } from "@/lib/willab/voiceNoteOutbox";
+import { keepNote, outboxOwner } from "@/lib/willab/voiceNoteOutbox";
 import type { ChatQueryResponse } from "@/services/api/chatQuery";
-import { postWillQuestion, transcribeChatAnswer } from "@/services/api/willQuestion";
+import { postWillQuestion, transcribeChatAnswer, type SpokenChatAnswer } from "@/services/api/willQuestion";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import {
   CHAT_FAILURE_BODY,
@@ -479,7 +479,7 @@ function ProjectChatHeader({ project, onBack }: {
 function samePending(
   turn: PendingChatTurn, answer: string, take: string | undefined, question: LoungeMessage | null, focus: ReviewFocus | undefined,
 ): boolean {
-  return turn.request.question === answer && turn.request.sessionId === take &&
+  return !turn.user.metadata?.will_voice && turn.request.question === answer && turn.request.sessionId === take &&
     turn.question?.client_id === question?.client_id &&
     JSON.stringify(turn.request.presentationContext?.review_focus) === JSON.stringify(focus);
 }
@@ -658,17 +658,29 @@ export default function ProjectChat({
   const reviewContext = askTarget ?? takeReview;
   const currentReviewContext = useRef(reviewContext);
   currentReviewContext.current = reviewContext;
+  const voiceScope = JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]);
+  const [preparedVoice, setPreparedVoice] = useState<{
+    scope: string; answer: SpokenChatAnswer; target: ReturnType<typeof turnTarget>;
+  } | null>(null);
+  const stagedVoice = preparedVoice?.scope === voiceScope ? preparedVoice : null;
   const voice = useComposerVoice({
     enabled: thread.signedIn,
     held: sending || !outbox.ready,
     maxSeconds: 120,
     label: "Record your answer",
-    scope: JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]),
-    onSend: async (audio, duration) => {
+    prepareOnStop: true,
+    scope: voiceScope,
+    onSend: async (audio, duration, turnId) => {
       if (!outbox.isCurrent()) return false;
-      const take = reviewContext ? { arcId: activeProject.arcId, takeId: reviewContext.take.sessionId } : undefined;
-      const spoken = await transcribeChatAnswer(audio, duration, take);
-      return spoken && outbox.isCurrent() && currentReviewContext.current === reviewContext ? answerText(undefined, spoken) : false;
+      const captured = turnTarget();
+      const take = captured.take ? { arcId: activeProject.arcId, takeId: captured.take } : undefined;
+      const spoken = await transcribeChatAnswer(audio, duration, take, {
+        turnId, projectId: activeProject.arcId, snippetId: captured.focus?.snippet_id,
+      });
+      if (!spoken?.receipt || !turnId || !outbox.isCurrent() || currentReviewContext.current !== reviewContext) return false;
+      setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, audio }, target: captured });
+      setDraft(spoken.text);
+      return true;
     },
   });
   const typingAnswer = activeQuestion !== null && typingQuestion === activeQuestion.client_id;
@@ -762,19 +774,38 @@ export default function ProjectChat({
     await answerChip(choice);
   }
 
-  async function answerText(retry?: PendingChatTurn, spoken?: { text: string; durationMs: number }): Promise<boolean> {
-    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
+  function turnTarget(retry?: PendingChatTurn) {
     const review = reviewContext;
     const questionInView = questionInTakeView(activeQuestion, review, reviewedTakeIds);
     const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview);
-    const { focus: reviewFocus, question, take } = typedQuestionTarget(activeProject, questionInView, target, retry);
+    return { ...typedQuestionTarget(activeProject, questionInView, target, retry), review, target };
+  }
+
+  async function answerText(retry?: PendingChatTurn, spoken?: SpokenChatAnswer, captured = turnTarget(retry)): Promise<boolean> {
+    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
+    const { focus: reviewFocus, question, take, review, target } = captured;
     const arc = activeProject.arcId;
     if (!answer || sending || sendingRef.current || !outbox.ready) return false;
-    const existing = retry ?? outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus));
+    const existing = retry ?? (spoken ? undefined : outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus)));
     if (existing && outbox.isSending(existing)) return false;
     sendingRef.current = true;
     setSending(true);
-    if (!spoken) setDraft((current) => !retry || current === retry.draft ? "" : current);
+    const hasAudio = Boolean(spoken?.audio && spoken.receipt && spoken.turnId && userId);
+    if (hasAudio && spoken?.audio && spoken.turnId && userId) {
+      await keepNote({
+        key: spoken.turnId, audio: spoken.audio, durationMs: spoken.durationMs,
+        words: "", open: false, at: Date.now(), owner: userId, purpose: "chat-reply",
+      });
+    }
+    if (!outbox.isCurrent()) {
+      sendingRef.current = false;
+      setSending(false);
+      return false;
+    }
+    if (!retry) {
+      setDraft("");
+      if (hasAudio) setPreparedVoice(null);
+    } else if (!spoken) setDraft((current) => current === retry.draft ? "" : current);
     setTypingQuestion(null);
     pinBottom();
     const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
@@ -783,15 +814,16 @@ export default function ProjectChat({
     resumeLiveFeedback(placement.live_take_feedback);
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const turn = existing ?? outbox.begin(spoken ? answer : draft, {
-      role: "user", kind: "text", body: answer, metadata: {
+      role: "user", kind: "text", body: answer, clientId: spoken?.turnId, metadata: {
         ...typedProjectTurnMetadata({ ...scope, role: "answer" }),
         ...placement,
         ...focusMetadata,
-        ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs } : {}),
+        ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs, ...(hasAudio ? { voice_clip: true } : {}) } : {}),
       },
     }, question, {
       question: answer, history: projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arc),
       historySource: "screen", projectId: arc, sessionId: take, place: "speaking", persist: thread.signedIn,
+      voiceReceipt: spoken?.receipt,
       presentationContext: {
         has_current_project: true, completed_takes: Math.max(activeProject.takeCount, activeProject.takes.length),
         has_pdf: activeProject.takes.some((t) => t.hasSlides),
@@ -809,7 +841,7 @@ export default function ProjectChat({
       if (result && outbox.isCurrent()) await refreshAfterReply(result.reply);
     } catch {
       if (outbox.isPending(turn)) {
-        setDraft((current) => current || turn.draft);
+        if (!turn.user.metadata?.will_voice) setDraft((current) => current || turn.draft);
         setTypingQuestion(question?.client_id ?? null);
       }
     } finally {
@@ -899,6 +931,7 @@ export default function ProjectChat({
       savedReply={linkedWording.has(message.client_id)} onSaved={() => { void thread.reload(); }} /> : null;
     return destination || offer || wording ? <>{destination}{offer}{wording}</> : null;
   }
+
 
   function renderTake(take: TrainingTake) {
     const chunk = practiceChunks.find((entry) => entry.latestSessionId === take.sessionId);
@@ -1029,7 +1062,7 @@ export default function ProjectChat({
                 onOpen={() => onOpenPendingRecording?.(pendingRecording)} />
             : <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
                 retrying={retrying} onRetry={() => void retryProcessing()} />}
-          {sending ? <TypingDots label="Will is replying" /> : null}
+          {sending || voice.sending ? <TypingDots label={voice.sending && !sending ? "Processing your recording" : "Will is replying"} /> : null}
           </div>
         </div>
       </div>
@@ -1040,11 +1073,17 @@ export default function ProjectChat({
         inputRef={composerRef}
         above={askTarget ? <ProjectReviewContext target={askTarget} onClear={() => setAskTarget(null)} /> : undefined}
         formAttrs={{ "data-project-question-composer": "" }} placeholder={activeQuestion ? TYPE_YOUR_ANSWER : "Message about this project"}
-        inputLabel="Answer about this take" sendLabel="Send answer" value={draft} onValue={setDraft} onSend={() => answerText()}
-        autoFocus={typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending}
+        inputLabel="Answer about this take" sendLabel="Send answer" value={draft}
+        onValue={(value) => { setDraft(value); if (!value.trim()) setPreparedVoice(null); }}
+        onSend={(value) => stagedVoice
+          ? answerText(undefined, { ...stagedVoice.answer, text: value.trim() }, stagedVoice.target)
+          : answerText()}
+        autoFocus={Boolean(stagedVoice) || typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending || voice.sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
         mic={voice.mic}
-        recording={voice.recording} voiceDraft={voice.voiceDraft} status={voice.error ?? undefined} />
+        recording={voice.recording} status={voice.error ? <p role="alert" className="px-2 pb-1 text-sm">
+          {voice.error} {voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
+        </p> : undefined} />
       </div>
       {slides.layer}
       {opened ? (
