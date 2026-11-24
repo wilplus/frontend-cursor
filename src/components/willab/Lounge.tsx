@@ -7,7 +7,7 @@ import { useComposerVoice } from "./chats/useComposerVoice";
 import LoungeTakeConversation, { type TakeCitation } from "./LoungeTakeConversation";
 import { takeSessionOf } from "@/lib/willab/takeExchange";
 import type { PlanLounge } from "./plan/usePlanLounge";
-import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
+import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { fetchTrainings } from "@/services/api/trainings";
 import { unarchiveProject } from "@/services/api/projectArchive";
 import { keepNextTakeShare, readPrivateTakeShare } from "@/lib/willab/nextTakeShare";
@@ -170,6 +170,7 @@ import {
   isPersistedTerminalReplay,
   isProjectMessage,
   isReplayedTerminalReply,
+  offersNextTake,
   openProjectQuestion,
   projectIdOf,
   projectConversationHistory,
@@ -2230,7 +2231,7 @@ export default function Lounge({
     try {
       const result = await outbox.deliver(turn, (response) => {
         const body = chatReplyBody(response, project ? null : "I know nothing about that, at least yet 😏");
-        if (!body || isReplayedTerminalReply(body, messages)) throw new Error("Missing contextual reply");
+        if (!body || isReplayedTerminalReply(body, messages, response)) throw new Error("Missing contextual reply");
         const projectMeta = project ? typedProjectTurnMetadata({
           arcId: project.arcId, takeSessionId: project.takeSessionId,
           questionClientId: turn.question?.client_id ?? "", role: "reply", place: openChat && reviewFocus ? null : place,

@@ -21,6 +21,10 @@ OUTCOME  O1  Feedback walk and Ideal Text are one readable first card.
              practice from the reply and read the same Take's Ideal Text.
          O10 The sayable line and its controls are visible in chat. Saving
              keeps one copy in this project and it can be opened again.
+         O11 A new recording offer after Ideal Text survives earlier wording
+             and a failed history refresh.
+         O12 A reply can cite and explain a fragment from another Take without
+             putting that fragment's identifier in the current Take's next request.
 PROVES   O10 -> "saves the proposed wording and shows it when the project reopens"
          O1 -> "puts the result before the project conversation"
          O2 -> "keeps the contextual exchange in human order"
@@ -31,6 +35,8 @@ PROVES   O10 -> "saves the proposed wording and shows it when the project reopen
          O7 -> "keeps a refused quick choice once with one recoverable error"
          O8 -> "sends a spoken answer in the current project before its first Take"
          O9 -> "opens feedback on the published strength and keeps practice on the selected fix"
+         O11 -> "keeps a fresh recording offer after Ideal Text even when history refresh fails"
+         O12 -> "shows the coach's cited fragment and keeps the next turn in the active Take"
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
@@ -56,6 +62,11 @@ const state = vi.hoisted(() => ({
   startVoice: vi.fn(),
 }));
 const wordingApi = vi.hoisted(() => ({ save: vi.fn() }));
+const momentApi = vi.hoisted(() => ({ clip: vi.fn() }));
+vi.mock("@/services/api/coachMoment", async (load) => ({
+  ...await load<typeof import("@/services/api/coachMoment")>(),
+  fetchCoachMoment: momentApi.clip,
+}));
 vi.mock("@/services/api/coachWording", async (load) => ({
   ...await load<typeof import("@/services/api/coachWording")>(),
   saveCoachWording: wordingApi.save,
@@ -244,6 +255,7 @@ beforeEach(() => {
   reviewApi.notes.mockReset().mockResolvedValue({ revision: 0, document: {} });
   reviewApi.runs.mockReset().mockResolvedValue({});
   reviewApi.steps.mockReset().mockResolvedValue([]);
+  momentApi.clip.mockReset().mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -619,6 +631,20 @@ describe("project conversation", () => {
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
   });
 
+  it("opens the Ideal Text link when the saved Take exchange is already live", async () => {
+    state.messages = [
+      message("opening", "The opening gave your point room.", "bot", { live_take_feedback: true }),
+      message("ideal-link", "You can read the full text here.", "bot", {
+        take_exchange: false, review_destination: { step: "ideal" },
+      }),
+    ];
+    render();
+    await clickText(host, "Ideal text");
+    await flush();
+    expect(host.querySelector("[data-live-take-feedback] [data-review-section=ideal]")?.textContent)
+      .toBe("The current opening.");
+  });
+
   it("keeps the selected Take and range on Feedback while Ideal Text remains separate", async () => {
     const twoTakes: TrainingArc = {
       ...project,
@@ -711,6 +737,93 @@ describe("project conversation", () => {
     const record = [...conversation.querySelectorAll("button")].find((node) => node.textContent?.includes("Record the next take"))!;
     expect(before(doc, readiness)).toBe(true);
     expect(before(readiness, record)).toBe(true);
+  });
+
+  it("keeps a fresh recording offer after Ideal Text even when history refresh fails", async () => {
+    const closing = "Good job. See you next time.";
+    state.messages = [
+      message("opening", "The opening gave your point room.", "bot", {
+        live_take_feedback: true, step: "praise", snippet_id: "opening-moment",
+      }),
+      message("old-closing", closing, "bot", { next_take: true }),
+    ];
+    render(project, false, { initialReview: { take: project.takes[0], focus: { step: "feedback" }, live: true } });
+    const cite = host.querySelector<HTMLButtonElement>('button[title="Refer to this moment"]')!;
+    act(() => cite.click());
+    state.chatQuery.mockResolvedValueOnce({
+      answer: "Here is the full Ideal Text.", persisted: true, persisted_client_id: "ideal-offer",
+      row_metadata: { live_take_feedback: true, review_destination: { step: "ideal" } },
+    });
+    enterAnswer("Show me my full Ideal Text.");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[0][0].presentationContext.review_focus)
+      .toEqual({ step: "feedback", snippet_id: "opening-moment" });
+    expect(host.querySelector("[data-review-section=ideal]")?.textContent).toBeTruthy();
+
+    state.chatQuery.mockResolvedValueOnce({
+      answer: closing, persisted: true, persisted_client_id: "new-recording-offer",
+      row_metadata: { live_take_feedback: true, suggested_action: "record_again" },
+    });
+    state.reload.mockRejectedValueOnce(new Error("history refresh failed"));
+    const field = enterAnswer("Can I record again?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[1][0]).toMatchObject({
+      sessionId: "take-a", presentationContext: { review_focus: { step: "ideal" }, live_take_feedback: true },
+    });
+    expect(field.value).toBe("");
+    expect(host.querySelector("[data-project-chat-error]")).toBeNull();
+    const reply = host.querySelector('[data-project-message="new-recording-offer"]')!;
+    expect(reply?.textContent).toBe(closing);
+    const actions = host.querySelector('[data-take-message-actions="new-recording-offer"]')!;
+    const record = [...actions.querySelectorAll("button")].find((button) => button.textContent?.includes("Record the next take"));
+    expect(record).toBeDefined();
+    await act(async () => record!.click());
+    expect(onRecord).toHaveBeenCalledExactlyOnceWith("arc-a");
+  });
+
+  it("shows the coach's cited fragment and keeps the next turn in the active Take", async () => {
+    const earlier = { ...project.takes[0], sessionId: "take-earlier", takeIndex: 1 };
+    const latest = { ...project.takes[0], takeIndex: 2 };
+    const clip = "https://media.example/cars.mp3";
+    const assessment = "You said the part about the cars felt shaky. The detail about the brakes gives listeners something concrete.";
+    const instruction = "Try leading with the brakes and give that line a beat.";
+    momentApi.clip.mockResolvedValue({ src: clip, startOffsetMs: 700, durationMs: 3300, takeIndex: 1 });
+    state.messages = [message("ideal", "Here is the full Ideal Text.", "bot", {
+      live_take_feedback: true, review_destination: { step: "ideal" },
+    })];
+    state.chatQuery.mockResolvedValueOnce({
+      answer: assessment, persisted: true, persisted_client_id: "fragment-reply",
+      row_metadata: {
+        live_take_feedback: true,
+        coach_moment: { arc_id: "arc-a", take_session_id: earlier.sessionId, snippet_id: "cars", practise: true },
+        chat_artifact: { version: 1, title: "Cars", intervention: instruction },
+      },
+    }).mockResolvedValueOnce({ answer: "Yes, try the line once.", persisted: true, persisted_client_id: "practice-reply" });
+    render({ ...project, takes: [earlier, latest], takeCount: 2 }, false, {
+      initialReview: { take: latest, focus: { step: "feedback" }, live: true },
+    });
+    enterAnswer("Could we go back to the part about cars? I felt insecure there.");
+    submitAnswer();
+    await flush();
+    const reply = host.querySelector('[data-project-message="fragment-reply"] [data-bubble]');
+    expect(reply?.textContent).toContain(assessment);
+    expect(reply?.textContent).toContain(instruction);
+    expect(reply?.querySelector("audio")?.src).toBe(clip);
+    expect(momentApi.clip).toHaveBeenCalledWith(expect.objectContaining({
+      take_session_id: earlier.sessionId, snippet_id: "cars",
+    }));
+
+    enterAnswer("Can we practise it?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[1][0]).toMatchObject({
+      sessionId: latest.sessionId,
+      presentationContext: { review_focus: { step: "feedback" }, live_take_feedback: true, take_exchange: true },
+    });
+    expect(state.chatQuery.mock.calls[1][0].presentationContext.review_focus.snippet_id).toBeUndefined();
+    expect(host.querySelector('[data-project-message="practice-reply"]')?.textContent).toContain("Yes, try the line once.");
   });
 
   it("keeps the processing bubble through a remount and replaces it only with fresh feedback", async () => {

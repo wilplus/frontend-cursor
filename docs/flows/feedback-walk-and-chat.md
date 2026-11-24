@@ -96,6 +96,8 @@ Speaking Coach and Project Chat both use the speaker's words and available deliv
 
 The owning project plays the exact recording moment inside its reply bubble, with any supplied exercise and available demonstration. Sniper, a wording exercise, an AI audio example or a coach video uses that same bubble in the live conversation, ordinary follow-ups and reopened Takes. Practise opens the activity with the shared microphone. Reopening checks current project access and recording permissions. Speaking Coach uses ordinary text for its advice and guides the speaker to the project for a Take's artifacts. Automatic transcript footers are hidden. Speaker-wide Strengths and weekly principles appear in Speaking Coach (N683).
 
+When asked for a weaker moment, Project Chat gives one grounded observation and a cue to try on that passage. The Picker supplies the available activity for the exact fragment (N686). A speaker can also name a passage by its topic or refer to the last cited clip, including from an earlier authorised Take in the project. The coach can discuss how the speaker says it felt and what the recording supports in the same reply. The clip and any supplied practice use their original Take, while follow-up messages stay in the active exchange.
+
 #### Speakable wording in coaching replies
 
 When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. Project Chat shows the line with **Practise** and **Save wording**. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take in the project. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
@@ -188,7 +190,9 @@ and [Chat Builder](../chat-builder/flow.md).
   that needs work. When the coach offers the Ideal Text, it opens inline
   after that reply. A brief assessment in words and the invitation to
   rehearse follow the text. The existing next Take link comes with that
-  offer. The completed exchange can fold into its Take recap and reopen
+  offer. A request after viewing the Ideal Text uses that document as the
+  conversation context and can show a fresh recording offer. The completed
+  exchange can fold into its Take recap and reopen
   with its saved messages and media (N685).
 - **A2** In the legacy review flow, the walk opens when processing finishes, with
   nothing in between: the waiting screen stays over it until the walk's
@@ -532,6 +536,9 @@ and [Chat Builder](../chat-builder/flow.md).
   draft and optimistic identity retained for retry. The backend returning a
   prior `next_take` terminal line as the new answer is also a failure, never a
   reply; a later authoritative read cannot resurrect a duplicate of that line.
+  A saved reply with its own identity and an explicit next-Take offer stays
+  visible even if the offer uses familiar words. A history refresh can land
+  after the reply has been acknowledged, without restoring its draft.
   Reconciliation matches the optimistic row by its exact client identity or a
   newly arrived server row, never an older same-body row, so deliberately
   repeated words remain deliberately repeated. Cards and quick actions follow
