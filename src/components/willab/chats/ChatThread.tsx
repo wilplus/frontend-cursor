@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import LoadingState from "@/components/willab/LoadingState";
@@ -18,8 +18,9 @@ import {
   usePendingAnswer,
   type AnswerFor,
 } from "@/lib/willab/chatAnswer";
-import ChatComposer, { type ComposerFileAction } from "./ChatComposer";
-import { TakeConversation } from "./TakeConversation";
+import ChatComposer, { type ChatComposerProps, type ComposerFileAction } from "./ChatComposer";
+import { ChatScroll } from "./ChatWorkspace";
+import { conversationBubbleClass, TakeConversation } from "./TakeConversation";
 import { linkedTakeReplies } from "@/lib/willab/takeExchange";
 import { RECORD_YOUR_ANSWER, RECORD_YOUR_QUESTION, SEND_A_FILE, SEND_A_PHOTO, ThanksTaps, composerModes, photoWaits, takesFor, thanksDue, type Takes } from "./ChatBar";
 import { TYPE_YOUR_ANSWER } from "../WillQuestion";
@@ -58,6 +59,7 @@ import { SEND_PICKED, askName, answersOf, joinedAsks, joinedThanks, joinedYourLi
 import { MonthGrid } from "../plan/MonthGrid";
 import { clockTime, dayKey, dayLabel } from "./chatTime";
 import { ChatMessageWithArtifact, isRecordedReply } from "./ReplyArtifact";
+import { memberRowsForTakeChat } from "./hostChatMessages";
 
 /* -------------------------------------------------------------------------- */
 /*  A chat with someone (backend N298, N302, N306, N311, N321, N322; rules:   */
@@ -471,16 +473,14 @@ function ChatRowBody({ chatId, message, onPhoto, sentLine, name = "" }: ChatRowP
   const stamp = time ? (
     <span
       data-chat-time
-      className={`float-right -mb-1 ml-2.5 mt-[7px] text-[11px] leading-none ${
-        message.mine ? "text-primary-foreground/90" : "text-muted-foreground"
-      }`}
+      className="float-right -mb-1 ml-2.5 mt-[7px] text-[11px] leading-none text-muted-foreground"
     >
       {time}
     </span>
   ) : null;
   if (message.mine) {
     return (
-      <div data-row="me" data-bubble="" className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
+      <div data-row="me" data-bubble="" className={`ml-auto max-w-[86%] ${conversationBubbleClass(true)}`}>
         {message.body}
         {stamp}
       </div>
@@ -488,7 +488,7 @@ function ChatRowBody({ chatId, message, onPhoto, sentLine, name = "" }: ChatRowP
   }
   return (
     <div data-row="app" className="mr-auto flex max-w-[88%]">
-      <div data-bubble="" className="whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
+      <div data-bubble="" className={conversationBubbleClass(false)}>
         {message.body}
         {stamp}
       </div>
@@ -761,7 +761,7 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
 }
 
 /** The chat recipe controls the actions available in the shared composer. */
-function PeopleBar({
+function memberComposer({
   chat, takes, legacy, asked, status, busy, onRecordAnswer, onSay, onPhoto, onFile,
 }: {
   chat: Chat;
@@ -774,7 +774,7 @@ function PeopleBar({
   onSay: (words: string, answers: boolean) => Promise<boolean>;
   onPhoto: (photo: File, asked: string | null) => Promise<boolean>;
   onFile: (file: File) => Promise<boolean>;
-}) {
+}): ChatComposerProps {
   const answering = asked.question !== null;
   const typedAnswer = answering || asked.taps;
   const modes = composerModes(takes, { answer: answering, photo: Boolean(asked.photo) }, legacy);
@@ -795,19 +795,14 @@ function PeopleBar({
     sendFile: (file) => onPhoto(file, asked.photo),
   });
   if (!busy && modes.file) files.push({ label: SEND_A_FILE, sendFile: onFile });
-  return (
-    <ChatComposer
-      placeholder={asked.photo ? "Add a photo" : typedAnswer ? TYPE_YOUR_ANSWER : askName(chat.title)}
-      onSend={takes.type ? (words) => onSay(words, typedAnswer && !asked.photo) : undefined}
-      textDisabled={Boolean(asked.photo)}
-      maxLength={2000}
-      voiceRequired={answering && modes.mic && !modes.text}
-      mic={mic}
-      files={files}
-      busy={busy}
-      above={status}
-    />
-  );
+  return {
+    placeholder: asked.photo ? "Add a photo" : typedAnswer ? TYPE_YOUR_ANSWER : askName(chat.title),
+    onSend: takes.type ? (words) => onSay(words, typedAnswer && !asked.photo) : undefined,
+    textDisabled: Boolean(asked.photo),
+    maxLength: 2000,
+    voiceRequired: answering && modes.mic && !modes.text,
+    mic, files, busy, above: status,
+  };
 }
 
 let localSeq = 0;
@@ -883,12 +878,26 @@ function useSetupQuestion(
   };
 }
 
+export type MemberChatContent = {
+  id: string;
+  header: ReactNode;
+  messages: readonly ChatMessage[] | null;
+  row: (message: ChatMessage) => ReactNode;
+  introduction: ReactNode;
+  followUps: ReactNode;
+  composer: ChatComposerProps;
+  blocked: boolean;
+  answering: boolean;
+  overlays: ReactNode;
+};
+
 export default function ChatThread({
   chat,
   open = true,
   onBack,
   onRecordAnswer,
   onOpenChat,
+  renderConversation,
 }: {
   chat: Chat;
   /** False while the chat is pulled in from the list's right edge, or slides
@@ -898,6 +907,7 @@ export default function ChatThread({
   onRecordAnswer?: (answer: AnswerFor) => void;
   /** Opens another chat in the list (the answers gathered under a Take). */
   onOpenChat?: (chatId: string) => void;
+  renderConversation?: (content: MemberChatContent) => ReactNode;
 }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const pending = usePendingAnswer(chat.id);
@@ -1017,7 +1027,9 @@ export default function ChatThread({
   const asks = [answer.question, answer.photo, setup.answers].some(Boolean);
   // Thanks, one tap, after a person's answer where nothing types (N610 item 5).
   const thanks = thanksDue(takes, messages, [pending, asks, safety.blocked]);
-  const takeThreads = linkedTakeReplies(messages ?? []);
+  const timeline = renderConversation ? memberRowsForTakeChat(messages) : messages ?? [];
+  const takeThreads = linkedTakeReplies(timeline);
+  const timelineMessages = timeline.filter((message) => !takeThreads.replies.has(message.id));
   const drawMessage = (message: ChatMessage, inlineTake = false) => (
     <AssistantSays key={message.id} name={assistantName} message={message}>
       <AnswerQuote message={message}>
@@ -1029,67 +1041,77 @@ export default function ChatThread({
       </AnswerQuote>
     </AssistantSays>
   );
+  function drawTimelineMessage(message: ChatMessage, day: string | null = null) {
+    const take = takeThreads.members.get(message.id);
+    const deadline = chosenDeadline(message.meta?.setup_answer);
+    return <Fragment key={message.id}>
+      {day ? <ChatDay label={day} /> : null}
+      {take ? <TakeConversation title={takeTopic(message)} preview={take.slice(1).map((row) => row.words || row.body).find(Boolean)}>
+        {take.map((row) => drawMessage(row, true))}
+      </TakeConversation> : drawMessage(message)}
+      {deadline ? <DeadlineLine iso={deadline} /> : null}
+    </Fragment>;
+  }
+
+  const header = <>
+    {open ? <BackIsThisChats onBack={onBack} /> : null}
+    <ChatTopBar chat={host?.name ? { ...chat, title: host.name } : chat} onBack={onBack} onOpen={() => setProfile(true)} />
+  </>;
+  const introduction = <>
+    {through ? <JoinedLine text={joinedAsksFirst ? joinedAsks(through) : joinedThanks(through)} />
+      : joinedBy ? <JoinedLine text={joinedYourLink(joinedBy)} /> : null}
+    <AssistantAbout host={host} />
+  </>;
+  const followUps = <>
+    {host ? <HostHello hello={host.hello} taps={host.taps} messages={messages} onTap={(label) => void send("text", label)} /> : null}
+    <UsefulAsk chatId={chat.id} messages={messages} />
+    {setup.answers}
+    {asks && !pending ? (
+      <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />
+    ) : null}
+    {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
+  </>;
+  const composer = safety.blocked
+    ? { textDisabled: true, above: <BlockedBar name={chat.title} onUnblock={safety.unblock} /> }
+    : memberComposer({
+      chat, takes, legacy,
+      asked: { question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo },
+      status: setup.send ?? pendingNotice(pending),
+      busy: Boolean(pending || setup.send),
+      onRecordAnswer,
+      onSay: (words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null),
+      onPhoto: sendPhoto,
+      onFile: sendFile,
+    });
+  const overlays = <>
+    {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} safety={safety} /> : null}
+    {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
+    {setup.sheet}
+    {toast}
+  </>;
+  if (renderConversation) return renderConversation({
+    id: chat.id, header, messages: messages === null ? null : timelineMessages,
+    row: (message) => drawTimelineMessage(message), introduction, followUps, composer, overlays,
+    blocked: safety.blocked, answering: asks || Boolean(pending),
+  });
 
   return (
     <div data-chat-screen className="relative flex min-h-0 flex-1 flex-col">
-      {open ? <BackIsThisChats onBack={onBack} /> : null}
-      {/* A host's chat under the name it was given (backend N642 item 1). */}
-      <ChatTopBar chat={host?.name ? { ...chat, title: host.name } : chat} onBack={onBack} onOpen={() => setProfile(true)} />
-      {profile ? <Profile chatId={chat.id} onBack={() => setProfile(false)} safety={safety} /> : null}
-      <div
-        ref={scrollRef}
-        data-chat-thread
-        className="scrollbar-none flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-0 pt-4"
-      >
-        {/* The messages start at the bottom, by the bar (N321 item 3), close
-            within a side and wider where the side changes (N469). */}
+      {header}
+      <ChatScroll ref={scrollRef} data-chat-thread className="px-4 pb-0 pt-4">
         {messages === null ? <LoadingState placement="surface" /> : <div data-rhythm className="mt-auto flex flex-col">
-          {through ? (
-            <JoinedLine text={joinedAsksFirst ? joinedAsks(through) : joinedThanks(through)} />
-          ) : joinedBy ? (
-            <JoinedLine text={joinedYourLink(joinedBy)} />
-          ) : null}
-          <AssistantAbout host={host} />
-          {withDays(messages.filter((message) => !takeThreads.replies.has(message.id))).flatMap(({ day, message }) => [
-              ...(day ? [<ChatDay key={`day-${message.id}`} label={day} />] : []),
-              takeThreads.members.has(message.id) ? <TakeConversation key={chat.id + ":" + message.id}
-                title={takeTopic(message)}
-                preview={takeThreads.members.get(message.id)?.slice(1).map((row) => row.words || row.body).find(Boolean)}>
-                {takeThreads.members.get(message.id)?.map((row) => drawMessage(row, true))}
-              </TakeConversation> : drawMessage(message),
-              ...(chosenDeadline(message.meta?.setup_answer)
-                ? [<DeadlineLine key={`deadline-${message.id}`} iso={chosenDeadline(message.meta?.setup_answer)!} />]
-                : []),
-          ])}
-          {host ? <HostHello hello={host.hello} taps={host.taps} messages={messages} onTap={(label) => void send("text", label)} /> : null}
-          <UsefulAsk chatId={chat.id} messages={messages} />
-          {setup.answers}
-          {asks && !pending ? (
-            <TapRow labels={[NOT_NOW]} onTap={() => answer.leave(setup.id ?? answer.photo)} dataAttr={{ "data-chat-not-now": "" }} />
-          ) : null}
-          {thanks ? <ThanksTaps onPick={(emoji) => void send("emoji", emoji)} /> : null}
+          {introduction}
+          {withDays(timelineMessages).map(({ day, message }) => drawTimelineMessage(message, day))}
+          {followUps}
         </div>}
-      </div>
-      {safety.blocked ? (
-        <ChatComposer textDisabled above={<BlockedBar name={chat.title} onUnblock={safety.unblock} />} />
-      ) : (
-        <PeopleBar
-          key={chat.id}
-          chat={chat}
-          takes={takes}
-          legacy={legacy}
-          asked={{ question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo }}
-          status={setup.send ?? (pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited} failed={pending.failed} /> : null)}
-          busy={Boolean(pending || setup.send)}
-          onRecordAnswer={onRecordAnswer}
-          onSay={(words, answers) => send("text", words.trim(), answers ? (setup.id ?? answer.id) : null)}
-          onPhoto={sendPhoto}
-          onFile={sendFile}
-        />
-      )}
-      {fullPhoto ? <PhotoFull src={fullPhoto} onClose={() => setFullPhoto(null)} /> : null}
-      {setup.sheet}
-      {toast}
+      </ChatScroll>
+      <ChatComposer key={chat.id} {...composer} />
+      {overlays}
     </div>
   );
+}
+
+function pendingNotice(pending: ReturnType<typeof usePendingAnswer>) {
+  return pending ? <SendingPill name={pending.name} startedAt={pending.startedAt} waited={pending.waited}
+    failed={pending.failed} /> : null;
 }
