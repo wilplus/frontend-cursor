@@ -4,6 +4,8 @@ import { useEffect, useId, useState } from "react";
 import { X } from "lucide-react";
 import { fetchTakeTranscript } from "@/services/api/takeTranscript";
 import { useBackDismiss } from "./useBackDismiss";
+import MediaPlayer from "@/components/results/MediaPlayer";
+import type { ReadoutPayload } from "./readout";
 
 export default function TakeTranscriptSheet({
   projectTopic,
@@ -20,13 +22,25 @@ export default function TakeTranscriptSheet({
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [transcript, setTranscript] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  const [readout, setReadout] = useState<ReadoutPayload | null>(null);
+  const [query, setQuery] = useState("");
+  const [order, setOrder] = useState("time");
+  const [playing, setPlaying] = useState<number | null>(null);
+  const normalize = (s: string) => s.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const thoughts = (readout?.timedThoughts ?? []).filter(t => normalize(t.text).includes(normalize(query)));
+  const rate = (t: typeof thoughts[number]) => t.text.trim().split(/\s+/).length / (t.end - t.start);
+  if (order !== "time") thoughts.sort((a,b) => (rate(b)-rate(a)) * (order === "fast" ? 1 : -1));
+  const audio = readout?.parentAudioRef ?? readout?.snippets.find(s => s.audioRef)?.audioRef;
   useBackDismiss(onClose);
 
   useEffect(() => {
     let active = true;
     setState("loading");
     setTranscript("");
-    void fetchTakeTranscript(takeSessionId).then(
+    setReadout(null);
+    setQuery("");
+    setPlaying(null);
+    void fetchTakeTranscript(takeSessionId, data => { if (active) setReadout(data); }).then(
       (text) => {
         if (!active) return;
         setTranscript(text);
@@ -72,7 +86,21 @@ export default function TakeTranscriptSheet({
             </div>
           ) : null}
           {state === "ready" ? (
-            transcript ? (
+            readout?.timedThoughts?.length ? (
+              <div className="space-y-3">
+                <input aria-label="Find a thought" placeholder="Find a thought" value={query} onChange={e => setQuery(e.target.value)} className="w-full rounded-xl border p-3" />
+                <select aria-label="Thought order" value={order} onChange={e => setOrder(e.target.value)}>
+                  <option value="time">Recording order</option><option value="fast">Fastest first</option><option value="slow">Slowest first</option>
+                </select>
+                {thoughts.map(t => <div key={t.start} className="rounded-2xl bg-muted p-3">
+                  <p>{t.text}</p>
+                  {audio && (playing === t.start ? <MediaPlayer key={t.start} src={audio} startOffsetMs={t.start} durationMs={t.end-t.start} compact /> :
+                    <button type="button" onClick={() => setPlaying(t.start)}>Play thought</button>)}
+                </div>)}
+                {!thoughts.length && <p>No matching thought.</p>}
+                <details><summary>Full transcript</summary><p className="whitespace-pre-wrap">{transcript}</p></details>
+              </div>
+            ) : transcript ? (
               <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-foreground">{transcript}</p>
             ) : (
               <p className="text-[15px] text-muted-foreground">This Take has no transcript yet.</p>
