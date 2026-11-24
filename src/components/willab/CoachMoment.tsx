@@ -11,7 +11,7 @@ import { postTrackedDecision, type DecisionAction } from "@/lib/willab/idealText
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import type { TempoStretch } from "@/lib/willab/tempoStep";
 import { ensureAiVoice, noteAiVoicePlay, readAiVoice } from "@/services/api/aiVoice";
-import { fetchCoachMoment, type CoachMomentReference } from "@/services/api/coachMoment";
+import { fetchCoachMoment, prepareCoachMomentAudio, type CoachMomentReference } from "@/services/api/coachMoment";
 import { readPractiseOffered } from "@/services/api/consentChoices";
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -51,7 +51,6 @@ function wordingFor(document: LiveDocument, reference: CoachMomentReference): Wo
 }
 
 async function readPracticeContext({ arc_id, take_session_id }: CoachMomentReference): Promise<PracticeContext | null> {
-  if (!await readPractiseOffered()) return null;
   const document = await fetchIdealText(arc_id);
   if (document.kind !== "single" || document.latestTakeSessionId !== take_session_id || document.feedbackFailed) return null;
   const tempo = await fetchReviewTempo(arc_id, take_session_id);
@@ -79,7 +78,8 @@ function practicePreview(
   const model = buildFeedbackWalk({
     items, practiceOn: true, coachNote: false, guest: false, interventions: tempoOffered(tempo, items), coach,
   });
-  const steps = pickedPracticeSteps(model, reference.snippet_id, tempo?.snippetId);
+  const steps = pickedPracticeSteps(model, reference.snippet_id, tempo?.snippetId,
+    (step) => reference.intervention !== "sniper" || step.key === "tempo");
   const first = steps[0];
   if (!first) return null;
   const key = practiceKey(model, first);
@@ -140,7 +140,7 @@ function MomentAiAudio({ practiceId, requested }: { practiceId: string; requeste
       if (!active) return;
       if (show(state) && remaining > 0) timer = setTimeout(() => void poll(remaining - 1), 2500);
     }
-    void poll(30, requested);
+    void poll(requested ? 120 : 30, requested);
     return () => { active = false; clearTimeout(timer); };
   }, [read, show, requested]);
   const refresh = useCallback(async () => { show(await read()); }, [read, show]);
@@ -158,28 +158,38 @@ function MomentAiAudio({ practiceId, requested }: { practiceId: string; requeste
 
 const openMomentPractice = walkPractiseIO(suggestionSource).open;
 
-function RequestedAiAudio({ existing, item }: { existing: string | null; item?: DocumentSuggestion }) {
+function RequestedAiAudio({ reference, existing, item }: {
+  reference: CoachMomentReference;
+  existing: string | null;
+  item?: DocumentSuggestion;
+}) {
   const [practiceId, setPracticeId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let active = true;
     async function find() {
       if (!await readPractiseOffered()) return null;
       if (existing) return existing;
-      if (!item) return null;
+      if (!item) {
+        const prepared = await prepareCoachMomentAudio(reference);
+        return prepared.ok ? prepared.data : null;
+      }
       const servedExercise = item.practiceExercise && (item.openCard === "exercise" || item.practicePrompt);
       return openMomentPractice(item, { kind: servedExercise ? "exercise" : "plain" });
     }
     void find().catch(() => null).then((id) => { if (active) setPracticeId(id); });
     return () => { active = false; };
-  }, [existing, item]);
-  if (practiceId === undefined) return null;
+  }, [existing, item, reference]);
+  const locale = useUiLocale();
+  if (practiceId === undefined) return <p role="status" className="text-sm text-muted-foreground">
+    {locale === "pl" ? "Przygotowujemy przykład AI…" : "Preparing the AI example…"}
+  </p>;
   return practiceId ? <MomentAiAudio practiceId={practiceId} requested /> : <InterventionUnavailable tool="ai_audio" />;
 }
 
 const INTERVENTION_UNAVAILABLE = {
   ai_audio: { en: "AI audio is unavailable for this fragment.", pl: "Przykład AI dla tego fragmentu jest niedostępny." },
   sniper: { en: "Sniper is unavailable for this fragment.", pl: "Sniper dla tego fragmentu jest niedostępny." },
-  coach_video: { en: "There’s no coach video for this fragment.", pl: "Do tego fragmentu nie ma filmu od trenera." },
+  coach_video: { en: "A coach video is unavailable for this fragment.", pl: "Wideo trenera jest niedostępne dla tego fragmentu." },
 };
 
 function InterventionUnavailable({ tool }: { tool: NonNullable<CoachMomentReference["intervention"]> }) {
@@ -196,11 +206,15 @@ function namedPreview(preview: PracticePreview | null, kind: CoachMomentReferenc
 function useMomentReview(reference: CoachMomentReference, enabled: boolean, refreshKey: number) {
   const coach = usePublishedCoach();
   const [context, setContext] = useState<PracticeContext | null>();
+  const [permitted, setPermitted] = useState(false);
   const [history, setHistory] = useState<LoungeMessage[]>([]);
   useEffect(() => {
     if (!enabled) return;
     let current = true;
-    void readPracticeContext(reference).then((value) => {
+    void readPractiseOffered().then((allowed) => {
+      if (current) setPermitted(allowed);
+      return allowed ? readPracticeContext(reference) : null;
+    }).then((value) => {
       if (current) setContext(value);
     }).catch(() => { if (current) setContext(null); });
     void readReviewSteps(reference.arc_id, reference.take_session_id).then((value) => {
@@ -215,7 +229,7 @@ function useMomentReview(reference: CoachMomentReference, enabled: boolean, refr
   const aiSource = reference.intervention === "ai_audio" ? context?.document.suggestions?.find((item) =>
     item.snippetId === reference.snippet_id && item.takeSessionId === reference.take_session_id &&
     item.evidence?.takeSessionId === reference.take_session_id && item.evidence.projectId === reference.arc_id) : undefined;
-  return { preview, wording, history, aiSource, loaded: context !== undefined };
+  return { preview, wording, history, aiSource, permitted, loaded: context !== undefined };
 }
 
 function relatedPractice(history: LoungeMessage[], snippet: string, practiceId?: string | null): LoungeMessage[] {
@@ -265,6 +279,26 @@ function MomentPractice({ preview, wording, onPractise, onDecision, busy, status
   </div>;
 }
 
+function MomentExample({ reference, existing, item, loaded, hasPractice, canOfferAudio }: {
+  reference: CoachMomentReference;
+  existing: string | null;
+  item?: DocumentSuggestion;
+  loaded: boolean;
+  hasPractice: boolean;
+  canOfferAudio: boolean;
+}) {
+  const [audioRequested, setAudioRequested] = useState(false);
+  const locale = useUiLocale();
+  if (reference.intervention === "ai_audio" || audioRequested) return loaded || existing
+    ? <RequestedAiAudio reference={reference} existing={existing} item={item} /> : null;
+  if (reference.intervention) return loaded && !hasPractice
+    ? <InterventionUnavailable tool={reference.intervention} /> : null;
+  if (!loaded || !canOfferAudio || hasPractice) return null;
+  return <button type="button" className={PRACTICE_ACTION} onClick={() => setAudioRequested(true)}>
+    {locale === "pl" ? "Posłuchaj przykładu AI" : "Hear an AI example"}
+  </button>;
+}
+
 function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attachment, example, includeHistory, replayOnly }: {
   reference: CoachMomentReference;
   clip: NonNullable<Awaited<ReturnType<typeof fetchCoachMoment>>>;
@@ -282,12 +316,8 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [savedDecision, setSavedDecision] = useState<Wording | null>(null);
-  const { preview, wording, history, loaded, aiSource } = useMomentReview(reference, reference.practise, refreshKey);
+  const { preview, wording, history, loaded, aiSource, permitted } = useMomentReview(reference, reference.practise, refreshKey);
   const practice = unavailable ? null : preview;
-  const request = reference.intervention;
-  const requestedExample = example ? null : request === "ai_audio"
-    ? (clip.practiceId || loaded ? <RequestedAiAudio existing={clip.practiceId} item={aiSource} /> : null)
-    : (request && loaded && !practice ? <InterventionUnavailable tool={request} /> : null);
   const running = practising && Boolean(practice);
   const kept = wording ?? savedDecision;
   const related = includeHistory && !running ? relatedPractice(history, reference.snippet_id, preview?.practiceId) : [];
@@ -325,7 +355,7 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   </MediaRefreshProvider>;
   return <div className="min-w-0 space-y-2" data-coach-moment>
     {moment}
-    {attachment?.intervention || example || practice || requestedExample ? <div data-coach-intervention className="space-y-2">
+    {attachment?.intervention || example || practice || reference.intervention ? <div data-coach-intervention className="space-y-2">
       <ArtifactText text={attachment?.intervention} />
       {running ? (
         <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history, conversation: true }}>
@@ -337,8 +367,9 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
         <MomentPractice preview={practice} wording={kept} busy={saving} status={status} replayOnly={replayOnly}
           onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} />
       ) : null}
-      {requestedExample}
-      {example}
+      {example ?? <MomentExample reference={reference} existing={clip.practiceId} item={aiSource}
+        loaded={loaded} hasPractice={Boolean(practice)}
+        canOfferAudio={permitted && !replayOnly && Boolean(attachment?.intervention)} />}
     </div> : null}
     {momentOutput(kept, savedLabel, related, attachment?.output)}
   </div>;

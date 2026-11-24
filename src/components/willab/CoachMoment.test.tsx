@@ -243,6 +243,39 @@ it("checks practice permission before reading or preparing a requested example",
   expect(api.prepareAi).not.toHaveBeenCalled();
 });
 
+it("prepares the cited clip when there is no saved practice or Picker exercise", async () => {
+  vi.useFakeTimers();
+  try {
+    const demo = "https://media.example/inline-example.mp3";
+    api.document.mockResolvedValue({ kind: "single", latestTakeSessionId: "newer-take" });
+    const original = api.clip.getMockImplementation();
+    api.clip.mockImplementation((path: string, init: RequestInit) => path.endsWith("/ai-voice")
+      ? Promise.resolve({ kind: "response", ok: true, body: { practice_id: "own-practice" } })
+      : original?.(path, init));
+    api.ai.mockResolvedValueOnce({ ok: true, data: { demo: "ai_voice", clip: { state: "pending" } } })
+      .mockResolvedValue({ ok: true, data: { demo: "ai_voice", clip: { state: "ready", url: demo, durationMs: 2200 } } });
+    await act(async () => root.render(<TakeConversationMessage standalone project="project" message={{
+      role: "bot", kind: "text", body: "I’ll prepare an AI example for this passage.",
+      client_id: "reply", client_created_at: "", metadata: {
+        coach_moment: { ...reference, intervention: "ai_audio" },
+      },
+    }} />));
+
+    expect(api.clip).toHaveBeenCalledWith("/api/v2/user/lounge/moment/moment/ai-voice", {
+      method: "POST", cache: "no-store", json: { arc_id: "project", take_session_id: "take-2" },
+    });
+    const bubble = container.querySelector("[data-bubble]");
+    expect(bubble?.textContent).toContain("Preparing the AI example");
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(api.ai).toHaveBeenCalledWith("own-practice");
+    expect(api.prepareAi).not.toHaveBeenCalled();
+    expect(Array.from(bubble?.querySelectorAll("audio") ?? [], (node) => node.src)).toEqual([recordingUrl, demo]);
+    expect(container.querySelector("[data-practice]")).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("drops the automatic transcript footer while keeping ordinary chat text", () => {
   const transcript = "https://willpowerlab.com/chat/take/12345678-1234-5678-1234-567812345678?slide=1";
   const answer = "The pause gives your point room.";

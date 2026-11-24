@@ -1513,10 +1513,10 @@ export function useDeckFeedbackWalk(args: {
 
   const openPickedPractice = useCallback((target: WalkStepTarget): boolean => {
     const source = liveAll ?? model;
-    const steps = pickedPracticeSteps(source, target.snippet, tempo?.snippetId);
+    const steps = pickedPracticeSteps(source, target.snippet, tempo?.snippetId,
+      (step) => !target.practiceKey || target.practiceKey === practiceKey(source, step));
     const first = steps[0];
     if (!first) return false;
-    if (target.practiceKey && target.practiceKey !== practiceKey(source, first)) return false;
     tempoRunId.current = first.key === "tempo" ? globalThis.crypto.randomUUID() : null;
     setReplaying({ ...source, scroll: false, plan: [
       { key: "page", overlay: false }, ...afterSavedRewrite(source, steps, target), { key: "end", overlay: false },
