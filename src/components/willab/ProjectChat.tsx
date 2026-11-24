@@ -53,7 +53,7 @@ import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeR
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink, { offersNextTake } from "./chats/RecordNextTakeLink";
-import { isTakeExchangeMessage, readyForReview, takeSessionOf } from "@/lib/willab/takeExchange";
+import { isTakeExchangeMessage, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
@@ -623,7 +623,7 @@ export default function ProjectChat({
   const [slideCount, setSlideCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(
-    () => orderedProjectMessages(outbox.messages, activeProject.arcId).filter(
+    () => withProjectChatPlacement(orderedProjectMessages(outbox.messages, activeProject.arcId)).filter(
       (message) => !isPersistedTerminalReplay(message, thread.messages),
     ),
     [outbox.messages, thread.messages, activeProject.arcId],
@@ -754,11 +754,12 @@ export default function ProjectChat({
     pinBottom();
     const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
     const focusMetadata = reviewFocus ? { review_focus: reviewFocus } : {};
+    const inTakeExchange = Boolean(review || question);
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const turn = existing ?? outbox.begin(spoken ? answer : draft, {
       role: "user", kind: "text", body: answer, metadata: {
         ...typedProjectTurnMetadata({ ...scope, role: "answer" }),
-        take_exchange: Boolean(review || question),
+        take_exchange: inTakeExchange,
         ...focusMetadata,
         ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs } : {}),
       },
@@ -768,6 +769,7 @@ export default function ProjectChat({
       presentationContext: {
         has_current_project: true, completed_takes: Math.max(activeProject.takeCount, activeProject.takes.length),
         has_pdf: activeProject.takes.some((t) => t.hasSlides),
+        take_exchange: inTakeExchange,
         ...focusMetadata,
       },
     });

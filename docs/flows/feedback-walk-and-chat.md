@@ -178,6 +178,9 @@ and [Chat Builder](../chat-builder/flow.md).
   by the processing bubble. Tapping it opens the same full-screen progress,
   and the chat follows the exact Take when it appears in the server list
   (founder 2026-11-23).
+  In a project chat, a reply keeps the same place as the message it answers
+  when the thread reloads. An ordinary reply stays visible while the Take
+  recap is folded.
 - **A2** The moment processing finishes, the walk opens by itself, with
   nothing in between: the waiting screen stays over it until the walk's
   first step is on screen and lifts then, so "done" never opens onto the

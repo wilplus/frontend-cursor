@@ -520,9 +520,34 @@ describe("project conversation", () => {
     await flush();
     expect(state.chatQuery).toHaveBeenCalledWith(expect.objectContaining({
       question: "How should I finish this talk?", projectId: "arc-a", sessionId: "take-a",
+      presentationContext: expect.objectContaining({ take_exchange: false }),
     }));
     expect(host.textContent).toContain("Try returning to the decision from your opening.");
     expect(host.querySelector("[data-project-question-composer]")).not.toBeNull();
+  });
+
+  it("shows a saved chat reply under its message with the Take review closed", async () => {
+    const scope = { project_chat: true, take_session_id: "take-a" };
+    state.messages = [
+      message("question", "How should I finish this talk?", "user", { ...scope, take_exchange: false }),
+      message("answer", "Return to the decision from your opening.", "bot", {
+        ...scope, reply_to_client_id: "question",
+      }),
+      message("legacy-question", "What should I say first?", "user", scope),
+      message("legacy-answer", "Lead with what the board needs to decide.", "bot", {
+        ...scope, reply_to_client_id: "legacy-question",
+      }),
+    ];
+    reviewApi.steps.mockResolvedValue(state.messages);
+    render();
+    expect(host.querySelector("[data-take-review]")).toBeNull();
+    expect(host.querySelector('[data-project-message="answer"]')?.textContent)
+      .toContain("Return to the decision from your opening.");
+    expect(host.querySelector('[data-project-message="legacy-answer"]')?.textContent)
+      .toContain("Lead with what the board needs to decide.");
+    const opened = await openTake("take-a");
+    expect(opened.textContent).not.toContain("Return to the decision from your opening.");
+    expect(opened.textContent).not.toContain("What should I say first?");
   });
   it("shows the neutral result card as soon as the accepted Take reaches the thread", () => {
     const accepted: LoungeMessage = {
