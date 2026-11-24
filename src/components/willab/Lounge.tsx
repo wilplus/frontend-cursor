@@ -19,7 +19,7 @@ import dynamic from "next/dynamic";
 import SnippetWavePlayer from "./SnippetWavePlayer";
 import LoungeAiVoiceBubble, { aiVoiceOfMeta } from "./LoungeAiVoiceBubble";
 import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
-import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
+import { linkedSavedWordings } from "./CoachWordingCard";
 import { coachWording } from "@/services/api/coachWording";
 import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
@@ -165,7 +165,7 @@ import {
 } from "./LoungeStrengths";
 import { answerSundayNote, type SalesStep } from "@/services/api/voiceNotebook";
 import { postWillQuestion, transcribeChatAnswer, type SpokenChatAnswer } from "@/services/api/willQuestion";
-import { keepNote } from "@/lib/willab/voiceNoteOutbox";
+import { keepChatReplyAudio } from "@/lib/willab/voiceNoteOutbox";
 import {
   CHAT_FAILURE_BODY,
   isPersistedTerminalReplay,
@@ -542,6 +542,14 @@ function useLoungeDraft(scope: string) {
   return { value: drafts[scope] ?? "", setDraft, field, focus };
 }
 
+function LoungeComposerStatus({ uploadError, voice }: { uploadError: string | null; voice?: ReturnType<typeof useComposerVoice> }) {
+  if (!uploadError && !voice?.error) return null;
+  return <p role="alert" className="pb-1 text-sm text-destructive">
+    {uploadError || voice?.error}
+    {!uploadError && voice?.retry ? <button type="button" onClick={() => void voice.retry?.()} className="ml-1 underline">Try again</button> : null}
+  </p>;
+}
+
 function LoungeComposer({
   place, openChat, draft, plan, keyLine, notebook, held, busy, onSend, onProjects, onUpload, onSlides,
   citation, clearCitation, voice,
@@ -610,10 +618,7 @@ function LoungeComposer({
         <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={clearCitation}>×</button>
       </div> : undefined}
       files={files}
-      status={uploadError || voice?.error ? <p role="alert" className="pb-1 text-sm text-destructive">
-        {uploadError || voice?.error}
-        {!uploadError && voice?.retry ? <button type="button" onClick={() => void voice.retry?.()} className="ml-1 underline">Try again</button> : null}
-      </p> : null}
+      status={<LoungeComposerStatus uploadError={uploadError} voice={voice} />}
     />
   );
 }
@@ -739,7 +744,7 @@ export default function Lounge({
       if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== composerScope || !outbox.isCurrent()) return false;
       if (prepareOnStop) {
         if (!turnId) return false;
-        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, ...(spoken.receipt ? { audio } : {}) } });
+        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, audio } });
         setDraftText(spoken.text);
         return true;
       }
@@ -2019,13 +2024,10 @@ export default function Lounge({
     const submittedDraft = spoken?.text ?? draftText;
     const q = submittedDraft.trim();
     if (!q || botThinking || sendingRef.current || !outbox.ready) return false;
-    if (spoken?.audio && spoken.receipt && spoken.turnId && userId) {
+    if (spoken?.audio && spoken.turnId && userId) {
       sendingRef.current = true;
       try {
-        await keepNote({
-          key: spoken.turnId, audio: spoken.audio, durationMs: spoken.durationMs,
-          words: "", open: false, at: Date.now(), owner: userId, purpose: "chat-reply",
-        });
+        await keepChatReplyAudio(spoken, userId);
       } finally {
         sendingRef.current = false;
       }
@@ -2241,7 +2243,7 @@ export default function Lounge({
       ...(citation ? { take_exchange: true } : {}),
     } : null;
     const metadata = { ...hint, ...scope, ...(spoken ? {
-      will_voice: true, duration_ms: spoken.durationMs, ...(spoken.audio ? { voice_clip: true } : {}),
+      will_voice: true, duration_ms: spoken.durationMs, ...(spoken.audio && spoken.receipt ? { voice_clip: true } : {}),
     } : {}) };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
@@ -2371,7 +2373,7 @@ export default function Lounge({
     if (take) {
       if (take.anchor !== id) return null;
       return <LoungeTakeConversation key={composerScope + ":" + take.takeId} arcId={take.arcId} takeId={take.takeId}
-        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock}
+        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock} savedWordings={savedWordings}
         onCitation={(next) => {
           setCitation((current) => next ?? (current?.takeId === take.takeId ? null : current));
           if (next?.quote) focusComposer();
@@ -2379,12 +2381,7 @@ export default function Lounge({
         renderFooter={(message) => {
           const failed = outbox.turns.find((turn) => turn.user.client_id === message.client_id && !outbox.isSending(turn));
           if (failed) return <ChatTurnRetry disabled={botThinking || outbox.readingHistory} onRetry={() => void sendTypedTurn(failed)} />;
-          const offer = recordOffer(message, take.arcId);
-          const wording = message.role === "bot" && message.metadata?.coach_wording ? (
-            <CoachWordingCard message={message} project={take.arcId} recordingDock={recordingDock}
-              savedReply={savedWordings.has(message.client_id)} onSaved={() => { void reload(); }} />
-          ) : null;
-          return offer || wording ? <>{offer}{wording}</> : null;
+          return recordOffer(message, take.arcId);
         }} />;
     }
     const walk = walkAt.get(id);
@@ -3289,7 +3286,7 @@ function BubbleBody({
     );
   }
   if (message.role === "user") {
-    if (message.metadata?.voice_clip === true) return <TakeConversationMessage message={message} standalone />;
+    if (hasTakeReplyContent(message)) return <TakeConversationMessage message={message} standalone />;
     return (
       <div data-row="me" data-bubble="" className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
         {/* FE-13 — both sides of the thread, so a link the user pasted works
@@ -3301,13 +3298,12 @@ function BubbleBody({
   if (message.role === "bot") {
     return (
       <>
-        {showTakeArtifacts && hasTakeReplyContent(message) ? (
+        {hasTakeReplyContent(message, showTakeArtifacts) ? (
           <TakeConversationMessage message={message} recordingDock={recordingDock} standalone />
         ) : <SequentialBotBubbles
           chunks={splitBotMessage(showTakeArtifacts ? withoutCoachTranscriptFooter(message.body) : speakingCoachReplyText(message))}
           animate={animate}
         />}
-        {showTakeArtifacts ? <CoachWordingCard message={message} recordingDock={recordingDock} /> : null}
         <BotWays
           metadata={message.metadata}
           onChip={onChip}

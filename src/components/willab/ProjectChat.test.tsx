@@ -32,7 +32,7 @@ PROVES   O10 -> "saves the proposed wording and shows it when the project reopen
          O5 -> "practises the older Take on its recorded slide range"
          O6 -> "shows one pending turn, disables the composer, and scrolls the accepted send and reply into view"
          O7 -> "keeps a refused quick choice once with one recoverable error"
-         O8 -> "shows an editable spoken draft and attaches playback only on send"
+         O8 -> "shows an editable spoken draft and attaches playback only on send", "shows the sent text and plays the recording in this app session with a transcription-only response"
          O9 -> "opens feedback on the published strength and keeps practice on the selected fix"
          O11 -> "keeps a fresh recording offer after Ideal Text even when history refresh fails"
          O12 -> "shows the coach's cited fragment and keeps the next turn in the active Take"
@@ -370,7 +370,8 @@ describe("project conversation", () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
-  it("still prepares a text draft with a transcription-only response", async () => {
+  it("shows the sent text and plays the recording in this app session with a transcription-only response", async () => {
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:playable-voice-draft");
     state.transcribeChatAnswer.mockResolvedValueOnce({ text: "A line from the recording.", durationMs: 1800 });
     render({ ...project, takeCount: 0, takes: [] });
     await flush();
@@ -384,6 +385,10 @@ describe("project conversation", () => {
     await flush();
     expect(state.chatQuery.mock.calls[0]?.[0].question).toBe("A line from the recording.");
     expect(state.attachChatVoice).not.toHaveBeenCalled();
+    const sent = host.querySelector('[data-project-message="d166833f-8b09-400c-8188-5a1306430011"]');
+    expect(sent?.textContent).toContain("A line from the recording.");
+    expect(sent?.querySelector("audio")?.src).toBe("blob:playable-voice-draft");
+    createObjectURL.mockRestore();
     enterAnswer("Another question.");
     submitAnswer();
     await flush();
@@ -511,6 +516,7 @@ describe("project conversation", () => {
     await flush();
     await openTake("take-a");
     const offer = host.querySelector("[data-coach-wording]")!;
+    expect(offer.closest("[data-bubble]")?.textContent).toContain("Zakończ jednym pytaniem.");
     expect(offer.textContent).toContain(words);
     expect(offer.textContent).toContain("Practise");
     expect(host.textContent).not.toContain("A different project's wording.");
@@ -686,7 +692,7 @@ describe("project conversation", () => {
     expect(host.querySelector('[data-testid="decision"]')).toBeNull();
   });
 
-  it("opens the Ideal Text link when the saved Take exchange is already live", async () => {
+  it("reopens a saved Ideal Text offer right below its reply in the project chat", async () => {
     state.messages = [
       message("opening", "The opening gave your point room.", "bot", { live_take_feedback: true }),
       message("ideal-link", "You can read the full text here.", "bot", {
@@ -696,8 +702,38 @@ describe("project conversation", () => {
     render();
     await clickText(host, "Ideal text");
     await flush();
-    expect(host.querySelector("[data-live-take-feedback] [data-review-section=ideal]")?.textContent)
-      .toBe("The current opening.");
+    const document = host.querySelector("[data-review-section=ideal]");
+    expect(document?.textContent).toBe("The current opening.");
+    expect(document?.closest("[data-project-take]")).toBeNull();
+    expect(host.querySelector("[data-chat-input]")).not.toBeNull();
+  });
+
+  it("opens a fresh Ideal Text offer in the main conversation and keeps the next Take action there", async () => {
+    state.chatQuery.mockResolvedValueOnce({
+      answer: "Here’s your Ideal Text.", persisted: true, persisted_client_id: "fresh-ideal",
+      row_metadata: { take_session_id: "take-a", review_destination: { step: "ideal" } },
+    });
+    render();
+    enterAnswer("Show me my Ideal Text.");
+    submitAnswer();
+    await flush();
+    expect(host.querySelector('[data-project-message="fresh-ideal"]')?.textContent).toBe("Here’s your Ideal Text.");
+    const document = host.querySelector("[data-review-section=ideal]");
+    expect(document?.textContent).toBe("The current opening.");
+    expect(document?.closest("[data-project-take]")).toBeNull();
+
+    state.chatQuery.mockResolvedValueOnce({
+      answer: "Yes. Try it again.", persisted: true, persisted_client_id: "fresh-record",
+      suggested_action: "record_again",
+    });
+    enterAnswer("Can I record again?");
+    submitAnswer();
+    await flush();
+    expect(state.chatQuery.mock.calls[1]?.[0].presentationContext).toMatchObject({
+      review_focus: { step: "ideal" }, take_exchange: false, live_take_feedback: true,
+    });
+    expect(host.querySelector('[data-project-message="fresh-record"]')?.textContent).toBe("Yes. Try it again.");
+    expect(host.textContent).toContain("Record the next take");
   });
 
   it("practises the older Take on its recorded slide range", async () => {

@@ -8,7 +8,7 @@ import {
   type LoungeMessage,
 } from "@/services/api/loungeMessages";
 import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
-import { keepNote, outboxOwner } from "@/lib/willab/voiceNoteOutbox";
+import { keepChatReplyAudio, outboxOwner } from "@/lib/willab/voiceNoteOutbox";
 import type { ChatQueryResponse } from "@/services/api/chatQuery";
 import { postWillQuestion, transcribeChatAnswer, type SpokenChatAnswer } from "@/services/api/willQuestion";
 import {
@@ -50,7 +50,7 @@ import { clearPracticeResume } from "@/lib/willab/practiceResume";
 import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import TakeReview, { REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
+import TakeReview, { InlineTakeIdealText, REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
@@ -376,6 +376,17 @@ function questionInTakeView(
   return reviewed.has(questionTake ?? "") ? null : active;
 }
 
+function leaveAfterSave(exit: ReviewExit | null, action: () => void) {
+  if (exit) exit(action);
+  else action();
+}
+
+function idealOfferTake(message: LoungeMessage | undefined, takes: readonly TrainingTake[]) {
+  if (!message || message.role !== "bot" || !offersIdealText(message)) return undefined;
+  const take = takeSessionOf(message);
+  return takes.find((item) => item.sessionId === take);
+}
+
 function placementForTurn(
   review: TakeReviewTarget | null,
   focus: TakeReviewTarget | null,
@@ -457,7 +468,10 @@ export default function ProjectChat({
 }) {
   const workspace = useWorkspaceSidebar();
   const reviewExit = useRef<ReviewExit | null>(null);
-  const leavingReview = useCallback((action: () => void) => (reviewExit.current ?? ((afterSave) => afterSave()))(action), []);
+  const documentExit = useRef<ReviewExit | null>(null);
+  const leavingReview = useCallback((action: () => void) =>
+    leaveAfterSave(reviewExit.current, () => leaveAfterSave(documentExit.current, action)), []);
+  const [openedIdealReply, setOpenedIdealReply] = useState<string | null>(null);
   const back = () => leavingReview(onBack);
   useBackDismiss(back);
   const userId = useUserId();
@@ -548,7 +562,7 @@ export default function ProjectChat({
         turnId, projectId: activeProject.arcId, snippetId: captured.focus?.snippet_id,
       });
       if (!spoken || !turnId || !outbox.isCurrent() || currentReviewContext.current !== reviewContext) return false;
-      const answer = { ...spoken, turnId, ...(spoken.receipt ? { audio } : {}) };
+      const answer = { ...spoken, turnId, audio };
       setPreparedVoice({ scope: voiceScope, answer, target: captured });
       setDraft(spoken.text);
       return true;
@@ -631,43 +645,23 @@ export default function ProjectChat({
   function turnTarget(retry?: PendingChatTurn) {
     const review = reviewContext;
     const questionInView = questionInTakeView(activeQuestion, review, reviewedTakeIds);
-    const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview);
+    const documentTake = idealOfferTake(ordinaryMessages.find((row) => row.client_id === openedIdealReply), recordingTakes);
+    const idealFocus: TakeReviewTarget | null = documentTake ? { take: documentTake, focus: { step: "ideal" } } : null;
+    const target = askTarget ?? (questionInView ? null : reviewFocusRef.current ?? takeReview ?? idealFocus);
     return { ...typedQuestionTarget(activeProject, questionInView, target, retry), review, target };
   }
 
-  async function answerText(retry?: PendingChatTurn, spoken?: SpokenChatAnswer, captured = turnTarget(retry)): Promise<boolean> {
-    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
-    const { focus: reviewFocus, question, take, review, target } = captured;
+  function beginTypedTurn(
+    answer: string, captured: ReturnType<typeof turnTarget>, spoken?: SpokenChatAnswer, hasAudio = false,
+  ) {
+    const { focus, question, take, review, target } = captured;
     const arc = activeProject.arcId;
-    if (!answer || sending || sendingRef.current || !outbox.ready) return false;
-    const existing = retry ?? (spoken ? undefined : outbox.turns.findLast((t) => samePending(t, answer, take, question, reviewFocus)));
-    if (existing && outbox.isSending(existing)) return false;
-    sendingRef.current = true;
-    setSending(true);
-    const hasAudio = Boolean(spoken?.audio && spoken.receipt && spoken.turnId && userId);
-    if (hasAudio && spoken?.audio && spoken.turnId && userId) {
-      await keepNote({
-        key: spoken.turnId, audio: spoken.audio, durationMs: spoken.durationMs,
-        words: "", open: false, at: Date.now(), owner: userId, purpose: "chat-reply",
-      });
-    }
-    if (!outbox.isCurrent()) {
-      sendingRef.current = false;
-      setSending(false);
-      return false;
-    }
-    if (!retry) {
-      setDraft("");
-      if (spoken) setPreparedVoice(null);
-    } else if (!spoken) setDraft((current) => current === retry.draft ? "" : current);
-    setTypingQuestion(null);
-    pinBottom();
     const scope = { arcId: arc, takeSessionId: take, questionClientId: question?.client_id ?? "", place: "speaking" };
-    const focusMetadata = reviewFocus ? { review_focus: reviewFocus } : {};
+    const focusMetadata = focus ? { review_focus: focus } : {};
     const placement = placementForTurn(review, target ?? null, question);
     resumeLiveFeedback(placement.live_take_feedback);
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
-    const turn = existing ?? outbox.begin(spoken ? answer : draft, {
+    return outbox.begin(spoken ? answer : draft, {
       role: "user", kind: "text", body: answer, clientId: spoken?.turnId, metadata: {
         ...typedProjectTurnMetadata({ ...scope, role: "answer" }),
         ...placement,
@@ -685,19 +679,46 @@ export default function ProjectChat({
         ...focusMetadata,
       },
     });
+  }
+
+  async function deliverTypedTurn(turn: PendingChatTurn) {
+    const scope = { arcId: activeProject.arcId, takeSessionId: turn.request.sessionId ?? undefined,
+      questionClientId: turn.question?.client_id ?? "", place: "speaking" };
     try {
       const result = await outbox.deliver(turn, (response) => {
+        const exchange = turn.user.metadata?.take_exchange;
         return { role: "bot", kind: "text", body: replyBody(response, thread.messages),
           metadata: { ...typedProjectTurnMetadata({ ...scope, role: "reply" }), ...response.row_metadata,
             ...(offersNextTake(response) ? { suggested_action: "record_again" } : {}),
-            ...(turn.user.metadata?.take_exchange === undefined ? {} : { take_exchange: turn.user.metadata.take_exchange }) } };
+            ...(exchange === undefined ? {} : { take_exchange: exchange }) } };
       });
       if (result && outbox.isCurrent()) await refreshAfterReply(result.reply);
     } catch {
       if (outbox.isPending(turn)) {
         if (!turn.user.metadata?.will_voice) setDraft((current) => current || turn.draft);
-        setTypingQuestion(question?.client_id ?? null);
+        setTypingQuestion(turn.question?.client_id ?? null);
       }
+    }
+  }
+
+  async function answerText(retry?: PendingChatTurn, spoken?: SpokenChatAnswer, captured = turnTarget(retry)): Promise<boolean> {
+    const answer = retry?.request.question ?? spoken?.text ?? draft.trim();
+    if (!answer || sending || sendingRef.current || !outbox.ready) return false;
+    const { focus, question, take } = captured;
+    const existing = retry ?? (spoken ? undefined : outbox.turns.findLast((t) => samePending(t, answer, take, question, focus)));
+    if (existing && outbox.isSending(existing)) return false;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      const hasAudio = spoken ? await keepChatReplyAudio(spoken, userId) : false;
+      if (!outbox.isCurrent()) return false;
+      if (!retry) {
+        setDraft("");
+        if (spoken) setPreparedVoice(null);
+      } else if (!spoken) setDraft((current) => current === retry.draft ? "" : current);
+      setTypingQuestion(null);
+      pinBottom();
+      await deliverTypedTurn(existing ?? beginTypedTurn(answer, captured, spoken, hasAudio));
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -706,7 +727,13 @@ export default function ProjectChat({
   }
 
   function refreshAfterReply(reply: LoungeMessage) {
-    if (offersIdealText(reply)) setAskTarget((current) => current === askTarget ? null : current);
+    if (offersIdealText(reply)) {
+      setAskTarget((current) => current === askTarget ? null : current);
+      const take = idealOfferTake(reply, recordingTakes);
+      if (take && (!isTakeExchangeMessage(reply) || !reviewedTakeIds.has(take.sessionId))) {
+        leaveAfterSave(documentExit.current, () => setOpenedIdealReply(reply.client_id));
+      }
+    }
     return thread.reload();
   }
 
@@ -774,10 +801,7 @@ export default function ProjectChat({
     if (message.role !== "bot") return null;
     const destination = inReview && message.metadata?.review_destination ? reviewLink(message) : null;
     const offer = recordOffer(message);
-    const wording = message.metadata?.coach_wording ? <CoachWordingCard message={message}
-      project={activeProject.arcId} recordingDock={recordingDock}
-      savedReply={linkedWording.has(message.client_id)} onSaved={() => { void thread.reload(); }} /> : null;
-    return destination || offer || wording ? <>{destination}{offer}{wording}</> : null;
+    return destination || offer ? <>{destination}{offer}</> : null;
   }
 
 
@@ -807,6 +831,7 @@ export default function ProjectChat({
         onAsk={(target) => { setAskTarget(target); composerRef.current?.focus({ preventScroll: true }); }}
         onClose={() => leavingReview(finishReview)} rememberOpening={rememberLiveOpening}
         onPracticeEnded={() => { refreshRuns(); void thread.reload(); }}
+        savedWordings={linkedWording} onWordingSaved={() => { void thread.reload(); }}
         renderFooter={(message) => {
           const retry = failedTurns.get(message.client_id);
           return retry ? <div data-project-chat-error>
@@ -817,7 +842,8 @@ export default function ProjectChat({
     </div>;
   }
 
-  function renderMessage(message: LoungeMessage) {
+  function renderMessage(message: LoungeMessage, ideal?: TrainingTake) {
+    const link = ideal ? null : reviewLink(message);
     return (
       message.role === "system" && message.metadata?.coach_wording_saved === true ? (
         linkedWording.has(String(message.metadata.wording_reply_id)) ? null :
@@ -835,8 +861,9 @@ export default function ProjectChat({
       ) : (
         <Fragment key={message.client_id}>
           {hasTakeReplyContent(message) ? (
-            <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone>
-              {reviewLink(message)}
+            <TakeConversationMessage message={message} project={activeProject.arcId} recordingDock={recordingDock} standalone
+              wordingSaved={linkedWording.has(message.client_id)} onWordingSaved={() => { void thread.reload(); }}>
+              {link}
             </TakeConversationMessage>
           ) : (
             <div
@@ -849,7 +876,7 @@ export default function ProjectChat({
             >
               {message.metadata?.human_coach_author === "Artur" && <p className="mb-1 text-[13px] font-medium text-muted-foreground">Artur · Speaking coach</p>}
               {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
-              {reviewLink(message)}
+              {link}
             </div>
           )}
           {replyActions(message)}
@@ -863,6 +890,46 @@ export default function ProjectChat({
     );
   }
 
+  function renderOrdinaryMessage(message: LoungeMessage) {
+    const take = idealOfferTake(message, recordingTakes);
+    const close = () => leaveAfterSave(documentExit.current, () => setOpenedIdealReply(null));
+    return <div key={message.client_id} className="flex min-w-0 flex-col gap-2 empty:hidden">
+      <div className={WILLAB_CONTENT_RAIL + " flex min-w-0 flex-col gap-2 empty:hidden"}>
+        {renderMessage(message, take)}
+      </div>
+      {take ? <TakeConversation title="Ideal text" expanded={openedIdealReply === message.client_id}
+        onExpandedChange={(open) => open
+          ? leaveAfterSave(documentExit.current, () => setOpenedIdealReply(message.client_id))
+          : close()}>
+        <InlineTakeIdealText project={activeProject} take={take} exitRef={documentExit} onClose={close} />
+      </TakeConversation> : null}
+    </div>;
+  }
+
+  function sendDraft(value: string) {
+    return stagedVoice ? answerText(undefined, { ...stagedVoice.answer, text: value.trim() }, stagedVoice.target) : answerText();
+  }
+
+  function changeDraft(value: string) {
+    setDraft(value);
+    if (!value.trim()) setPreparedVoice(null);
+  }
+
+  function composerStatus() {
+    return voice.error ? <p role="alert" className="px-2 pb-1 text-sm">
+      {voice.error} {voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
+    </p> : undefined;
+  }
+
+  function processingStatus() {
+    if (pendingRecording && !recordingTakes.some((take) =>
+      take.uploadKey === pendingRecording.key || take.sessionId === pendingRecording.sessionId)) {
+      return <PendingRecordingBubbles take={pendingRecording} onOpen={() => onOpenPendingRecording?.(pendingRecording)} />;
+    }
+    return <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
+      retrying={retrying} onRetry={() => void retryProcessing()} />;
+  }
+
   return (
     <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
@@ -870,20 +937,12 @@ export default function ProjectChat({
       <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
         <div className="flex min-h-full w-full flex-col justify-end gap-2">
           {projectTimeline(recordingTakes, ordinaryMessages, messages).map((entry) =>
-            entry.kind === "take" ? renderTake(entry.take) :
-              <div key={entry.message.client_id} className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
-                {renderMessage(entry.message)}
-              </div>
+            entry.kind === "take" ? renderTake(entry.take) : renderOrdinaryMessage(entry.message)
           )}
           <div className={`${WILLAB_CONTENT_RAIL} flex min-w-0 flex-col gap-2 empty:hidden`}>
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
-          {pendingRecording && !recordingTakes.some((take) =>
-            take.uploadKey === pendingRecording.key || take.sessionId === pendingRecording.sessionId)
-            ? <PendingRecordingBubbles take={pendingRecording}
-                onOpen={() => onOpenPendingRecording?.(pendingRecording)} />
-            : <ProjectProcessingStatus active={recordingActive} failed={failed} marker={processingMarker}
-                retrying={retrying} onRetry={() => void retryProcessing()} />}
+          {processingStatus()}
           {sending || voice.sending ? <TypingDots label={voice.sending && !sending ? "Processing your recording" : "Will is replying"} /> : null}
           </div>
         </div>
@@ -896,16 +955,11 @@ export default function ProjectChat({
         above={askTarget ? <ProjectReviewContext target={askTarget} onClear={() => setAskTarget(null)} /> : undefined}
         formAttrs={{ "data-project-question-composer": "" }} placeholder={activeQuestion ? TYPE_YOUR_ANSWER : "Message about this project"}
         inputLabel="Answer about this take" sendLabel="Send answer" value={draft}
-        onValue={(value) => { setDraft(value); if (!value.trim()) setPreparedVoice(null); }}
-        onSend={(value) => stagedVoice
-          ? answerText(undefined, { ...stagedVoice.answer, text: value.trim() }, stagedVoice.target)
-          : answerText()}
+        onValue={changeDraft} onSend={sendDraft}
         autoFocus={Boolean(stagedVoice) || typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending || voice.sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
         mic={voice.mic}
-        recording={voice.recording} status={voice.error ? <p role="alert" className="px-2 pb-1 text-sm">
-          {voice.error} {voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
-        </p> : undefined} />
+        recording={voice.recording} status={composerStatus()} />
       </div>
       {slides.layer}
       {openedTranscript ? (

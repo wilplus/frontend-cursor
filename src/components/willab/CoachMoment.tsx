@@ -10,12 +10,13 @@ import type { ChatArtifactContent } from "@/lib/willab/chatArtifact";
 import { postTrackedDecision, type DecisionAction } from "@/lib/willab/idealTextDecisions";
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import type { TempoStretch } from "@/lib/willab/tempoStep";
-import { readAiVoice } from "@/services/api/aiVoice";
+import { ensureAiVoice, noteAiVoicePlay, readAiVoice } from "@/services/api/aiVoice";
 import { fetchCoachMoment, type CoachMomentReference } from "@/services/api/coachMoment";
 import { readPractiseOffered } from "@/services/api/consentChoices";
 import { fetchIdealText, type DocumentSuggestion, type IdealTextResult } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { fetchReviewTempo } from "@/services/api/reviewTempo";
+import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { readReviewSteps } from "@/services/api/takeReview";
 import { ArtifactText, StructuredReplyArtifact } from "./chats/ReplyArtifact";
 import IdealTextOverlay from "./IdealTextOverlay";
@@ -104,43 +105,97 @@ function practicePreview(
   return { key, title: WALK_COPY.aiVoiceLabel, practiceId: practiseItem?.practiceExercise?.practiceId };
 }
 
-function PracticeDemo({ preview }: { preview: PracticePreview }) {
+function PracticeDemo({ preview, requested = false }: { preview: PracticePreview; requested?: boolean }) {
+  if (preview.video) return <NativeVideo src={preview.video} className="max-h-56 w-full rounded-lg" />;
+  return preview.practiceId ? <MomentAiAudio practiceId={preview.practiceId} requested={requested} /> : null;
+}
+
+function MomentAiAudio({ practiceId, requested }: { practiceId: string; requested: boolean }) {
   const locale = useUiLocale();
   const [audio, setAudio] = useState<{ src: string; durationMs: number | null } | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState(requested);
   const label = locale === "pl" ? "Przykład AI" : "AI example";
-  const refresh = useCallback(async () => {
-    const state = preview.practiceId && !preview.video ? await readAiVoice(preview.practiceId).catch(() => null) : null;
+  const read = useCallback(async (prepare = false) => {
+    try {
+      const current = await readAiVoice(practiceId);
+      if (prepare && current.ok && (!current.data.clip || current.data.clip.state === "unavailable")) {
+        return await ensureAiVoice(practiceId);
+      }
+      return current;
+    } catch {
+      return null;
+    }
+  }, [practiceId]);
+  const show = useCallback((state: Awaited<ReturnType<typeof read>>) => {
     const clip = state?.ok && state.data.demo === "ai_voice" ? state.data.clip : null;
     setAudio(clip?.state === "ready" && clip.url ? { src: clip.url, durationMs: clip.durationMs } : null);
     setPending(clip?.state === "pending");
     return clip?.state === "pending";
-  }, [preview.practiceId, preview.video]);
+  }, []);
   useEffect(() => {
-    let waiting = true;
+    let active = true;
     let timer: ReturnType<typeof setTimeout>;
-    async function poll(remaining: number) {
-      const pending = await refresh();
-      if (waiting && pending && remaining > 0) timer = setTimeout(() => void poll(remaining - 1), 2500);
+    async function poll(remaining: number, prepare = false) {
+      const state = await read(prepare);
+      if (!active) return;
+      if (show(state) && remaining > 0) timer = setTimeout(() => void poll(remaining - 1), 2500);
     }
-    void poll(8);
-    return () => { waiting = false; clearTimeout(timer); };
-  }, [refresh]);
-  if (preview.video) return <NativeVideo src={preview.video} className="max-h-56 w-full rounded-lg" />;
+    void poll(30, requested);
+    return () => { active = false; clearTimeout(timer); };
+  }, [read, show, requested]);
+  const refresh = useCallback(async () => { show(await read()); }, [read, show]);
   if (pending) return <p role="status" className="text-sm text-muted-foreground">
     {locale === "pl" ? "Przygotowujemy przykład AI…" : "Preparing the AI example…"}
   </p>;
-  if (!audio) return null;
+  if (!audio) return requested ? <InterventionUnavailable tool="ai_audio" /> : null;
   return <MediaRefreshProvider payload={audio} refresh={refresh}>
     <p className="text-xs text-muted-foreground">{label}</p>
-    <WalkPlayer seed={preview.practiceId ?? ""} src={audio.src} durationMs={audio.durationMs}
-      label={label} look="bare" />
+    <div onClickCapture={() => void noteAiVoicePlay(practiceId)}>
+      <WalkPlayer seed={practiceId} src={audio.src} durationMs={audio.durationMs} label={label} look="bare" />
+    </div>
   </MediaRefreshProvider>;
+}
+
+const openMomentPractice = walkPractiseIO(suggestionSource).open;
+
+function RequestedAiAudio({ existing, item }: { existing: string | null; item?: DocumentSuggestion }) {
+  const [practiceId, setPracticeId] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let active = true;
+    async function find() {
+      if (!await readPractiseOffered()) return null;
+      if (existing) return existing;
+      if (!item) return null;
+      const servedExercise = item.practiceExercise && (item.openCard === "exercise" || item.practicePrompt);
+      return openMomentPractice(item, { kind: servedExercise ? "exercise" : "plain" });
+    }
+    void find().catch(() => null).then((id) => { if (active) setPracticeId(id); });
+    return () => { active = false; };
+  }, [existing, item]);
+  if (practiceId === undefined) return null;
+  return practiceId ? <MomentAiAudio practiceId={practiceId} requested /> : <InterventionUnavailable tool="ai_audio" />;
+}
+
+const INTERVENTION_UNAVAILABLE = {
+  ai_audio: { en: "AI audio is unavailable for this fragment.", pl: "Przykład AI dla tego fragmentu jest niedostępny." },
+  sniper: { en: "Sniper is unavailable for this fragment.", pl: "Sniper dla tego fragmentu jest niedostępny." },
+  coach_video: { en: "There’s no coach video for this fragment.", pl: "Do tego fragmentu nie ma filmu od trenera." },
+};
+
+function InterventionUnavailable({ tool }: { tool: NonNullable<CoachMomentReference["intervention"]> }) {
+  return <p role="status" className="text-sm text-muted-foreground">{INTERVENTION_UNAVAILABLE[tool][useUiLocale()]}</p>;
+}
+
+function namedPreview(preview: PracticePreview | null, kind: CoachMomentReference["intervention"]) {
+  if (kind === "ai_audio") return null;
+  if (kind === "sniper" && preview?.key !== "tempo") return null;
+  if (kind === "coach_video" && !preview?.video) return null;
+  return preview;
 }
 
 function useMomentReview(reference: CoachMomentReference, enabled: boolean, refreshKey: number) {
   const coach = usePublishedCoach();
-  const [context, setContext] = useState<PracticeContext | null>(null);
+  const [context, setContext] = useState<PracticeContext | null>();
   const [history, setHistory] = useState<LoungeMessage[]>([]);
   useEffect(() => {
     if (!enabled) return;
@@ -153,10 +208,14 @@ function useMomentReview(reference: CoachMomentReference, enabled: boolean, refr
     }).catch(() => undefined);
     return () => { current = false; };
   }, [enabled, reference, refreshKey]);
-  const preview = useMemo(() => enabled && context ? practicePreview(context, reference, coach) : null,
+  const preview = useMemo(() => enabled && context && reference.intervention !== "ai_audio"
+    ? namedPreview(practicePreview(context, reference, coach), reference.intervention) : null,
     [enabled, context, reference, coach]);
   const wording = enabled && context ? wordingFor(context.document, reference) : null;
-  return { preview, wording, history };
+  const aiSource = reference.intervention === "ai_audio" ? context?.document.suggestions?.find((item) =>
+    item.snippetId === reference.snippet_id && item.takeSessionId === reference.take_session_id &&
+    item.evidence?.takeSessionId === reference.take_session_id && item.evidence.projectId === reference.arc_id) : undefined;
+  return { preview, wording, history, aiSource, loaded: context !== undefined };
 }
 
 function relatedPractice(history: LoungeMessage[], snippet: string, practiceId?: string | null): LoungeMessage[] {
@@ -223,8 +282,12 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [savedDecision, setSavedDecision] = useState<Wording | null>(null);
-  const { preview, wording, history } = useMomentReview(reference, reference.practise, refreshKey);
+  const { preview, wording, history, loaded, aiSource } = useMomentReview(reference, reference.practise, refreshKey);
   const practice = unavailable ? null : preview;
+  const request = reference.intervention;
+  const requestedExample = example ? null : request === "ai_audio"
+    ? (clip.practiceId || loaded ? <RequestedAiAudio existing={clip.practiceId} item={aiSource} /> : null)
+    : (request && loaded && !practice ? <InterventionUnavailable tool={request} /> : null);
   const running = practising && Boolean(practice);
   const kept = wording ?? savedDecision;
   const related = includeHistory && !running ? relatedPractice(history, reference.snippet_id, preview?.practiceId) : [];
@@ -262,7 +325,7 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
   </MediaRefreshProvider>;
   return <div className="min-w-0 space-y-2" data-coach-moment>
     {moment}
-    {attachment?.intervention || example || practice ? <div data-coach-intervention className="space-y-2">
+    {attachment?.intervention || example || practice || requestedExample ? <div data-coach-intervention className="space-y-2">
       <ArtifactText text={attachment?.intervention} />
       {running ? (
         <InlineWalkHost.Provider value={{ recordingDock, savedSteps: history, conversation: true }}>
@@ -274,6 +337,7 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
         <MomentPractice preview={practice} wording={kept} busy={saving} status={status} replayOnly={replayOnly}
           onPractise={() => setPractising(true)} onDecision={(item, decision) => void decide(item, decision)} />
       ) : null}
+      {requestedExample}
       {example}
     </div> : null}
     {momentOutput(kept, savedLabel, related, attachment?.output)}
@@ -314,6 +378,6 @@ export default function CoachMoment({
   replayOnly?: boolean;
 }) {
   if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact inline content={artifact} example={example} />;
-  return <CoachMomentCard key={`${reference.arc_id}:${reference.take_session_id}:${reference.snippet_id}`}
+  return <CoachMomentCard key={`${reference.arc_id}:${reference.take_session_id}:${reference.snippet_id}:${reference.intervention ?? ""}`}
     reference={reference} recordingDock={recordingDock} attachment={artifact} example={example} includeHistory={includeHistory} replayOnly={replayOnly} />;
 }

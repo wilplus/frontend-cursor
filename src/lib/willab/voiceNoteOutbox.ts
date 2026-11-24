@@ -90,6 +90,9 @@ function mine(note: OutboxNote, me: OutboxOwner): boolean {
 const DB = "willab-voice-notes";
 const STORE = "outbox";
 const memory = new Map<string, OutboxNote>();
+const pageReplies = new Map<string, { audio: Blob; owner: string }>();
+const PAGE_REPLY_LIMIT = 12;
+
 
 function openDb(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -147,7 +150,29 @@ export async function dropNote(key: string): Promise<boolean> {
   return (await run("readwrite", (store) => store.delete(key))) !== null;
 }
 
+/** Prepare a sent chat clip. A transcription-only server leaves playback in this page. */
+export async function keepChatReplyAudio(
+  spoken: { turnId?: string; audio?: Blob; receipt?: string; durationMs: number } | undefined,
+  owner: string | null,
+): Promise<boolean> {
+  if (!spoken?.turnId || !spoken.audio || !owner) return false;
+  const { turnId, audio } = spoken;
+  if (!spoken.receipt) {
+    pageReplies.set(turnId, { audio, owner });
+    const oldest = pageReplies.keys().next().value;
+    if (oldest && pageReplies.size > PAGE_REPLY_LIMIT) pageReplies.delete(oldest);
+    return false;
+  }
+  await keepNote({
+    key: turnId, audio, durationMs: spoken.durationMs,
+    words: "", open: false, at: Date.now(), owner, purpose: "chat-reply",
+  });
+  return true;
+}
+
 export async function readChatReplyAudio(key: string, owner: string): Promise<Blob | null> {
+  const sent = pageReplies.get(key);
+  if (sent?.owner === owner) return sent.audio;
   const note = memory.get(key) ?? (await run<OutboxNote>("readonly", (store) => store.get(key)))?.result;
   return note?.purpose === "chat-reply" && note.owner === owner ? note.audio : null;
 }

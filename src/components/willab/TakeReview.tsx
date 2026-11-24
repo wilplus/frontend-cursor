@@ -139,13 +139,18 @@ function liveRevision(head: Extract<IdealTextResult, { kind: "single" }>, take: 
   };
 }
 
-async function loadArtifact(project: string, take: TrainingTake, snippet?: string): Promise<Artifact> {
-  const [doc, versions] = await Promise.all([fetchIdealText(project), fetchIdealTextRevisions(project)]);
+function takeDocument(doc: IdealTextResult, versions: Awaited<ReturnType<typeof fetchIdealTextRevisions>>, take: TrainingTake) {
   const live = doc.kind === "single" && doc.latestTakeSessionId === take.sessionId;
   const version = versions.kind === "ready"
     ? versions.revisions.find((row) => row.takeIndex === take.takeIndex) ?? null : null;
   const revision = live && doc.kind === "single"
     ? { ...(version ?? liveRevision(doc, take)), text: doc.ideal.text } : version;
+  return { revision, live };
+}
+
+async function loadArtifact(project: string, take: TrainingTake, snippet?: string): Promise<Artifact> {
+  const [doc, versions] = await Promise.all([fetchIdealText(project), fetchIdealTextRevisions(project)]);
+  const { revision, live } = takeDocument(doc, versions, take);
   const evidence = await latestEvidence(project, take.sessionId, doc, snippet);
   if (evidence.moment || (live && !snippet)) return { revision, evidence, live };
   // The published per-Take fallback joins by session id. It must never
@@ -262,7 +267,7 @@ function reviewContextFocus(
 function TakeReviewDocument({
   artifact, take, project, copy, draft, saveMessage, savingEdit, onPracticeEnded, onEdit, onSave,
 }: {
-  artifact: Artifact | null;
+  artifact: Pick<Artifact, "live" | "revision"> | null;
   take: TrainingTake;
   project: TrainingArc;
   copy: ReviewRevision | null;
@@ -285,9 +290,36 @@ function TakeReviewDocument({
   </div>;
 }
 
+/** A document offered by an ordinary reply opens at that reply's position. */
+export function InlineTakeIdealText({ project, take, exitRef, onClose }: {
+  project: TrainingArc;
+  take: TrainingTake;
+  exitRef: MutableRefObject<ReviewExit | null>;
+  onClose: () => void;
+}) {
+  const [document, setDocument] = useState<Pick<Artifact, "live" | "revision"> | null>();
+  const [request, setRequest] = useState(0);
+  const { copy, draft, setDraft, saveMessage, savingEdit, exit } = useReviewEdits(project.arcId, take.sessionId, request, exitRef);
+  useEffect(() => {
+    let active = true;
+    void Promise.all([fetchIdealText(project.arcId), fetchIdealTextRevisions(project.arcId)]).then(([doc, versions]) => {
+      if (!active) return;
+      const result = takeDocument(doc, versions, take);
+      setDocument(result.live || result.revision ? result : null);
+    }, () => { if (active) setDocument(null); });
+    return () => { active = false; };
+  }, [project.arcId, take, request]);
+  if (document === undefined) return <TypingDots label="Loading Ideal Text" />;
+  if (!document) return <button type="button" className={LINK}
+    onClick={() => { setDocument(undefined); setRequest((n) => n + 1); }}>Reload Ideal Text</button>;
+  return <TakeReviewDocument artifact={document} take={take} project={project} copy={copy}
+    draft={draft?.ideal_sections} saveMessage={saveMessage} savingEdit={savingEdit} onPracticeEnded={onClose}
+    onEdit={(sections) => setDraft({ ideal_sections: sections })} onSave={() => void exit()} />;
+}
+
 export default function TakeReview({
   project, target, runs, messages, chat, recordingDock, exitRef, focusRef, onClose, onAsk, onPracticeEnded, renderFooter,
-  rememberOpening,
+  rememberOpening, savedWordings, onWordingSaved,
 }: {
   project: TrainingArc;
   target: TakeReviewTarget;
@@ -302,6 +334,8 @@ export default function TakeReview({
   onPracticeEnded: () => void;
   renderFooter?: (message: LoungeMessage) => ReactNode;
   rememberOpening?: (draft: LoungeMessageDraft) => Promise<unknown>;
+  savedWordings?: ReadonlySet<string>;
+  onWordingSaved?: () => void;
 }) {
   const { take } = target;
   const [artifact, setArtifact] = useState<Artifact | null>(null);
@@ -395,6 +429,7 @@ export default function TakeReview({
   const refer = (focus: ReviewFocus, quote: string) => onAsk({ ...target, focus, quote, live: inConversation });
   const row = (message: LoungeMessage, footer = renderFooter?.(message)) => <TakeConversationMessage key={message.client_id} message={message}
     project={project.arcId} recordingDock={recordingDock} replayOnly={target.replay}
+    wordingSaved={savedWordings?.has(message.client_id)} onWordingSaved={onWordingSaved}
     onRefer={(snippet, words) => refer({ step: "feedback", snippet_id: snippet }, words)}
     footer={footer} />;
   const document = <TakeReviewDocument artifact={artifact} take={take} project={project} copy={copy}
