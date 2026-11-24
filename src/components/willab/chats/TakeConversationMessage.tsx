@@ -7,6 +7,7 @@ import { chatArtifactContent } from "@/lib/willab/chatArtifact";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { takeSessionOf } from "@/lib/willab/takeExchange";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
+import { humanCoachOffer } from "@/services/api/humanCoach";
 import { withoutCoachTranscriptFooter } from "../willabHelpers";
 import CoachMoment from "../CoachMoment";
 import CoachVideo from "../CoachVideo";
@@ -17,6 +18,7 @@ import { isSavedPracticeAttempt, PastAttempt } from "../TakeReviewPracticeHistor
 import WalkPlayer from "../walk/WalkPlayer";
 import { ArtifactText, artifactDocument } from "./ReplyArtifact";
 import { ConversationBubble, ConversationDocument } from "./TakeConversation";
+import HumanCoachHandoff from "./HumanCoachHandoff";
 
 export default function TakeConversationMessage({
   message, project, recordingDock, footer, replayOnly, onRefer, standalone = false, children,
@@ -31,7 +33,7 @@ export default function TakeConversationMessage({
   standalone?: boolean;
   children?: ReactNode;
 }) {
-  const { own, clip, audio, video, ai, text, artifact, document, reference, snippet } = useMemo(() => takeMessageParts(message), [message]);
+  const { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff } = useMemo(() => takeMessageParts(message), [message]);
   const marker = { "data-project-message": project ? message.client_id : undefined };
   if (isSavedPracticeAttempt(message)) return <div {...marker} className={WILLAB_CONTENT_RAIL}><PastAttempt row={message} /></div>;
   if (ai && message.kind === "walk_step" && !audio && !video && !reference && !artifact) return <div {...marker} className={WILLAB_CONTENT_RAIL}>
@@ -39,7 +41,7 @@ export default function TakeConversationMessage({
       seed={message.client_id} avatar={null} />
   </div>;
   const showBubble = [text.trim(), audio, video, ai, reference, artifact?.moment,
-    artifact?.intervention, artifact?.output, children].some(Boolean);
+    artifact?.intervention, artifact?.output, handoff, children].some(Boolean);
   if (!showBubble && !document && !footer) return null;
   const example = video || ai ? <>
     {video ? <CoachVideo compact src={video} /> : null}
@@ -56,6 +58,7 @@ export default function TakeConversationMessage({
           durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
         <CoachMoment replayOnly={replayOnly} reference={reference} example={example} artifact={artifact}
           project={project} recordingDock={recordingDock} includeHistory={standalone} />
+        {handoff ? <HumanCoachHandoff offer={handoff} insideProject={Boolean(project)} /> : null}
         {children}
       </ConversationBubble> : null}
       {document ? <ConversationDocument title={document.title}><ArtifactText text={document.text} /></ConversationDocument> : null}
@@ -78,13 +81,14 @@ function takeMessageParts(message: LoungeMessage) {
   const reference = message.role === "bot" ? coachMomentFromMetadata(meta.coach_moment) : null;
   const snippet = [meta.snippet_id, clip?.snippet_id, reference?.snippet_id]
     .find((id): id is string => typeof id === "string");
-  return { own, clip, audio, video, ai, text, artifact, document, reference, snippet };
+  const handoff = message.role === "bot" ? humanCoachOffer(meta.human_coach_handoff) : null;
+  return { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff };
 }
 
 export function hasTakeReplyContent(message: LoungeMessage): boolean {
   if (message.role !== "bot") return false;
-  const { artifact, reference, audio, video, ai } = takeMessageParts(message);
-  return Boolean(artifact || reference || audio || video || ai);
+  const { artifact, reference, audio, video, ai, handoff } = takeMessageParts(message);
+  return Boolean(artifact || reference || audio || video || ai || handoff);
 }
 
 function TakeMessageCaption({ text, snippet, onRefer, linkify }: {

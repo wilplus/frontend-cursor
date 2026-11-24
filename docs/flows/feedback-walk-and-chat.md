@@ -98,6 +98,10 @@ The owning project plays the exact recording moment inside its reply bubble, wit
 
 When asked for a weaker moment, Project Chat gives one grounded observation and a cue to try on that passage. The Picker supplies the available activity for the exact fragment (N686). A speaker can also name a passage by its topic or refer to the last cited clip, including from an earlier authorised Take in the project. The coach can discuss how the speaker says it felt and what the recording supports in the same reply. The clip and any supplied practice use their original Take, while follow-up messages stay in the active exchange.
 
+#### Human coach handoff (N688)
+
+The Speaking Coach and its projects can show **Book a call** and **Send Take to Artur** inside one coach reply. The calendar uses live slots and shows the current duration and any amount due before booking. The private review confirmation names the exact Take and lists the full recording, Ideal Text and saved Feedback Walk. An optional short note accompanies Artur's private email link, which opens only for his account. His feedback returns to the owning project chat and stays outside training and blind review. Direct requests can show the actions. The structured reply also supports later calibration of offers after reappraisal or continued unease.
+
 #### Speakable wording in coaching replies
 
 When a recommendation changes what to say or how to say it, the coach gives one line the speaker can use, with a short delivery direction where it helps. Project Chat shows the line with **Practise** and **Save wording**. Practise uses the shared recording composer for a short local try and playback. Saving keeps the exact wording and its source Take in the project. The later Take can open the latest saved wording above the recording controls alongside its existing helper words.
