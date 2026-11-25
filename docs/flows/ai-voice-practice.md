@@ -79,7 +79,9 @@ speaker's own voice, said a little better**, then the speaker tries again.
 - **Never plays by itself.** The speaker taps play.
 - The lens and the chat show the same bubble (one thread, stored once).
 - When a Take reply carries an AI example, its player sits inside the reply
-  bubble alongside the cited recording and supplied instruction.
+  bubble alongside the supplied instruction. The cited original recording
+  accompanies it when the coach explicitly wants the speaker to hear that
+  moment (N694).
 - A corrective chat reply can serve an AI example for the next delivery cue
   after a confirmed improvement (N693). Its playback is tied to the exact
   recorded retry. The reply shows the cue and words to say, and the shared

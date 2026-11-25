@@ -10,15 +10,20 @@ export type CoachMomentReference = {
   snippet_id: string;
   practise: boolean;
   intervention?: ChatIntervention;
+  playback?: boolean;
 };
 
 export function coachMomentFromMetadata(raw: unknown): CoachMomentReference | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const { arc_id, take_session_id, snippet_id, practise, intervention } = raw as Partial<CoachMomentReference>;
+  const { arc_id, take_session_id, snippet_id, practise, intervention, playback } = raw as Partial<CoachMomentReference>;
   if (typeof arc_id !== "string" || !arc_id || typeof take_session_id !== "string" ||
       !take_session_id || typeof snippet_id !== "string" || !snippet_id) return null;
   const tool = CHAT_INTERVENTIONS.find((value) => value === intervention);
-  return { arc_id, take_session_id, snippet_id, practise: practise === true, ...(tool ? { intervention: tool } : {}) };
+  return {
+    arc_id, take_session_id, snippet_id, practise: practise === true,
+    ...(tool ? { intervention: tool } : {}),
+    ...(typeof playback === "boolean" ? { playback } : {}),
+  };
 }
 
 export function prepareCoachMomentAudio({ arc_id, take_session_id, snippet_id }: CoachMomentReference, coachReplyId?: string) {
