@@ -11,7 +11,7 @@
 /*                                                                            */
 /*  and V4's pick sheet (founder S-B8 A, 2026-10-07; build plan D-ML-14).     */
 /*  "Pick the most confident" and "Which sounds surer" are gone (backend      */
-/*  N701, 25 November 2026),                                                  */
+/*  N702, 25 November 2026),                                                  */
 /*  drawn exactly as the signed prototype shows them:                         */
 /*                                                                            */
 /*    V4MomentPickSheet  "Pick the moment for feedback": up to three moments   */

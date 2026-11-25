@@ -2,7 +2,7 @@
 /*
 STORY    As the founder, I want Training to be the one page where I label
          moments, so that what I teach goes to the two pickers and nothing
-         else is in the way (backend N701).
+         else is in the way (backend N702).
 OUTCOME
   O1  The founder's Training is the labeling page: the coach's queues on
       top, then Your Takes, Training Corpus and Pattern Library; no kept-

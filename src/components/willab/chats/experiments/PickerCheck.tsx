@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bubble } from "./bits";
 import { patternRequest, speakingPatternPath } from "./speakingPatterns";
 
-/* Your labels as the golden set for both pickers (backend N701). Founder
+/* Your labels as the golden set for both pickers (backend N702). Founder
    only, a report: nothing here changes what the app serves. */
 
 type Tally = { agree: number; differ: number; unknown: number };

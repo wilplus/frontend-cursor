@@ -138,7 +138,7 @@ export type BlindRows = {
   audit: ErrorAuditQueue | null;
   onOpenAudit: () => void;
   /** V4's blind pick sheet (S-B8 A), under the same line. "Pick the most
-   *  confident" and "Which sounds surer" are gone (backend N701). */
+   *  confident" and "Which sounds surer" are gone (backend N702). */
   v4Picks?: V4MomentPickQueue | null;
   onOpenV4Picks?: () => void;
   /** The founder's ⋯ → Delete on a line; absent for every other coach.

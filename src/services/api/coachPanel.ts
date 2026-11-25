@@ -286,7 +286,7 @@ export async function answerErrorAudit(
 }
 
 /* ── V4's blind sheet (B1.8; founder S-B8 A). Which sounds surer and the  */
-/*    blind block pick are gone (backend N701).                             */
+/*    blind block pick are gone (backend N702).                             */
 /*    GET /coach/v4-moment-picks, POST …/:id/answer  → Pick the moment       */
 /*  Words, audio and letters only: the machine's picks, the slice and the    */
 /*  level never reach the client (BLIND COACH, AC-9).                         */

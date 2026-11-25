@@ -34,7 +34,7 @@ export default function AiDoor({ onBindBack }: { onBindBack: (fn: (() => boolean
   }, [door]);
 
   // The founder's Training is the labeling page itself, the coach queues on
-  // top (backend N701); everyone else keeps their models and what they teach.
+  // top (backend N702); everyone else keeps their models and what they teach.
   if (door === "training" && founder) return <SpeakingCalibration top={<BuildModels queuesOnly />} />;
   if (door === "training") return <Training />;
   if (door === "experiments") return <Experiments onBindBack={(fn) => { inner.current = fn; }} />;

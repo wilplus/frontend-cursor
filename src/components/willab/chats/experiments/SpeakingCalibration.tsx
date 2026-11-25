@@ -38,7 +38,7 @@ type RecordOfMoment = {
 type RecordResponse = { revision: number; record: RecordOfMoment | null; cues: Cues };
 type Retry = { text: string; receipt: string; cues: Cues; pace?: string | null };
 
-/** The founder's Training (backend N701): one page, the coach queues on top
+/** The founder's Training (backend N702): one page, the coach queues on top
  *  (`top`), then the clips to label from your Takes or the Training Corpus. */
 export default function SpeakingCalibration({ top }: { top?: ReactNode }) {
   const [source, setSource] = useState<"take" | "corpus" | "library">("take");
