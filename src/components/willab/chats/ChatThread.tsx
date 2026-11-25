@@ -760,8 +760,8 @@ export function SendingPill({ name, startedAt, waited, failed }: { name: string;
   );
 }
 
-/** The chat recipe controls the actions available in the shared composer. */
-function memberComposer({
+/** The people bar's recipe supplies the same controls in either conversation layout. */
+function PeopleBar({
   chat, takes, legacy, asked, status, busy, onRecordAnswer, onSay, onPhoto, onFile,
 }: {
   chat: Chat;
@@ -1073,7 +1073,7 @@ export default function ChatThread({
   </>;
   const composer = safety.blocked
     ? { textDisabled: true, above: <BlockedBar name={chat.title} onUnblock={safety.unblock} /> }
-    : memberComposer({
+    : PeopleBar({
       chat, takes, legacy,
       asked: { question: answer.question, slides: answer.slides, taps: setup.answers !== null, photo: answer.photo },
       status: setup.send ?? pendingNotice(pending),
