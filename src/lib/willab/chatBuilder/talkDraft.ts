@@ -2,7 +2,7 @@
    network, so a draft cannot reach production. Recording, Ideal Text and
    the walk read it through usePublishedCoach. */
 
-import { startersFor } from "@/components/willab/chats/hostsetup/jobQuestions";
+import { helloFor, startersFor } from "@/components/willab/chats/hostsetup/jobQuestions";
 import { speakingCoachSeed } from "./seed";
 import { markTileStep } from "./tileSteps";
 import type { CoachDefinition, PluginType } from "./types";
@@ -109,7 +109,7 @@ function shop(snap: TalkSnap): CoachDefinition {
       name: snap.spec || null,
       send: snap.send.length ? [...snap.send] : base.chat.send,
       who: snap.who,
-      hello: snap.hello || (snap.spec === "Speaking coach" ? base.chat.hello : "Your chat is ready."),
+      hello: snap.hello || (snap.spec === "Speaking coach" ? base.chat.hello : helloFor(snap.spec)),
       taps: (snap.starters?.length ? snap.starters : startersFor(snap.spec)).slice(0, 3),
       questions: snap.asked ? [{ q: snap.asked }] : [{ q: "What do you want to know?" }],
     },

@@ -18,7 +18,7 @@ const state = vi.hoisted(() => ({
 vi.mock("../useSignedIn", () => ({ useSignedIn: () => session.signedIn }));
 vi.mock("../useUserId", () => ({ useUserId: () => session.signedIn ? "signed-in-owner" : null }));
 vi.mock("@/services/api/chatStructure", () => ({
-  fetchChatStructure: async () => ({ coach: "active", builder: "active", subchats: [] }),
+  fetchChatStructure: async () => ({ coach: "active", builder: "active" }),
   changeChatStructure: vi.fn(),
 }));
 vi.mock("./useChats", () => ({

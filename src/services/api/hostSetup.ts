@@ -247,6 +247,14 @@ export async function askReply(chatId: string, json: Record<string, unknown>): P
   return (await call(`/api/v2/chats/${encodeURIComponent(chatId)}/reply`, { method: "POST", json })) as AskReply | null;
 }
 
+/** Will's first taps and hello for a job typed in the talk. Nothing is kept. */
+export async function suggestJob(spec: string): Promise<{ taps: string[]; hello: string } | null> {
+  const body = await call("/api/v2/chats/setup/suggest", { method: "POST", json: { spec } });
+  const taps = list<string>(body?.taps).filter((tap) => typeof tap === "string" && tap.trim());
+  const hello = typeof body?.hello === "string" ? body.hello.trim() : "";
+  return body && taps.length ? { taps: taps.slice(0, 3), hello } : null;
+}
+
 export async function tryMyChat(text: string): Promise<ReplyLine[] | null> {
   const body = await call("/api/v2/chats/setup/try", { method: "POST", json: { body: text } });
   return body ? list<ReplyLine>(body.messages) : null;

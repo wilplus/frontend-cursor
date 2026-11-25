@@ -7,7 +7,7 @@ import { Archive, Trash2 } from "lucide-react";
 import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import type { Chat } from "@/services/api/chats";
 import type { TrainingArc } from "@/services/api/trainings";
-import { fetchCoachDeletionProjects, type CoachProject, type Subchat } from "@/services/api/chatStructure";
+import { fetchCoachDeletionProjects, type CoachProject } from "@/services/api/chatStructure";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText } from "@/lib/uiLocale";
 import { refreshProjectTrainings } from "@/lib/willab/projectTrainings";
@@ -32,7 +32,7 @@ const InquiryThread = dynamic(() => import("./InquiryThread"), { ssr: false, loa
 type Destination =
   | { kind: "coach" }
   | { kind: "builder" }
-  | { kind: "built"; name: string; section: Subchat | "main" }
+  | { kind: "built"; name: string }
   | { kind: "person"; chat: Chat };
 
 type Options = {
@@ -63,7 +63,7 @@ type ChatsDoor = {
 
 function chatKey(destination: Destination): string {
   if (destination.kind === "person") return `person:${destination.chat.id}`;
-  if (destination.kind === "built") return `built:${destination.section === "main" ? "main" : destination.section.id}`;
+  if (destination.kind === "built") return "built:main";
   return destination.kind;
 }
 
@@ -84,9 +84,7 @@ function conversationStatus(destination: Destination, project: TrainingArc | nul
 function availableDestination(destination: Destination, layout: NonNullable<ReturnType<typeof useChatStructure>["layout"]>) {
   if (destination.kind === "builder") return layout.builder === "active";
   if (destination.kind !== "built") return true;
-  if (layout.builder !== "active") return false;
-  const { section } = destination;
-  return section === "main" || layout.subchats.some((chat) => chat.id === section.id && !chat.archived);
+  return layout.builder === "active";
 }
 
 export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, options?: Options): ChatsDoor {
@@ -180,7 +178,7 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       onRemoveProject={options?.onRemoveProject}
       onStartNewProject={startProject}
       onOpenOwnChat={() => open({ kind: "builder" })}
-      onOpenOwnSection={(name, section) => open({ kind: "built", name, section })}
+      onOpenOwnSection={(name) => open({ kind: "built", name })}
     /> : null,
     pane: enabled && !project && !pendingKey && !hosted ? <ConversationPane
       destination={destination}
