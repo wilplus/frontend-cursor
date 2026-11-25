@@ -140,6 +140,7 @@ export function useChatTurnOutbox(thread: UseLoungeThreadReturn, userId: string 
 
   return {
     ready: key !== null, messages, turns, begin, deliver, forget,
+    processingVoice: turns.some((t) => t.user.metadata?.voice_clip === true && active.has(t.user.client_id)),
     waitingForHistory: thread.loading && kept.length === 0,
     readingHistory: thread.loading && !thread.unanswered,
     busy: (local: boolean) => local || turns.some((t) => active.has(t.user.client_id)),

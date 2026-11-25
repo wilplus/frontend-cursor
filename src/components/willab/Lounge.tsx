@@ -4,8 +4,9 @@ import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState
 import ChatComposer, { type ChatComposerProps, type ComposerFileAction } from "./chats/ChatComposer";
 import { ChatArtifactScope } from "./chats/ChatArtifact";
 import { useComposerVoice } from "./chats/useComposerVoice";
+import { ChatPracticeContext, useSpeakingPractice } from "./chats/ChatPractice";
 import LoungeTakeConversation, { type TakeCitation } from "./LoungeTakeConversation";
-import { takeSessionOf } from "@/lib/willab/takeExchange";
+import { isChatPracticeTurn, takeSessionOf } from "@/lib/willab/takeExchange";
 import type { PlanLounge } from "./plan/usePlanLounge";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { fetchTrainings } from "@/services/api/trainings";
@@ -28,7 +29,7 @@ import {
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
-import { coachMomentFromMetadata } from "@/services/api/coachMoment";
+import { coachMomentFromMetadata, type CoachMomentReference } from "@/services/api/coachMoment";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
 import { type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -211,7 +212,7 @@ import { WayInTop } from "./plan/WayIn";
 import { firstTakeArcOf } from "@/lib/willab/wayIn";
 import { DayLine, dayLinesFor } from "./plan/dayLines";
 import { hostRowsAround } from "./chats/hostChatMessages";
-import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
+import TypingDots, { ChatRecordingStatus, CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import type { TakeInProject } from "@/lib/willab/takeInProject";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
@@ -617,6 +618,21 @@ function memberConversationState(
   };
 }
 
+function loungeTurnScope(question: LoungeMessage | null, citation: TakeCitation | null, practice: CoachMomentReference | null) {
+  if (practice) return {
+    scopedQuestion: null, arcId: practice.arc_id, takeId: practice.take_session_id,
+    reviewFocus: { step: "practise" as const, snippet_id: practice.snippet_id },
+  };
+  const questionProject = projectQuestionTurn(question);
+  const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
+  return {
+    scopedQuestion,
+    arcId: citation?.arcId ?? questionProject?.arcId,
+    takeId: citation?.takeId ?? questionProject?.takeSessionId,
+    reviewFocus: citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined,
+  };
+}
+
 function MemberConversationFrame({ member, children }: { member?: MemberChatContent; children: ReactNode }) {
   return <>{member?.header}{children}{member?.overlays}</>;
 }
@@ -736,26 +752,40 @@ export default function Lounge({
   const [thinkingHere, setBotThinking] = useState(false);
   const botThinking = outbox.busy(thinkingHere);
   const prepareOnStop = !wordsAlways(place);
-  const voiceScope = JSON.stringify([draftScope, citation?.takeId, citation?.focus]);
+  const chatPractice = useSpeakingPractice(messages, place, openChat, citation, memberState.reviewing);
+  const voiceScope = JSON.stringify([draftScope, citation?.takeId, citation?.focus, chatPractice.replyId]);
   const stagedVoice = draft.voice?.scope === voiceScope ? draft.voice : null;
+  function hostedPractice(replyId?: string) {
+    return openChat && replyId && replyId === chatPractice.replyId ? chatPractice.reference : null;
+  }
   const reviewVoice = useComposerVoice({
     enabled: thread.signedIn && memberState.useTakeComposer,
     held: botThinking || !outbox.ready,
     maxSeconds: 120,
     prepareOnStop,
+    ready: chatPractice.ready,
+    practiceReplyId: chatPractice.replyId,
+    onStream: chatPractice.listen,
     label: "Record your answer",
     scope: voiceScope,
-    onSend: async (audio, duration, turnId) => {
+    onSend: async (audio, duration, turnId, practiceReplyId) => {
       if (!outbox.isCurrent()) return false;
-      const linked = projectQuestionTurn(openProjectQuestion(shownMessages));
-      const target = citation ?? (linked ? { arcId: linked.arcId, takeId: linked.takeSessionId } : undefined);
+      const linked = practiceReplyId ? null : projectQuestionTurn(openProjectQuestion(shownMessages));
+      const practice = hostedPractice(practiceReplyId);
+      const target = practice ? { arcId: practice.arc_id, takeId: practice.take_session_id }
+        : citation ?? (linked ? { arcId: linked.arcId, takeId: linked.takeSessionId } : undefined);
       const spoken = await transcribeChatAnswer(audio, duration, target, prepareOnStop ? {
-        turnId, projectId: target?.arcId, snippetId: citation?.focus?.snippet_id,
+        turnId, projectId: target?.arcId, snippetId: practice?.snippet_id ?? citation?.focus?.snippet_id,
+        ...(practiceReplyId ? { practiceReplyId } : {}),
       } : undefined);
       if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== draftScope || !outbox.isCurrent()) return false;
       if (prepareOnStop) {
         if (!turnId) return false;
-        draft.prepare({ scope: voiceScope, answer: { ...spoken, turnId, audio } });
+        const answer = { ...spoken, turnId, audio };
+        if (practiceReplyId) {
+          return Boolean(spoken.receipt) && await handleSend({ ...answer, practiceReplyId });
+        }
+        draft.prepare({ scope: voiceScope, answer });
         return true;
       }
       return handleSend({ ...spoken, turnId });
@@ -863,7 +893,8 @@ export default function Lounge({
     for (const { message } of threadItems) {
       const takeId = takeSessionOf(message);
       const arcId = projectIdOf(message);
-      if (!takeId || !arcId || message.metadata?.take_exchange === false || !shownIn(message, place, openChat)) continue;
+      if (!takeId || !arcId || message.metadata?.take_exchange === false ||
+          isChatPracticeTurn(message) || !shownIn(message, place, openChat)) continue;
       const group = groups.get(takeId) ?? { arcId, takeId, rows: [] };
       if (group.arcId !== arcId) continue;
       group.rows.push(message);
@@ -1990,7 +2021,7 @@ export default function Lounge({
         sendingRef.current = false;
       }
       if (!outbox.isCurrent()) return false;
-      const question = openProjectQuestion(shownMessages);
+      const question = spoken.practiceReplyId ? null : openProjectQuestion(shownMessages);
       setDraftText("");
       await sendTypedTurn(beginTypedTurn(q, question, submittedDraft, spoken));
       return true;
@@ -2185,11 +2216,7 @@ export default function Lounge({
   }
 
   function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, spoken?: SpokenChatAnswer) {
-    const questionProject = projectQuestionTurn(question);
-    const arcId = citation?.arcId ?? questionProject?.arcId;
-    const takeId = citation?.takeId ?? questionProject?.takeSessionId;
-    const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
-    const reviewFocus = citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined;
+    const { scopedQuestion, arcId, takeId, reviewFocus } = loungeTurnScope(question, citation, hostedPractice(spoken?.practiceReplyId));
     const turnPlace = openChat ? null : place;
     const hint = typedHint(turnPlace, arcId, openChat);
     const scope = arcId && takeId ? {
@@ -2202,6 +2229,7 @@ export default function Lounge({
     } : null;
     const metadata = { ...hint, ...scope, ...(spoken ? {
       will_voice: true, duration_ms: spoken.durationMs, ...(spoken.audio && spoken.receipt ? { voice_clip: true } : {}),
+      ...(spoken.practiceReplyId ? { chat_practice_reply_id: spoken.practiceReplyId } : {}),
     } : {}) };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
@@ -2314,7 +2342,7 @@ export default function Lounge({
 
   const drawShown = (item: ThreadItem, i: number) => {
     const id = item.message.client_id;
-    const take = item.message.metadata?.take_exchange !== false
+    const take = item.message.metadata?.take_exchange !== false && !isChatPracticeTurn(item.message)
       ? takeConversations.get(takeSessionOf(item.message) ?? "") : undefined;
     if (take) {
       if (take.anchor !== id) return null;
@@ -2440,6 +2468,7 @@ export default function Lounge({
        gap under it: what scrolls stops 8px above the bar, as the bar keeps
        8px from the sides and the bottom (N505). The column is the shared
        1080px app canvas, aligned with the logo and hamburger. */}
+    <ChatPracticeContext.Provider value={chatPractice}>
     <div data-member-take-chat={member?.id}
       className={`${WILLAB_CONTENT_RAIL} relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden`}>
       {/* The lenses open as fixed overlays (WalkStage); closed, each is still
@@ -2554,7 +2583,8 @@ export default function Lounge({
 
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
-        <ThreadDots thinking={botThinking} writing={thread.writing} />
+        <ThreadDots thinking={botThinking} writing={thread.writing}
+          preparingVoice={reviewVoice.sending} processingVoice={outbox.processingVoice} />
       </ChatScroll>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
@@ -2669,6 +2699,7 @@ export default function Lounge({
         />
       ) : null}
     </div>
+    </ChatPracticeContext.Provider>
     </MemberConversationFrame>
   );
 }
@@ -3414,7 +3445,10 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
 
 /** The Lounge's one wait under the thread (B8): a reply being written, or
  *  the walk's summary and the chain after it. */
-function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean }) {
+function ThreadDots({ thinking, writing, preparingVoice, processingVoice }: {
+  thinking: boolean; writing: boolean; preparingVoice: boolean; processingVoice: boolean;
+}) {
+  if (preparingVoice || processingVoice) return <ChatRecordingStatus preparing={preparingVoice} />;
   return thinking || writing ? <TypingDots /> : null;
 }
 

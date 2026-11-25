@@ -15,6 +15,10 @@ export function takeSessionOf(message: Pick<LoungeMessage, "metadata">): string 
   return typeof id === "string" && id ? id : null;
 }
 
+export function isChatPracticeTurn({ metadata }: Pick<LoungeMessage, "metadata">): boolean {
+  return Boolean(metadata?.chat_practice || metadata?.chat_practice_reply_id || metadata?.chat_practice_completed);
+}
+
 function plainProjectTurn(message: LoungeMessage): boolean {
   const meta = message.metadata;
   if (typeof meta?.take_exchange === "boolean") return !meta.take_exchange;
@@ -41,6 +45,7 @@ export function withProjectChatPlacement(messages: readonly LoungeMessage[]): Lo
 /** The recording and the document have their own rows in the exchange. */
 export function isTakeExchangeMessage(message: LoungeMessage): boolean {
   const meta = message.metadata;
+  if (isChatPracticeTurn(message)) return false;
   const outside = meta?.take_exchange === false ||
     (meta?.take_exchange !== true && meta?.[TYPED_PROJECT_TURN] === true && meta?.reply_to === "" && !meta.review_focus);
   return !outside && message.role !== "system" && !["recording_summary", "transcript_ready", "ideal_text"].includes(message.kind) &&

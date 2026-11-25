@@ -62,10 +62,19 @@ const state = vi.hoisted(() => ({
   startVoice: vi.fn(),
 }));
 const wordingApi = vi.hoisted(() => ({ save: vi.fn() }));
-const momentApi = vi.hoisted(() => ({ clip: vi.fn() }));
+const momentApi = vi.hoisted(() => ({ clip: vi.fn(), prepare: vi.fn(), readVoice: vi.fn() }));
 vi.mock("@/services/api/coachMoment", async (load) => ({
   ...await load<typeof import("@/services/api/coachMoment")>(),
   fetchCoachMoment: momentApi.clip,
+  prepareCoachMomentAudio: momentApi.prepare,
+}));
+vi.mock("@/services/api/aiVoice", async (load) => ({
+  ...await load<typeof import("@/services/api/aiVoice")>(),
+  readAiVoice: momentApi.readVoice,
+}));
+vi.mock("@/services/api/consentChoices", async (load) => ({
+  ...await load<typeof import("@/services/api/consentChoices")>(),
+  readPractiseOffered: vi.fn(async () => true),
 }));
 vi.mock("@/services/api/coachWording", async (load) => ({
   ...await load<typeof import("@/services/api/coachWording")>(),
@@ -114,17 +123,18 @@ vi.mock("@/services/api/willQuestion", async (load) => ({
   postWillQuestion: (...args: unknown[]) => state.willQuestion(...args),
   transcribeChatAnswer: (...args: unknown[]) => state.transcribeChatAnswer(...args),
 }));
-// The browser media capture is exercised by the shared composer. Deliver a
-// stopped recording here to verify which request and conversation it reaches.
-vi.mock("./chats/useComposerVoice", () => ({
-  useComposerVoice: ({ label, enabled, onSend, prepareOnStop }: {
-    label: string; enabled: boolean; prepareOnStop: boolean;
-    onSend: (audio: Blob, duration: number, turn: string) => Promise<boolean>;
+// Deliver a stopped recording through the real composer hook without browser media.
+vi.mock("./useVoiceNote", () => ({
+  useVoiceNote: ({ onDone }: {
+    onDone: (sample: { audio: Blob; durationMs: number; key: string }) => Promise<void>;
   }) => ({
-    mic: enabled ? {
-      label,
-      start: () => { state.startVoice(prepareOnStop); void onSend(new Blob(["spoken"]), 1800, "d166833f-8b09-400c-8188-5a1306430011"); },
-    } : undefined,
+    phase: "idle",
+    start: () => {
+      state.startVoice();
+      const key = state.startVoice.mock.calls.length === 1
+        ? "d166833f-8b09-400c-8188-5a1306430011" : crypto.randomUUID();
+      void onDone({ audio: new Blob(["spoken"]), durationMs: 1800, key });
+    },
   }),
 }));
 vi.mock("./useBackDismiss", () => ({ useBackDismiss: () => undefined }));
@@ -253,6 +263,8 @@ beforeEach(() => {
   reviewApi.runs.mockReset().mockResolvedValue({});
   reviewApi.steps.mockReset().mockResolvedValue([]);
   momentApi.clip.mockReset().mockResolvedValue(null);
+  momentApi.prepare.mockReset().mockResolvedValue({ ok: false });
+  momentApi.readVoice.mockReset().mockResolvedValue({ ok: false });
 });
 
 afterEach(() => {
@@ -347,7 +359,7 @@ describe("project conversation", () => {
     await flush();
     act(() => (host.querySelector("[data-chat-mic]") as HTMLButtonElement).click());
     await flush();
-    expect(state.startVoice).toHaveBeenCalledExactlyOnceWith(true);
+    expect(state.startVoice).toHaveBeenCalledOnce();
     expect(state.transcribeChatAnswer).toHaveBeenCalledWith(expect.any(Blob), 1800, undefined, {
       turnId: "d166833f-8b09-400c-8188-5a1306430011", projectId: "arc-a", snippetId: undefined,
     });
@@ -356,10 +368,17 @@ describe("project conversation", () => {
     expect(state.attachChatVoice).not.toHaveBeenCalled();
     expect(state.chatQuery).not.toHaveBeenCalled();
 
+    let finishAttachment!: (attached: boolean) => void;
+    state.attachChatVoice.mockReturnValueOnce(new Promise<boolean>((resolve) => { finishAttachment = resolve; }));
     enterAnswer("That was my main intention.");
     submitAnswer();
     await flush();
     expect(state.attachChatVoice).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking how your recording sounds");
+    expect(state.chatQuery).not.toHaveBeenCalled();
+    finishAttachment(true);
+    await flush();
+    expect(host.textContent).not.toContain("Checking how your recording sounds");
     expect(state.chatQuery.mock.calls[0][0]).toMatchObject({
       clientId: "d166833f-8b09-400c-8188-5a1306430011",
       projectId: "arc-a", question: "That was my main intention.", presentationContext: { completed_takes: 0 },
@@ -1457,4 +1476,73 @@ describe("project conversation", () => {
     const input = host.querySelector<HTMLTextAreaElement>('[data-project-question-composer] textarea');
     expect(input?.value).toBe(draft);
   });
+});
+
+it("shows Sniper with the line, sends the retry from the one mic, and then offers the matching AI example", async () => {
+  const moment = { arc_id: "arc-a", take_session_id: "take-a", snippet_id: "clip-a", practise: true };
+  const words = "Otóż nie, nie znam.";
+  const retryId = "d166833f-8b09-400c-8188-5a1306430011";
+  const audio = "https://media.example/chat-opening.mp3";
+  const guidance = "Dodaj nieco energii w pierwszej części zdania.";
+  const preparingAudio = deferred<unknown>();
+  const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+  try {
+    state.messages = [message("sniper-offer", "Utrzymaj piłeczkę na środku paska.", "bot", {
+      coach_moment: { ...moment, intervention: "sniper" },
+      chat_practice: { tool: "sniper", words },
+    })];
+    state.transcribeChatAnswer.mockResolvedValueOnce({ text: words, durationMs: 1800, receipt: "sniper-receipt" });
+    state.chatQuery.mockResolvedValueOnce({
+      persisted: true, persisted_client_id: "opening-offer", answer: "Świetnie, tempo jest w porządku.",
+      row_metadata: {
+        coach_moment: { ...moment, intervention: "ai_audio" },
+        chat_practice: { tool: "ai_audio", words, retry_message_id: retryId, guidance },
+      },
+    });
+    momentApi.prepare.mockResolvedValue({ ok: true, data: "practice-id" });
+    momentApi.readVoice.mockReturnValueOnce(preparingAudio.promise);
+    render({
+      ...project, takeCount: 2,
+      takes: [...project.takes, { ...project.takes[0]!, sessionId: "take-b", takeIndex: 2 }],
+    });
+    await flush();
+
+    const sniper = host.querySelector('[data-coach-intervention="sniper"]');
+    expect(sniper?.querySelector('canvas[aria-label="Sniper"]')).toBeTruthy();
+    expect(sniper?.querySelector("[data-practice-words]")?.textContent).toBe(words);
+    const mic = host.querySelector<HTMLButtonElement>("[data-chat-mic][data-practice-ready]")!;
+    expect(mic).toBeTruthy();
+    expect(host.querySelectorAll("[data-chat-mic]")).toHaveLength(1);
+    await act(async () => mic.click());
+    await flush();
+    expect(state.transcribeChatAnswer).toHaveBeenCalledWith(expect.any(Blob), 1800,
+      { arcId: "arc-a", takeId: "take-a" }, expect.objectContaining({ practiceReplyId: "sniper-offer", snippetId: "clip-a" }));
+    expect(state.attachChatVoice).toHaveBeenCalledTimes(1);
+    expect(state.chatQuery).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-project-message="opening-offer"]')?.textContent).toContain("tempo jest w porządku");
+    expect(momentApi.prepare).toHaveBeenCalledWith(expect.objectContaining(moment), "opening-offer");
+    expect(momentApi.readVoice).toHaveBeenCalledWith("practice-id", retryId);
+    expect(host.textContent).not.toContain(guidance);
+    expect(host.querySelector("[data-chat-mic][data-practice-ready]")).toBeNull();
+    preparingAudio.resolve({ ok: true, data: {
+      demo: "ai_voice", clip: { state: "ready", url: audio, durationMs: 1800 },
+    } });
+    await flush();
+    expect(host.textContent).toContain(guidance);
+    expect(host.querySelector('[data-coach-intervention="ai_audio"] audio')?.getAttribute("src")).toBe(audio);
+    expect(host.querySelector("[data-chat-mic][data-practice-ready]")).toBeTruthy();
+    state.transcribeChatAnswer.mockResolvedValueOnce({ text: words, durationMs: 1600, receipt: "opening-receipt" });
+    state.chatQuery.mockResolvedValueOnce({
+      persisted: true, persisted_client_id: "opening-done", answer: "Początek teraz wybrzmiewa mocniej.",
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-chat-mic][data-practice-ready]")!.click());
+    await flush();
+    expect(state.transcribeChatAnswer).toHaveBeenLastCalledWith(expect.any(Blob), 1800,
+      { arcId: "arc-a", takeId: "take-a" }, expect.objectContaining({ practiceReplyId: "opening-offer", snippetId: "clip-a" }));
+    expect(host.textContent).toContain("Początek teraz wybrzmiewa mocniej.");
+    expect(host.querySelector("[data-chat-mic][data-practice-ready]")).toBeNull();
+    expect(onRecord).not.toHaveBeenCalled();
+  } finally {
+    canvas.mockRestore();
+  }
 });

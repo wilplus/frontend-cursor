@@ -1,5 +1,7 @@
 "use client";
 
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+
 /* -------------------------------------------------------------------------- */
 /*  The "typing" animation (Lounge U4): three dots bouncing out of phase.      */
 /*  One animation for the chat and the walk, so a wait reads the same          */
@@ -26,10 +28,21 @@ export function TypingGlyph({ className }: { className?: string }) {
  *  bubble. Replaces the static "…" so the wait reads as a live, responsive
  *  chat — and pairs with the U3 bubble-split (typing → a few short bubbles
  *  land). */
-export default function TypingDots({ label = "Librarian is typing" }: { label?: string }) {
+export default function TypingDots({ label = "Librarian is typing", showLabel = false }: { label?: string; showLabel?: boolean }) {
   return (
-    <div role="status" aria-label={label} data-typing-dots="" className="mr-auto flex items-center rounded-2xl bg-muted px-3.5 py-3">
+    <div role="status" aria-label={label} data-typing-dots="" className="mr-auto flex items-center gap-2.5 rounded-2xl bg-muted px-3.5 py-3">
       <TypingGlyph />
+      {showLabel ? <span className="text-sm text-muted-foreground">{label}</span> : null}
     </div>
   );
+}
+
+const RECORDING_STATUS = {
+  en: { preparing: "Transcribing your recording…", sent: "Checking how your recording sounds…" },
+  pl: { preparing: "Spisuję nagranie…", sent: "Sprawdzam, jak brzmi Twoje nagranie…" },
+};
+
+export function ChatRecordingStatus({ preparing }: { preparing: boolean }) {
+  const copy = RECORDING_STATUS[useUiLocale()];
+  return <TypingDots label={preparing ? copy.preparing : copy.sent} showLabel />;
 }

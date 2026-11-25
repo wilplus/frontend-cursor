@@ -470,7 +470,8 @@ rejected as a new answer.
 O4  The general coach keeps old advice as text and shows the weekly
 note while project artifacts stay inside the project.
 O5  A hosted chat shows the host's messages and Take feedback in
-one timeline, routes each reply, and opens a new Take in place.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
+one timeline, routes each reply, and opens a new Take in place.
+Its consented practice uses that Take and the server's cited fragment.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
 O2 -> ""keeps a refused quick choice once with an explicit recoverable error""
 O3 -> ""keeps a structured contextual turn ordered through refresh and scrolls both sides into view""
 O3 -> ""does not replay an old terminal walk line as the answer to a new message""

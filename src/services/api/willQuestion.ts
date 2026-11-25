@@ -52,7 +52,7 @@ export async function postWillQuestionVoice(
   }
 }
 
-export type SpokenChatAnswer = { text: string; durationMs: number; receipt?: string; turnId?: string; audio?: Blob };
+export type SpokenChatAnswer = { text: string; durationMs: number; receipt?: string; turnId?: string; audio?: Blob; practiceReplyId?: string };
 
 export const chatVoicePath = (turn: string) => "/api/v2/chat/voice/" + encodeURIComponent(turn);
 
@@ -69,7 +69,7 @@ export async function attachChatVoice(turn: string, audio: Blob, receipt: string
 /** Hear this recording once. Carry its authorised evidence with the outbox turn. */
 export async function transcribeChatAnswer(
   audio: Blob, durationMs: number, take?: { arcId: string; takeId: string },
-  attempt?: { turnId?: string; projectId?: string; snippetId?: string },
+  attempt?: { turnId?: string; projectId?: string; snippetId?: string; practiceReplyId?: string },
 ): Promise<SpokenChatAnswer | null> {
   const form = new FormData();
   const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
@@ -78,6 +78,7 @@ export async function transcribeChatAnswer(
   if (attempt?.turnId) form.append("voice_turn_id", attempt.turnId);
   if (attempt?.projectId) form.append("project_id", attempt.projectId);
   if (attempt?.snippetId) form.append("snippet_id", attempt.snippetId);
+  if (attempt?.practiceReplyId) form.append("chat_practice_reply_id", attempt.practiceReplyId);
   const path = take
     ? `/api/v2/explore/arc/${encodeURIComponent(take.arcId)}/will-question/voice`
     : "/api/v2/chat/voice";

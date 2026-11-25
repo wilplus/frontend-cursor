@@ -61,8 +61,15 @@ export function ensureAiVoice(practiceId: string): Promise<Outcome<AiVoiceState>
   return call(path(practiceId), { method: "POST", body: {} }, mapAiVoice);
 }
 
-export function readAiVoice(practiceId: string): Promise<Outcome<AiVoiceState>> {
-  return call(path(practiceId), { method: "GET" }, mapAiVoice);
+export function readAiVoice(practiceId: string, chatRetryId?: string): Promise<Outcome<AiVoiceState>> {
+  const tail = chatRetryId ? "/chat/" + encodeURIComponent(chatRetryId) : "";
+  return call(path(practiceId, tail), { method: "GET" }, (data) => {
+    const state = mapAiVoice(data);
+    if (chatRetryId && state.clip?.state === "ready" && state.clip.url) {
+      state.clip.url = path(practiceId, tail + "/audio");
+    }
+    return state;
+  });
 }
 
 /* What this page already knows of each practice's clip: the walk's host asks

@@ -21,10 +21,10 @@ export function coachMomentFromMetadata(raw: unknown): CoachMomentReference | nu
   return { arc_id, take_session_id, snippet_id, practise: practise === true, ...(tool ? { intervention: tool } : {}) };
 }
 
-export function prepareCoachMomentAudio({ arc_id, take_session_id, snippet_id }: CoachMomentReference) {
+export function prepareCoachMomentAudio({ arc_id, take_session_id, snippet_id }: CoachMomentReference, coachReplyId?: string) {
   return outcomeCall(
     `/api/v2/user/lounge/moment/${encodeURIComponent(snippet_id)}/ai-voice`,
-    { method: "POST", body: { arc_id, take_session_id } },
+    { method: "POST", body: { arc_id, take_session_id, ...(coachReplyId ? { coach_reply_id: coachReplyId } : {}) } },
     (data) => typeof data.practice_id === "string" ? data.practice_id : null,
   );
 }

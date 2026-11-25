@@ -134,7 +134,9 @@ A coach reply that shows a moment of the speaker's Take records it as opened for
 
 ### Shared composer (N667)
 
-In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. When only transcription is available from the server, the audio plays in the current app session. A server-accepted practice recording carries its own delivery evidence and keeps its source across a network retry.
+In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send keeps the playable recording and its delivery analysis with that message, linked to the project and selected Take when present. The chat shows a short status while it checks how the recording sounds. The original spoken words supply the analysis, even if the speaker edits the message before sending. A short recording can be used for practice without starting a Take. If a delivery question could refer to either the Take or the short clip, the coach asks which recording to use and continues with the selected source.
+
+A corrective reply includes the exercise and the words to say (N693). A published pace fix puts the Sniper and its exact passage in the bubble. With practice enabled, the highlighted chat mic drives the ball and submits the retry when stopped. The coach checks the same passage or its paraphrase against the original cue. A confirmed improvement can be followed by an inline AI example for the next cue, such as more energy at the opening. The mic lights up when that example can play. Incomplete evidence keeps the current exercise available. In a hosted chat, the selected Take supplies the scope, and the retry uses the exact source named by the exercise.
 
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,

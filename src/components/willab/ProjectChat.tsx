@@ -36,7 +36,7 @@ import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useChatTurnOutbox, type PendingChatTurn } from "./useChatTurnOutbox";
 import { ChatTurnRetry } from "./ChatTurnRetry";
 import TakeTranscriptSheet from "./TakeTranscriptSheet";
-import TypingDots from "./TypingDots";
+import TypingDots, { ChatRecordingStatus } from "./TypingDots";
 import { PendingRecordingBubbles, RecordingProcessingBubble } from "./ProjectRecordingBubbles";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 import type { PendingProjectTake } from "./usePendingProjectTakes";
@@ -53,6 +53,8 @@ import { usePinThreadBottom } from "./usePinThreadBottom";
 import TakeReview, { InlineTakeIdealText, REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
 import { conversationBubbleClass, TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
+import { ChatPracticeContext, useChatPractice } from "./chats/ChatPractice";
+import type { CoachMomentReference } from "@/services/api/coachMoment";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
 import { useHumanCoachReviewRows } from "./chats/useHumanCoachReviewRows";
@@ -532,6 +534,7 @@ export default function ProjectChat({
     [outbox.messages, thread.messages, activeProject.arcId],
   );
   const linkedWording = linkedSavedWordings(messages);
+  const chatPractice = useChatPractice(messages, activeProject.arcId);
   const visibleMessages = messages.filter(
     (message) => !["walk_step", "ideal_text", "recording_summary", "feedback", "transcript_ready"].includes(message.kind),
   );
@@ -542,7 +545,7 @@ export default function ProjectChat({
   const reviewContext = askTarget ?? takeReview;
   const currentReviewContext = useRef(reviewContext);
   currentReviewContext.current = reviewContext;
-  const voiceScope = JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus]);
+  const voiceScope = JSON.stringify([userId, activeProject.arcId, reviewContext?.take.sessionId, reviewContext?.focus, chatPractice.replyId]);
   const [preparedVoice, setPreparedVoice] = useState<{
     scope: string; answer: SpokenChatAnswer; target: ReturnType<typeof turnTarget>;
   } | null>(null);
@@ -553,16 +556,23 @@ export default function ProjectChat({
     maxSeconds: 120,
     label: "Record your answer",
     prepareOnStop: true,
+    ready: chatPractice.ready,
+    practiceReplyId: chatPractice.replyId,
+    onStream: chatPractice.listen,
     scope: voiceScope,
-    onSend: async (audio, duration, turnId) => {
+    onSend: async (audio, duration, turnId, practiceReplyId) => {
       if (!outbox.isCurrent()) return false;
-      const captured = turnTarget();
+      const captured = turnTarget(undefined, practiceReplyId ? chatPractice.reference : null);
       const take = captured.take ? { arcId: activeProject.arcId, takeId: captured.take } : undefined;
       const spoken = await transcribeChatAnswer(audio, duration, take, {
         turnId, projectId: activeProject.arcId, snippetId: captured.focus?.snippet_id,
+        ...(practiceReplyId ? { practiceReplyId } : {}),
       });
       if (!spoken || !turnId || !outbox.isCurrent() || currentReviewContext.current !== reviewContext) return false;
       const answer = { ...spoken, turnId, audio };
+      if (practiceReplyId) {
+        return Boolean(spoken.receipt) && await answerText(undefined, { ...answer, practiceReplyId }, captured);
+      }
       setPreparedVoice({ scope: voiceScope, answer, target: captured });
       setDraft(spoken.text);
       return true;
@@ -642,8 +652,13 @@ export default function ProjectChat({
     await answerChip(choice);
   }
 
-  function turnTarget(retry?: PendingChatTurn) {
+  function turnTarget(retry?: PendingChatTurn, practice?: CoachMomentReference | null) {
     const review = reviewContext;
+    if (practice) {
+      const take = practice.take_session_id;
+      const focus: ReviewFocus = { step: "practise", snippet_id: practice.snippet_id };
+      return { focus, question: null, take, review: review?.take.sessionId === take ? review : null, target: null };
+    }
     const questionInView = questionInTakeView(activeQuestion, review, reviewedTakeIds);
     const documentTake = idealOfferTake(ordinaryMessages.find((row) => row.client_id === openedIdealReply), recordingTakes);
     const idealFocus: TakeReviewTarget | null = documentTake ? { take: documentTake, focus: { step: "ideal" } } : null;
@@ -667,6 +682,7 @@ export default function ProjectChat({
         ...placement,
         ...focusMetadata,
         ...(spoken ? { will_voice: true, duration_ms: spoken.durationMs, ...(hasAudio ? { voice_clip: true } : {}) } : {}),
+        ...(spoken?.practiceReplyId ? { chat_practice_reply_id: spoken.practiceReplyId } : {}),
       },
     }, question, {
       question: answer, history: projectConversationHistory(messages.filter((m) => !pendingIds.has(m.client_id)), arc),
@@ -929,6 +945,7 @@ export default function ProjectChat({
   }
 
   return (
+    <ChatPracticeContext.Provider value={chatPractice}>
     <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
 
@@ -941,7 +958,8 @@ export default function ProjectChat({
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
           {processingStatus()}
-          {sending || voice.sending ? <TypingDots label={voice.sending && !sending ? "Processing your recording" : "Will is replying"} /> : null}
+          {voice.sending || outbox.processingVoice ? <ChatRecordingStatus preparing={voice.sending} />
+            : sending ? <TypingDots label="Will is replying" /> : null}
           </div>
         </div>
       </ChatScroll>
@@ -969,5 +987,6 @@ export default function ProjectChat({
         />
       ) : null}
     </div>
+    </ChatPracticeContext.Provider>
   );
 }
