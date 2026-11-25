@@ -13,6 +13,7 @@ OUTCOME  O1  The open project question keeps its composer, uses contextual
              note while project artifacts stay inside the project.
          O5  A hosted chat shows the host's messages and Take feedback in
              one timeline, routes each reply, and opens a new Take in place.
+             Its consented practice uses that Take and the server's cited fragment.
 PROVES   O1 -> "uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once"
          O2 -> "keeps a refused quick choice once with an explicit recoverable error"
          O3 -> "keeps a structured contextual turn ordered through refresh and scrolls both sides into view"
@@ -39,6 +40,10 @@ const harness = vi.hoisted(() => ({
   query: vi.fn(),
   willQuestion: vi.fn(),
   documentSettled: null as ((take: ProcessingTake) => void) | null,
+  transcribe: vi.fn(),
+  attach: vi.fn(),
+  allowPractice: false,
+  voiceSend: null as Parameters<typeof import("./chats/useComposerVoice").useComposerVoice>[0]["onSend"] | null,
   thread: null as ReturnType<typeof import("./useLoungeThread").useLoungeThread> | null,
 }));
 
@@ -57,7 +62,20 @@ vi.mock("@/services/api/chatQuery", async (importOriginal) => ({
 vi.mock("@/services/api/willQuestion", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   postWillQuestion: (...args: unknown[]) => harness.willQuestion(...args),
+  transcribeChatAnswer: (...args: unknown[]) => harness.transcribe(...args),
+  attachChatVoice: (...args: unknown[]) => harness.attach(...args),
 }));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  readPractiseOffered: async () => harness.allowPractice,
+}));
+vi.mock("./chats/useComposerVoice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./chats/useComposerVoice")>();
+  return { ...actual, useComposerVoice(options: Parameters<typeof actual.useComposerVoice>[0]) {
+    harness.voiceSend = options.onSend;
+    return actual.useComposerVoice(options);
+  } };
+});
 vi.mock("./useDocumentSettle", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./useDocumentSettle")>();
   return { ...actual, useDocumentSettle(options: Parameters<typeof actual.useDocumentSettle>[0]) {
@@ -154,6 +172,10 @@ beforeEach(() => {
   harness.owner = "user-a";
   harness.thread = null;
   harness.documentSettled = null;
+  harness.allowPractice = false;
+  harness.voiceSend = null;
+  harness.transcribe.mockReset();
+  harness.attach.mockReset().mockResolvedValue(true);
   harness.query.mockReset();
   harness.willQuestion.mockReset().mockResolvedValue(true);
   localStorage.clear();
@@ -285,15 +307,50 @@ describe("typed answer in the main Will/Lounge chat", () => {
     harness.rows.push({
       ...QUESTION, client_id: "fresh-take-moment", body: "Your opening was clear.",
       metadata: { arc_id: "arc-a", take_session_id: "take-b", take_exchange: true, take_index: 2 },
+    }, {
+      ...QUESTION, client_id: "fresh-practice", body: "Utrzymaj piłeczkę na środku paska.",
+      client_created_at: "2026-11-16T10:03:00.000Z",
+      metadata: {
+        arc_id: "arc-a", take_session_id: "take-b", take_exchange: true,
+        coach_moment: { arc_id: "arc-a", take_session_id: "take-b", snippet_id: "source-clip", practise: true, intervention: "sniper" },
+        chat_practice: { tool: "sniper", words: "Otóż nie, nie znam." },
+      },
     });
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const now = Date.now();
     await act(async () => harness.documentSettled!({
       sessionId: "take-b", arcId: "arc-a", takeIndex: 2, phase: "document",
       status: "processing", startedAt: now, phaseStartedAt: now, progress: null,
     }));
     expect(openProject).not.toHaveBeenCalled();
-    expect(timeline.querySelector('[aria-label="Take 2 · Feedback walk"] button')?.getAttribute("aria-expanded")).toBe("true");
+    const latest = timeline.querySelector<HTMLButtonElement>('[aria-label="Take 2 · Feedback walk"] button')!;
+    expect(latest.getAttribute("aria-expanded")).toBe("true");
     expect(host.querySelector("textarea")).toBe(field);
+    expect(timeline.querySelector('[data-coach-intervention="sniper"] [data-practice-words]')?.textContent).toBe("Otóż nie, nie znam.");
+    expect(host.querySelector("[data-practice-ready]")).toBeNull();
+
+    harness.allowPractice = true;
+    await act(async () => latest.click());
+    await act(async () => latest.click());
+    expect(host.querySelectorAll("[data-chat-mic][data-practice-ready]")).toHaveLength(1);
+    harness.transcribe.mockResolvedValue({ text: "Otóż nie, nie znam.", durationMs: 1700, receipt: "verified-retry" });
+    harness.query.mockResolvedValueOnce({ persisted: true, persisted_client_id: "hosted-retry-reply",
+      answer: "Świetnie, tempo jest w porządku." });
+    const voice = new Blob(["test attempt"], { type: "audio/webm" });
+    await act(async () => {
+      expect(await harness.voiceSend!(voice, 1700, "retry-recording", "fresh-practice")).toBe(true);
+    });
+    expect(harness.transcribe).toHaveBeenCalledWith(voice, 1700, { arcId: "arc-a", takeId: "take-b" }, {
+      turnId: "retry-recording", projectId: "arc-a", snippetId: "source-clip", practiceReplyId: "fresh-practice",
+    });
+    expect(harness.attach).toHaveBeenCalledWith("retry-recording", voice, "verified-retry");
+    expect(harness.query.mock.lastCall?.[0]).toEqual(expect.objectContaining({
+      projectId: "arc-a", sessionId: "take-b", place: null, voiceReceipt: "verified-retry",
+      presentationContext: expect.objectContaining({ review_focus: { step: "practise", snippet_id: "source-clip" } }),
+    }));
+    expect(harness.appended.find((row) => row.client_id === "retry-recording")?.metadata?.chat_practice_reply_id).toBe("fresh-practice");
+    expect(memberRequests).toHaveBeenCalledTimes(1);
+    canvas.mockRestore();
   });
 
   it("keeps project questions out of the general Speaking Coach conversation and its reply context", async () => {

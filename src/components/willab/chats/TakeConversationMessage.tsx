@@ -25,6 +25,7 @@ import { noteMomentReached, shownInChat } from "@/lib/willab/momentReached";
 import { ArtifactText, artifactDocument } from "./ReplyArtifact";
 import { ConversationBubble, ConversationDocument } from "./TakeConversation";
 import HumanCoachHandoff from "./HumanCoachHandoff";
+import { chatPractice, ChatPracticeReply } from "./ChatPractice";
 
 export default function TakeConversationMessage({
   message, project, recordingDock, footer, replayOnly, onRefer, standalone = false, wordingSaved = false, onWordingSaved, children,
@@ -63,7 +64,7 @@ export default function TakeConversationMessage({
         {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
           startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
           durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
-        <CoachMoment replayOnly={replayOnly} reference={reference} example={example} artifact={artifact}
+        <ReplyPractice message={message} replayOnly={replayOnly} reference={reference} example={example} artifact={artifact}
           project={project} recordingDock={recordingDock} includeHistory={standalone} />
         {wording ? <CoachWordingCard message={message} project={project} recordingDock={recordingDock}
           savedReply={wordingSaved} onSaved={onWordingSaved} /> : null}
@@ -74,6 +75,15 @@ export default function TakeConversationMessage({
     </div>
     {footer ? <div data-take-message-actions={message.client_id} className={WILLAB_CONTENT_RAIL}>{footer}</div> : null}
   </>;
+}
+
+function ReplyPractice({ message, ...moment }: { message: LoungeMessage } & Parameters<typeof CoachMoment>[0]) {
+  const { reference, project } = moment;
+  const practice = chatPractice(message);
+  if (practice && reference && (!project || reference.arc_id === project)) {
+    return <ChatPracticeReply plan={practice} reference={reference} replyId={message.client_id} project={project} />;
+  }
+  return <CoachMoment {...moment} />;
 }
 
 function takeMessageExample(id: string, video: string | null, ai: ReturnType<typeof aiVoiceOfMeta>) {

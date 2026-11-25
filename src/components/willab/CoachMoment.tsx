@@ -110,28 +110,32 @@ function PracticeDemo({ preview, requested = false }: { preview: PracticePreview
   return preview.practiceId ? <MomentAiAudio practiceId={preview.practiceId} requested={requested} /> : null;
 }
 
-function MomentAiAudio({ practiceId, requested }: { practiceId: string; requested: boolean }) {
+function MomentAiAudio({ practiceId, requested, chatRetryId, onPlayable }: {
+  practiceId: string; requested: boolean; chatRetryId?: string; onPlayable?: (ready: boolean) => void;
+}) {
   const locale = useUiLocale();
   const [audio, setAudio] = useState<{ src: string; durationMs: number | null } | null>(null);
   const [pending, setPending] = useState(requested);
   const label = locale === "pl" ? "Przykład AI" : "AI example";
   const read = useCallback(async (prepare = false) => {
     try {
-      const current = await readAiVoice(practiceId);
-      if (prepare && current.ok && (!current.data.clip || current.data.clip.state === "unavailable")) {
+      const current = chatRetryId ? await readAiVoice(practiceId, chatRetryId) : await readAiVoice(practiceId);
+      if (!chatRetryId && prepare && current.ok && (!current.data.clip || current.data.clip.state === "unavailable")) {
         return await ensureAiVoice(practiceId);
       }
       return current;
     } catch {
       return null;
     }
-  }, [practiceId]);
+  }, [practiceId, chatRetryId]);
   const show = useCallback((state: Awaited<ReturnType<typeof read>>) => {
     const clip = state?.ok && state.data.demo === "ai_voice" ? state.data.clip : null;
-    setAudio(clip?.state === "ready" && clip.url ? { src: clip.url, durationMs: clip.durationMs } : null);
+    const playable = clip?.state === "ready" && clip.url ? { src: clip.url, durationMs: clip.durationMs } : null;
+    setAudio(playable);
+    onPlayable?.(Boolean(playable));
     setPending(clip?.state === "pending");
     return clip?.state === "pending";
-  }, []);
+  }, [onPlayable]);
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -150,18 +154,21 @@ function MomentAiAudio({ practiceId, requested }: { practiceId: string; requeste
   if (!audio) return requested ? <InterventionUnavailable tool="ai_audio" /> : null;
   return <MediaRefreshProvider payload={audio} refresh={refresh}>
     <p className="text-xs text-muted-foreground">{label}</p>
-    <div onClickCapture={() => void noteAiVoicePlay(practiceId)}>
-      <WalkPlayer seed={practiceId} src={audio.src} durationMs={audio.durationMs} label={label} look="bare" />
+    <div onClickCapture={chatRetryId ? undefined : () => void noteAiVoicePlay(practiceId)}>
+      <WalkPlayer seed={chatRetryId ?? practiceId} src={audio.src} durationMs={audio.durationMs} label={label} look="bare" />
     </div>
   </MediaRefreshProvider>;
 }
 
 const openMomentPractice = walkPractiseIO(suggestionSource).open;
 
-function RequestedAiAudio({ reference, existing, item }: {
+export function RequestedAiAudio({ reference, existing, item, chatRetryId, replyId, onPlayable }: {
   reference: CoachMomentReference;
   existing: string | null;
   item?: DocumentSuggestion;
+  chatRetryId?: string;
+  replyId?: string;
+  onPlayable?: (ready: boolean) => void;
 }) {
   const [practiceId, setPracticeId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
@@ -170,7 +177,7 @@ function RequestedAiAudio({ reference, existing, item }: {
       if (!await readPractiseOffered()) return null;
       if (existing) return existing;
       if (!item) {
-        const prepared = await prepareCoachMomentAudio(reference);
+        const prepared = replyId ? await prepareCoachMomentAudio(reference, replyId) : await prepareCoachMomentAudio(reference);
         return prepared.ok ? prepared.data : null;
       }
       const servedExercise = item.practiceExercise && (item.openCard === "exercise" || item.practicePrompt);
@@ -178,12 +185,13 @@ function RequestedAiAudio({ reference, existing, item }: {
     }
     void find().catch(() => null).then((id) => { if (active) setPracticeId(id); });
     return () => { active = false; };
-  }, [existing, item, reference]);
+  }, [existing, item, reference, replyId]);
   const locale = useUiLocale();
   if (practiceId === undefined) return <p role="status" className="text-sm text-muted-foreground">
     {locale === "pl" ? "Przygotowujemy przykład AI…" : "Preparing the AI example…"}
   </p>;
-  return practiceId ? <MomentAiAudio practiceId={practiceId} requested /> : <InterventionUnavailable tool="ai_audio" />;
+  return practiceId ? <MomentAiAudio practiceId={practiceId} requested chatRetryId={chatRetryId} onPlayable={onPlayable} />
+    : <InterventionUnavailable tool="ai_audio" />;
 }
 
 const INTERVENTION_UNAVAILABLE = {

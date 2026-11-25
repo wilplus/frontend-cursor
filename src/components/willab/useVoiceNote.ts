@@ -103,6 +103,7 @@ export function useVoiceNote({
   maxSeconds,
   onDone,
   onUnavailable,
+  onStream,
   notebook = false,
 }: {
   maxSeconds: number;
@@ -110,6 +111,7 @@ export function useVoiceNote({
    *  notebook it is already in the outbox. */
   onDone: (note: OutboxNote) => Promise<void>;
   onUnavailable?: () => void;
+  onStream?: (stream: MediaStream) => (() => void) | undefined;
   /** The voice notebook (N194, N199): the wave and the words, the outbox,
    *  and a note kept when the app is left. Off, the recording is sent or
    *  thrown away as it always was. */
@@ -135,6 +137,8 @@ export function useVoiceNote({
   onDoneRef.current = onDone;
   const unavailableRef = useRef(onUnavailable);
   unavailableRef.current = onUnavailable;
+  const streamObserver = useRef(onStream);
+  streamObserver.current = onStream;
   const keyRef = useRef("");
   const savedAtRef = useRef(0);
   /** Who is saying this note: read from the session as it starts. Every
@@ -278,7 +282,11 @@ export function useVoiceNote({
       }
       return;
     }
-    const release = () => stream.getTracks().forEach((t) => t.stop());
+    let stopObserving: (() => void) | undefined;
+    const release = () => {
+      stopObserving?.();
+      stream.getTracks().forEach((track) => track.stop());
+    };
     startingRef.current = false;
     if (!mountedRef.current) {
       release(); // the Lounge closed while the browser asked for the mic
@@ -370,6 +378,7 @@ export function useVoiceNote({
       return;
     }
     liveRef.current = notebook;
+    stopObserving = streamObserver.current?.(stream);
     liveMsRef.current = 0;
     if (notebook) {
       // The words streamed (N396); where the stream cannot open, in pieces.

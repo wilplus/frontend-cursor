@@ -80,6 +80,10 @@ speaker's own voice, said a little better**, then the speaker tries again.
 - The lens and the chat show the same bubble (one thread, stored once).
 - When a Take reply carries an AI example, its player sits inside the reply
   bubble alongside the cited recording and supplied instruction.
+- A corrective chat reply can serve an AI example for the next delivery cue
+  after a confirmed improvement (N693). Its playback is tied to the exact
+  recorded retry. The reply shows the cue and words to say, and the shared
+  chat mic highlights when that retry's example is playable.
 - No question, no consent screen and no recording task inside the walk.
 - When the clip fails its check, the provider is down, the limits are
   reached, or the AI voice is off: no bubble; the screen is the locked one.
