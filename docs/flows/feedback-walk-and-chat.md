@@ -2599,6 +2599,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-25 · N691 items 1 and 2 · An older Take's bubble opens that Take's feedback in its project chat; the older-Take review screen (`OlderTakeReview`) and the recording screens' readout are deleted.
 - 2026-11-25 · N691 items 1 and 4 · The results cards (`insight`, `feedback`, `best_presentation_ready`) are no longer drawn in the main chat, and the recording bubble and Ideal Text card open the Take's feedback in its project chat; `FeedbackOverlay.tsx` is deleted.
 - 2026-11-24 · N691 items 1 and 2 · A Take finished in the main chat, the first Take's "Open your feedback", and the recording bubble open the Take's feedback in its project chat; the walk no longer opens as a screen from the main chat.
 - 2026-11-24 · N691 item 3 · One link, `/chat?take=`, opens the chat on the coach's bubble; the lens and Ideal Text links (`lens`, `idealArc`, `arc`, `mode`, `feedback`) and the unused `insight` and `session` no longer open a screen, and leave the address.

@@ -20,7 +20,6 @@ const LAB_STATES: WillabState[] = [
   "lab_prerecord",
   "lab_recording",
   "lab_processing",
-  "readout",
 ];
 
 describe("canMountTopUpCard", () => {

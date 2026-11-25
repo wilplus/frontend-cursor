@@ -120,7 +120,6 @@ import { NotebookIntro, PrivacyLine, isNotebookAsk, isPrivacyLineRow, isSpotted 
 import {
   offerDraft,
   readOfferType,
-  hasOffer,
   newestAsk,
   type OfferType,
 } from "./loungeOffers";
@@ -216,7 +215,6 @@ import TypingDots, { ChatRecordingStatus, CHUNK_DELAY_MS, TypingGlyph } from "./
 import { afterChatBoot } from "@/lib/chatBoot";
 import { CHAT_LENS_DOCK, CHAT_LENS_THREAD } from "./chats/ChatLens";
 import type { TakeInProject } from "@/lib/willab/takeInProject";
-import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
 import { useTakeResend } from "./useTakeResend";
 import {
@@ -230,12 +228,9 @@ const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillBuild = dynamic(() => import("./chats/WillBuild"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
-// Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
-// Feedback walk and Ideal Text code may load after the thread paints as long
-// as opening still feels instant): the Ideal Text page, the walk's frame for
-// an older Take, and the Life panel's chat card. `warmOverlays` below fetches
-// their chunks once the thread is in, so a tap finds them ready.
-const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
+// Off the boot bundle, warmed after the thread paints (founder 2026-10-16):
+// the Life panel's chat card. `warmOverlays` below fetches its chunk once the
+// thread is in, so a tap finds it ready.
 
 /** The cards that brought results on their own (N691 item 4). */
 const RESULT_CARD_KINDS: ReadonlySet<string> = new Set(["insight", "feedback", "best_presentation_ready"]);
@@ -245,7 +240,6 @@ const LifeChatCard = dynamic(
   { ssr: false },
 );
 function warmOverlays(): void {
-  void import("./walk/WalkOverlay");
   void import("@/components/life/LifeChatLayer");
 }
 
@@ -954,11 +948,9 @@ export default function Lounge({
       .map((item) => item.message)
       .filter((m) => takeIdOf(m) === walk.take && m.kind === "walk_step" && !chatDrawsStep(m) && stepWaits(m));
   // Helper words a later pick replaced: an older Take's review leaves them out.
-  const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
   const olderNewWords = useMemo(() => clearerNewWordsOf(threadItems), [threadItems]);
   // An older Take's review, reopened from one of its bubbles: its steps as
   // they were, read only.
-  const [olderReview, setOlderReview] = useState<{ take: number; session: string } | null>(null);
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
   // that the top banner is gone: open the overlay, and if we were in the unread
@@ -2380,7 +2372,6 @@ export default function Lounge({
         waits={walkWaits(walk)}
         live={reviewToContinue}
         paired={card !== null}
-        onOpenOlder={setOlderReview}
         onOpened={(seen) => seen.forEach((m) => setSeenUpdates(keepSeenUpdate(m)))}
         onOpenIdealText={openIdealText}
       />
@@ -2404,7 +2395,6 @@ export default function Lounge({
         newWords={olderNewWords.get(item.message.client_id)}
         waiting={stepWaits(item.message)}
         lockedTake={olderTake(item.message.metadata)}
-        onOpenOlder={setOlderReview}
         onOpened={() => setSeenUpdates(keepSeenUpdate(item.message))}
         onOpenIdealText={openIdealText}
         onOpenPastIdealText={openPastIdealText}
@@ -2593,17 +2583,6 @@ export default function Lounge({
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
           locked phone) keeps finishing server-side — this chip resumes a calm
           indicator from the persisted marker and clears itself when done. */}
-      <OlderTakeReview
-        older={olderReview}
-        items={threadItems}
-        replaced={replacedWords}
-        newWords={olderNewWords}
-        onClose={() => setOlderReview(null)}
-        onOpenPastIdealText={(arc, past) => {
-          setOlderReview(null);
-          openPastIdealText(arc, past);
-        }}
-      />
       <LoungeProcessingFailure active={loungeResume?.status === "failed"} retrying={retryingProcessing}
         onRetry={() => void retryPreservedProcessing()} />
 
@@ -3506,7 +3485,6 @@ function FeedbackWalkBubble({
   waits,
   live,
   paired,
-  onOpenOlder,
   onOpened,
   onOpenIdealText,
 }: {
@@ -3519,7 +3497,6 @@ function FeedbackWalkBubble({
   live: string | null;
   /** The Take's Ideal Text card is drawn right under it (N202). */
   paired: boolean;
-  onOpenOlder: (older: { take: number; session: string }) => void;
   onOpened: (seen: LoungeMessage[]) => void;
   onOpenIdealText: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
@@ -3528,11 +3505,11 @@ function FeedbackWalkBubble({
   const date = reportDateLabel(walk.date);
   const open = () => {
     onOpened(waits);
+    if (!walk.arcId) return;
     if (older !== null) {
-      onOpenOlder({ take: older, session: walk.take });
+      onOpenIdealText(walk.arcId, "review", { take: walk.take });
       return;
     }
-    if (!walk.arcId) return;
     onOpenIdealText(walk.arcId, "review", feedbackWalkDoor(walk, waits, live));
   };
   return (
@@ -3575,7 +3552,6 @@ export function WalkStepBubble({
   newWords,
   waiting = false,
   lockedTake = null,
-  onOpenOlder,
   onOpened,
   onOpenIdealText,
   onOpenPastIdealText,
@@ -3597,7 +3573,6 @@ export function WalkStepBubble({
   /** An older Take's step, its number: history, with no ›. */
   lockedTake?: number | null;
   /** An older Take's bubble tapped: that Take's review, read only. */
-  onOpenOlder?: (older: { take: number; session: string }) => void;
   onOpened?: () => void;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
@@ -3613,7 +3588,7 @@ export function WalkStepBubble({
   const mine = message.role === "user";
   // One mechanism (N89): a coach bubble opens the walk at the coach's place
   // like any other bubble opens its step.
-  const open = bubbleTap(meta, lockedTake, onOpenIdealText, onOpened, onOpenOlder);
+  const open = bubbleTap(meta, lockedTake, onOpenIdealText, onOpened);
   // A press starts the Ideal Text's read before the tap lands.
   const warm = open ? () => warmIdealTextOpen(arc) : undefined;
   const hint = helpersHint(meta, lockedTake);
@@ -3690,69 +3665,20 @@ function WalkEndCard({
  *  answered or not. An older Take's steps are history, with no ›
  *  (prototype v31); an old judging bubble opens Other speakers afresh
  *  (founder 2026-10-13). Sharing opens the sharing step. */
-/** What a tap on a step's bubble does: its step in the lens, or for an
- *  older Take, that Take's review read only. None without a way to open. */
+/** What a tap on a step's bubble does: its step, or for an older Take,
+ *  that Take's feedback in its project chat (backend N691 item 1). None
+ *  without a way to open. */
 function bubbleTap(
   meta: Record<string, unknown>,
   lockedTake: number | null,
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void,
   onOpened?: () => void,
-  onOpenOlder?: (older: { take: number; session: string }) => void,
 ): (() => void) | undefined {
   const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
   if (!arc || !onOpenIdealText) return undefined;
   const session = typeof meta.take_session_id === "string" ? meta.take_session_id : null;
-  const older = lockedTake !== null && session && onOpenOlder ? () => onOpenOlder({ take: lockedTake, session }) : undefined;
+  const older = lockedTake !== null && session ? () => onOpenIdealText(arc, "review", { take: session }) : undefined;
   return stepTap(meta, arc, lockedTake, onOpenIdealText, onOpened) ?? older;
-}
-
-/** An older Take's review, reopened from one of its bubbles: its steps as
- *  they were in the chat, read only, in the walk's frame. */
-function OlderTakeReview({
-  older,
-  items,
-  replaced,
-  newWords,
-  onClose,
-  onOpenPastIdealText,
-}: {
-  older: { take: number; session: string } | null;
-  items: readonly ThreadItem[];
-  replaced: ReadonlySet<string>;
-  newWords: ReadonlyMap<string, ClearerPiece[]>;
-  onClose: () => void;
-  /** The review ends on that Take's Ideal Text card (B10, backend N375). */
-  onOpenPastIdealText: (arcId: string, past: IdealTextPast) => void;
-}) {
-  if (!older) return null;
-  // Helper words picked again show once, their latest, marked Edited (B13,
-  // N192; until then the old pick stayed, struck through).
-  const own = items.filter(
-    (item) => item.message.kind === "walk_step" && item.message.metadata?.take_session_id === older.session,
-  );
-  const repicked = new Set(
-    own.filter((item) => replaced.has(item.message.client_id)).map((item) => String(item.message.metadata?.words_of)),
-  );
-  const steps = own.filter((item) => !replaced.has(item.message.client_id));
-  return (
-    <div data-walk-column className="fixed inset-0 z-[90] flex flex-col bg-background">
-      <WalkOverlay testId="older-take-review" caption={`${CHUNK_SHEET_COPY.historyTake} ${older.take}`} onClose={onClose}>
-        <div className="flex flex-col gap-2">
-          {steps.map((item) => (
-            <WalkStepBubble
-              key={item.reactKey}
-              message={item.message}
-              card={reviewCardOf(item.message, items)}
-              onOpenPastIdealText={onOpenPastIdealText}
-              edited={typeof item.message.metadata?.words_of === "string" && repicked.has(item.message.metadata.words_of)}
-              newWords={newWords.get(item.message.client_id)}
-              lockedTake={older.take}
-            />
-          ))}
-        </div>
-      </WalkOverlay>
-    </div>
-  );
 }
 
 function stepTap(
@@ -3986,21 +3912,6 @@ export function clearerNewWordsOf(items: readonly ThreadItem[]): Map<string, Cle
     if (after) out.set(item.message.client_id, after);
   }
   return out;
-}
-
-/** The helper words a later pick for the same paragraph of the same Take
- *  replaced: an older Take's review shows only the latest (N192). */
-export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
-  const latest = new Map<string, string>();
-  const all: [string, string][] = [];
-  for (const item of items) {
-    const m = item.message.metadata ?? {};
-    if (item.message.kind !== "walk_step" || typeof m.words_of !== "string") continue;
-    const key = `${String(m.take_session_id)}|${m.words_of}`;
-    latest.set(key, item.message.client_id);
-    all.push([key, item.message.client_id]);
-  }
-  return new Set(all.filter(([key, id]) => latest.get(key) !== id).map(([, id]) => id));
 }
 
 /** The words on a review's Ideal Text card: the project's name (as its

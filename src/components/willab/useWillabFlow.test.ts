@@ -1,35 +1,30 @@
 /*
 STORY    As a speaker, I want the app always to go record, then process, then
-         Ideal Text, then the next Take, so that the loop never breaks.
+         my chat, where the Ideal Text and the feedback are, then the next
+         Take, so that the loop never breaks.
 OUTCOME
-  O1  Starting, stopping and finishing processing lead to the readout;
-      from there the next Take, a pause, or "sign up to send" (and on to
-      review) are expected steps.
-PROVES   O1 -> "is the record → process → Ideal Text loop"
-WHY      Never 3; audit Q-C4.
+  O1  Starting and stopping a Take lead to processing; a rejected upload
+      goes back to the mic; the next Take can start from processing. The
+      finished Take leaves the recording screens for its chat (LabOverlay,
+      backend N691): there is no readout state.
+PROVES   O1 -> "is the record → process loop, with no readout"
+WHY      Never 3; audit Q-C4; backend N691.
 */
 import { describe, expect, it } from "vitest";
-import {
-  transition,
-  type WillabState,
-} from "./useWillabFlow";
+import { TRANSITIONS, transition, type WillabState } from "./useWillabFlow";
 
 describe("TRANSITIONS", () => {
-  it("is the record → process → Ideal Text loop", () => {
-    // The live loop as a walk through the table (LIVE LOOP fence).
+  it("is the record → process loop, with no readout", () => {
     let state: WillabState = "lab_prerecord";
-    for (const event of ["take_started", "recording_stopped", "processing_ready"] as const) {
+    for (const event of ["take_started", "recording_stopped"] as const) {
       const next = transition(state, event);
       expect(next.expected, `${event} from ${state}`).toBe(true);
       state = next.to;
     }
-    expect(state).toBe("readout");
-    // From the readout: the next take, a hold, or the send gate — never a
-    // rebuild of the document.
-    expect(transition("readout", "take_started")).toEqual({ to: "lab_recording", expected: true });
-    expect(transition("readout", "park")).toEqual({ to: "parked", expected: true });
-    expect(transition("readout", "sign_up_to_send")).toEqual({ to: "sendgate_unsigned", expected: true });
-    expect(transition("sendgate_unsigned", "sent")).toEqual({ to: "review_pending", expected: true });
+    expect(state).toBe("lab_processing");
+    expect(transition("lab_processing", "upload_rejected")).toEqual({ to: "lab_recording", expected: true });
+    expect(transition("lab_processing", "take_started")).toEqual({ to: "lab_recording", expected: true });
+    const targets = Object.values(TRANSITIONS).map((row) => row.to as string);
+    expect(targets).not.toContain("readout");
   });
 });
-

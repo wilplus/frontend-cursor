@@ -6,11 +6,11 @@ STORY    As a speaker, I want AI-written text marked as AI on every Ideal Text
 OUTCOME
   O1  The labels say the text is AI-generated and carry no digit, score,
       rating or verdict. Never-1: no score shown to a speaker.
-  O2  Both Ideal Text mounts (the notebook and the post-Take readout) render
-      the visible AI note with the Take it names, on a marked container, and
-      their Copy puts the marked text on the clipboard.
+  O2  The Ideal Text mount (the notebook; the post-Take readout is gone,
+      N691) renders the visible AI note with the Take it names, on a marked
+      container, and its Copy puts the marked text on the clipboard.
 PROVES   O1 -> "states provenance and never a score, rating, band or verdict"
-         O2 -> "<mount> shows the AI note and copies marked text" (x2)
+         O2 -> "the notebook (IdealTextOverlay) shows the AI note and copies marked text"
 WHY      Regulation (EU) 2024/1689 Art. 50(2), in force since 2 August 2026.
 */
 import { act, createElement } from "react";
@@ -26,7 +26,6 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "tok")
 
 import { AI_GENERATED_LABEL } from "./aiGeneratedMark";
 import IdealTextOverlay from "@/components/willab/IdealTextOverlay";
-import IdealTextReadout from "@/components/willab/IdealTextReadout";
 import type { ReadoutPayload } from "@/components/willab/readout";
 
 describe("AC-9 holds at the label", () => {
@@ -153,22 +152,6 @@ describe("Article 50(2): every Ideal Text mount is marked, on screen and on copy
   it("the notebook (IdealTextOverlay) shows the AI note and copies marked text", async () => {
     await act(async () => {
       root.render(createElement(IdealTextOverlay, { arcId: "arc-1", onClose: () => {} }));
-    });
-    await expectMarkedAndCopied();
-  });
-
-  it("the readout (IdealTextReadout) shows the AI note and copies marked text", async () => {
-    await act(async () => {
-      root.render(
-        createElement(IdealTextReadout, {
-          payload,
-          sessionId: "take-1",
-          arcId: "arc-1",
-          signedIn: true,
-          onAutoSent: () => {},
-          onSignUp: () => {},
-        }),
-      );
     });
     await expectMarkedAndCopied();
   });
