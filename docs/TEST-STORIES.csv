@@ -1717,12 +1717,6 @@ O4 -> ""uses Polish for fixed setup status without changing slide content""",Fou
 src/components/willab/readout.sayItStronger.test.ts,Story,"As a speaker, I want ""why"" and reason lines that the server removed to be left out, not shown blank, so that I never see empty or forbidden text.","O1  An empty ""why"" or reason becomes nothing to show.","O1 -> ""nulls why + reason when the BE output-guard stripped them (AC-9)""",Never 1; AC-9 (the backend guard strips score-like lines).
 src/components/willab/readout.test.ts,Story,"As a speaker, I want my transcript split by slide in slide order, silent slides included, so that each paragraph lines up with its slide.","O1  Slides and their transcripts come out in slide order; a slide with
 nothing said is kept, with its place in the recording.","O1 -> ""maps deck slides + complete per-slide transcripts (sorted, '' valid)""",
-src/components/willab/readoutFeedbackPending.test.tsx,Story,"As a speaker, I want a paragraph I tap right after a Take to wait for its feedback, not open empty, so that I never see a sheet missing its moment.","O1  The paragraphs are told feedback is still coming while it loads, and
-that it is done once it has landed.","O1 -> ""holds taps while the enrichment read is out, and stops once the server is done""",Audit 2026-10-05 (DL-overlays); founder 2026-09-28.
-src/components/willab/readySignUpMoment.test.tsx,Story,"As a guest whose first Take is processed, I want to hear one real piece of my result on the account wall, so that I know what an account keeps for me.","O1  The wall plays the clip of the Take's most confident moment, the one
-the walk praises first, with ""This was your most confident moment.""
-O2  With no such moment (or no clip), the wall is exactly as before.","O1 -> ""shows the most confident moment's clip and the walk's line""
-O2 -> ""is unchanged when the Take has no praised most confident moment""","Founder 2026-10-29, backend N273 item 5."
 src/components/willab/recordingCopy.test.ts,Story,"As the founder, I want the recording screens' words fixed to the signed set with no digits or score words, so that nothing unapproved or numeric reaches the speaker.","O1  Never 4 (no new words without the founder's OK): RECORDING_COPY holds
 exactly the signed keys, typed exactly as signed.
 O2  Never 1 (no scores or numbers): no signed line carries a digit, a % or
@@ -1888,9 +1882,10 @@ unavailable history into an empty one.","O1 -> ""readout reconciliation is non-b
 O2 -> ""a scoped status failure does not jump the chat""",
 src/components/willab/useWillabFlow.chatBoot.test.tsx,Story,"As a speaker opening the chat, I want my conversation drawn before the menu's side lookups (the wallet, the Life gate, the product discoveries) go out, so that the chat appears fast (founder 2026-10-16, chatBoot.ts).","O1  The menu drawn with the chat while it opens waits for the thread to
 paint, though React runs the menu's effects before the chat's own.","O1 -> ""the menu drawn with the opening chat waits for the thread""",
-src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then Ideal Text, then the next Take, so that the loop never breaks.","O1  Starting, stopping and finishing processing lead to the readout;
-from there the next Take, a pause, or ""sign up to send"" (and on to
-review) are expected steps.","O1 -> ""is the record → process → Ideal Text loop""",Never 3; audit Q-C4.
+src/components/willab/useWillabFlow.test.ts,Story,"As a speaker, I want the app always to go record, then process, then my chat, where the Ideal Text and the feedback are, then the next Take, so that the loop never breaks.","O1  Starting and stopping a Take lead to processing; a rejected upload
+goes back to the mic; the next Take can start from processing. The
+finished Take leaves the recording screens for its chat (LabOverlay,
+backend N691): there is no readout state.","O1 -> ""is the record → process loop, with no readout""",Never 3; audit Q-C4; backend N691.
 src/components/willab/voiceNoteOutbox.test.tsx,Story,"As a speaker, I want a voice note left on the phone to go only to my own account, and not to be lost when my sign-in runs out, so that nobody else gets my words and none of mine are lost.","O1  A note waiting on a phone goes only under the person who said it: while another person is signed in it is neither shown nor sent, and it stays on the phone for its owner. A note saved before notes named their owner goes only under a sign-in that began before it was said.
 O2  A note refused because the sign-in ran out (401) stays on the phone, under its clock, and goes after the next sign-in.
 O3  A note refused for good (422: no words heard) leaves the phone.","O1 -> A's note is never sent while B is signed in
@@ -2260,10 +2255,10 @@ O4 -> approved copy and interpolation",
 src/lib/willab/additionsAndLock.test.ts,Story,"As a speaker, I want rewording a locked paragraph to keep it the same paragraph but need a new lock, so that a lock always protects my exact words.","O1  After a reword the paragraph keeps its identity, has the new words and is no longer locked.",O1 -> keeps identity but reopens after a reword,
 src/lib/willab/aiGeneratedMark.test.ts,Story,"As a speaker, I want AI-written text marked as AI on every Ideal Text surface and copy, with no score in the label, so that I know what is generated (EU AI Act Art. 50).","O1  The labels say the text is AI-generated and carry no digit, score,
 rating or verdict. Never-1: no score shown to a speaker.
-O2  Both Ideal Text mounts (the notebook and the post-Take readout) render
-the visible AI note with the Take it names, on a marked container, and
-their Copy puts the marked text on the clipboard.","O1 -> ""states provenance and never a score, rating, band or verdict""
-O2 -> ""<mount> shows the AI note and copies marked text"" (x2)","Regulation (EU) 2024/1689 Art. 50(2), in force since 2 August 2026."
+O2  The Ideal Text mount (the notebook; the post-Take readout is gone,
+N691) renders the visible AI note with the Take it names, on a marked
+container, and its Copy puts the marked text on the clipboard.","O1 -> ""states provenance and never a score, rating, band or verdict""
+O2 -> ""the notebook (IdealTextOverlay) shows the AI note and copies marked text""","Regulation (EU) 2024/1689 Art. 50(2), in force since 2 August 2026."
 src/lib/willab/answeredBookmark.test.ts,Story,"As a speaker, I want tapping a bookmark to open that paragraph's own sheet unless a judgement is still waiting, and always when I have saved helper words, so that a tap goes to the right place.","O1  An answered paragraph, a locked one, one with no feedback or one with only a rewrite waiting opens its own sheet; a waiting judgement does not.
 O2  Saved helper words always open the sheet.","O1 -> opens its own sheet unless a judgement waits; saved words always open it
 O2 -> opens its own sheet unless a judgement waits; saved words always open it",
