@@ -60,9 +60,9 @@ it("keeps a typed draft and an attachment during recording, then submits each on
   const stop = vi.fn();
   const files: ComposerFileAction[] = [{ label: "Attach notes", sendFile }];
   const note = new File(["notes"], "notes.pdf");
-  const draw = (voiceRequired = false, recording = false) => act(() => root.render(
-    <ChatComposer {...{ files, onSend, voiceRequired }} mic={{ start }}
-      recording={recording ? { elapsedMs: 1400, stop } : undefined} />,
+  const draw = (voiceRequired = false, phase?: "listening" | "transcribing") => act(() => root.render(
+    <ChatComposer {...{ files, onSend, voiceRequired }} mic={{ start }} transcribing={phase === "transcribing"}
+      recording={phase === "listening" ? { elapsedMs: 1400, stop, listening: true } : undefined} />,
   ));
   draw();
   const textSlot = field();
@@ -77,13 +77,21 @@ it("keeps a typed draft and an attachment during recording, then submits each on
   expect(send()).toBeNull();
   await click(mic());
   expect(start).toHaveBeenCalledOnce();
-  draw(true, true);
+  draw(true, "listening");
   expect(field()).toBe(textSlot);
   expect(field().hidden).toBe(true);
   expect(mic()).toBe(micSlot);
+  expect(host.querySelector("[data-chat-capture]")?.textContent).toContain("Listening…");
   expect(host.querySelector("[data-chat-capture]")?.textContent).toContain("0:01");
   await click(mic());
   expect(stop).toHaveBeenCalledOnce();
+
+  draw(false, "transcribing");
+  expect(host.querySelector("form")?.textContent).toContain("Transcribing your recording…");
+  expect(field()).toBe(textSlot);
+  expect(field().hidden).toBe(true);
+  expect(mic().disabled).toBe(true);
+  expect(send()).toBeNull();
 
   draw();
   expect(field().value).toBe("A note about my take");

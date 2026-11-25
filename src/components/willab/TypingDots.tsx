@@ -38,11 +38,10 @@ export default function TypingDots({ label = "Librarian is typing", showLabel = 
 }
 
 const RECORDING_STATUS = {
-  en: { preparing: "Transcribing your recording…", sent: "Checking how your recording sounds…" },
-  pl: { preparing: "Spisuję nagranie…", sent: "Sprawdzam, jak brzmi Twoje nagranie…" },
+  en: "Checking how your recording sounds…",
+  pl: "Sprawdzam, jak brzmi Twoje nagranie…",
 };
 
-export function ChatRecordingStatus({ preparing }: { preparing: boolean }) {
-  const copy = RECORDING_STATUS[useUiLocale()];
-  return <TypingDots label={preparing ? copy.preparing : copy.sent} showLabel />;
+export function ChatRecordingStatus() {
+  return <TypingDots label={RECORDING_STATUS[useUiLocale()]} showLabel />;
 }

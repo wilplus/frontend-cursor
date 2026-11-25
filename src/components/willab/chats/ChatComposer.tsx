@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import { ArrowUp, File, Image as ImageIcon, Mic, Paperclip, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, File, Image as ImageIcon, LoaderCircle, Mic, Paperclip, Square, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { coerceTargetSeconds, formatRecordingClock } from "../willabHelpers";
@@ -30,6 +30,7 @@ export type ComposerMic = {
 
 export type ComposerRecording = {
   elapsedMs: number;
+  listening?: boolean;
   targetSeconds?: number | string | null;
   stop?: () => void;
   discard?: () => void;
@@ -61,6 +62,7 @@ export type ChatComposerProps = {
   voiceRequired?: boolean;
   mic?: ComposerMic;
   recording?: ComposerRecording;
+  transcribing?: boolean;
   voiceDraft?: ComposerVoiceDraft;
   files?: readonly ComposerFileAction[];
   above?: ReactNode;
@@ -73,12 +75,14 @@ const COMPOSER_COPY = {
   en: {
     message: "Message", send: "Send", files: "Add files", remove: "Remove attachment",
     start: "Start recording", stop: "Stop", recording: "Recording",
+    listening: "Listening…", transcribing: "Transcribing your recording…",
     answer: "Record your answer", ready: "Recording ready", queued: "For next message",
     discard: "Discard recording", trash: "Throw it away", failed: "Could not send. Try again.",
   },
   pl: {
     message: "Wiadomość", send: "Wyślij", files: "Dodaj pliki", remove: "Usuń załącznik",
     start: "Zacznij nagrywać", stop: "Zatrzymaj", recording: "Nagrywanie",
+    listening: "Słucham…", transcribing: "Spisuję nagranie…",
     answer: "Nagraj odpowiedź", ready: "Nagranie gotowe", queued: "Do następnej wiadomości",
     discard: "Usuń nagranie", trash: "Odrzuć nagranie", failed: "Nie udało się wysłać. Spróbuj ponownie.",
   },
@@ -107,6 +111,7 @@ export default function ChatComposer({
   voiceRequired,
   mic,
   recording,
+  transcribing,
   voiceDraft,
   files = NO_FILES,
   above,
@@ -125,12 +130,14 @@ export default function ChatComposer({
   latestText.current = text;
   const field = useRef<HTMLTextAreaElement | null>(null);
   const updateText = onValue ?? setLocalDraft;
-  const canType = onSend !== undefined && !textDisabled && !voiceRequired && !recording;
+  const waiting = Boolean(submitting || transcribing);
+  const inputHeld = Boolean(recording || transcribing);
+  const canType = onSend !== undefined && !textDisabled && !voiceRequired && !inputHeld;
   const fileAction = stagedFile && files.find((action): action is PickAttachment =>
     "sendFile" in action && action.label === stagedFile.choice.label && action.scope === stagedFile.choice.scope);
   const typed = canType ? text.trim() : "";
   const sendable = voiceRequired ? voiceDraft : voiceDraft ?? fileAction ?? typed;
-  const ready = !recording && Boolean(sendable);
+  const ready = !inputHeld && Boolean(sendable);
   const canSubmit = ready && !busy && !submitting;
 
   function setField(node: HTMLTextAreaElement | null) {
@@ -141,10 +148,10 @@ export default function ChatComposer({
 
   useEffect(() => {
     const el = field.current;
-    if (!el || recording) return;
+    if (!el || inputHeld) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [recording, text]);
+  }, [inputHeld, text]);
 
   useEffect(() => {
     if (autoFocus && canType) field.current?.focus();
@@ -191,24 +198,54 @@ export default function ChatComposer({
         queued={Boolean(voiceRequired || recording || !fileAction)} locked={submitting}
         onRemoveFile={() => setStagedFile(null)} />
       <SendStatus status={status} failed={failed && ready} label={copy.failed} />
-      <form {...formAttrs} data-chat-composer="" data-chat-box="" aria-busy={Boolean(busy || submitting)}
+      <VoiceStatus recording={recording} transcribing={transcribing} copy={copy} />
+      <form {...formAttrs} data-chat-composer="" data-chat-box="" aria-busy={Boolean(busy || waiting)}
         className="flex min-h-[54px] min-w-0 items-center gap-px rounded-[28px] border border-border bg-background p-1 focus-within:border-muted-foreground"
         onSubmit={(event) => { event.preventDefault(); void send(); }}>
         <FilesSlot files={files} onPick={setStagedFile} disabled={submitting} />
-        {recording ? <RecordingCenter recording={recording} /> : null}
-        <ComposerField inputRef={setField} hidden={Boolean(recording)} disabled={!canType}
+        <VoiceActivity recording={recording} transcribing={transcribing} label={copy.transcribing} />
+        <ComposerField inputRef={setField} hidden={inputHeld} disabled={!canType}
           value={voiceRequired ? "" : text} onValue={updateText} label={inputLabel ?? placeholder ?? copy.message}
           placeholder={composerPlaceholder(copy, voiceRequired, voiceDraft, placeholder)}
           maxLength={maxLength} newlines={newlines} send={send} />
-        {ready ? (
-          <button type="submit" data-chat-send="" aria-label={sendLabel ?? copy.send} disabled={!canSubmit}
-            className={cn(CONTROL, "bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted")}>
-            <ArrowUp className="size-5" aria-hidden />
-          </button>
-        ) : null}
-        <MicSlot mic={mic} recording={recording} required={voiceRequired} submitting={submitting} />
+        <SendSlot ready={ready} disabled={!canSubmit} label={sendLabel ?? copy.send} />
+        <MicSlot mic={mic} recording={recording} required={voiceRequired} submitting={waiting} />
       </form>
     </div>
+  );
+}
+
+function VoiceStatus({ recording, transcribing, copy }: {
+  recording?: ComposerRecording;
+  transcribing?: boolean;
+  copy: typeof COMPOSER_COPY.en;
+}) {
+  const message = recording?.listening ? copy.listening : transcribing ? copy.transcribing : "";
+  return <span aria-live="polite" aria-atomic="true" className="sr-only">{message}</span>;
+}
+
+function VoiceActivity({ recording, transcribing, label }: {
+  recording?: ComposerRecording;
+  transcribing?: boolean;
+  label: string;
+}) {
+  if (recording) return <RecordingCenter recording={recording} />;
+  if (!transcribing) return null;
+  return (
+    <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-2 px-1 text-sm text-muted-foreground">
+      <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" />
+      {label}
+    </span>
+  );
+}
+
+function SendSlot({ ready, disabled, label }: { ready: boolean; disabled: boolean; label: string }) {
+  if (!ready) return null;
+  return (
+    <button type="submit" data-chat-send="" aria-label={label} disabled={disabled}
+      className={cn(CONTROL, "bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted")}>
+      <ArrowUp className="size-5" aria-hidden />
+    </button>
   );
 }
 
@@ -378,14 +415,17 @@ function RecordingCenter({ recording }: { recording: ComposerRecording }) {
   return (
     <div data-chat-capture="" className="flex min-w-0 flex-1 items-center gap-1 pl-1 text-sm sm:gap-2">
       {recording.center ?? <>
-        <span className="truncate">{copy.recording}</span>
+        <span className="truncate" aria-hidden={recording.listening || undefined}>
+          {recording.listening ? copy.listening : copy.recording}
+        </span>
         <span className={cn("shrink-0 tabular-nums", elapsed.overrun && "text-destructive")}>{elapsed.label}</span>
         {target ? (
           <span className="hidden h-1 flex-1 overflow-hidden rounded-full bg-border min-[340px]:block" aria-hidden>
             <span className={cn("block h-full rounded-full", elapsed.overrun ? "bg-destructive" : "bg-primary")}
               style={{ width: `${Math.min(100, seconds / target * 100)}%` }} />
           </span>
-        ) : <span className="hidden flex-1 items-center justify-center gap-0.5 min-[340px]:flex" aria-hidden>
+        ) : <span className={cn("hidden flex-1 items-center justify-center gap-0.5 min-[340px]:flex",
+          recording.listening && "motion-safe:animate-pulse")} aria-hidden>
           {[8, 14, 20, 12, 18, 10, 14].map((height, index) => (
             <span key={index} className="w-0.5 rounded-full bg-destructive" style={{ height }} />
           ))}

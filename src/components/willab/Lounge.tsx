@@ -582,6 +582,7 @@ function LoungeComposer({
     above: <ReviewCitation citation={citation} showTake={Boolean(openChat)} onClear={clearCitation} />,
   };
   return <ChatComposer {...composer} files={[...(composer.files ?? []), ...files]}
+    transcribing={voice?.sending && !busy}
     status={<LoungeComposerStatus uploadError={uploadError} voice={voice} />}
     className="-mx-2" inputRef={draft.field} value={draft.value} onValue={draft.setDraft} />;
 }
@@ -2572,8 +2573,7 @@ export default function Lounge({
         {plan.pending}
         {/* A lens's bubbles, when one is open (ChatLens, backend N691 item 5). */}
         <div {...{ [CHAT_LENS_THREAD]: "" }} className="flex flex-col empty:hidden" />
-        <ThreadDots thinking={botThinking} writing={thread.writing}
-          preparingVoice={reviewVoice.sending} processingVoice={outbox.processingVoice} />
+        <ThreadDots thinking={botThinking} writing={thread.writing} processingVoice={outbox.processingVoice} />
       </ChatScroll>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
@@ -3417,10 +3417,10 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
 
 /** The Lounge's one wait under the thread (B8): a reply being written, or
  *  the walk's summary and the chain after it. */
-function ThreadDots({ thinking, writing, preparingVoice, processingVoice }: {
-  thinking: boolean; writing: boolean; preparingVoice: boolean; processingVoice: boolean;
+function ThreadDots({ thinking, writing, processingVoice }: {
+  thinking: boolean; writing: boolean; processingVoice: boolean;
 }) {
-  if (preparingVoice || processingVoice) return <ChatRecordingStatus preparing={preparingVoice} />;
+  if (processingVoice) return <ChatRecordingStatus />;
   return thinking || writing ? <TypingDots /> : null;
 }
 

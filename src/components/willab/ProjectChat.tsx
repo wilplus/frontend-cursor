@@ -958,7 +958,7 @@ export default function ProjectChat({
           <PendingProjectAnswer pending={pendingAnswer} visibleMessages={visibleMessages} />
           <ProjectChatTurnError pendingTap={pendingTap} />
           {processingStatus()}
-          {voice.sending || outbox.processingVoice ? <ChatRecordingStatus preparing={voice.sending} />
+          {outbox.processingVoice ? <ChatRecordingStatus />
             : sending ? <TypingDots label="Will is replying" /> : null}
           </div>
         </div>
@@ -974,7 +974,7 @@ export default function ProjectChat({
         onValue={changeDraft} onSend={sendDraft}
         autoFocus={Boolean(stagedVoice) || typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending || voice.sending}
         files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
-        mic={voice.mic}
+        mic={voice.mic} transcribing={voice.sending && !sending && !outbox.processingVoice}
         recording={voice.recording} status={composerStatus()} />
       </div>
       {slides.layer}

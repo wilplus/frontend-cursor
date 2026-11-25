@@ -83,7 +83,7 @@ export function useComposerVoice({
     attrs,
   } : undefined;
   const recording: ComposerRecording | undefined = note.phase === "recording" ? {
-    elapsedMs: note.elapsedMs, stop: note.send, discard: note.cancel, attrs,
+    elapsedMs: note.elapsedMs, stop: note.send, discard: note.cancel, listening: prepareOnStop, attrs,
   } : undefined;
   const voiceDraft: ComposerVoiceDraft | undefined = audio && enabled ? {
     preview: <audio src={src} aria-label={copy.listen} controls preload="metadata" className="h-10 w-40 sm:w-52" />,
