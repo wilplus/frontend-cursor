@@ -43,7 +43,7 @@ export type ComposerVoiceDraft = {
   discard: () => void;
 };
 
-type ChatComposerProps = {
+export type ChatComposerProps = {
   placeholder?: string;
   inputLabel?: string;
   inputRef?: Ref<HTMLTextAreaElement>;

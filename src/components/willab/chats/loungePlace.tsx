@@ -132,51 +132,12 @@ export function useOpenPlace(): LoungePlace | null {
   return useSyncExternalStore(subscribe, () => open, () => null);
 }
 
-/* A host's chat that takes Takes (backend N648 item 8): the Lounge is drawn
- * as the speaking chat, its rows read for that chat alone (?chat=). */
+// The recorder reads the active hosted chat when it keeps a finished Take.
 let openChat: string | null = null;
-let openChatName = "";
-const chatListeners = new Set<() => void>();
-
-/** The door: the host's chat the Lounge is drawn for (null: none), and its
- *  name, for the chat's own messages drawn there. */
-export function setOpenChat(chat: string | null, name = ""): void {
-  if (openChat === chat && openChatName === name) return;
+export function setOpenChat(chat: string | null): void {
   openChat = chat;
-  openChatName = chat ? name : "";
-  chatListeners.forEach((listen) => listen());
 }
 
-/** The open host's chat's name ("" with none). */
-export function useOpenChatName(): string {
-  return useSyncExternalStore(subscribeChat, () => openChatName, () => "");
-}
-
-function subscribeChat(listen: () => void): () => void {
-  chatListeners.add(listen);
-  return () => chatListeners.delete(listen);
-}
-
-/** The host's chat whose Takes the Lounge draws now; null: none. */
-export function useOpenChat(): string | null {
-  return useSyncExternalStore(subscribeChat, () => openChat, () => null);
-}
-
-const askedThread = new Set<() => void>();
-
-/** From a host's chat that takes Takes: open the chat as it is today, with
- *  its bar, its answers and its "+" (N648 item 8); Back comes back here. */
-export function askForChatThread(): void {
-  askedThread.forEach((open) => open());
-}
-
-/** The door's ear for askForChatThread; returns the unsubscribe. */
-export function onAskedChatThread(open: () => void): () => void {
-  askedThread.add(open);
-  return () => askedThread.delete(open);
-}
-
-/** The same, read once (a recording just made, N648 item 8). */
 export function openChatNow(): string | null {
   return openChat;
 }

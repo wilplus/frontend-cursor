@@ -14,7 +14,8 @@ OUTCOME
       asks again; answered, the older messages come in above.
   O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
       that chat's rows alone, read with ?chat=; back in the Lounge, its own
-      thread again, with nothing of the other kept.
+      thread again. An older page still loading belongs to the chat that
+      requested it, even after switching to another.
   O5  A failed optimistic write keeps one exact bubble; retry reuses its
       client id, and the authoritative reload replaces rather than duplicates it.
   O6  A short user turn stays beside a structured response while the server
@@ -23,6 +24,7 @@ OUTCOME
       quick answer cannot consume the optimistic new one during reconciliation.
 PROVES   O1 -> "a failed read again keeps the chat on screen, an answered one replaces it"
          O4 -> "N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again"
+         O4 -> "keeps a delayed older page in the chat that requested it"
          O2 -> "an open with no answer waits and reads again, never an empty chat"
          O3 -> "an older page with no answer keeps the button"
          O5 -> "N655 keeps a failed optimistic row retryable and reconciles the same client id once"
@@ -324,6 +326,35 @@ describe("a host's chat that takes Takes (N648 item 8)", () => {
     await act(async () => box.open(null));
     expect(ids()).toEqual(["1", "2"]);
     expect(urls.at(-1)).not.toContain("chat=");
+    await act(async () => root.unmount());
+  });
+
+  it("keeps a delayed older page in the chat that requested it", async () => {
+    let receiveOlder!: (response: Response) => void;
+    const older = new Promise<Response>((resolve) => { receiveOlder = resolve; });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("chat=first")) return url.includes("before=") ? older : olderPage(true, "2");
+      return page("7");
+    }));
+    const box: { thread: UseLoungeThreadReturn | null } = { thread: null };
+    function Probe({ room }: { room: string }) {
+      box.thread = useLoungeThread(true, room);
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    await act(async () => root.render(createElement(Probe, { room: "first" })));
+    const beforePrepend = vi.fn();
+    let pending!: Promise<void>;
+    await act(async () => { pending = box.thread!.loadOlder(beforePrepend); });
+    await act(async () => root.render(createElement(Probe, { room: "second" })));
+    expect(box.thread!.messages.map(({ client_id }) => client_id)).toEqual(["7"]);
+    await act(async () => {
+      receiveOlder(page("1"));
+      await pending;
+    });
+    expect(box.thread!.messages.map(({ client_id }) => client_id)).toEqual(["7"]);
+    expect(beforePrepend).not.toHaveBeenCalled();
     await act(async () => root.unmount());
   });
 });

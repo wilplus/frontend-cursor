@@ -9,6 +9,7 @@ import type { Chat } from "@/services/api/chats";
 import { acceptInquiry, declineInquiry, getInquiry, inquiryAudioSrc, type Inquiry, type InquiryTake } from "@/services/api/takeMatches";
 import { OPEN_TAKE } from "./ChatList";
 import ChatComposer from "./ChatComposer";
+import { ChatScroll } from "./ChatWorkspace";
 import { RECORD_YOUR_ANSWER } from "./ChatBar";
 import { askingForWhatYouKnow, itsAbout } from "./joinCopy";
 import { BackIsThisChats, ChatTopBar, FileBubble, JoinedLine, SendingPill, TakeTile, VoiceWords } from "./ChatThread";
@@ -103,7 +104,7 @@ export default function InquiryThread({
     <div data-chat-screen data-inquiry={shown.id} className="relative flex min-h-0 flex-1 flex-col">
       {open ? <BackIsThisChats onBack={onBack} /> : null}
       <ChatTopBar chat={top} onBack={onBack} onOpen={() => undefined} />
-      <div data-chat-thread className="scrollbar-none flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-3 pt-4">
+      <ChatScroll data-chat-thread className="px-4 pb-3 pt-4">
         <div data-rhythm className="mt-auto flex flex-col gap-2">
           {accepted ? null : <JoinedLine text={askingForWhatYouKnow(shown.pseudonym)} />}
           {shown.about ? (
@@ -126,7 +127,7 @@ export default function InquiryThread({
           ) : null}
           {pending ? null : <TapRow labels={[NOT_NOW]} onTap={() => void decline()} dataAttr={{ "data-chat-not-now": "" }} />}
         </div>
-      </div>
+      </ChatScroll>
       {accepted || pending ? (
         <ChatComposer
           voiceRequired

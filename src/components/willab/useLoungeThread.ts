@@ -139,9 +139,11 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
   const oldestCursorRef = useRef<string | null>(null);
   const chatRef = useRef(chat);
   chatRef.current = chat;
+  const switched = useRef(chat);
+  const roomIsCurrent = switched.current === chat;
   // What is on screen now: a new message is stamped under its newest bubble.
   const messagesRef = useRef<LoungeMessage[]>(messages);
-  messagesRef.current = messages;
+  messagesRef.current = roomIsCurrent ? messages : [];
   // Appends still being stored (idle).
   const pendingRef = useRef<Set<Promise<unknown>>>(new Set());
   // Own bubbles not yet replaced by the backend's row (N632 item 7), and
@@ -181,7 +183,6 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
 
   // Rehydrate on mount / auth change, and when a host's chat with Takes
   // opens or closes: its rows are read for it alone (N648 item 8).
-  const switched = useRef(chat);
   useEffect(() => {
     setLoading(true);
     setUnanswered(false);
@@ -190,6 +191,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
       keptRef.current.clear();
       setMessages([]);
       setHasMore(false);
+      setLoadingOlder(false);
       oldestCursorRef.current = null;
     }
     if (!signedIn) {
@@ -218,7 +220,7 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
       // Usually already in flight since mount (bootPrefetch.ts).
       const page = chat ? await fetchLoungeHistory({ chat }) : await takeLoungeHistory();
       reading = false;
-      if (cancelled) return;
+      if (cancelled || chatRef.current !== chat) return;
       // The first read has come back, answered or not: the reads that
       // waited for it may start (the wallet chip, the menu's gates, the
       // guest claim — chatBoot.ts), as they always did.
@@ -259,11 +261,13 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
 
   const appendRecoverable = useCallback(
     (draft: LoungeMessageDraft): RecoverableAppend => {
+      const writingRoom = chatRef.current;
       const msg = stampLoungeMessage(draft, newestStamp(messagesRef.current));
       let stored = false;
       let inFlight: Promise<boolean> | null = null;
 
       const keepOnScreen = () => {
+        if (chatRef.current !== writingRoom || switched.current !== writingRoom) return;
         setMessages((prev) =>
           prev.some((item) => item.client_id === msg.client_id)
             ? prev
@@ -335,15 +339,16 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
   );
 
   const loadOlder = useCallback(async (beforePrepend?: () => void) => {
-    if (!signedIn || loadingOlder || !hasMore) return;
+    if (!signedIn || !roomIsCurrent || loadingOlder || !hasMore) return;
+    const readingRoom = chatRef.current;
     const cursor = oldestCursorRef.current;
     if (!cursor) return;
     setLoadingOlder(true);
     try {
-      const page = await fetchLoungeHistory({ before: cursor, chat: chatRef.current });
+      const page = await fetchLoungeHistory({ before: cursor, chat: readingRoom });
       // No answer says nothing about what is older: the button stays, and
       // a tap asks again.
-      if (page.failed) return;
+      if (page.failed || chatRef.current !== readingRoom) return;
       announceDiscoveriesFromPersistedMessages(page.messages);
       if (page.messages.length > 0) beforePrepend?.();
       // Older page is ASC; prepend ahead of the current window.
@@ -352,9 +357,9 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
       setHasMore(page.has_more);
       oldestCursorRef.current = page.oldest_cursor;
     } finally {
-      setLoadingOlder(false);
+      if (chatRef.current === readingRoom) setLoadingOlder(false);
     }
-  }, [signedIn, loadingOlder, hasMore]);
+  }, [signedIn, roomIsCurrent, loadingOlder, hasMore]);
 
   const clear = useCallback(async () => {
     if (signedIn) await clearLoungeThread();
@@ -412,10 +417,11 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
 
   const mergeFromLocal = useCallback(async () => {
     await mergeLocalLoungeThreadToServer();
+    if (chatRef.current !== null) return;
     // Rehydrate from the now-merged server thread (single source of truth).
     const at = startRead();
     const page = await fetchLoungeHistory();
-    if (page.failed) return;
+    if (page.failed || chatRef.current !== null) return;
     announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(withKept(page.messages, at));
     setHasMore(page.has_more);
@@ -450,11 +456,11 @@ export function useLoungeThread(signedIn: boolean, chat: string | null = null, o
   }, []);
 
   return {
-    messages,
-    loading,
-    unanswered,
-    loadingOlder,
-    hasMore,
+    messages: roomIsCurrent ? messages : [],
+    loading: !roomIsCurrent || loading,
+    unanswered: roomIsCurrent && unanswered,
+    loadingOlder: roomIsCurrent && loadingOlder,
+    hasMore: roomIsCurrent && hasMore,
     append,
     appendRecoverable,
     appendLocalOnly,

@@ -1,40 +1,8 @@
-"use client";
+import type { ChatMessage } from "@/services/api/chats";
 
-import { useEffect, useState } from "react";
-import { getChatThread, type ChatMessage } from "@/services/api/chats";
-import { markChatOpened } from "./chatOpened";
-
-/* -------------------------------------------------------------------------- */
-/*  A host's chat that takes Takes (backend N648 item 8) is drawn as the      */
-/*  speaking chat for it; the chat's own messages (the host's answers, their */
-/*  questions, one's own words to them) are drawn there too, each in its     */
-/*  place by time among the Takes, so nothing of the chat is lost.            */
-/* -------------------------------------------------------------------------- */
-
-/** The tag of a Take made in this chat (backend #1961, `meta.made_here`):
- *  its Take is drawn by the Lounge's own rows. */
-const madeHere = (m: ChatMessage) => !!m.meta && "made_here" in m.meta;
-
-/** The chat's own messages while it is open, oldest first; none for no chat. */
-export function useHostMessages(chatId: string | null): ChatMessage[] {
-  const [messages, setMessages] = useState<{ chat: string; list: ChatMessage[] } | null>(null);
-  useEffect(() => {
-    if (!chatId) return;
-    let alive = true;
-    // Opened: the list no longer shows it as new, as the chat itself does (N322).
-    markChatOpened(chatId);
-    void getChatThread(chatId).then((thread) => {
-      if (!alive) return;
-      const list = thread?.messages ?? [];
-      markChatOpened(chatId, list.at(-1)?.created_at ?? null);
-      setMessages({ chat: chatId, list: list.filter((m) => !madeHere(m)) });
-    });
-    return () => {
-      alive = false;
-      markChatOpened(chatId);
-    };
-  }, [chatId]);
-  return chatId && messages?.chat === chatId ? messages.list : [];
+/** A Take made in this chat is already rendered with its coaching exchange. */
+export function memberRowsForTakeChat(messages: readonly ChatMessage[] | null | undefined): ChatMessage[] {
+  return (messages ?? []).filter((message) => !message.meta?.made_here);
 }
 
 const at = (iso: string | null | undefined) => {

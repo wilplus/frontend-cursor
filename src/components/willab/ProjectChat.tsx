@@ -51,7 +51,7 @@ import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { WILLAB_CONTENT_RAIL } from "@/lib/willab/layout";
 import { usePinThreadBottom } from "./usePinThreadBottom";
 import TakeReview, { InlineTakeIdealText, REVIEW_STEPS, type ReviewExit, type ReviewFocus, type TakeReviewTarget } from "./TakeReview";
-import { TakeConversation } from "./chats/TakeConversation";
+import { conversationBubbleClass, TakeConversation } from "./chats/TakeConversation";
 import { useComposerVoice } from "./chats/useComposerVoice";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
@@ -59,7 +59,7 @@ import { useHumanCoachReviewRows } from "./chats/useHumanCoachReviewRows";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
 import ChatComposer from "./chats/ChatComposer";
 import { useUpdateSlides } from "./UpdateSlides";
-import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
+import { ChatScroll, useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
 import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
 import CoachWordingCard, { linkedSavedWordings } from "./CoachWordingCard";
@@ -868,11 +868,9 @@ export default function ProjectChat({
           ) : (
             <div
               data-project-message={message.client_id}
-              className={`max-w-[86%] whitespace-pre-wrap rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed empty:hidden ${
-                message.role === "user"
-                  ? "ml-auto " + PROJECT_SPEAKER_BUBBLE
-                  : "mr-auto bg-muted text-foreground"
-              }`}
+              data-bubble=""
+              data-row={message.role === "user" ? "me" : "app"}
+              className={`max-w-[86%] empty:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"} ${conversationBubbleClass(message.role === "user")}`}
             >
               {message.metadata?.human_coach_author === "Artur" && <p className="mb-1 text-[13px] font-medium text-muted-foreground">Artur · Speaking coach</p>}
               {message.role === "bot" ? withoutCoachTranscriptFooter(message.body) : message.body}
@@ -934,7 +932,7 @@ export default function ProjectChat({
     <div data-project-chat className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <ProjectChatHeader project={activeProject} onBack={workspace ? undefined : back} />
 
-      <div ref={scrollRef} data-project-scroll className="scrollbar-none flex-1 overflow-y-auto px-4 py-4">
+      <ChatScroll ref={scrollRef} data-project-scroll className="px-4 py-4">
         <div className="flex min-h-full w-full flex-col justify-end gap-2">
           {projectTimeline(recordingTakes, ordinaryMessages, messages).map((entry) =>
             entry.kind === "take" ? renderTake(entry.take) : renderOrdinaryMessage(entry.message)
@@ -946,7 +944,7 @@ export default function ProjectChat({
           {sending || voice.sending ? <TypingDots label={voice.sending && !sending ? "Processing your recording" : "Will is replying"} /> : null}
           </div>
         </div>
-      </div>
+      </ChatScroll>
 
       <div ref={setRecordingDock} data-project-walk-capture className={WILLAB_CONTENT_RAIL + " peer empty:hidden"} />
       <div className="peer-[:not(:empty)]:hidden">

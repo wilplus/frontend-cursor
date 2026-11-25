@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, forwardRef, useContext, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import Logo from "@/components/Logo";
 import { DashboardAccountMenu } from "@/components/dashboard/DashboardHeader";
@@ -15,6 +15,14 @@ const WorkspaceSidebar = createContext<{ needsSpace: boolean; show: () => void }
 export function useWorkspaceSidebar() {
   return useContext(WorkspaceSidebar);
 }
+
+/** The conversation scrolls inside the workspace, independently of its composer. */
+export const ChatScroll = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function ChatScroll(
+  { className = "", ...props }, ref,
+) {
+  return <div {...props} ref={ref} data-conversation-scroll
+    className={`scrollbar-none flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain ${className}`} />;
+});
 
 export default function ChatWorkspace({ sidebar, viewKey, suspended = false, children }: {
   sidebar: ReactNode;

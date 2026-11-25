@@ -17,8 +17,9 @@ import { useBackStop } from "../useBackDismiss";
 import ProductHome from "./ProductHome";
 import WillBuild from "./WillBuild";
 import BuiltChatSection from "./BuiltChatSection";
-import { onAskedChatThread, setOpenChat, setOpenPlace } from "./loungePlace";
-import { TakesChatBar, TopBar } from "./TopBar";
+import { setOpenChat, setOpenPlace } from "./loungePlace";
+import { TopBar } from "./TopBar";
+import type { MemberChatContent } from "./ChatThread";
 import { WillMark } from "./ChatList";
 import { useChatList, useChatsDecided, useForgetChatsSignedOut } from "./useChats";
 import { useChatStructure } from "./useChatStructure";
@@ -32,7 +33,7 @@ type Destination =
   | { kind: "coach" }
   | { kind: "builder" }
   | { kind: "built"; name: string; section: Subchat | "main" }
-  | { kind: "person"; chat: Chat; thread?: boolean };
+  | { kind: "person"; chat: Chat };
 
 type Options = {
   activeProject?: TrainingArc | null;
@@ -53,6 +54,8 @@ type ChatsDoor = {
   sidebar: ReactNode;
   heading: ReactNode;
   pane: ReactNode;
+  takeRoom: string | null;
+  hosted: ((render: (content: MemberChatContent) => ReactNode) => ReactNode) | null;
   loungeCovered: boolean;
   projects: TrainingArc[];
   speakingActive: boolean;
@@ -67,7 +70,7 @@ function chatKey(destination: Destination): string {
 function conversationStatus(destination: Destination, project: TrainingArc | null | undefined,
   enabled: boolean, coachAvailable: boolean, pendingProjectKey?: string) {
   const projectOpen = Boolean(project || pendingProjectKey);
-  const takesChat = destination.kind === "person" && destination.chat.takes && !destination.thread ? destination.chat : null;
+  const takesChat = destination.kind === "person" && destination.chat.takes && !destination.chat.inquiry ? destination.chat : null;
   const speakingActive = enabled && destination.kind === "coach" && coachAvailable;
   const takesChatId = !projectOpen && enabled ? takesChat?.id ?? null : null;
   return {
@@ -101,13 +104,11 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
   const pendingKey = options?.pendingProjectKey;
   const { takesChat, takesChatId, speakingActive, place, loungeCovered, coachHeading } =
     conversationStatus(destination, project, enabled, layout?.coach !== "archived" && layout?.coach !== "deleted", pendingKey);
-  const takesChatName = takesChat?.title;
-
   useEffect(() => {
-    setOpenChat(takesChatId, takesChatName);
+    setOpenChat(takesChatId);
     setOpenPlace(place);
     return () => { setOpenPlace(null); setOpenChat(null); };
-  }, [takesChatId, takesChatName, place]);
+  }, [takesChatId, place]);
   useBackStop(enabled);
 
   useEffect(() => {
@@ -141,11 +142,21 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
   const heading = coachHeading ?
     <TopBar title={uiText(locale, "speakingCoach")} circle={<WillMark size={32} />} /> : null;
 
+  const openPersonById = (id: string) => {
+    const next = people?.find((chat) => chat.id === id);
+    if (next) openedPerson(next);
+  };
+  const hosted = takesChatId && takesChat ? (render: (content: MemberChatContent) => ReactNode) =>
+    <ChatThread key={takesChatId} chat={takesChat} onBack={openCoach} onOpenChat={openPersonById}
+      onRecordAnswer={onRecordAnswer} renderConversation={render} /> : null;
+
   return {
     enabled,
     waiting: decided === null,
     activeChat,
     loungeCovered,
+    takeRoom: takesChatId,
+    hosted,
     speakingActive,
     projects: projects.filter((arc) => !arc.archived && !arc.deletion),
     heading,
@@ -171,37 +182,27 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       onOpenOwnChat={() => open({ kind: "builder" })}
       onOpenOwnSection={(name, section) => open({ kind: "built", name, section })}
     /> : null,
-    pane: enabled && !project && !pendingKey ? <ConversationPane
+    pane: enabled && !project && !pendingKey && !hosted ? <ConversationPane
       destination={destination}
-      takesChat={takesChat}
       layout={layout}
       change={change}
-      onBack={destination.kind === "person" && destination.thread ? () => openedPerson(destination.chat) : openCoach}
-      onOpenThread={(chat) => open({ kind: "person", chat, thread: true })}
-      onOpenPerson={(id) => {
-        const next = people?.find((chat) => chat.id === id);
-        if (next) openedPerson(next);
-      }}
+      onBack={openCoach}
+      onOpenPerson={openPersonById}
       onPersonGone={() => { reloadPeople(); openCoach(); }}
       onRecordAnswer={onRecordAnswer}
     /> : null,
   };
 }
 
-function ConversationPane({ destination, takesChat, layout, change, onBack, onOpenThread, onOpenPerson, onPersonGone, onRecordAnswer }: {
+function ConversationPane({ destination, layout, change, onBack, onOpenPerson, onPersonGone, onRecordAnswer }: {
   destination: Destination;
-  takesChat: Chat | null;
   layout: ReturnType<typeof useChatStructure>["layout"];
   change: ReturnType<typeof useChatStructure>["change"];
   onBack: () => void;
-  onOpenThread: (chat: Chat) => void;
   onOpenPerson: (id: string) => void;
   onPersonGone: () => void;
   onRecordAnswer?: (answer: AnswerFor) => void;
 }) {
-  useEffect(() => {
-    if (takesChat) return onAskedChatThread(() => onOpenThread(takesChat));
-  }, [takesChat, onOpenThread]);
   if (destination.kind === "builder") return (
     <WillBuild onBack={onBack} onSaveChat={(doc) => {
       const { spec, line, hello, questions, taps, send, who } = doc.chat;
@@ -215,7 +216,6 @@ function ConversationPane({ destination, takesChat, layout, change, onBack, onOp
   );
   if (destination.kind !== "person") return null;
   const { chat } = destination;
-  if (takesChat) return <TakesChatBar chat={chat} onBack={onBack} onOpen={() => onOpenThread(chat)} />;
   if (chat.inquiry) return <InquiryThread key={chat.id} chat={chat} inquiry={chat.inquiry}
     onBack={onBack} onGone={onPersonGone} onRecordAnswer={onRecordAnswer} />;
   return <ChatThread key={chat.id} chat={chat} onBack={onBack}
