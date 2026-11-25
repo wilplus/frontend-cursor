@@ -82,6 +82,8 @@ personality or challenge/threat state from voice alone (N663).
 
 One sidebar sits beside the active chat. The Speaking Coach row opens general guidance, with its projects listed underneath. Each project row opens its own conversation, Takes, feedback, and contextual questions. Owned chats, subchats, and other conversations use the same sidebar. The sidebar icon stays at the top left. On a phone the sidebar opens as a drawer. Setup for a person's own chat sits at the bottom. This replaces the full-page chat list, the Projects selector, and the sidebar inside a project.
 
+Each chat uses the same scrollable message stream, bubble style and composer (N692). In a hosted chat that accepts Takes, the host's messages and the Take feedback share one timeline. Reply to the host in place. Open a Take recap to ask about that Take in the same composer. The label above the composer shows which Take the question refers to. A draft stays with its intended host or Take. Each chat keeps its own history and available send actions. A new Take started from that chat belongs to it. (Founder, Take design Codex chat, 24 November 2026.)
+
 On 23 November 2026, the sidebar's separate Speaking Coach setup shortcut was retired (N676). The plan opens from its existing prompts in the coach conversation. If the person previously deleted Speaking Coach, **Start a new project** can create a fresh project from the sidebar. An archived coach is restored from **Archived chats**.
 
 A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The live review opens in the active project as soon as its Take is ready. Leaving folds the exchange into a single preview below its recording. Opening the preview restores the conversation, including saved messages and practices across storage pages.
@@ -132,7 +134,9 @@ A coach reply that shows a moment of the speaker's Take records it as opened for
 
 ### Shared composer (N667)
 
-In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send posts the text with its playable recording underneath. When only transcription is available from the server, the audio plays in the current app session. A server-accepted practice recording carries its own delivery evidence and keeps its source across a network retry.
+In Project Chat and Speaking Coach, stopping the small microphone puts the transcript in the message field for editing (N690). Send keeps the playable recording and its delivery analysis with that message, linked to the project and selected Take when present. The chat shows a short status while it checks how the recording sounds. The original spoken words supply the analysis, even if the speaker edits the message before sending. A short recording can be used for practice without starting a Take. If a delivery question could refer to either the Take or the short clip, the coach asks which recording to use and continues with the selected source.
+
+A corrective reply includes the exercise and the words to say (N693). A published pace fix puts the Sniper and its exact passage in the bubble. With practice enabled, the highlighted chat mic drives the ball and submits the retry when stopped. The coach checks the same passage or its paraphrase against the original cue. A confirmed improvement can be followed by an inline AI example for the next cue, such as more energy at the opening. The mic lights up when that example can play. Incomplete evidence keeps the current exercise available. In a hosted chat, the selected Take supplies the scope, and the retry uses the exact source named by the exercise.
 
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,

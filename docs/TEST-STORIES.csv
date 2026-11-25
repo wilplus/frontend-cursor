@@ -468,11 +468,15 @@ O3  The accepted bubble and reply are scrolled into view, structured
 replies cannot replace the turn, and stale terminal walk copy is
 rejected as a new answer.
 O4  The general coach keeps old advice as text and shows the weekly
-note while project artifacts stay inside the project.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
+note while project artifacts stay inside the project.
+O5  A hosted chat shows the host's messages and Take feedback in
+one timeline, routes each reply, and opens a new Take in place.
+Its consented practice uses that Take and the server's cited fragment.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
 O2 -> ""keeps a refused quick choice once with an explicit recoverable error""
 O3 -> ""keeps a structured contextual turn ordered through refresh and scrolls both sides into view""
 O3 -> ""does not replay an old terminal walk line as the answer to a new message""
-O4 -> ""keeps old suggested words as text and puts the weekly note in Speaking Coach""","Founder lock N655, 2026-11-16; release-blocking chat audit, 2026-11-17."
+O4 -> ""keeps old suggested words as text and puts the weekly note in Speaking Coach""
+O5 -> ""answers a selected Take and the waiting host from the same composer""","Founder lock N655, 2026-11-16; release-blocking chat audit, 2026-11-17."
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, with sending on, I want the people in my chats listed with everyone ticked, the one I sent to last on top, so that one Continue sends my Take to them, and I want the line under it to let me add people later but never unsend. With sending off, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O3  With sending on: the three bubbles, Select all and one row per
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
@@ -870,16 +874,9 @@ O2 -> ""HOST-N590-8: the joiner meets the host's welcome first, as the assistant
 O3 -> ""HOST-N582-10: Will's setup of my chat, one question at a time, in the backend's words""
 O5 -> ""HOST-N582-11: typed words the setup refuses come back; the offer, once scrolled away, begins the setup again""
 O4 -> ""HOST-N586-5: Will offers the setup once, only to a tester with no recipe""","Every inviter has a chat of their own, set up in Will's chat (founder, 9 November 2026, N578 to N582, N586, N590)."
-src/components/willab/chats/hostChatMessages.test.tsx,Story,"As a person on the chat builder's ring recording Takes in my chat with a speaking host, I want the host's own messages in that chat too, each in its place among my Takes, so that nothing I had in the chat is gone once it shows my Takes (backend N648 item 8).","O1  The chat's own messages are read for the chat open, and lie among the
-Take rows by time: those before a row right before it, the newer ones
-after the last.
-O2  The tag of a Take made in the chat is not drawn as a message: the
-Take shows through its own rows; opened, the chat no longer reads as
-new in the list.
-O3  A message that asks something of me opens the chat as it is today in
-one tap; one that asks nothing is only read.","O1 -> ""N648-8 the host's messages lie among the Takes by time""
-O2 -> ""N648-8 the chat is read for the chat open, without a Take's tag""
-O3 -> ""N648-8 a message that asks something opens the chat as it is today""",
+src/components/willab/chats/hostChatMessages.test.tsx,Story,"As a person on the chat builder's ring recording Takes in my chat with a speaking host, I want the host's own messages in that chat too, each in its place among my Takes, so that nothing I had in the chat is gone once it shows my Takes (backend N648 item 8).","O1  Host messages appear in timestamp order among the Take rows.
+O2  A Take appears once when its member row references its existing coaching exchange.","O1 -> ""N648-8 the host's messages lie among the Takes by time""
+O2 -> ""keeps the member's messages and shows a Take made here only in its coaching exchange""",
 src/components/willab/chats/hostsetup/hostSetup.test.tsx,Story,"As the first person ever on WillpowerLab, nobody's invitee, I set up a chat with Will one decision per screen, Keep or Change, typing in Will's chat when words are needed; I test it as my people will, open it, and change it later by telling Will (backend N612, N616 to N618; the blank setup's stories FIRST-02 to FIRST-22).","O1  Each screen shows the locked prototype's words, and each Keep reaches
 the backend as one part in the recipe v2 shape (backend #1893).
 O2  Change cycles Will's suggestions with no call; Back keeps the answer.
@@ -1859,7 +1856,8 @@ O3  ""Load earlier messages"" with no answer keeps the button, so a tap
 asks again; answered, the older messages come in above.
 O4  In a host's chat that takes Takes (backend N648 item 8) the thread is
 that chat's rows alone, read with ?chat=; back in the Lounge, its own
-thread again, with nothing of the other kept.
+thread again. An older page still loading belongs to the chat that
+requested it, even after switching to another.
 O5  A failed optimistic write keeps one exact bubble; retry reuses its
 client id, and the authoritative reload replaces rather than duplicates it.
 O6  A short user turn stays beside a structured response while the server
@@ -1867,6 +1865,7 @@ read is eventually consistent, then reconciles to one row.
 O7  Intentionally repeated identical sends remain two turns; an older equal
 quick answer cannot consume the optimistic new one during reconciliation.","O1 -> ""a failed read again keeps the chat on screen, an answered one replaces it""
 O4 -> ""N648-8 a host's chat that takes Takes reads its own rows, and the Lounge its own again""
+O4 -> ""keeps a delayed older page in the chat that requested it""
 O2 -> ""an open with no answer waits and reads again, never an empty chat""
 O3 -> ""an older page with no answer keeps the button""
 O5 -> ""N655 keeps a failed optimistic row retryable and reconciles the same client id once""

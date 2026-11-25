@@ -5,7 +5,6 @@ import { ChevronLeft } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
-import type { Chat } from "@/services/api/chats";
 import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
 import { PageHeader } from "../PageHeader";
 import { useWorkspaceSidebar } from "./ChatWorkspace";
@@ -117,19 +116,5 @@ export function WillTopBar({ onBack, place = "will", build = null, right = null 
   if (build) return <>{build}</>;
   return (
     <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} right={right} />
-  );
-}
-
-/** A host's chat that takes Takes, drawn over the Lounge as the speaking
- *  chat for that chat (backend N648 item 8): its own top bar, as in the
- *  chat itself (the letter circle, the name, who they are). The phone's
- *  Back is this bar's back, one step to the list. The circle and the name
- *  open the chat as it is today (`onOpen`). */
-export function TakesChatBar({ chat, onBack, onOpen }: { chat: Chat; onBack: () => void; onOpen: () => void }) {
-  useBackDismiss(onBack);
-  return (
-    <div data-takes-chat={chat.id}>
-      <TopBar circle={<LetterCircle id={chat.id} name={chat.title} size={36} />} title={chat.title} subtitle={chat.subtitle} onBack={onBack} onOpen={onOpen} />
-    </div>
   );
 }

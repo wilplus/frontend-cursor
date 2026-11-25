@@ -6,7 +6,6 @@ import {
   type UseLoungeThreadReturn,
 } from "./useLoungeThread";
 import LoadingState from "./LoadingState";
-import { useOpenChat } from "./chats/loungePlace";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
 
@@ -43,9 +42,11 @@ export function useLoungeThreadMaybe(): UseLoungeThreadReturn | null {
 export function LoungeThreadProvider({
   children,
   signedIn: known = null,
+  room = null,
 }: {
   children: React.ReactNode;
   signedIn?: boolean | null;
+  room?: string | null;
 }) {
   const own = useSignedIn();
   const signedIn = known ?? own;
@@ -54,20 +55,22 @@ export function LoungeThreadProvider({
     return <LoadingState placement="surface" />;
   }
   const owner = signedIn ? userId : "guest";
-  return <LoungeThreadInner key={owner} owner={owner} signedIn={signedIn}>{children}</LoungeThreadInner>;
+  return <LoungeThreadInner key={owner} owner={owner} signedIn={signedIn} room={room}>{children}</LoungeThreadInner>;
 }
 
 function LoungeThreadInner({
   signedIn,
   owner,
+  room,
   children,
 }: {
   signedIn: boolean;
   owner: string | null;
+  room: string | null;
   children: React.ReactNode;
 }) {
   // A host's chat that takes Takes reads its own rows (N648 item 8).
-  const thread = useLoungeThread(signedIn, useOpenChat(), owner);
+  const thread = useLoungeThread(signedIn, room, owner);
   return (
     <LoungeThreadCtx.Provider value={thread}>{children}</LoungeThreadCtx.Provider>
   );

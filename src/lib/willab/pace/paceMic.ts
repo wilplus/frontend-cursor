@@ -30,6 +30,20 @@ export async function startPaceMic(
   } catch {
     return null;
   }
+  const release = () => stream.getTracks().forEach((track) => track.stop());
+  try {
+    const listener = await watchPaceStream(stream, onRead, cfg);
+    return { ...listener, stop: () => { listener.stop(); release(); } };
+  } catch {
+    release();
+    return null;
+  }
+}
+
+/** Listen to the shared chat recorder's stream. Its owner stops the tracks. */
+export async function watchPaceStream(
+  stream: MediaStream, onRead: (read: InstantRead) => void, cfg: InstantConfig = INSTANT_CONFIG,
+): Promise<PaceMic> {
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const audio = new AudioCtx();
   await audio.resume();
@@ -93,7 +107,6 @@ export async function startPaceMic(
     voiceLike: () => voiceLike,
     stop: () => {
       window.clearInterval(id);
-      stream.getTracks().forEach((t) => t.stop());
       void audio.close();
     },
   };

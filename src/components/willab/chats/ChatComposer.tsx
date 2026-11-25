@@ -24,6 +24,7 @@ export type ComposerMic = {
   start: () => void;
   label?: string;
   disabled?: boolean;
+  ready?: boolean;
   attrs?: Partial<Record<`data-${string}`, string>>;
 };
 
@@ -43,7 +44,7 @@ export type ComposerVoiceDraft = {
   discard: () => void;
 };
 
-type ChatComposerProps = {
+export type ChatComposerProps = {
   placeholder?: string;
   inputLabel?: string;
   inputRef?: Ref<HTMLTextAreaElement>;
@@ -354,12 +355,16 @@ function MicSlot({ mic, recording, required, submitting }: {
 }) {
   const copy = COMPOSER_COPY[useUiLocale()];
   const label = recording ? recording.stopLabel ?? copy.stop : mic?.label ?? copy.start;
+  const disabled = recording ? !recording.stop : !mic || mic.disabled || submitting;
+  const ready = !recording && mic?.ready && !disabled;
   return (
     <button {...(recording ? recording.attrs : mic?.attrs)} type="button" data-chat-mic="" aria-label={label} title={label}
-      data-recording={recording ? "" : undefined} disabled={recording ? !recording.stop : !mic || mic.disabled || submitting}
+      data-recording={recording ? "" : undefined} disabled={disabled}
+      data-practice-ready={ready ? "" : undefined}
       onClick={recording ? recording.stop : mic?.start}
       className={cn(CONTROL, recording ? "bg-destructive/10 text-destructive hover:bg-destructive/15" :
-        required && mic ? "bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted" : undefined)}>
+        required && mic ? "bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted" :
+          ready ? "bg-primary text-primary-foreground hover:bg-primary/90" : undefined)}>
       {recording ? <Square className="size-4 fill-current" aria-hidden /> : <Mic className="size-5" aria-hidden />}
     </button>
   );

@@ -11,9 +11,10 @@ const VOICE_COPY = {
 };
 
 export function useComposerVoice({
-  onSend, maxSeconds, enabled = true, held = false, label, attrs, scope, prepareOnStop = false,
+  onSend, maxSeconds, enabled = true, held = false, label, attrs, scope, prepareOnStop = false, ready, onStream,
+  practiceReplyId,
 }: {
-  onSend: (audio: Blob, durationMs: number, recordingId?: string) => Promise<boolean> | boolean;
+  onSend: (audio: Blob, durationMs: number, recordingId?: string, practiceReplyId?: string) => Promise<boolean> | boolean;
   maxSeconds: number;
   enabled?: boolean;
   held?: boolean;
@@ -21,10 +22,16 @@ export function useComposerVoice({
   attrs?: ComposerMic["attrs"];
   scope?: string;
   prepareOnStop?: boolean;
+  ready?: boolean;
+  onStream?: (stream: MediaStream) => (() => void) | undefined;
+  practiceReplyId?: string;
 }) {
   const copy = VOICE_COPY[useUiLocale()];
-  const [take, setTake] = useState<{ audio: Blob; durationMs: number; key: string; scope?: string } | null>(null);
+  const [take, setTake] = useState<{
+    audio: Blob; durationMs: number; key: string; scope?: string; practiceReplyId?: string;
+  } | null>(null);
   const capturedIn = useRef(scope);
+  const capturedReply = useRef<string | undefined>(undefined);
   const activeScope = useRef(scope);
   activeScope.current = scope;
   const pending = take?.scope === scope ? take : null;
@@ -35,12 +42,13 @@ export function useComposerVoice({
   const [retrying, setRetrying] = useState(false);
   const note = useVoiceNote({
     maxSeconds,
+    onStream,
     onDone: async ({ audio, durationMs, key }) => {
-      const recording = { audio, durationMs, key, scope: capturedIn.current };
+      const recording = { audio, durationMs, key, scope: capturedIn.current, practiceReplyId: capturedReply.current };
       if (recording.scope !== activeScope.current) return;
       if (prepareOnStop) {
         try {
-          if (await onSend(audio, durationMs, key)) return;
+          if (await onSend(audio, durationMs, key, recording.practiceReplyId)) return;
         } catch { /* Keep a failed upload available to retry. */ }
         if (recording.scope !== activeScope.current) return;
         setFailed(true);
@@ -63,6 +71,7 @@ export function useComposerVoice({
   const mic: ComposerMic | undefined = enabled ? {
     start: () => {
       capturedIn.current = scope;
+      capturedReply.current = ready ? practiceReplyId : undefined;
       setError(false);
       setFailed(false);
       if (prepareOnStop) setTake(null);
@@ -70,6 +79,7 @@ export function useComposerVoice({
     },
     label: audio ? copy.again : label,
     disabled: held || note.phase !== "idle",
+    ready,
     attrs,
   } : undefined;
   const recording: ComposerRecording | undefined = note.phase === "recording" ? {
@@ -79,7 +89,7 @@ export function useComposerVoice({
     preview: <audio src={src} aria-label={copy.listen} controls preload="metadata" className="h-10 w-40 sm:w-52" />,
     discard: () => { setTake(null); setSrc(""); setFailed(false); },
     send: async () => {
-      if (!take || !await onSend(audio, take.durationMs, take.key)) return false;
+      if (!take || !await onSend(audio, take.durationMs, take.key, take.practiceReplyId)) return false;
       setTake(null);
       setSrc("");
       setFailed(false);
@@ -96,7 +106,7 @@ export function useComposerVoice({
       if (retrying) return;
       setRetrying(true);
       try {
-        if (await onSend(pending.audio, pending.durationMs, pending.key)) {
+        if (await onSend(pending.audio, pending.durationMs, pending.key, pending.practiceReplyId)) {
           setTake(null);
           setFailed(false);
         }

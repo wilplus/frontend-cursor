@@ -57,16 +57,19 @@ export function TakeConversation({ title, preview, expanded, showPreview = true,
   </section>;
 }
 
+export function conversationBubbleClass(speaker: boolean) {
+  return cn("min-w-0 whitespace-pre-wrap break-words rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed",
+    speaker ? PROJECT_SPEAKER_BUBBLE : "bg-muted text-foreground");
+}
+
 export function ConversationBubble({ speaker = false, children, className }: {
   speaker?: boolean;
   children: ReactNode;
   className?: string;
 }) {
   return <div className={cn(WILLAB_CONTENT_RAIL, "flex min-w-0", speaker && "justify-end")}>
-    <div data-bubble="" data-row={speaker ? "me" : "them"} className={cn(
-      "min-w-0 max-w-[86%] space-y-2 rounded-[18px] break-words px-4 py-2.5 text-[15px] leading-relaxed",
-      speaker ? PROJECT_SPEAKER_BUBBLE : "bg-muted text-foreground", className,
-    )}>{children}</div>
+    <div data-bubble="" data-row={speaker ? "me" : "them"}
+      className={cn(conversationBubbleClass(speaker), "max-w-[86%] space-y-2", className)}>{children}</div>
   </div>;
 }
 

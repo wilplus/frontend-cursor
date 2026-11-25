@@ -11,11 +11,15 @@ OUTCOME  O1  The open project question keeps its composer, uses contextual
              rejected as a new answer.
          O4  The general coach keeps old advice as text and shows the weekly
              note while project artifacts stay inside the project.
+         O5  A hosted chat shows the host's messages and Take feedback in
+             one timeline, routes each reply, and opens a new Take in place.
+             Its consented practice uses that Take and the server's cited fragment.
 PROVES   O1 -> "uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once"
          O2 -> "keeps a refused quick choice once with an explicit recoverable error"
          O3 -> "keeps a structured contextual turn ordered through refresh and scrolls both sides into view"
          O3 -> "does not replay an old terminal walk line as the answer to a new message"
          O4 -> "keeps old suggested words as text and puts the weekly note in Speaking Coach"
+         O5 -> "answers a selected Take and the waiting host from the same composer"
 WHY      Founder lock N655, 2026-11-16; release-blocking chat audit,
          2026-11-17.
 */
@@ -23,6 +27,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import type { Chat, ChatMessage } from "@/services/api/chats";
+import type { ProcessingTake } from "@/lib/willab/processingTake";
 
 const harness = vi.hoisted(() => ({
   rows: [] as LoungeMessage[],
@@ -33,6 +39,11 @@ const harness = vi.hoisted(() => ({
   owner: "user-a",
   query: vi.fn(),
   willQuestion: vi.fn(),
+  documentSettled: null as ((take: ProcessingTake) => void) | null,
+  transcribe: vi.fn(),
+  attach: vi.fn(),
+  allowPractice: false,
+  voiceSend: null as Parameters<typeof import("./chats/useComposerVoice").useComposerVoice>[0]["onSend"] | null,
   thread: null as ReturnType<typeof import("./useLoungeThread").useLoungeThread> | null,
 }));
 
@@ -51,7 +62,27 @@ vi.mock("@/services/api/chatQuery", async (importOriginal) => ({
 vi.mock("@/services/api/willQuestion", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   postWillQuestion: (...args: unknown[]) => harness.willQuestion(...args),
+  transcribeChatAnswer: (...args: unknown[]) => harness.transcribe(...args),
+  attachChatVoice: (...args: unknown[]) => harness.attach(...args),
 }));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  readPractiseOffered: async () => harness.allowPractice,
+}));
+vi.mock("./chats/useComposerVoice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./chats/useComposerVoice")>();
+  return { ...actual, useComposerVoice(options: Parameters<typeof actual.useComposerVoice>[0]) {
+    harness.voiceSend = options.onSend;
+    return actual.useComposerVoice(options);
+  } };
+});
+vi.mock("./useDocumentSettle", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./useDocumentSettle")>();
+  return { ...actual, useDocumentSettle(options: Parameters<typeof actual.useDocumentSettle>[0]) {
+    harness.documentSettled = options.onSettled ?? null;
+    return actual.useDocumentSettle(options);
+  } };
+});
 // The lounge warms these after boot. Left real, the Ideal Text walk is still
 // loading when this file's environment is torn down, and Vitest fails the run
 // even though every test passed.
@@ -60,6 +91,7 @@ vi.mock("./walk/WalkOverlay", () => ({ default: () => null }));
 vi.mock("@/components/life/LifeChatLayer", () => ({ LifeChatCard: () => null }));
 
 import Lounge from "./Lounge";
+import ChatThread from "./chats/ChatThread";
 import { LoungeThreadProvider, useLoungeThreadCtx } from "./LoungeThreadContext";
 import { setOpenPlace } from "./chats/loungePlace";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
@@ -139,6 +171,11 @@ beforeEach(() => {
   harness.reads = 0;
   harness.owner = "user-a";
   harness.thread = null;
+  harness.documentSettled = null;
+  harness.allowPractice = false;
+  harness.voiceSend = null;
+  harness.transcribe.mockReset();
+  harness.attach.mockReset().mockResolvedValue(true);
   harness.query.mockReset();
   harness.willQuestion.mockReset().mockResolvedValue(true);
   localStorage.clear();
@@ -197,6 +234,125 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("typed answer in the main Will/Lounge chat", () => {
+  it("answers a selected Take and the waiting host from the same composer", async () => {
+    const chat: Chat = { id: "host-room", kind: "team", title: "Tomek", subtitle: "", last: null, takes: true };
+    const hostQuestion: ChatMessage = {
+      id: "host-question", kind: "text", body: "What will you present?", mine: false, author: "Tomek",
+      created_at: "2026-11-16T09:59:00Z", meta: { record_answer: true },
+    };
+    harness.rows = [{
+      ...QUESTION, client_id: "take-moment", body: "Your pause made the opening land.",
+      metadata: { arc_id: "arc-a", take_session_id: "take-a", take_exchange: true, take_index: 1 },
+    }];
+    harness.query.mockResolvedValue({
+      answer: "Keep the pause before the call to action.", persisted: true, persisted_client_id: "take-reply",
+    });
+    const fetchHistory = globalThis.fetch;
+    const memberRequests = vi.fn();
+    const json = (body: unknown) => new Response(JSON.stringify(body), {
+      status: 200, headers: { "content-type": "application/json" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chats/host-room/host")) {
+        return json({ host: { assistant: "Tomek's assistant", send: ["text", "rec"] } });
+      }
+      if (url.endsWith("/chats/host-room/messages")) {
+        if (init?.method !== "POST") return json({ messages: [hostQuestion] });
+        const sent = JSON.parse(String(init.body));
+        memberRequests(sent);
+        return json({ message: {
+          ...hostQuestion, id: "host-answer", body: sent.body, mine: true, meta: { answer_to: sent.to },
+          created_at: "2026-11-16T10:01:00Z",
+        } });
+      }
+      return fetchHistory(input, init);
+    }));
+
+    const openProject = vi.fn();
+    await act(async () => root.render(
+      <LoungeThreadProvider signedIn room={chat.id}>
+        <ChatThread chat={chat} onBack={vi.fn()} onRecordAnswer={vi.fn()} renderConversation={(member) =>
+          <Lounge member={member} state={"lounge_idle" as never} onStart={vi.fn()} dispatch={vi.fn()}
+            onOpenTakeInProject={openProject} />} />
+      </LoungeThreadProvider>,
+    ));
+    const timeline = host.querySelector("[data-conversation-scroll]")!;
+    const recap = [...timeline.querySelectorAll("button")].find((button) => button.textContent?.includes("Feedback walk"))!;
+    const field = host.querySelector("textarea")!;
+    expect(timeline.textContent).toContain(hostQuestion.body);
+    expect(recap.textContent).toContain("Your pause made the opening land.");
+    expect(host.querySelectorAll("textarea")).toHaveLength(1);
+
+    enter(field, "The pilot results");
+    await act(async () => recap.click());
+    expect(host.querySelector("textarea")).toBe(field);
+    expect(field.value).toBe("");
+    enter(field, "Where else should I pause?");
+    send(field);
+    await flush();
+    expect(memberRequests).not.toHaveBeenCalled();
+    expect(harness.query).toHaveBeenCalledWith(expect.objectContaining({
+      question: "Where else should I pause?", projectId: "arc-a", sessionId: "take-a", place: null,
+    }));
+    expect(timeline.textContent).toContain("Keep the pause before the call to action.");
+    await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Clear review context"]')!.click());
+    expect(field.value).toBe("The pilot results");
+    send(field);
+    await flush();
+    expect(memberRequests).toHaveBeenCalledWith({ kind: "text", body: "The pilot results", to: hostQuestion.id });
+    expect(harness.query).toHaveBeenCalledTimes(1);
+    expect(timeline.textContent).toContain("The pilot results");
+
+    harness.rows.push({
+      ...QUESTION, client_id: "fresh-take-moment", body: "Your opening was clear.",
+      metadata: { arc_id: "arc-a", take_session_id: "take-b", take_exchange: true, take_index: 2 },
+    }, {
+      ...QUESTION, client_id: "fresh-practice", body: "Utrzymaj piłeczkę na środku paska.",
+      client_created_at: "2026-11-16T10:03:00.000Z",
+      metadata: {
+        arc_id: "arc-a", take_session_id: "take-b", take_exchange: true,
+        coach_moment: { arc_id: "arc-a", take_session_id: "take-b", snippet_id: "source-clip", practise: true, intervention: "sniper" },
+        chat_practice: { tool: "sniper", words: "Otóż nie, nie znam." },
+      },
+    });
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const now = Date.now();
+    await act(async () => harness.documentSettled!({
+      sessionId: "take-b", arcId: "arc-a", takeIndex: 2, phase: "document",
+      status: "processing", startedAt: now, phaseStartedAt: now, progress: null,
+    }));
+    expect(openProject).not.toHaveBeenCalled();
+    const latest = timeline.querySelector<HTMLButtonElement>('[aria-label="Take 2 · Feedback walk"] button')!;
+    expect(latest.getAttribute("aria-expanded")).toBe("true");
+    expect(host.querySelector("textarea")).toBe(field);
+    expect(timeline.querySelector('[data-coach-intervention="sniper"] [data-practice-words]')?.textContent).toBe("Otóż nie, nie znam.");
+    expect(host.querySelector("[data-practice-ready]")).toBeNull();
+
+    harness.allowPractice = true;
+    await act(async () => latest.click());
+    await act(async () => latest.click());
+    expect(host.querySelectorAll("[data-chat-mic][data-practice-ready]")).toHaveLength(1);
+    harness.transcribe.mockResolvedValue({ text: "Otóż nie, nie znam.", durationMs: 1700, receipt: "verified-retry" });
+    harness.query.mockResolvedValueOnce({ persisted: true, persisted_client_id: "hosted-retry-reply",
+      answer: "Świetnie, tempo jest w porządku." });
+    const voice = new Blob(["test attempt"], { type: "audio/webm" });
+    await act(async () => {
+      expect(await harness.voiceSend!(voice, 1700, "retry-recording", "fresh-practice")).toBe(true);
+    });
+    expect(harness.transcribe).toHaveBeenCalledWith(voice, 1700, { arcId: "arc-a", takeId: "take-b" }, {
+      turnId: "retry-recording", projectId: "arc-a", snippetId: "source-clip", practiceReplyId: "fresh-practice",
+    });
+    expect(harness.attach).toHaveBeenCalledWith("retry-recording", voice, "verified-retry");
+    expect(harness.query.mock.lastCall?.[0]).toEqual(expect.objectContaining({
+      projectId: "arc-a", sessionId: "take-b", place: null, voiceReceipt: "verified-retry",
+      presentationContext: expect.objectContaining({ review_focus: { step: "practise", snippet_id: "source-clip" } }),
+    }));
+    expect(harness.appended.find((row) => row.client_id === "retry-recording")?.metadata?.chat_practice_reply_id).toBe("fresh-practice");
+    expect(memberRequests).toHaveBeenCalledTimes(1);
+    canvas.mockRestore();
+  });
+
   it("keeps project questions out of the general Speaking Coach conversation and its reply context", async () => {
     harness.rows.push({ ...QUESTION, client_id: "general-advice", body: "A deliberate pause helps.", metadata: { place: "speaking" } });
     harness.query.mockResolvedValue({ answer: "Give the main point room to land." });

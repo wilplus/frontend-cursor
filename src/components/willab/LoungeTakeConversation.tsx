@@ -12,12 +12,13 @@ import TypingDots from "./TypingDots";
 export type TakeCitation = { arcId: string; takeId: string; focus?: ReviewFocus; quote?: string; takeIndex: number | null };
 
 export default function LoungeTakeConversation({
-  arcId, takeId, rows, chat, recordingDock, onCitation, onReload, renderFooter, savedWordings,
+  arcId, takeId, rows, chat, openOnArrival = false, recordingDock, onCitation, onReload, renderFooter, savedWordings,
 }: {
   arcId: string;
   takeId: string;
   rows: readonly LoungeMessage[];
   chat?: string;
+  openOnArrival?: boolean;
   recordingDock: HTMLDivElement | null;
   onCitation: (citation: TakeCitation | null) => void;
   onReload: () => void;
@@ -40,6 +41,12 @@ export default function LoungeTakeConversation({
   const takeIndex = take?.takeIndex ??
     rows.map((row) => row.metadata?.take_index).find((n): n is number => typeof n === "number") ?? null;
   const preview = rows.find((row) => row.role === "bot" && isTakeExchangeMessage(row) && row.body.trim())?.body;
+
+  useEffect(() => {
+    if (!openOnArrival) return;
+    setOpen(true);
+    onCitation({ arcId, takeId, takeIndex });
+  }, [arcId, onCitation, openOnArrival, takeId, takeIndex]);
 
   function change(value: boolean) {
     const commit = () => {

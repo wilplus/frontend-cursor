@@ -1,11 +1,12 @@
 "use client";
 
 import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type SetStateAction } from "react";
-import ChatComposer, { type ComposerFileAction } from "./chats/ChatComposer";
+import ChatComposer, { type ChatComposerProps, type ComposerFileAction } from "./chats/ChatComposer";
 import { ChatArtifactScope } from "./chats/ChatArtifact";
 import { useComposerVoice } from "./chats/useComposerVoice";
+import { ChatPracticeContext, useSpeakingPractice } from "./chats/ChatPractice";
 import LoungeTakeConversation, { type TakeCitation } from "./LoungeTakeConversation";
-import { takeSessionOf } from "@/lib/willab/takeExchange";
+import { isChatPracticeTurn, takeSessionOf } from "@/lib/willab/takeExchange";
 import type { PlanLounge } from "./plan/usePlanLounge";
 import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { fetchTrainings } from "@/services/api/trainings";
@@ -28,11 +29,13 @@ import {
   type ChatQueryResponse,
 } from "@/services/api/chatQuery";
 import { warmIdealTextOpen } from "@/services/api/idealText";
-import { coachMomentFromMetadata } from "@/services/api/coachMoment";
+import { coachMomentFromMetadata, type CoachMomentReference } from "@/services/api/coachMoment";
 import { chatArtifactContent } from "@/lib/willab/chatArtifact";
 import { type LoungeMessage, type LoungeMessageDraft } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
-import { useWorkspaceSidebar } from "./chats/ChatWorkspace";
+import { conversationBubbleClass } from "./chats/TakeConversation";
+import { ChatScroll, useWorkspaceSidebar } from "./chats/ChatWorkspace";
+import type { MemberChatContent } from "./chats/ChatThread";
 import {
   isRetiredLoungeMessage,
   loungeToHistory,
@@ -101,6 +104,7 @@ import {
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import { uiText } from "@/lib/uiLocale";
 import { offersUpdateSlides, SlidesAskSlot, useSlidesAsk } from "./UpdateSlides";
 import { NewProjectAskSlot, useNewProjectAsk } from "./OneProjectQuestion";
 import NoticeBar from "./NoticeBar";
@@ -189,7 +193,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, askForChatThread, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, useOpenChat, useOpenChatName, useOpenPlace, withHint, wordsAlways, type LoungePlace } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, useOpenPlace, withHint, wordsAlways, type LoungePlace } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -207,8 +211,8 @@ import { planRowFor, type PlanRowCtx } from "./plan/PlanRows";
 import { WayInTop } from "./plan/WayIn";
 import { firstTakeArcOf } from "@/lib/willab/wayIn";
 import { DayLine, dayLinesFor } from "./plan/dayLines";
-import { hostRowsAround, useHostMessages } from "./chats/hostChatMessages";
-import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
+import { hostRowsAround } from "./chats/hostChatMessages";
+import TypingDots, { ChatRecordingStatus, CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
 import { CHAT_LENS_DOCK, CHAT_LENS_THREAD } from "./chats/ChatLens";
 import type { TakeInProject } from "@/lib/willab/takeInProject";
@@ -226,8 +230,6 @@ const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr
 const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillBuild = dynamic(() => import("./chats/WillBuild"), { ssr: false, loading: () => null });
-// A host's chat's own messages, among its Takes (N648 item 8): off the boot bundle.
-const HostChatRow = dynamic(() => import("./chats/HostChatRow"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
 // Off the boot bundle, warmed after the thread paints (founder 2026-10-16: the
 // Feedback walk and Ideal Text code may load after the thread paints as long
@@ -235,13 +237,6 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // an older Take, and the Life panel's chat card. `warmOverlays` below fetches
 // their chunks once the thread is in, so a tap finds them ready.
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
-
-const LOUNGE_THREAD_CLASS = "scrollbar-none -mb-1 flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain";
-
-function loungeThreadClass(loading: boolean): string {
-  if (loading) return LOUNGE_THREAD_CLASS;
-  return `${LOUNGE_THREAD_CLASS} [&>:first-child]:mt-auto`;
-}
 
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
@@ -459,16 +454,24 @@ function chatReplyMetadata(response: ChatQueryResponse): Record<string, unknown>
 }
 
 
-/** What "Record your answer" in the composer records: the plan's spoken
- *  question first, else Will's key line (backend N483 item 2, N544). */
-function useLoungeDraft(scope: string) {
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+type PreparedVoice = { scope: string; answer: SpokenChatAnswer };
+export type LoungeDrafts = Map<string, { value: string; voice?: PreparedVoice }>;
+
+function useLoungeDraft(scope: string, shared?: LoungeDrafts) {
+  const [local] = useState<LoungeDrafts>(() => new Map());
+  const [, redraw] = useState(0);
+  const drafts = shared ?? local;
   const setDraft = useCallback((update: SetStateAction<string>) => {
-    setDrafts((current) => ({
-      ...current,
-      [scope]: typeof update === "function" ? update(current[scope] ?? "") : update,
-    }));
-  }, [scope]);
+    const current = drafts.get(scope);
+    const next = typeof update === "function" ? update(current?.value ?? "") : update;
+    if (next) drafts.set(scope, { value: next, voice: next.trim() ? current?.voice : undefined });
+    else drafts.delete(scope);
+    redraw((version) => version + 1);
+  }, [drafts, scope]);
+  function prepare(voice: PreparedVoice) {
+    drafts.set(scope, { value: voice.answer.text, voice });
+    redraw((version) => version + 1);
+  }
   const field = useRef<HTMLTextAreaElement | null>(null);
   const focus = () => {
     const input = field.current;
@@ -477,7 +480,8 @@ function useLoungeDraft(scope: string) {
     input.setSelectionRange(input.value.length, input.value.length);
     input.scrollIntoView?.({ block: "nearest" });
   };
-  return { value: drafts[scope] ?? "", setDraft, field, focus };
+  const current = drafts.get(scope);
+  return { value: current?.value ?? "", voice: current?.voice, setDraft, prepare, field, focus };
 }
 
 function LoungeComposerStatus({ uploadError, voice }: { uploadError: string | null; voice?: ReturnType<typeof useComposerVoice> }) {
@@ -488,9 +492,51 @@ function LoungeComposerStatus({ uploadError, voice }: { uploadError: string | nu
   </p>;
 }
 
+function composerFileActions({
+  speaking, projectsVisible, onProjects, onUpload, onSlides, onStartTake, onError, startLabel,
+}: {
+  speaking: boolean;
+  projectsVisible: boolean;
+  onProjects: () => void;
+  onUpload: () => void;
+  onSlides?: () => void;
+  onStartTake?: () => void;
+  onError: (error: string | null) => void;
+  startLabel: string;
+}): ComposerFileAction[] {
+  const files: ComposerFileAction[] = [];
+  if (speaking) files.push({
+    label: "Upload a recording", accept: "audio/*", sendFile: (file) => {
+      const error = validateAudioUpload(file);
+      onError(error);
+      if (error) return false;
+      stageLabUpload(file);
+      onUpload();
+      return true;
+    },
+  });
+  if (projectsVisible) {
+    files.push({ label: "Your projects", open: onProjects });
+    if (onSlides) files.push({ label: "Update slides", open: onSlides });
+  }
+  if (onStartTake) files.push({ label: startLabel, open: onStartTake });
+  return files;
+}
+
+function ReviewCitation({ citation, showTake, onClear }: {
+  citation?: TakeCitation | null; showTake: boolean; onClear?: () => void;
+}) {
+  if (!citation || (!showTake && !citation.quote)) return null;
+  const label = citation.quote ?? (citation.takeIndex ? `Take ${citation.takeIndex}` : "Feedback");
+  return <div className="flex items-center gap-2 border-l-2 border-border pl-3 text-xs text-muted-foreground">
+    <p className="min-w-0 flex-1 truncate">{label}</p>
+    <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={onClear}>×</button>
+  </div>;
+}
+
 function LoungeComposer({
-  place, openChat, draft, plan, keyLine, notebook, held, busy, onSend, onProjects, onUpload, onSlides,
-  citation, clearCitation, voice,
+  place, openChat, draft, plan, keyLine, notebook, held, busy, onSend, onProjects, onUpload, onSlides, onStartTake,
+  citation, clearCitation, voice, memberComposer,
 }: {
   place: LoungePlace | null;
   openChat: string | null;
@@ -504,11 +550,14 @@ function LoungeComposer({
   onProjects: () => void;
   onUpload: () => void;
   onSlides?: () => void;
+  onStartTake?: () => void;
   citation?: TakeCitation | null;
   clearCitation?: () => void;
   voice?: ReturnType<typeof useComposerVoice>;
+  memberComposer?: ChatComposerProps;
 }) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const locale = useUiLocale();
   const speaking = !openChat && !wordsAlways(place);
   const hear = speaking && !citation?.focus ? plan.hear ?? keyLine.hear : null;
   const guidedRecording = speaking ? plan.recording ?? keyLine.recording : undefined;
@@ -519,52 +568,94 @@ function LoungeComposer({
     attrs: { "data-voice-note-stop": "" },
   } : undefined;
   const mic = hear ? { label: PLAN_COPY.recordAnswer, start: hear.onTap, attrs: { "data-will-hear": "" } } : voice?.mic;
-  const files: ComposerFileAction[] = [];
-  if (speaking) {
-    files.push({
-      label: "Upload a recording", accept: "audio/*", sendFile: (file) => {
-        const error = validateAudioUpload(file);
-        setUploadError(error);
-        if (error) return false;
-        stageLabUpload(file);
-        onUpload();
-        return true;
-      },
-    });
-    if (!held && !hear && !guidedRecording) {
-      files.push({ label: "Your projects", open: onProjects });
-      if (onSlides) files.push({ label: "Update slides", open: onSlides });
-    }
-  }
-  if (notebook.fixing) return <VoiceNoteFixBar notebook={notebook} />;
-  return (
-    <ChatComposer
-      className="-mx-2"
-      inputRef={draft.field}
-      inputLabel="Message Will"
-      placeholder={placeholderIn(place)}
-      value={draft.value}
-      onValue={draft.setDraft}
-      onSend={onSend}
-      busy={busy || voice?.sending}
-      voiceRequired={!citation?.focus && Boolean(hear || keyLine.sending && speaking)}
-      mic={mic}
-      recording={voice?.recording ?? guidedRecording ?? notebookRecording}
-      voiceDraft={voice?.voiceDraft}
-      above={citation?.quote ? <div className="flex items-center gap-2 border-l-2 border-border pl-3 text-xs text-muted-foreground">
-        <p className="min-w-0 flex-1 truncate">{citation.quote}</p>
-        <button type="button" aria-label="Clear review context" className="size-11 shrink-0" onClick={clearCitation}>×</button>
-      </div> : undefined}
-      files={files}
-      status={<LoungeComposerStatus uploadError={uploadError} voice={voice} />}
-    />
-  );
+  const files = composerFileActions({
+    speaking, projectsVisible: speaking && !held && !hear && !guidedRecording,
+    onProjects, onUpload, onSlides, onStartTake, onError: setUploadError,
+    startLabel: uiText(locale, "startNewProject"),
+  });
+  if (notebook.fixing && !openChat) return <VoiceNoteFixBar notebook={notebook} />;
+  const composer: ChatComposerProps = memberComposer ?? {
+    inputLabel: "Message Will",
+    placeholder: placeholderIn(place),
+    onSend,
+    busy: busy || voice?.sending,
+    voiceRequired: !citation?.focus && Boolean(hear || keyLine.sending && speaking),
+    mic,
+    recording: voice?.recording ?? guidedRecording ?? notebookRecording,
+    voiceDraft: voice?.voiceDraft,
+    above: <ReviewCitation citation={citation} showTake={Boolean(openChat)} onClear={clearCitation} />,
+  };
+  return <ChatComposer {...composer} files={[...(composer.files ?? []), ...files]}
+    status={<LoungeComposerStatus uploadError={uploadError} voice={voice} />}
+    className="-mx-2" inputRef={draft.field} value={draft.value} onValue={draft.setDraft} />;
 }
 
 /** The slides' line once they are ready: about the project's deck, so the
  *  speaking chat's (N636 item 1). */
 function slidesReadyDraft(line: string, arcId: string | null | undefined) {
   return { role: "bot" as const, kind: "text" as const, body: line, ...(arcId ? { metadata: { arc_id: arcId } } : {}) };
+}
+
+function memberInput(member: MemberChatContent | undefined, reviewing: boolean, draft: ReturnType<typeof useLoungeDraft>) {
+  if (!member || reviewing) return undefined;
+  const { onSend, ...props } = member.composer;
+  return { ...props, onSend: onSend ? async (value: string) => {
+    if (await onSend(value) === false) return false;
+    draft.setDraft((current) => current === value ? "" : current);
+    return true;
+  } : undefined };
+}
+
+function memberConversationState(
+  member: MemberChatContent | undefined, citation: TakeCitation | null, scope: string, onStart?: () => void,
+) {
+  const available = member && !member.blocked && !member.composer.busy;
+  const review = available ? citation : null;
+  return {
+    reviewing: Boolean(review),
+    onStart: available && !member.answering && !review ? onStart : undefined,
+    useTakeComposer: !member || Boolean(review),
+    draftScope: review ? JSON.stringify([scope, review.takeId]) : scope,
+  };
+}
+
+function loungeTurnScope(question: LoungeMessage | null, citation: TakeCitation | null, practice: CoachMomentReference | null) {
+  if (practice) return {
+    scopedQuestion: null, arcId: practice.arc_id, takeId: practice.take_session_id,
+    reviewFocus: { step: "practise" as const, snippet_id: practice.snippet_id },
+  };
+  const questionProject = projectQuestionTurn(question);
+  const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
+  return {
+    scopedQuestion,
+    arcId: citation?.arcId ?? questionProject?.arcId,
+    takeId: citation?.takeId ?? questionProject?.takeSessionId,
+    reviewFocus: citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined,
+  };
+}
+
+function MemberConversationFrame({ member, children }: { member?: MemberChatContent; children: ReactNode }) {
+  return <>{member?.header}{children}{member?.overlays}</>;
+}
+
+function LoungeMessageRows({
+  member, waiting, place, empty, hidesEmpty, rows, hostRowsAfter,
+}: {
+  member?: MemberChatContent;
+  waiting: boolean;
+  place: LoungePlace | null;
+  empty: boolean;
+  hidesEmpty: boolean;
+  rows: () => ReactNode;
+  hostRowsAfter: () => ReactNode;
+}) {
+  return <>
+    <PlaceOpening place={place} />
+    {waiting || member?.messages === null ? <LoadingState placement="surface" /> :
+      !member && emptyHelloIn(place, empty) ? <LoungeEmptyState hidden={hidesEmpty} /> : rows()}
+    {hostRowsAfter()}
+    {member && !member.blocked ? member.followUps : null}
+  </>;
 }
 
 export default function Lounge({
@@ -584,8 +675,12 @@ export default function Lounge({
   waitHandedOver,
   onWaitHandedOverShown,
   onRecordAnswer,
+  member,
+  chatDrafts,
 }: {
   state: WillabState;
+  member?: MemberChatContent;
+  chatDrafts?: LoungeDrafts;
   /** "Record one answer" in the queue of bundles (backend N584), handed to
    *  the recording screens as a chat's "Record your answer" is. */
   onRecordAnswer?: (answer: AnswerFor) => void;
@@ -627,7 +722,7 @@ export default function Lounge({
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
   const sidebar = useWorkspaceSidebar();
-  const openChat = useOpenChat();
+  const openChat = member?.id ?? null;
   const showTakeArtifacts = Boolean(openChat) || place !== "speaking" || onProjectTakeReady === undefined;
   const viewScope = useContext(ChatArtifactScope);
   const composerScope = JSON.stringify(["lounge", userId, place, openChat, viewScope]);
@@ -635,15 +730,18 @@ export default function Lounge({
   const { messages } = outbox;
   const savedWordings = useMemo(() => linkedSavedWordings(messages), [messages]);
   const { reload } = thread;
-  const draft = useLoungeDraft(composerScope);
+  const [citation, setCitation] = useState<TakeCitation | null>(null);
+  const [readyHostedTake, setReadyHostedTake] = useState<string | null>(null);
+  const memberState = memberConversationState(member, citation, composerScope, onStartNewProject);
+  const { draftScope } = memberState;
+  const draft = useLoungeDraft(draftScope, chatDrafts);
   const [recordingDock, setRecordingDock] = useState<HTMLDivElement | null>(null);
   const { value: draftText, setDraft: setDraftText, focus: focusComposer } = draft;
-  const [citation, setCitation] = useState<TakeCitation | null>(null);
   const currentCitation = useRef(citation);
-  const currentComposerScope = useRef(composerScope);
+  const currentComposerScope = useRef(draftScope);
   const recordRequestPending = useRef(false);
   currentCitation.current = citation;
-  currentComposerScope.current = composerScope;
+  currentComposerScope.current = draftScope;
   useEffect(() => { setCitation(null); }, [composerScope]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
@@ -654,30 +752,41 @@ export default function Lounge({
   useEffect(() => afterChatBoot(warmOverlays), []);
   const [thinkingHere, setBotThinking] = useState(false);
   const botThinking = outbox.busy(thinkingHere);
-  const prepareOnStop = !openChat && !wordsAlways(place);
-  const voiceScope = JSON.stringify([composerScope, citation?.takeId, citation?.focus]);
-  const [preparedVoice, setPreparedVoice] = useState<{ scope: string; answer: SpokenChatAnswer } | null>(null);
-  const stagedVoice = preparedVoice?.scope === voiceScope ? preparedVoice : null;
-  useEffect(() => { if (!draftText.trim()) setPreparedVoice(null); }, [draftText]);
+  const prepareOnStop = !wordsAlways(place);
+  const chatPractice = useSpeakingPractice(messages, place, openChat, citation, memberState.reviewing);
+  const voiceScope = JSON.stringify([draftScope, citation?.takeId, citation?.focus, chatPractice.replyId]);
+  const stagedVoice = draft.voice?.scope === voiceScope ? draft.voice : null;
+  function hostedPractice(replyId?: string) {
+    return openChat && replyId && replyId === chatPractice.replyId ? chatPractice.reference : null;
+  }
   const reviewVoice = useComposerVoice({
-    enabled: thread.signedIn,
+    enabled: thread.signedIn && memberState.useTakeComposer,
     held: botThinking || !outbox.ready,
     maxSeconds: 120,
     prepareOnStop,
+    ready: chatPractice.ready,
+    practiceReplyId: chatPractice.replyId,
+    onStream: chatPractice.listen,
     label: "Record your answer",
     scope: voiceScope,
-    onSend: async (audio, duration, turnId) => {
+    onSend: async (audio, duration, turnId, practiceReplyId) => {
       if (!outbox.isCurrent()) return false;
-      const linked = projectQuestionTurn(openProjectQuestion(shownMessages));
-      const target = citation ?? (linked ? { arcId: linked.arcId, takeId: linked.takeSessionId } : undefined);
+      const linked = practiceReplyId ? null : projectQuestionTurn(openProjectQuestion(shownMessages));
+      const practice = hostedPractice(practiceReplyId);
+      const target = practice ? { arcId: practice.arc_id, takeId: practice.take_session_id }
+        : citation ?? (linked ? { arcId: linked.arcId, takeId: linked.takeSessionId } : undefined);
       const spoken = await transcribeChatAnswer(audio, duration, target, prepareOnStop ? {
-        turnId, projectId: target?.arcId, snippetId: citation?.focus?.snippet_id,
+        turnId, projectId: target?.arcId, snippetId: practice?.snippet_id ?? citation?.focus?.snippet_id,
+        ...(practiceReplyId ? { practiceReplyId } : {}),
       } : undefined);
-      if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== composerScope || !outbox.isCurrent()) return false;
+      if (!spoken || currentCitation.current !== citation || currentComposerScope.current !== draftScope || !outbox.isCurrent()) return false;
       if (prepareOnStop) {
         if (!turnId) return false;
-        setPreparedVoice({ scope: voiceScope, answer: { ...spoken, turnId, audio } });
-        setDraftText(spoken.text);
+        const answer = { ...spoken, turnId, audio };
+        if (practiceReplyId) {
+          return Boolean(spoken.receipt) && await handleSend({ ...answer, practiceReplyId });
+        }
+        draft.prepare({ scope: voiceScope, answer });
         return true;
       }
       return handleSend({ ...spoken, turnId });
@@ -718,12 +827,7 @@ export default function Lounge({
   // take-review overlay and the arc-level delivery that once hung off this
   // hub are gone (founder 2026-09-30, B3 to B6; P2-19).
 
-  // Which of the three chats the Lounge is drawn as, for the chat builder's
-  // ring (N635, N636 items 1 to 5); null for everyone else: as it was.
-  // A host's chat that takes Takes: the speaking chat's rows for it (N648 item 8).
-  const openChatName = useOpenChatName();
-  // Its own messages, drawn among its Takes by time (N648 item 8).
-  const hostMessages = useHostMessages(openChat);
+  const hostMessages = useMemo(() => member?.messages ?? [], [member?.messages]);
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
     // idempotent client_ids are the identity. A double-insert (retry, optimistic
@@ -790,7 +894,8 @@ export default function Lounge({
     for (const { message } of threadItems) {
       const takeId = takeSessionOf(message);
       const arcId = projectIdOf(message);
-      if (!takeId || !arcId || message.metadata?.take_exchange === false || !shownIn(message, place, openChat)) continue;
+      if (!takeId || !arcId || message.metadata?.take_exchange === false ||
+          isChatPracticeTurn(message) || !shownIn(message, place, openChat)) continue;
       const group = groups.get(takeId) ?? { arcId, takeId, rows: [] };
       if (group.arcId !== arcId) continue;
       group.rows.push(message);
@@ -1374,6 +1479,11 @@ export default function Lounge({
     enabled: !isLabOverlay(state),
     onSettled: (take) => {
       setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
+      if (openChat) {
+        setReadyHostedTake(take.sessionId);
+        void reload().catch(() => undefined);
+        return;
+      }
       if (projectChatActive) {
         void reload().catch(() => undefined);
         return;
@@ -1776,6 +1886,10 @@ export default function Lounge({
   // The newest message, not the count: older messages put above the thread
   // are not a new bubble (usePinThreadBottom).
   const ends = threadEnds(messages);
+  const newestMessage = useMemo(
+    () => hostMessages.length ? JSON.stringify([ends.newest, hostMessages.at(-1)?.id]) : ends.newest,
+    [ends.newest, hostMessages],
+  );
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
     // itself (not a sentinel) so the page/viewport never moves. A form opening
@@ -1783,13 +1897,13 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [ends.newest, botThinking, thread.writing, activeOffer]);
+  }, [newestMessage, botThinking, thread.writing, activeOffer]);
 
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
   // message moves the thread; reading history otherwise stays where it is:
   // "Load earlier messages" puts them above the bubble being read.
-  const pinBottom = usePinThreadBottom(scrollRef, ends.newest, thread.loading, didInitScrollRef);
+  const pinBottom = usePinThreadBottom(scrollRef, newestMessage, thread.loading, didInitScrollRef);
   const keepPlace = useKeepPlaceAbove(scrollRef, ends.oldest);
   // THE CHAT FOLLOWS THE NEWEST BUBBLE AFTER AN ANSWER (founder 2026-11-01,
   // N319 item 9): a tap, a typed message, a voice answer or the continue tap
@@ -1908,9 +2022,8 @@ export default function Lounge({
         sendingRef.current = false;
       }
       if (!outbox.isCurrent()) return false;
-      const question = openProjectQuestion(shownMessages);
+      const question = spoken.practiceReplyId ? null : openProjectQuestion(shownMessages);
       setDraftText("");
-      setPreparedVoice(null);
       await sendTypedTurn(beginTypedTurn(q, question, submittedDraft, spoken));
       return true;
     }
@@ -2104,22 +2217,20 @@ export default function Lounge({
   }
 
   function beginTypedTurn(q: string, question: LoungeMessage | null, draft: string, spoken?: SpokenChatAnswer) {
-    const questionProject = projectQuestionTurn(question);
-    const arcId = citation?.arcId ?? questionProject?.arcId;
-    const takeId = citation?.takeId ?? questionProject?.takeSessionId;
-    const scopedQuestion = !citation || (!citation.focus && questionProject?.takeSessionId === citation.takeId) ? question : null;
-    const reviewFocus = citation && !scopedQuestion ? citation.focus ?? { step: "feedback" as const } : undefined;
-    const hint = typedHint(openChat && citation ? null : place, arcId, openChat);
+    const { scopedQuestion, arcId, takeId, reviewFocus } = loungeTurnScope(question, citation, hostedPractice(spoken?.practiceReplyId));
+    const turnPlace = openChat ? null : place;
+    const hint = typedHint(turnPlace, arcId, openChat);
     const scope = arcId && takeId ? {
       ...typedProjectTurnMetadata({
         arcId, takeSessionId: takeId,
-        questionClientId: scopedQuestion?.client_id ?? "", role: "answer", place: openChat && citation ? null : place,
+        questionClientId: scopedQuestion?.client_id ?? "", role: "answer", place: turnPlace,
       }),
       ...(reviewFocus ? { review_focus: reviewFocus } : {}),
       ...(citation ? { take_exchange: true } : {}),
     } : null;
     const metadata = { ...hint, ...scope, ...(spoken ? {
       will_voice: true, duration_ms: spoken.durationMs, ...(spoken.audio && spoken.receipt ? { voice_clip: true } : {}),
+      ...(spoken.practiceReplyId ? { chat_practice_reply_id: spoken.practiceReplyId } : {}),
     } : {}) };
     const pendingIds = new Set(outbox.turns.map((t) => t.user.client_id));
     const screen = shownMessages.filter((m) => !pendingIds.has(m.client_id));
@@ -2128,7 +2239,7 @@ export default function Lounge({
       : regularScreenHistory(screen);
     const turn = outbox.begin(draft, { role: "user", kind: "text", body: q, clientId: spoken?.turnId, metadata }, scopedQuestion, {
       question: q, history, historySource: thread.signedIn ? "screen" : undefined,
-      projectId: arcId, sessionId: takeId, place, persist: thread.signedIn,
+      projectId: arcId, sessionId: takeId, place: turnPlace, persist: thread.signedIn,
       voiceReceipt: spoken?.receipt,
       presentationContext: { ...currentPresentationContext(), ...(reviewFocus ? { review_focus: reviewFocus } : {}) },
     });
@@ -2228,29 +2339,19 @@ export default function Lounge({
   // One shown row: a Take's Feedback walk with its card as one pair (N202),
   // else the row as drawn.
   /** A host's chat's own messages newer than its newest row (N648 item 8). */
-  const hostRowsAfter = () =>
-    openChat ? hostRows.after.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat} name={openChatName} message={m} all={hostMessages} onOpen={askForChatThread} />) : null;
-  /** A host's chat's own messages that came before row i, drawn right
-   *  before it (N648 item 8); the row alone everywhere else. */
-  const withHostRows = (i: number, node: ReactNode) => {
-    const before = openChat ? hostRows.before[i] : undefined;
-    if (!before?.length) return node;
-    return (
-      <Fragment key={`host-before:${shownItems[i].reactKey}`}>
-        {before.map((m) => <HostChatRow key={`host:${m.id}`} chatId={openChat as string} name={openChatName} message={m} all={hostMessages} onOpen={askForChatThread} />)}
-        {node}
-      </Fragment>
-    );
-  };
+  const hostRowsAfter = () => member ? hostRows.after.map(member.row) : null;
+
   const drawShown = (item: ThreadItem, i: number) => {
     const id = item.message.client_id;
-    const take = item.message.metadata?.take_exchange !== false
+    const take = item.message.metadata?.take_exchange !== false && !isChatPracticeTurn(item.message)
       ? takeConversations.get(takeSessionOf(item.message) ?? "") : undefined;
     if (take) {
       if (take.anchor !== id) return null;
       return <LoungeTakeConversation key={composerScope + ":" + take.takeId} arcId={take.arcId} takeId={take.takeId}
-        rows={take.rows} chat={openChat ?? undefined} recordingDock={recordingDock} savedWordings={savedWordings}
+        rows={take.rows} chat={openChat ?? undefined} openOnArrival={readyHostedTake === take.takeId}
+        recordingDock={recordingDock} savedWordings={savedWordings}
         onCitation={(next) => {
+          if (next) setReadyHostedTake((current) => current === next.takeId ? null : current);
           setCitation((current) => next ?? (current?.takeId === take.takeId ? null : current));
           if (next?.quote) focusComposer();
         }} onReload={() => { void reload(); }}
@@ -2361,13 +2462,16 @@ export default function Lounge({
     );
 
   return (
-    /* Like WhatsApp (founder 2026-10-30): the thread runs down to the
+    <MemberConversationFrame member={member}>
+    {/* Like WhatsApp (founder 2026-10-30): the thread runs down to the
        composer. An empty slot takes no room (hidden; never the thread, which
        is empty while it loads), and the thread's -mb-1 leaves 8px of the
        gap under it: what scrolls stops 8px above the bar, as the bar keeps
        8px from the sides and the bottom (N505). The column is the shared
-       1080px app canvas, aligned with the logo and hamburger. */
-    <div className={`${WILLAB_CONTENT_RAIL} flex flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden`}>
+       1080px app canvas, aligned with the logo and hamburger. */}
+    <ChatPracticeContext.Provider value={chatPractice}>
+    <div data-member-take-chat={member?.id}
+      className={`${WILLAB_CONTENT_RAIL} relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden`}>
       {/* The lenses draw into the thread and the composer's slot (ChatLens);
           where they mount takes no room in the column. */}
       <div className="absolute">
@@ -2405,21 +2509,9 @@ export default function Lounge({
           directly above the thread's own ideal-text card, which says the same
           thing about the same document and opens it. Two banners for one
           document, one of them outside the conversation the product is. */}
-      <div
-        ref={scrollRef}
-        data-thread
-        data-rhythm
-        onScroll={handleThreadScroll}
-        /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
-           overflow-x to auto, so any bubble content wider than the column (a
-           long unbroken token, a wide card) makes the WHOLE thread pan
-           sideways — every bubble slides off the left edge of the screen.
-           `[&>:first-child]:mt-auto`: the chat starts at the bottom, by the
-           bar, as the chats with people do (N321 item 3, N467 item 1).
-           `data-rhythm`: the rows' spacing, close within a side and wider
-           where the side changes (globals.css, N469). */
-        className={loungeThreadClass(thread.loading)}
-      >
+      <ChatScroll ref={scrollRef} data-thread data-rhythm onScroll={handleThreadScroll}
+        className={thread.loading ? "-mb-1" : "-mb-1 [&>:first-child]:mt-auto"}>
+        {member?.introduction}
         {thread.hasMore && (
           <button
             type="button"
@@ -2432,34 +2524,18 @@ export default function Lounge({
           </button>
         )}
 
-        {/* Page boot uses the shared centered loader. TypingDots remains for
-            actual in-conversation replies below. */}
-        {/* Principles opens with its own line, above everything (N640). */}
-        <PlaceOpening place={place} />
-        {outbox.waitingForHistory ? (
-          <LoadingState placement="surface" />
-        ) : emptyHelloIn(place, threadItems.length === 0) ? (
-          <LoungeEmptyState hidden={plan.holdsEmpty} />
-        ) : (
-          shownItems.map((item, i) => {
-            const id = item.message.client_id;
-            // A Take's card is drawn under its Feedback walk, as one pair (N202).
-            if (pairedCards.has(id)) return null;
+        <LoungeMessageRows member={member} waiting={outbox.waitingForHistory} place={place}
+          empty={threadItems.length === 0} hidesEmpty={plan.holdsEmpty} hostRowsAfter={hostRowsAfter}
+          rows={() => shownItems.map((item, i) => {
             const line = dayLines.get(i);
-            if (line) {
-              return withHostRows(
-                i,
-                <Fragment key={`day:${item.reactKey}`}>
-                  <DayLine text={line} />
-                  {drawShown(item, i)}
-                </Fragment>,
-              );
-            }
-            return withHostRows(i, drawShown(item, i));
-          })
-        )}
-        {/* A host's chat's own messages after its newest Take (N648 item 8). */}
-        {hostRowsAfter()}
+            // Keep the Take's component mounted when a day label or a host
+            // message is later inserted next to it.
+            return <Fragment key={item.reactKey}>
+              {member ? hostRows.before[i].map(member.row) : null}
+              {line ? <DayLine text={line} /> : null}
+              {pairedCards.has(item.message.client_id) ? null : drawShown(item, i)}
+            </Fragment>;
+          })} />
 
         {/* The questions people asked, bundled, for the chat builder's ring
             (backend N584 item 2); nothing without it. */}
@@ -2508,8 +2584,9 @@ export default function Lounge({
         {plan.pending}
         {/* A lens's bubbles, when one is open (ChatLens, backend N691 item 5). */}
         <div {...{ [CHAT_LENS_THREAD]: "" }} className="flex flex-col empty:hidden" />
-        <ThreadDots thinking={botThinking} writing={thread.writing} />
-      </div>
+        <ThreadDots thinking={botThinking} writing={thread.writing}
+          preparingVoice={reviewVoice.sending} processingVoice={outbox.processingVoice} />
+      </ChatScroll>
 
       {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
           still record, so this sits above the record CTA, not instead of it. */}
@@ -2585,11 +2662,12 @@ export default function Lounge({
           place={place} openChat={openChat} draft={draft} plan={plan} keyLine={keyLine} notebook={notebook}
           held={recordBarHeld(takeInFlight, thread, plan.recordWaits)}
           busy={botThinking || !outbox.ready}
-          citation={citation} voice={reviewVoice}
-          clearCitation={() => setCitation((current) => current ? { ...current, focus: undefined, quote: undefined } : null)}
+          citation={citation} voice={reviewVoice} memberComposer={memberInput(member, memberState.reviewing, draft)}
+          clearCitation={() => setCitation((current) => !member && current ? { ...current, focus: undefined, quote: undefined } : null)}
           onSend={() => stagedVoice && draftText.trim()
             ? handleSend({ ...stagedVoice.answer, text: draftText.trim() })
             : handleSend()} onProjects={sidebar?.show ?? onStart}
+          onStartTake={memberState.onStart}
           onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
         />
       </div>
@@ -2624,6 +2702,8 @@ export default function Lounge({
         />
       ) : null}
     </div>
+    </ChatPracticeContext.Provider>
+    </MemberConversationFrame>
   );
 }
 
@@ -2901,7 +2981,7 @@ function SequentialBotBubbles({
         <div
           key={`${i}-${part.slice(0, 12)}`}
           data-bubble=""
-          className="whitespace-pre-wrap break-words rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
+          className={conversationBubbleClass(false)}
         >
           {/* FE-13 — Will's replies carry booking links; they were dead text. */}
           <Linkified text={part} />
@@ -3119,7 +3199,7 @@ function BubbleBody({
   if (message.role === "user") {
     if (hasTakeReplyContent(message)) return <TakeConversationMessage message={message} standalone />;
     return (
-      <div data-row="me" data-bubble="" className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
+      <div data-row="me" data-bubble="" className={`ml-auto max-w-[86%] ${conversationBubbleClass(true)}`}>
         {/* FE-13 — both sides of the thread, so a link the user pasted works
             the same as one Will sent. */}
         <Linkified text={message.body} />
@@ -3368,7 +3448,10 @@ export function useCoachUpdates(messages: readonly LoungeMessage[]): {
 
 /** The Lounge's one wait under the thread (B8): a reply being written, or
  *  the walk's summary and the chain after it. */
-function ThreadDots({ thinking, writing }: { thinking: boolean; writing: boolean }) {
+function ThreadDots({ thinking, writing, preparingVoice, processingVoice }: {
+  thinking: boolean; writing: boolean; preparingVoice: boolean; processingVoice: boolean;
+}) {
+  if (preparingVoice || processingVoice) return <ChatRecordingStatus preparing={preparingVoice} />;
   return thinking || writing ? <TypingDots /> : null;
 }
 

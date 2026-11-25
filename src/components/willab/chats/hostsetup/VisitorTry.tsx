@@ -6,6 +6,8 @@ import { TapRow } from "@/components/willab/WillQuestion";
 import WalkPlayer from "@/components/willab/walk/WalkPlayer";
 import { chatArtifactContent, type ChatArtifactContent } from "@/lib/willab/chatArtifact";
 import ChatComposer, { type ComposerFileAction } from "../ChatComposer";
+import { ChatScroll } from "../ChatWorkspace";
+import { conversationBubbleClass } from "../TakeConversation";
 import { StructuredReplyArtifact } from "../ReplyArtifact";
 import { useComposerVoice } from "../useComposerVoice";
 import { OwnAvatar } from "./ChatIconPicker";
@@ -59,9 +61,7 @@ function VisitorLine({ line, recording }: { line: Bubble; recording: Recording |
     label={locale === "pl" ? "Odtwórz od tego momentu" : "Play from this moment"}
     startOffsetMs={Math.round(jump * 1000)} look="bare" /> : null;
   return <div data-visitor-line={line.who} className={line.who === "me" ? "max-w-[86%] self-end" : "min-w-0 space-y-2"}>
-    {text && !repeated ? <p className={line.who === "me"
-      ? "w-fit break-words rounded-2xl bg-primary px-3.5 py-2.5 text-[16px] text-primary-foreground"
-      : "w-fit max-w-[86%] break-words rounded-2xl bg-muted px-3.5 py-2.5 text-[16px]"}>{text}</p> : null}
+    {text && !repeated ? <p className={`w-fit ${line.who === "me" ? "max-w-full" : "max-w-[86%]"} ${conversationBubbleClass(line.who === "me")}`}>{text}</p> : null}
     <StructuredReplyArtifact content={artifact} momentControl={player} />
   </div>;
 }
@@ -254,11 +254,11 @@ export default function VisitorTry({ name, doc, sends, onBack, onWorks, section 
   return (
     <div data-visitor-try="" className="flex min-h-0 flex-1 flex-col bg-background">
       <TopBar circle={<OwnAvatar id={`visit-${name}`} name={name} size={36} />} title={name} onBack={onBack} />
-      <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-4 py-4">
+      <ChatScroll className="gap-3 px-4 py-4 [&>:first-child]:mt-auto">
         {historyFailed ? <button type="button" className="self-start underline" onClick={() => setRetryRead((n) => n + 1)}>Try again</button> : null}
         {note ? <p data-voice-note="" className="m-0 text-[15px] text-muted-foreground">{note}</p> : null}
         {lines.map((line, n) => <VisitorLine key={n} line={line} recording={recording} />)}
-      </div>
+      </ChatScroll>
       {unsaved ? <button type="button" className="min-h-11 self-start px-4 text-sm underline" onClick={() => void save(unsaved)}>Try again</button> : null}
       {historyReady && (taps.length || onWorks) ? (
         <div className="px-3 pb-1">

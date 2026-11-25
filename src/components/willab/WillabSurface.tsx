@@ -20,7 +20,7 @@ import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
 import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
-import Lounge from "./Lounge";
+import Lounge, { type LoungeDrafts } from "./Lounge";
 import { LabFadeOut } from "./labFade";
 import { useDocumentSettle } from "./useDocumentSettle";
 import {
@@ -38,6 +38,7 @@ import {
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 import { useChatsDoor } from "./chats/useChatsDoor";
 import ChatWorkspace from "./chats/ChatWorkspace";
+import type { MemberChatContent } from "./chats/ChatThread";
 import type { ReviewExit, TakeReviewTarget } from "./TakeReview";
 import { takeInProject, type TakeInProject } from "@/lib/willab/takeInProject";
 import { endAnswer, startAnswer, type AnswerFor } from "@/lib/willab/chatAnswer";
@@ -125,6 +126,7 @@ export default function WillabSurface({
   const [projectReview, setProjectReview] = useState<{ target: TakeReviewTarget; key: number } | null>(null);
   const projectExit = useRef<ReviewExit | null>(null);
   const projectDrafts = useRef(new Map<string, string>());
+  const loungeDrafts = useRef<LoungeDrafts>(new Map());
   // The recorder hands the accepted Take back to its owning conversation.
   const [returnProject, setReturnProject] = useState<TrainingArc | null>(null);
   const [handoffTake, setHandoffTake] = useState<string | null>(null);
@@ -466,18 +468,16 @@ export default function WillabSurface({
     );
   }
 
-  // Home: the always-mounted Lounge, with the Lab overlay layered when open.
-  // Both share one thread (LoungeThreadProvider) so the Lab can persist a
-  // recording's Readout into the same scrollable history.
+  // The active chat and Lab share the scoped thread so the recorder can
+  // append its result to the conversation it was opened from.
   if (chats.waiting) return authorizedShell(<LoadingState placement="surface" />);
   const draftKey = pickedProject ? `${userId ?? "guest"}:${pickedProject.arcId}` : "";
-  const conversation = (
-    <LoungeThreadProvider signedIn={signedIn}>
-      {chats.heading}
-      {chats.pane}
-      <div className={chats.loungeCovered ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+  const loungeState = flow.state;
+  const lounge = (member?: MemberChatContent) => (
       <Lounge
-        state={flow.state}
+        member={member}
+        chatDrafts={loungeDrafts.current}
+        state={loungeState}
         onRecordAnswer={recordAnswer}
         onStart={flow.startRecording}
         onStartNewProject={startNewProject}
@@ -520,6 +520,13 @@ export default function WillabSurface({
         waitHandedOver={waitHandedOver}
         onWaitHandedOverShown={() => setWaitHandedOver(null)}
       />
+  );
+  const conversation = (
+    <LoungeThreadProvider signedIn={signedIn} room={chats.takeRoom}>
+      {chats.heading}
+      {chats.pane}
+      <div className={chats.loungeCovered ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+        {chats.hosted ? chats.hosted(lounge) : lounge()}
       </div>
       {/* Context-aware setup — WHICH project, asked before the Lab opens.
           Picking a title seeds the arc so the setup form prefills from it and
