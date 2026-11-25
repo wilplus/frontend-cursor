@@ -83,6 +83,8 @@ One sidebar sits beside the active chat. The Speaking Coach row opens general gu
 
 Each chat uses the same scrollable message stream, bubble style and composer (N692). In a hosted chat that accepts Takes, the host's messages and the Take feedback share one timeline. Reply to the host in place. Open a Take recap to ask about that Take in the same composer. The label above the composer shows which Take the question refers to. A draft stays with its intended host or Take. Each chat keeps its own history and available send actions. A new Take started from that chat belongs to it. (Founder, Take design Codex chat, 24 November 2026.)
 
+Long message lists retain their natural height inside the shared scrolling pane, so the first message and the latest reply remain reachable while the header and composer stay in place. This also applies to expanded Take exchanges and long documents. (Founder, report of unreachable project chat history, 25 November 2026; restores N692.)
+
 On 23 November 2026, the sidebar's separate Speaking Coach setup shortcut was retired (N676). The plan opens from its existing prompts in the coach conversation. If the person previously deleted Speaking Coach, **Start a new project** can create a fresh project from the sidebar. An archived coach is restored from **Archived chats**.
 
 A project describes progress as the number of distinct slides or sections covered in completed spoken Takes. Repeating a slide adds a Take while leaving coverage at the same number. The live review opens in the active project as soon as its Take is ready. Leaving folds the exchange into a single preview below its recording. Opening the preview restores the conversation, including saved messages and practices across storage pages.

@@ -16,12 +16,14 @@ export function useWorkspaceSidebar() {
   return useContext(WorkspaceSidebar);
 }
 
-/** The conversation scrolls inside the workspace, independently of its composer. */
+/** The conversation scrolls independently of its composer. Its message lists
+ *  keep their full height so bottom-aligned history cannot shrink and overflow
+ *  above the pane's reachable scroll area. */
 export const ChatScroll = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function ChatScroll(
   { className = "", ...props }, ref,
 ) {
   return <div {...props} ref={ref} data-conversation-scroll
-    className={`scrollbar-none flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain ${className}`} />;
+    className={`scrollbar-none flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [&>*]:shrink-0 ${className}`} />;
 });
 
 export default function ChatWorkspace({ sidebar, viewKey, suspended = false, children }: {
