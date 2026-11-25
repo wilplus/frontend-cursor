@@ -39,7 +39,7 @@ PROVES   O10 -> "saves the proposed wording and shows it when the project reopen
 WHY      Founder lock, 2026-11-16: no bespoke project-chat chrome or pills;
          release-blocking chat audit, 2026-11-17.
 */
-import { act, createElement, type ComponentProps } from "react";
+import { act, createElement, useState, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -127,15 +127,19 @@ vi.mock("@/services/api/willQuestion", async (load) => ({
 vi.mock("./useVoiceNote", () => ({
   useVoiceNote: ({ onDone }: {
     onDone: (sample: { audio: Blob; durationMs: number; key: string }) => Promise<void>;
-  }) => ({
-    phase: "idle",
-    start: () => {
-      state.startVoice();
-      const key = state.startVoice.mock.calls.length === 1
-        ? "d166833f-8b09-400c-8188-5a1306430011" : crypto.randomUUID();
-      void onDone({ audio: new Blob(["spoken"]), durationMs: 1800, key });
-    },
-  }),
+  }) => {
+    const [phase, setPhase] = useState("idle");
+    return {
+      phase,
+      start: () => {
+        state.startVoice();
+        const key = state.startVoice.mock.calls.length === 1
+          ? "d166833f-8b09-400c-8188-5a1306430011" : crypto.randomUUID();
+        setPhase("sending");
+        void onDone({ audio: new Blob(["spoken"]), durationMs: 1800, key }).finally(() => setPhase("idle"));
+      },
+    };
+  },
 }));
 vi.mock("./useBackDismiss", () => ({ useBackDismiss: () => undefined }));
 vi.mock("./useUserId", () => ({ useUserId: () => "user-a" }));
@@ -355,6 +359,8 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 
 describe("project conversation", () => {
   it("shows an editable spoken draft and attaches playback only on send", async () => {
+    let finishTranscription!: (spoken: { text: string; durationMs: number; receipt: string }) => void;
+    state.transcribeChatAnswer.mockReturnValueOnce(new Promise(resolve => { finishTranscription = resolve; }));
     render({ ...project, takeCount: 0, takes: [] });
     await flush();
     act(() => (host.querySelector("[data-chat-mic]") as HTMLButtonElement).click());
@@ -363,6 +369,10 @@ describe("project conversation", () => {
     expect(state.transcribeChatAnswer).toHaveBeenCalledWith(expect.any(Blob), 1800, undefined, {
       turnId: "d166833f-8b09-400c-8188-5a1306430011", projectId: "arc-a", snippetId: undefined,
     });
+    expect(host.querySelector("form")?.textContent).toContain("Transcribing your recording…");
+    expect(host.querySelector("[data-project-scroll]")?.textContent).not.toContain("Transcribing your recording…");
+    await act(async () => finishTranscription({ text: "That was my intention.", durationMs: 1800, receipt: "voice-receipt" }));
+    expect(host.textContent).not.toContain("Transcribing your recording…");
     expect(host.querySelector("textarea")?.value).toBe("That was my intention.");
     expect(host.querySelector("audio")).toBeNull();
     expect(state.attachChatVoice).not.toHaveBeenCalled();
