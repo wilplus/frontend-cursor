@@ -33,7 +33,7 @@ export default function CalibrationCorpusUpload({ onBack, onComplete }: {
     setProgress("Starting import…");
     try {
       const result = await importBatch(files, {
-        topic, language, optionalStages: stages,
+        topic, language: language === "auto" ? "" : language, optionalStages: stages,
         speakerLabel: String(fields.get("speaker") ?? "").trim() || null,
         note: String(fields.get("source") ?? "").trim() || null,
       }, {
@@ -78,7 +78,7 @@ export default function CalibrationCorpusUpload({ onBack, onComplete }: {
         <label className="flex flex-col gap-1">{copy.whatLanguageItIsIn}
           <select className={patternInput} defaultValue="-" name="language" required>
             <option value="-" disabled>{copy.chooseLanguage}</option>
-            {IMPORT_LANGUAGES.map(language => <option key={language.code || "auto"} value={language.code}>{language.label}</option>)}
+            {IMPORT_LANGUAGES.map(language => <option key={language.code || "auto"} value={language.code || "auto"}>{language.label}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1">{copy.whoseVoiceThisIs}

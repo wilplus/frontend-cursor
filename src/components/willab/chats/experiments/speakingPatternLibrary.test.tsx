@@ -175,6 +175,10 @@ it("imports files inline and refreshes the list after partial success", async ()
   for (const [name, value] of Object.entries({ topic: "Short talk", language: "pl", speaker: "Speaker A", source: "Practice" })) {
     (form.elements.namedItem(name) as HTMLInputElement).value = value;
   }
+  const language = form.elements.namedItem("language") as HTMLSelectElement;
+  language.value = "auto";
+  expect(language.checkValidity()).toBe(true);
+  language.value = "pl";
   await click("Import");
   expect(vi.mocked(importTrainingAudio).mock.calls.map(([input]) => input.topic)).toEqual(["Short talk · first", "Short talk · second"]);
   expect(vi.mocked(importTrainingAudio)).toHaveBeenCalledWith(expect.objectContaining({
