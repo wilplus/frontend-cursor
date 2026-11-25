@@ -851,6 +851,11 @@ O2  A week with fewer than five people reads ""fewer than 5"", and a chart
 that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
 O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
 src/components/willab/chats/experiments/experimentsArea.test.tsx,Story,A host opens Experiments and moves through a session without seeing a score or a hidden word.,O1  The screens follow the prompt file and stay free of hidden words.,"O1 -> ""the experiment screens""",
+src/components/willab/chats/experiments/speakingPatternLibrary.test.tsx,Story,The founder marks a strong opening and a rushed ending in one corpus clip.,"O1  Both labels and intervention matches stay on the original time ranges.
+O2  The library reopens the exact clip from either source.
+O3  Corpus uploads happen inside calibration, and the recording list refreshes after multipart success.","O1 -> ""labels and matches a corpus clip""
+O2 -> ""reopens an owned Take from the same library""
+O3 -> ""imports files inline and refreshes the list after partial success""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
