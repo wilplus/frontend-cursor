@@ -22,6 +22,7 @@
  */
 
 import { getAuthToken } from "@/lib/api/auth-client";
+import { openOwnChatNow } from "@/components/willab/chats/loungePlace";
 import { guestOwnerHeaders } from "./projects";
 
 export interface ChatHistoryEntry {
@@ -246,6 +247,8 @@ export async function postChatQuery(
           arc_id: args.projectId,
           presentation_context: args.presentationContext,
           place: args.place || undefined,
+          // The speaker's own chat the turn is typed in (backend N700).
+          own_chat: openOwnChatNow() ?? undefined,
           // #2 — server-owned persistence (signed-in only). The BE dedups the
           // user turn on client_id; absent → BE does not persist this turn.
           persist: args.persist ? true : undefined,

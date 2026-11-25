@@ -65,6 +65,13 @@ export function inPlace(message: Placed, place: LoungePlace): boolean {
  *  a host's chat that takes Takes (`chat`), every row read for it, since
  *  the read itself is that chat's (?chat=, N648 item 8). */
 export function shownIn(message: Placed, place: LoungePlace | null, chat: string | null = null): boolean {
+  // One of the speaker's own chats is open (backend N700): its rows, as the
+  // backend labels them, and the rows typed here since.
+  const openOwnChat = openOwnChatNow();
+  if (openOwnChat && !chat) {
+    const labelled = ownChatOfRow(message);
+    if (labelled !== undefined) return labelled === openOwnChat;
+  }
   if (isSpeakingCoachFeature(message)) return !chat && (!place || place === "speaking");
   const own = chatOfRow(message);
   if (chat) return own === null || own === chat;
@@ -106,8 +113,9 @@ export function withHint<T extends { metadata?: Record<string, unknown> | null }
  *  stays visible in the shared thread. Never an `offer`: a row with one is
  *  drawn as Will's offer, never as one's own words. */
 export function typedHint(place: LoungePlace | null, arcId: string | null | undefined, chat: string | null = null): Record<string, unknown> | null {
-  if (!place) return null;
-  const here = chat ? { chat } : {};
+  const own = openOwnChatNow();
+  if (!place) return own ? { chat_id: own } : null;
+  const here = { ...(chat ? { chat } : {}), ...(own ? { chat_id: own } : {}) };
   if (place === "speaking" && arcId) return { place, arc_id: arcId, ...here };
   return { place, ...here };
 }
@@ -130,6 +138,67 @@ function subscribe(listen: () => void): () => void {
 /** The chat the Lounge is drawn as now; null: as it was. */
 export function useOpenPlace(): LoungePlace | null {
   return useSyncExternalStore(subscribe, () => open, () => null);
+}
+
+// ── One of the speaker's own chats (backend N700) ──────────────────────
+let openOwn: string | null = null;
+const ownListeners = new Set<() => void>();
+
+/** The speaker's own chat open now (null: none, or before the list is read). */
+export function setOpenOwnChat(id: string | null): void {
+  if (openOwn === id) return;
+  openOwn = id;
+  ownListeners.forEach((listen) => listen());
+}
+
+export function openOwnChatNow(): string | null {
+  return openOwn;
+}
+
+export function useOpenOwnChat(): string | null {
+  return useSyncExternalStore((listen) => {
+    ownListeners.add(listen);
+    return () => ownListeners.delete(listen);
+  }, () => openOwn, () => null);
+}
+
+// The open own chat's name, for its header; and a tap on that name, which
+// opens the rename in the list (founder, N700 item 4).
+let openOwnTitle: string | null = null;
+let renameAsk = 0;
+export function setOpenOwnChatTitle(title: string | null): void {
+  if (openOwnTitle === title) return;
+  openOwnTitle = title;
+  ownListeners.forEach((listen) => listen());
+}
+
+export function useOpenOwnChatTitle(): string | null {
+  return useSyncExternalStore((listen) => {
+    ownListeners.add(listen);
+    return () => ownListeners.delete(listen);
+  }, () => openOwnTitle, () => null);
+}
+
+export function askRenameOpenOwnChat(): void {
+  renameAsk += 1;
+  ownListeners.forEach((listen) => listen());
+}
+
+export function useRenameAsk(): number {
+  return useSyncExternalStore((listen) => {
+    ownListeners.add(listen);
+    return () => ownListeners.delete(listen);
+  }, () => renameAsk, () => 0);
+}
+
+/** The own chat a row belongs to: the backend's label, else the chat it was
+ *  typed in; undefined when neither says (the row is placed by its section). */
+export function ownChatOfRow(message: Placed): string | null | undefined {
+  const row = message as Placed & { own_chat_id?: unknown };
+  if (typeof row.own_chat_id === "string") return row.own_chat_id;
+  if (row.own_chat_id === null) return null;
+  const typed = (message.metadata as Record<string, unknown> | null | undefined)?.chat_id;
+  return typeof typed === "string" ? typed : undefined;
 }
 
 // The recorder reads the active hosted chat when it keeps a finished Take.

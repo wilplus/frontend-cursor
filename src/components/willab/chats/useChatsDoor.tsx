@@ -17,7 +17,7 @@ import { useBackStop } from "../useBackDismiss";
 import ProductHome from "./ProductHome";
 import WillBuild from "./WillBuild";
 import BuiltChatSection from "./BuiltChatSection";
-import { setOpenChat, setOpenPlace } from "./loungePlace";
+import { setOpenChat, setOpenOwnChat, setOpenPlace } from "./loungePlace";
 import { TopBar } from "./TopBar";
 import type { MemberChatContent } from "./ChatThread";
 import { WillMark } from "./ChatList";
@@ -168,7 +168,7 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
         setDestination({ kind: "coach" });
         options?.onOpenPendingProject?.(take);
       })}
-      onOpenPerson={openedPerson}
+      onOpenPerson={(chat) => { setOpenOwnChat(null); openedPerson(chat); }}
       onOpenSpeaking={openCoach}
       coachActions={layout?.coach === "active" ? <CoachMenu change={change} onDelete={() => {
         options?.onLeaveProject?.();
@@ -177,8 +177,8 @@ export function useChatsDoor(onRecordAnswer?: (answer: AnswerFor) => void, optio
       onOpenProject={openProject}
       onRemoveProject={options?.onRemoveProject}
       onStartNewProject={startProject}
-      onOpenOwnChat={() => open({ kind: "builder" })}
-      onOpenOwnSection={(name) => open({ kind: "built", name })}
+      onOpenOwnChat={() => { setOpenOwnChat(null); open({ kind: "builder" }); }}
+      onOpenOwnSection={(name) => { setOpenOwnChat(null); open({ kind: "built", name }); }}
     /> : null,
     pane: enabled && !project && !pendingKey && !hosted ? <ConversationPane
       destination={destination}

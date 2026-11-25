@@ -982,6 +982,17 @@ O2 -> ""Yes pins the chat and gives it a direct setup shortcut""
 O3 -> ""Share copies the public link""
 O4 -> ""the icon defaults to the initial and the badge is forty percent""
 O5 -> ""a specialist reply keeps its artifact through a legacy save and reload""",
+src/components/willab/chats/ownChatList.test.tsx,Story,"As a speaker, I want my own chats in one flat list, each the same kind of chat, so that I decide what a chat is by how I use it (backend N700).","O1  The list is flat: the speaking chat, a project's chat and a plain chat
+are rows side by side, with no project list nested under the coach.
+O2  Opening a plain chat opens the coach's pane on that chat; opening a
+project's chat opens its project.
+O3  ""New chat"" makes a chat and opens it.
+O4  In an open chat, the thread shows that chat's messages, and a message
+typed there names it.
+O5  A tap on the open chat's name (its header) renames it in its row.","O1, O2 -> ""draws one flat list and opens each chat as what it is""
+O3 -> ""makes a new chat and opens it""
+O4 -> ""an open chat shows its own messages and names what is typed in it""
+O5 -> ""a tap on the open chat's name renames it""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.

@@ -268,6 +268,20 @@ and [Chat Builder](../chat-builder/flow.md).
 
 ### B · One chat, two views
 
+- **B0** **One kind of chat** (backend N700). Every chat of one's own is the
+  same kind, in one flat list in the sidebar: Speaking coach, each project's
+  chat, Principles or Will where one has written there, and any new chat.
+  Each has the same composer and "+" (Upload a recording, Your projects,
+  Update slides). A message and Will's reply belong to the chat they were
+  written in (`metadata.chat_id`); the backend labels each row of a page with
+  its chat (`own_chat_id`), placing older rows by their project or section.
+  A Take recorded in a chat gives it its project, one per chat. A chat is
+  renamed from its ⋯ or by tapping its name in the top bar; a project's chat
+  renames its project too. Will's unprompted messages go to the chat used
+  last. Chats with other people stay as they are. Until the list is read the
+  sidebar is drawn as before. `chats/ProductHome.tsx` (`OwnChatList`),
+  `chats/loungePlace.tsx`, `chats/TopBar.tsx`, `ProjectChat.tsx`,
+  `services/api/ownChats.ts`.
 - **B1** One thread, stored once: the Lounge thread (`lounge_messages`,
   kind `walk_step`). Every step is a message with one author: the speaker,
   the app (line bank), the coach, the rewrite (LLM) or the summary (GPT-4o).
@@ -2605,6 +2619,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-25 · N700 · One kind of chat: the sidebar is one flat list of one's own chats with "New chat" in place of "Start a new project"; a message belongs to the chat it was written in; a project's chat has the same "+" as the Speaking coach chat; tapping a chat's name in its top bar renames it. `chats/ProductHome.tsx`, `chats/loungePlace.tsx`, `chats/TopBar.tsx`, `ProjectChat.tsx`, `services/api/ownChats.ts`.
 - 2026-11-25 · founder screenshot, 25 November 2026 · The app's menu (☰) moves from the foot of the chats sidebar to the right end of every chat's top bar, after any Live · Build switch; it opens downwards. `chats/TopBar.tsx`, `chats/ChatWorkspace.tsx`.
 - 2026-11-25 · N691 items 1 and 2 · An older Take's bubble opens that Take's feedback in its project chat; the older-Take review screen (`OlderTakeReview`) and the recording screens' readout are deleted.
 - 2026-11-25 · N691 items 1 and 4 · The results cards (`insight`, `feedback`, `best_presentation_ready`) are no longer drawn in the main chat, and the recording bubble and Ideal Text card open the Take's feedback in its project chat; `FeedbackOverlay.tsx` is deleted.

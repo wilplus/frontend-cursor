@@ -26,6 +26,9 @@ import type { Chat } from "@/services/api/chats";
 import { subscribeToProjectTrainings } from "@/lib/willab/projectTrainings";
 import { COACH_PANEL_COPY } from "@/lib/willab/coachPanelCopy";
 import type { PendingProjectTake } from "../usePendingProjectTakes";
+import { createOwnChat, listOwnChats, renameOwnChat, type OwnChat } from "@/services/api/ownChats";
+import { PLACE_TITLES, setOpenOwnChat, setOpenOwnChatTitle, useOpenOwnChat, useRenameAsk } from "./loungePlace";
+import { useWorkspaceSidebar } from "./ChatWorkspace";
 
 type Status = "loading" | "ready" | "error";
 type RenameStatus = "editing" | "saving" | "saved" | "error";
@@ -81,6 +84,14 @@ export default function ProductHome({
   const [sheet, setSheet] = useState(false);
   const [own, setOwn] = useState(readOwnChat());
   const [rename, setRename] = useState<RenameState | null>(null);
+  // The speaker's own chats, one kind of chat (backend N700); null until read,
+  // or unreadable: then the list is drawn as before.
+  const [ownChats, setOwnChats] = useState<OwnChat[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void listOwnChats().then((list) => { if (live && list) setOwnChats(list); });
+    return () => { live = false; };
+  }, [projects.length]);
 
   useEffect(() => {
     const sync = () => {
@@ -156,7 +167,18 @@ export default function ProductHome({
       <nav data-chat-list aria-label={uiText(locale, "chatsNavigation")} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-1">
           {showOwn ? <BuilderChatGroup title={title} layout={layout} change={change} activeChat={activeChat}
             onEdit={onOpenOwnChat} onOpenSection={onOpenOwnSection} /> : null}
-          {!layout || layout.coach === "active" ? <>
+          {ownChats ? pendingProjects.filter((take) => !projects.some((project) =>
+            project.arcId === take.projectId || project.takes.some((item) =>
+              item.uploadKey === take.key || item.sessionId === take.sessionId))).map((take) => (
+            <HomeRow key={take.key} id={`pending:${take.key}`} title={take.topic}
+              circle={<LetterCircle id={take.key} name={take.topic} size={24} />}
+              active={activeChat === `pending:${take.key}`} onOpen={() => onOpenPendingProject?.(take)} />
+          )) : null}
+          {ownChats ? (
+            <OwnChatList chats={ownChats} setChats={setOwnChats} projects={projects} setProjects={setProjects}
+              activeChat={activeChat} locale={locale} onRemoveProject={onRemoveProject}
+              onOpenSpeaking={onOpenSpeaking} onOpenProject={onOpenProject} />
+          ) : !layout || layout.coach === "active" ? <>
           <HomeRow
             id="speaking-coach"
             title={uiText(locale, "speakingCoach")}
@@ -222,7 +244,7 @@ export default function ProductHome({
             {newProject}
           </div>
           </> : null}
-          {layout?.coach === "deleted" ? newProject : null}
+          {!ownChats && layout?.coach === "deleted" ? newProject : null}
           {onOpenPerson ? people.map((chat) => <HomeRow key={chat.id} id={chat.id} title={chat.title}
             circle={<LetterCircle id={chat.id} name={chat.title} size={24} />}
             active={activeChat === `person:${chat.id}`} onOpen={() => onOpenPerson(chat)} />) : null}
@@ -238,6 +260,122 @@ export default function ProductHome({
 }
 
 const unavailableChange = async () => false;
+
+/** Its name in the person's language while it keeps the name it started with. */
+function ownChatTitle_(chat: OwnChat, locale: UiLocale): string {
+  if (chat.section === "speaking" && chat.title === "Speaking coach") return uiText(locale, "speakingCoach");
+  if (chat.section && chat.title === PLACE_TITLES[chat.section]) return PLACE_TITLES[chat.section];
+  return chat.title;
+}
+
+/** The speaker's own chats, one flat list (backend N700): every chat the
+ *  same kind, a project chat among them; "New chat" at the end. */
+export function OwnChatList({ chats, setChats, projects, setProjects, activeChat, locale, onRemoveProject, onOpenSpeaking, onOpenProject }: {
+  chats: OwnChat[];
+  setChats: Dispatch<SetStateAction<OwnChat[] | null>>;
+  projects: TrainingArc[];
+  setProjects: Dispatch<SetStateAction<TrainingArc[]>>;
+  activeChat?: string;
+  locale: UiLocale;
+  onRemoveProject?: (arcId: string) => void;
+  onOpenSpeaking: () => void;
+  onOpenProject: (project: TrainingArc) => void;
+}) {
+  const open = useOpenOwnChat();
+  const [editing, setEditing] = useState<{ id: string; value: string; status: RenameStatus } | null>(null);
+  const plain = chats.find((chat) => chat.section === "speaking") ?? chats.find((chat) => !chat.arcId) ?? null;
+  // The coach's pane with no own chat chosen yet shows the speaking chat.
+  // A project's chat opened from anywhere (a link, a Take) is its own chat.
+  useEffect(() => {
+    const arc = activeChat?.startsWith("project:") ? activeChat.slice("project:".length) : null;
+    const current = chats.find((chat) => chat.id === open);
+    if (arc) {
+      const mine = chats.find((chat) => chat.arcId === arc);
+      if (mine && mine.id !== open) setOpenOwnChat(mine.id);
+    } else if (activeChat === "coach" && plain && (!current || current.arcId)) setOpenOwnChat(plain.id);
+  }, [activeChat, open, plain, chats]);
+  const projectOf = (chat: OwnChat) => (chat.arcId ? projects.find((p) => p.arcId === chat.arcId) ?? null : null);
+  const openTitle = (() => { const chat = chats.find((c) => c.id === open); return chat ? ownChatTitle_(chat, locale) : null; })();
+  useEffect(() => { setOpenOwnChatTitle(openTitle); }, [openTitle]);
+  // A tap on the open chat's name renames it here, in its row.
+  const sidebar = useWorkspaceSidebar();
+  const renameAsk = useRenameAsk();
+  const seenAsk = useRef(renameAsk);
+  useEffect(() => {
+    if (renameAsk === seenAsk.current) return;
+    seenAsk.current = renameAsk;
+    if (!open || !openTitle) return;
+    sidebar?.show();
+    setEditing({ id: open, value: openTitle, status: "editing" });
+  }, [renameAsk, open, openTitle, sidebar]);
+  const openChat = (chat: OwnChat) => {
+    setOpenOwnChat(chat.id);
+    const project = projectOf(chat);
+    if (project) onOpenProject(project);
+    else onOpenSpeaking();
+  };
+  const save = async (chat: OwnChat, value: string) => {
+    const title = value.trim();
+    if (!title) return;
+    setEditing({ id: chat.id, value: title, status: "saving" });
+    const renamed = await renameOwnChat(chat.id, title).catch(() => null);
+    if (!renamed) { setEditing({ id: chat.id, value: title, status: "error" }); return; }
+    const project = projectOf(chat);
+    if (project) {
+      const named = await renameProject(project.arcId, title).catch(() => null);
+      if (named) setProjects((list) => list.map((p) => (p.arcId === project.arcId ? { ...p, topic: named } : p)));
+    }
+    setChats((list) => list?.map((c) => (c.id === chat.id ? renamed : c)) ?? list);
+    setEditing(null);
+  };
+  const newChat = async () => {
+    const made = await createOwnChat(uiText(locale, "newChat"));
+    if (!made) return;
+    setChats((list) => [made, ...(list ?? [])]);
+    openChat(made);
+  };
+  return <div data-own-chats>
+    {chats.filter((chat) => !projectOf(chat)?.archived).map((chat) => {
+      const project = projectOf(chat);
+      const title = ownChatTitle_(chat, locale);
+      if (editing?.id === chat.id) {
+        return <OwnChatEditRow key={chat.id} id={chat.id} title={title} locale={locale} value={editing.value} status={editing.status}
+          onChange={(value) => setEditing({ id: chat.id, value, status: "editing" })}
+          onCancel={() => setEditing(null)} onSave={() => void save(chat, editing.value)} />;
+      }
+      const rename: RowMenuAction = {
+        label: uiText(locale, "projectEdit"), icon: Pencil, failedLabel: uiText(locale, "projectEditFailed"),
+        onRun: async () => { setEditing({ id: chat.id, value: title, status: "editing" }); return true; },
+      };
+      const actions = project
+        ? [rename, ...projectActions(project, locale, setProjects, () => undefined, onRemoveProject).slice(1)]
+        : [rename];
+      const active = project ? activeChat === `project:${project.arcId}` : activeChat === "coach" && open === chat.id;
+      return <HomeRow key={chat.id} id={chat.id} title={title}
+        circle={chat.section === "speaking" ? <WillMark size={24} /> : project ? <ProjectCircle project={project} />
+          : <LetterCircle id={chat.id} name={title} size={24} />}
+        active={active}
+        subtitle={project?.deletion ? uiText(locale, "projectDeletionPending") : null}
+        disabled={Boolean(project?.deletion)}
+        actions={project?.deletion ? null : <ProjectRowMenu label={title}
+          menuAriaLabel={uiTextWith(locale, "projectMoreOptions", { name: title })} actions={actions} />}
+        onOpen={() => openChat(chat)} />;
+    })}
+    <button type="button" data-new-chat onClick={() => void newChat()}
+      className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
+      <Plus size={16} aria-hidden />{uiText(locale, "newChat")}
+    </button>
+  </div>;
+}
+
+/** Renaming one own chat in place: the field, Cancel and the save. */
+function OwnChatEditRow({ id, title, locale, value, status, onChange, onCancel, onSave }: {
+  id: string; title: string; locale: UiLocale; value: string; status: RenameStatus;
+  onChange: (value: string) => void; onCancel: () => void; onSave: () => void;
+}) {
+  return <ProjectEditRow project={{ arcId: id, topic: title } as TrainingArc} locale={locale} value={value} status={status}
+    onChange={onChange} onCancel={onCancel} onSave={onSave} />;
+}
 
 function OwnChatSheet({ title, onYes, onClose }: { title: string; onYes: () => Promise<void>; onClose: () => void }) {
   const titleId = useId();

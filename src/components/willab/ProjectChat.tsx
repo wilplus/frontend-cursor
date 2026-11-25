@@ -59,7 +59,9 @@ import RecordNextTakeLink from "./chats/RecordNextTakeLink";
 import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
 import { useHumanCoachReviewRows } from "./chats/useHumanCoachReviewRows";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
-import ChatComposer from "./chats/ChatComposer";
+import ChatComposer, { type ComposerFileAction } from "./chats/ChatComposer";
+import { stageLabUpload } from "./labUploadStage";
+import { validateAudioUpload } from "./audioUploadValidation";
 import { useUpdateSlides } from "./UpdateSlides";
 import { ChatScroll, useWorkspaceSidebar } from "./chats/ChatWorkspace";
 import { PROJECT_SPEAKER_BUBBLE, scrollWithinProject } from "./walk/InlineWalkHost";
@@ -351,7 +353,7 @@ function ProjectChatHeader({ project, onBack }: {
   project: TrainingArc; onBack?: () => void;
 }) {
   return <TopBar circle={<LetterCircle id={project.arcId} name={project.topic} size={36} />}
-    title={project.topic} onBack={onBack} />;
+    title={project.topic} onBack={onBack} ownChat />;
 }
 
 function samePending(
@@ -469,6 +471,7 @@ export default function ProjectChat({
   onRecordingSettled?: () => void;
 }) {
   const workspace = useWorkspaceSidebar();
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const reviewExit = useRef<ReviewExit | null>(null);
   const documentExit = useRef<ReviewExit | null>(null);
   const leavingReview = useCallback((action: () => void) =>
@@ -929,9 +932,28 @@ export default function ProjectChat({
     if (!value.trim()) setPreparedVoice(null);
   }
 
+  /** The same "+" as the Speaking coach chat (backend N700 item 1): a
+   *  recording uploaded here is this project's next Take. */
+  function composerFiles(): ComposerFileAction[] {
+    const files: ComposerFileAction[] = [{
+      label: "Upload a recording", accept: "audio/*", sendFile: (file) => {
+        const error = validateAudioUpload(file);
+        setUploadError(error);
+        if (error) return false;
+        stageLabUpload(file);
+        onRecord(activeProject.arcId);
+        return true;
+      },
+    }];
+    if (workspace) files.push({ label: "Your projects", open: workspace.show });
+    if (slides.item) files.push({ label: slides.item.label, open: slides.item.onOpen });
+    return files;
+  }
+
   function composerStatus() {
-    return voice.error ? <p role="alert" className="px-2 pb-1 text-sm">
-      {voice.error} {voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
+    const error = uploadError || voice.error;
+    return error ? <p role="alert" className="px-2 pb-1 text-sm">
+      {error} {!uploadError && voice.retry ? <button type="button" onClick={() => void voice.retry?.()} className="underline">Try again</button> : null}
     </p> : undefined;
   }
 
@@ -973,7 +995,7 @@ export default function ProjectChat({
         inputLabel="Answer about this take" sendLabel="Send answer" value={draft}
         onValue={changeDraft} onSend={sendDraft}
         autoFocus={Boolean(stagedVoice) || typingAnswer || Boolean(askTarget) || pendingTyped?.phase === "send_failed"} busy={sending || voice.sending}
-        files={slides.item ? [{ label: slides.item.label, open: slides.item.onOpen }] : undefined}
+        files={composerFiles()}
         mic={voice.mic} transcribing={voice.sending && !sending && !outbox.processingVoice}
         recording={voice.recording} status={composerStatus()} />
       </div>

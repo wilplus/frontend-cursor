@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { LetterCircle, WILL_ROW_TITLE, WillMark } from "./ChatList";
-import { PLACE_TITLES, type LoungePlace } from "./loungePlace";
+import { askRenameOpenOwnChat, PLACE_TITLES, useOpenOwnChatTitle, type LoungePlace } from "./loungePlace";
 import { PageHeader } from "../PageHeader";
 import { useWorkspaceSidebar } from "./ChatWorkspace";
 import { W } from "./hostsetup/hostSetupCopy";
@@ -51,7 +51,11 @@ export function TopBar({
   onBack,
   onOpen = null,
   right = null,
+  ownChat = false,
 }: {
+  /** One of the speaker's own chats: its own name, and a tap on it renames
+   *  it (backend N700 item 4). */
+  ownChat?: boolean;
   circle: ReactNode;
   title: string;
   subtitle?: string | null;
@@ -62,6 +66,9 @@ export function TopBar({
   onOpen?: (() => void) | null;
 }) {
   const sidebar = useWorkspaceSidebar();
+  const ownTitle = useOpenOwnChatTitle();
+  const renames = ownChat && sidebar !== null && ownTitle !== null;
+  if (renames) title = ownTitle;
   const who = (
     <>
       {circle}
@@ -88,7 +95,11 @@ export function TopBar({
       >
         <ChevronLeft className="h-6 w-6" aria-hidden />
       </button> : null}
-      {onOpen ? (
+      {renames ? (
+        <button type="button" data-chat-rename="" onClick={askRenameOpenOwnChat} className="flex min-w-0 items-center gap-2.5">
+          {who}
+        </button>
+      ) : onOpen ? (
         <button type="button" data-chat-who="" onClick={onOpen} className="flex min-w-0 items-center gap-2.5">
           {who}
         </button>
@@ -123,6 +134,6 @@ export function WillTopBar({ onBack, place = "will", build = null, right = null 
   useBackDismiss(onBack);
   if (build) return <>{build}</>;
   return (
-    <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} right={right} />
+    <TopBar circle={<WillMark size={36} />} title={place === "will" ? WILL_ROW_TITLE : PLACE_TITLES[place]} onBack={onBack} right={right} ownChat />
   );
 }

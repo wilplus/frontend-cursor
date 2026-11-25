@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openOwnChatNow } from "./chats/loungePlace";
+import { giveOwnChatProject } from "@/services/api/ownChats";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -198,6 +200,10 @@ export default function WillabSurface({
       flow.startRecording();
       return;
     }
+    // A Take recorded in one of the speaker's own chats gives that chat its
+    // project (backend N700); a chat that has one keeps it.
+    const own = sessionId ? openOwnChatNow() : null;
+    if (own) void giveOwnChatProject(own, arcId);
     const readProjects = sessionId ? fetchTrainings({ force: true }) : refreshProjectTrainings();
     void readProjects.then((projects) => {
       if (sequence !== projectOpenSequence.current) return;

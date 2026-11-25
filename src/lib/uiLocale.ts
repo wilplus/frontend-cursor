@@ -35,6 +35,7 @@ export type UiCopyKey =
   | "startOwnChat"
   | "editOwnChat"
   | "startNewProject"
+  | "newChat"
   | "createNewProject"
   | "startFirstProject"
   | "startFirstRecording"
@@ -120,6 +121,7 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     startOwnChat: "Start your own chat",
     editOwnChat: "Edit your chat",
     startNewProject: "Start a new project",
+    newChat: "New chat",
     createNewProject: "Create new project",
     startFirstProject: "Start your first project",
     startFirstRecording: "Start your first recording",
@@ -191,6 +193,7 @@ const UI_COPY: Record<UiLocale, Partial<Record<UiCopyKey, string>>> = {
     startOwnChat: "Utwórz własny czat",
     editOwnChat: "Edytuj swój czat",
     startNewProject: "Rozpocznij nowy projekt",
+    newChat: "Nowy czat",
     createNewProject: "Utwórz nowy projekt",
     startFirstProject: "Rozpocznij pierwszy projekt",
     startFirstRecording: "Rozpocznij pierwsze nagranie",
