@@ -6,7 +6,7 @@ import { LIFE_GOALS_COPY as LG } from "@/lib/willab/lifeGoals";
 import { askWhenLoungeOpens } from "./loungeOpenAsks";
 import { answerStrengthAsk, decideStrength, getSuggestion, strengthsToday, type Suggestion } from "@/services/api/lifeStrengths";
 import { Closed, DockColumn, EditorDock, LensFrame, script, type Item, type Script, type Ui } from "./LoungeLifeGoals";
-import WalkStage from "./walk/WalkStage";
+import ChatLens from "./chats/ChatLens";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
 
 /* -------------------------------------------------------------------------- */
@@ -125,14 +125,9 @@ function StrengthLens({
   }, [nonce]);
 
   return (
-    <div data-feedback-walk>
-      <WalkStage
-        screen={{ key: "strengths", overlay: Boolean(open) }}
-        render={(_screen, ghost) => (
-          <LensFrame label={STRENGTH_COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />
-        )}
-      />
-    </div>
+    <ChatLens open={Boolean(open)} stageKey="strengths" label={STRENGTH_COPY.bar} items={items} typing={typing}
+      dock={dock} onClose={onClose}
+      frame={(ghost) => <LensFrame label={STRENGTH_COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />} />
   );
 }
 
