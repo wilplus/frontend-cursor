@@ -4,14 +4,17 @@ STORY    The founder marks a strong opening and a rushed ending in one corpus cl
 OUTCOME
   O1  Both labels and intervention matches stay on the original time ranges.
   O2  The library reopens the exact clip from either source.
+  O3  Corpus uploads happen inside calibration, and the recording list refreshes after multipart success.
 PROVES   O1 -> "labels and matches a corpus clip"
          O2 -> "reopens an owned Take from the same library"
+         O3 -> "imports files inline and refreshes the list after partial success"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import SpeakingCalibration from "./SpeakingCalibration";
 import { bffFetch } from "@/lib/api/bffFetch";
+import { fetchTrainingImportsPage, importTrainingAudio } from "@/services/api/trainingCorpus";
 import type { PatternExample } from "./speakingPatterns";
 
 vi.mock("@/lib/api/bffFetch", () => ({ bffFetch: vi.fn() }));
@@ -23,10 +26,12 @@ vi.mock("@/services/api/sessionReadout", () => ({
     { id: "moment-1", transcript: "One complete point.", audioRef: "/take.ogg", startOffsetMs: 1000, durationMs: 5000 },
   ] } }),
 }));
-vi.mock("@/services/api/trainingCorpus", () => ({
-  fetchTrainingImportsPage: async () => ({ imports: [
+vi.mock("@/services/api/trainingCorpus", async (original) => ({
+  ...(await original<typeof import("@/services/api/trainingCorpus")>()),
+  importTrainingAudio: vi.fn(),
+  fetchTrainingImportsPage: vi.fn(async () => ({ imports: [
     { sessionId: "import-1", topic: "Synthetic training recording", state: "done", setupComplete: true },
-  ], nextOffset: null }),
+  ], nextOffset: null })),
   fetchConfidenceQueueResult: async () => ({ ok: true, queue: { queue: [{ snippetId: "clip-1" }] } }),
 }));
 vi.mock("@/hooks/useCorpusClip", () => ({
@@ -144,4 +149,41 @@ it("reopens an owned Take from the same library", async () => {
   await click("Calibration chat and retry");
   expect(container.textContent).toContain("What did you hear?");
   expect(container.querySelectorAll("[data-chat-composer]")).toHaveLength(1);
+});
+
+
+it("imports files inline and refreshes the list after partial success", async () => {
+  const first = new File(["first"], "first.wav", { type: "audio/wav" });
+  const second = new File(["second"], "second.wav", { type: "audio/wav" });
+  vi.mocked(importTrainingAudio).mockResolvedValueOnce({
+    ok: true, sessionId: "import-1", arcId: "", snippetCount: 3, queueCount: 2, durationSec: 20,
+    speakerLabel: "Speaker A", filename: first.name, language: "pl", duplicate: false,
+  }).mockResolvedValueOnce({
+    ok: false, code: null, reason: null, error: "Audio could not be read.", durationSec: null,
+    language: "pl", empty: false, sessionId: null, retryAfterSec: null,
+  });
+  await open();
+  await click("Training Corpus");
+  await click("Import audio");
+  expect(container.querySelectorAll("[data-chat-composer]")).toHaveLength(1);
+  expect(container.querySelector('select[aria-label="Corpus recording"]')).toBeNull();
+  const file = container.querySelector<HTMLInputElement>('input[type="file"]');
+  const form = file?.form;
+  if (!file || !form) throw Error("The upload form is missing.");
+  Object.defineProperty(file, "files", { value: [second, first] });
+  await act(async () => file.dispatchEvent(new Event("change", { bubbles: true })));
+  for (const [name, value] of Object.entries({ topic: "Short talk", language: "pl", speaker: "Speaker A", source: "Practice" })) {
+    (form.elements.namedItem(name) as HTMLInputElement).value = value;
+  }
+  await click("Import");
+  expect(vi.mocked(importTrainingAudio).mock.calls.map(([input]) => input.topic)).toEqual(["Short talk · first", "Short talk · second"]);
+  expect(vi.mocked(importTrainingAudio)).toHaveBeenCalledWith(expect.objectContaining({
+    speakerLabel: "Speaker A", language: "pl", note: "Practice",
+  }));
+  expect(container.textContent).toContain("Imported 1 of 2");
+  expect(container.textContent).toContain("second.wav");
+  expect(fetchTrainingImportsPage).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('select[aria-label="Corpus recording"]')).toBeTruthy();
+  await click("Pattern Library");
+  expect(container.textContent).toContain("Open a saved pattern");
 });

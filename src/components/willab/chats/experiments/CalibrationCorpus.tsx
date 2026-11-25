@@ -5,11 +5,16 @@ import { useCorpusClip } from "@/hooks/useCorpusClip";
 import { fetchConfidenceQueueResult, fetchTrainingImportsPage, type TrainingImport } from "@/services/api/trainingCorpus";
 import WalkPlayer from "../../walk/WalkPlayer";
 import { Bubble, choiceBubble } from "./bits";
+import CalibrationCorpusUpload from "./CalibrationCorpusUpload";
 import SpeakingPatternReview from "./SpeakingPatternReview";
 import { clipTime, patternInput, type CaseLink } from "./speakingPatterns";
 
 export function CalibrationCorpus() {
   const [moment, openMoment] = useState<CaseLink | null>(null);
+  const [upload, setUpload] = useState(false);
+  const [importNotice, setImportNotice] = useState("");
+  const [importFailure, setImportFailure] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const [imports, setImports] = useState<TrainingImport[]>([]);
   const [next, setNext] = useState<number | null>(0);
   const [listBusy, setListBusy] = useState(true);
@@ -26,7 +31,7 @@ export function CalibrationCorpus() {
     }).catch(() => { if (active) setListError("Couldn’t load the Training Corpus."); })
       .finally(() => { if (active) setListBusy(false); });
     return () => { active = false; };
-  }, []);
+  }, [reload]);
   useEffect(() => {
     if (!session) return;
     let active = true;
@@ -52,10 +57,18 @@ export function CalibrationCorpus() {
 
   if (moment) return <CorpusMoment link={moment} backLabel="Back to clips" onBack={() => openMoment(null)} />;
 
+  if (upload) return <CalibrationCorpusUpload onBack={() => setUpload(false)} onComplete={(notice, failure) => {
+    setImportNotice(notice); setImportFailure(failure);
+    setUpload(false); setListBusy(true); setListError(""); setReload(value => value + 1);
+  }} />;
+
   return <>
+    <button type="button" className={choiceBubble(true)} onClick={() => setUpload(true)}>Import audio</button>
+    {importNotice && <Bubble role="status">{importNotice}</Bubble>}
+    {importFailure && <Bubble role="alert">{importFailure}</Bubble>}
     <Bubble>Choose a corpus recording and listen to one clip at a time.</Bubble>
     <label className="flex w-full max-w-xl flex-col gap-1">Corpus recording
-      <select className={patternInput} value={session} onChange={event => {
+      <select aria-label="Corpus recording" className={patternInput} value={session} onChange={event => {
         setPieces(null); setQueueError(""); setSession(event.target.value);
       }}>
         <option value="">Choose a recording</option>

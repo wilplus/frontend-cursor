@@ -340,7 +340,7 @@ level still picks its problem (G7).
 
 ### Speaking Model Calibration · Pattern Library
 
-In **My Chat → AI → Training → Speaking Model Calibration**, choose **Your Takes** for recordings on your account or **Training Corpus** for clips in an existing corpus queue. Play the clip before saving a listening label. A clip can have several labels, each on its own time range. Choose a starter error or praise pattern, write your own, or keep a control such as **Pace OK**.
+In **My Chat → AI → Training → Speaking Model Calibration**, choose **Your Takes** for recordings on your account or **Training Corpus** for clips in an existing corpus queue. Under **Training Corpus**, **Import audio** opens the corpus upload form inside the chat. Choose files, add a topic and language, and enter the speaker and source when known. The existing importer processes the files one at a time and returns you to the recording list. Play the clip before saving a listening label. A clip can have several labels, each on its own time range. Choose a starter error or praise pattern, write your own, or keep a control such as **Pace OK**.
 
 After saving, the form shows available measurements for the whole clip and lets you draft or approve an intervention match for each error or praise. Error interventions can also record a target pace, pause length or pitch change. Use the listening note to record useful words or audible details. Assigning an intervention is the reviewer's judgment about the match. A corpus file has no retry outcome. An owned Take still has its separate calibration chat and retry.
 
