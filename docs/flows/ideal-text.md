@@ -513,7 +513,6 @@ Frontend, guarded by `scripts/flow-pages.txt` (a change must change this page):
 - `src/components/willab/IdealTextMenu.tsx`
 - `src/components/willab/IdealTextEditor.tsx`
 - `src/components/willab/IdealTextDocument.tsx` and `src/components/willab/IdealTextSlide.tsx`
-- `src/components/willab/IdealTextReadout.tsx`
 - `src/components/willab/TranscriptReviewDeck.tsx`
 - `src/components/willab/DeckSlidePreview.tsx`
 - `src/components/willab/DeckChunkModal.tsx`
@@ -540,6 +539,7 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-25 · N691 item 2 · The recording screens' readout (`IdealTextReadout`, `useReadoutLanding`) and the guest's send gate and ready screen (`SendGate`, `ReadySignUpScreen`, `wallMoment`) are deleted: a finished Take always lands in its project chat, where its Ideal Text is a bubble.
 - 2026-11-24 · N691 item 2 · The main chat's full-screen Ideal Text, its older-version screen and the guest's sign-up screen in front of it are gone; every way in opens the Take in its project chat.
 - 2026-11-23 · continuation-scope repair · one consumed scope contract replaces redundant start/time fields; fragment bounds reach the real recorder and whole rehearsal can pass five minutes; EN/PL fixed labels use the active UI locale. Tests exercise actual recording navigation and the microphone/upload boundary. Earlier continuation-footer entries are historical; §1's project rehearsal choices describe current behavior. Requested in this chat; no deployment.
 

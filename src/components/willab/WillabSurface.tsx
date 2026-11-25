@@ -695,7 +695,6 @@ export default function WillabSurface({
 const FIRST_VISIT_STEP: Partial<Record<WillabState, FirstVisitStep>> = {
   lab_recording: "recording",
   lab_processing: "recorded",
-  readout: "ready",
 };
 
 function useFirstVisitSteps(state: WillabState | null, signedIn: boolean | null) {

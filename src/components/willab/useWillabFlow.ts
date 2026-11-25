@@ -34,10 +34,7 @@ export type WillabState =
   | "lab_prerecord"
   | "lab_recording"
   | "lab_processing"
-  | "readout"
   | "parked"
-  | "sendgate_unsigned"
-  | "sendgate_signed"
   | "review_pending"
   | "insights_ready"
   | "lounge_general";
@@ -49,9 +46,6 @@ const LAB_OVERLAY_STATES: ReadonlySet<WillabState> = new Set<WillabState>([
   "lab_prerecord",
   "lab_recording",
   "lab_processing",
-  "readout",
-  "sendgate_unsigned",
-  "sendgate_signed",
 ]);
 
 export function isLabOverlay(state: WillabState): boolean {
@@ -86,15 +80,7 @@ export type WillabEvent =
   /** Lab: the mic stopped with a blob → processing. */
   | "recording_stopped"
   /** Lab: the upload was rejected (422) → back to the mic. */
-  | "upload_rejected"
-  /** Lab: the result is confirmed → the readout (Ideal Text). */
-  | "processing_ready"
-  /** Lab: hold, don't discard (§4) → parked. */
-  | "park"
-  /** Lab: the readout's sign-up → the unsigned send gate. */
-  | "sign_up_to_send"
-  /** Lab: the send gate sent the take → review pending. */
-  | "sent";
+  | "upload_rejected";
 
 const LOUNGE_LEVEL: readonly WillabState[] = [
   "lounge_idle",
@@ -112,15 +98,11 @@ export const TRANSITIONS: Readonly<
   setup_needed: { to: "lab_session_context", from: ["lab_feelings", "lab_prerecord"] },
   take_started: {
     to: "lab_recording",
-    from: ["lab_feelings", "lab_prerecord", "lab_session_context", "lab_recording", "lab_processing", "readout"],
+    from: ["lab_feelings", "lab_prerecord", "lab_session_context", "lab_recording", "lab_processing"],
   },
   upload_submitted: { to: "lab_processing", from: ["lab_session_context", "lab_recording"] },
   recording_stopped: { to: "lab_processing", from: ["lab_recording"] },
   upload_rejected: { to: "lab_recording", from: ["lab_processing"] },
-  processing_ready: { to: "readout", from: ["lab_processing"] },
-  park: { to: "parked", from: ["readout", "sendgate_unsigned", "sendgate_signed"] },
-  sign_up_to_send: { to: "sendgate_unsigned", from: ["readout"] },
-  sent: { to: "review_pending", from: ["sendgate_unsigned", "sendgate_signed"] },
 };
 
 /** The at-home status the SERVER owns (seam 8): the newest Readout decides

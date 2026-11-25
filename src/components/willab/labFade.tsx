@@ -38,8 +38,8 @@ export function useRecordingEntryFade(state: WillabState): string {
   useEffect(() => {
     const from = previous.current;
     previous.current = state;
-    if (state === "lab_recording" && from === "readout") setFading(true);
-    else if (state !== "lab_recording") setFading(false);
+    // The readout that "Record again" faded in from is gone (backend N691).
+    if (state !== "lab_recording" || from === state) setFading(false);
   }, [state]);
   return fading ? LAB_FADE_IN_CLASS : "";
 }
