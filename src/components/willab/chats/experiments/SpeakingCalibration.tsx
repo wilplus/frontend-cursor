@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { bffFetch } from "@/lib/api/bffFetch";
 import { withSessionBearer } from "@/lib/api/sessionBearer";
 import { watchPaceStream, type PaceMic } from "@/lib/willab/pace/paceMic";
@@ -11,6 +11,10 @@ import type { ReadoutSnippet } from "../../readout";
 import { useVoiceNote } from "../../useVoiceNote";
 import WalkPlayer from "../../walk/WalkPlayer";
 import { Bubble, ChoicePair, Frame, choiceBubble } from "./bits";
+import { CalibrationCorpus, CorpusMoment } from "./CalibrationCorpus";
+import SpeakingPatternLibrary from "./SpeakingPatternLibrary";
+import SpeakingPatternReview from "./SpeakingPatternReview";
+import { clipTime, deliveryTargets as targets, type CaseLink, type DeliveryValues } from "./speakingPatterns";
 
 const title = "Speaking Model Calibration";
 const input = "min-w-0 rounded-lg border border-border bg-background px-3 py-2";
@@ -20,11 +24,6 @@ const cueNames: Record<string, string> = {
   wpm: "Words per minute", f0_mean: "Average pitch in Hz", f0_sd: "Pitch variation in Hz",
   pause_ratio: "Pause share", opening_contrast_db: "Opening loudness contrast in dB",
 };
-const targets = {
-  pitch: { name: "Pitch change in semitones", min: -6, max: 6, step: 0.1 },
-  pause_ms: { name: "Pause in milliseconds", min: 0, max: 2500, step: 1 },
-  wpm: { name: "Words per minute", min: 60, max: 300, step: 1 },
-};
 type Take = { id: string; title: string };
 type Cues = Record<string, number>;
 type RecordOfMoment = {
@@ -33,17 +32,38 @@ type RecordOfMoment = {
   tool: keyof typeof exercises;
   focus: string;
   span: [number, number];
-  values: Partial<Record<keyof typeof targets, number>>;
+  values: DeliveryValues;
   retry_cues?: Cues;
 };
 type RecordResponse = { revision: number; record: RecordOfMoment | null; cues: Cues };
 type Retry = { text: string; receipt: string; cues: Cues; pace?: string | null };
 
 export default function SpeakingCalibration() {
+  const [source, setSource] = useState<"take" | "corpus" | "library">("take");
+  const [opened, setOpened] = useState<CaseLink | null>(null);
+  if (opened?.source === "take") {
+    return <TakeCalibration key={opened.snippet_id} link={opened} onBack={() => setOpened(null)} />;
+  }
+  const tabs = <ChoicePair name="calibration-source" value={source}
+    options={[{ value: "take", label: "Your Takes" }, { value: "corpus", label: "Training Corpus" },
+      { value: "library", label: "Pattern Library" }]}
+    onPick={value => { setOpened(null); setSource(value as typeof source); }} />;
+  if (source === "take") return <TakeCalibration tabs={tabs} />;
+  return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
+    {tabs}
+    {opened?.source === "corpus" ? <CorpusMoment key={opened.snippet_id} link={opened}
+      backLabel="Back to Pattern Library" onBack={() => setOpened(null)} /> : <>
+      {source === "corpus" && <CalibrationCorpus />}
+      {source === "library" && <SpeakingPatternLibrary onOpen={setOpened} />}
+    </>}
+  </Frame>;
+}
+
+function TakeCalibration({ link, onBack, tabs }: { link?: CaseLink; onBack?: () => void; tabs?: ReactNode }) {
   const [takes, setTakes] = useState<Take[]>([]);
-  const [take, chooseTake] = useState("");
+  const [take, chooseTake] = useState(link?.session_id ?? "");
   const [moments, setMoments] = useState<ReadoutSnippet[]>([]);
-  const [snippet, chooseMoment] = useState("");
+  const [snippet, chooseMoment] = useState(link?.snippet_id ?? "");
   const [loadError, setLoadError] = useState("");
   useEffect(() => {
     let active = true;
@@ -60,13 +80,22 @@ export default function SpeakingCalibration() {
     let active = true;
     void fetchSessionReadout(take).then(result => {
       if (!result) throw Error();
-      if (active) setMoments(result.readout.snippets.filter(row => row.audioRef && row.id && row.durationMs > 0));
+      if (active) {
+        const rows = result.readout.snippets.filter(row => row.audioRef && row.id && row.durationMs > 0);
+        setMoments(rows);
+        if (link && !rows.some(row => row.id === link.snippet_id)) setLoadError("This saved moment is unavailable.");
+      }
     }).catch(() => { if (active) setLoadError("Couldn’t load moments from this Take."); });
     return () => { active = false; };
-  }, [take]);
+  }, [take, link]);
   const moment = moments.find(row => row.id === snippet);
-  if (moment) return <Moment key={`${take}/${snippet}`} take={take} moment={moment} onBack={() => chooseMoment("")} />;
+  if (moment) return <Moment key={`${take}/${snippet}`} take={take} moment={moment} openPatterns={Boolean(link)} onBack={onBack ?? (() => chooseMoment(""))} />;
+  if (link) return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
+    <button className={choiceBubble(false)} onClick={onBack}>Back to Pattern Library</button>
+    <Bubble role="status">{loadError || "Opening the saved moment…"}</Bubble>
+  </Frame>;
   return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
+    {tabs}
     <Bubble>Choose a Take and the moment you want to calibrate.</Bubble>
     <label className="flex max-w-xl flex-col gap-1">Take
       <select className={input} value={take} onChange={event => {
@@ -104,7 +133,35 @@ function CueList({ cues }: { cues: Cues }) {
   ))}</ul>;
 }
 
-function Moment({ take, moment, onBack }: { take: string; moment: ReadoutSnippet; onBack: () => void }) {
+function Moment({ take, moment, onBack, openPatterns = false }: {
+  take: string; moment: ReadoutSnippet; onBack: () => void; openPatterns?: boolean;
+}) {
+  const [patterns, showPatterns] = useState(openPatterns);
+  const actions = <MomentActions patterns={patterns} onBack={onBack} onPick={() => showPatterns(!patterns)} fromLibrary={openPatterns} />;
+  if (patterns) return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
+    {actions}
+    <Bubble className="w-full max-w-2xl">
+      <p>Take moment · {clipTime(moment.startOffsetMs)}–{clipTime(moment.startOffsetMs + moment.durationMs)}</p>
+      {moment.transcript}
+      <WalkPlayer label="original moment" seed={moment.id} src={moment.audioRef}
+        startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs} look="bare" />
+    </Bubble>
+    <SpeakingPatternReview clip={{ source: "take", session_id: take, snippet_id: moment.id }}
+      start={moment.startOffsetMs} duration={moment.durationMs} />
+  </Frame>;
+  return <PracticeMoment take={take} moment={moment} actions={actions} />;
+}
+
+function MomentActions({ patterns, onBack, onPick, fromLibrary }: {
+  patterns: boolean; onBack: () => void; onPick: () => void; fromLibrary: boolean;
+}) {
+  return <div className="flex flex-wrap gap-2">
+    <button className={choiceBubble(false)} onClick={onBack}>{fromLibrary ? "Back to Pattern Library" : "Choose another moment"}</button>
+    <button className={choiceBubble(false)} onClick={onPick}>{patterns ? "Calibration chat and retry" : "Label error or praise"}</button>
+  </div>;
+}
+
+function PracticeMoment({ take, moment, actions }: { take: string; moment: ReadoutSnippet; actions: ReactNode }) {
   const url = `/api/v2/user/speaking-calibration/${encodeURIComponent(take)}/${encodeURIComponent(moment.id)}`;
   const [record, setRecord] = useState<RecordResponse | null>(null);
   const [draft, setDraft] = useState<RecordOfMoment>({
@@ -225,7 +282,7 @@ function Moment({ take, moment, onBack }: { take: string; moment: ReadoutSnippet
     onSend: ask, textDisabled: !record?.record || busy || mic.phase !== "idle", maxLength: 1200,
     placeholder: record?.record ? "Ask about this moment or suggest a change" : "Save what you heard first",
   }}>
-    <button className={choiceBubble(false)} onClick={onBack}>Choose another moment</button>
+    {actions}
     <Bubble>{moment.transcript}
       <WalkPlayer label="original moment" seed={moment.id} src={moment.audioRef}
         startOffsetMs={moment.startOffsetMs} durationMs={moment.durationMs} look="bare" />
