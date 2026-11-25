@@ -18,6 +18,8 @@ The walk's page (C6, C7, H2) says how the clip sits in the walk; where it and th
 
 ## 1. The rules
 
+**Founder calibration · AI → Training.** The founder labels an exact moment in an owned Take before seeing measured cues. GPT‑6.2 Sol and Astra are available through the app’s OpenAI project. The app’s Whisper transcribes a fresh retry. The founder can confirm the words and hear an ElevenLabs emphasis example in their authorized voice. Human labels, interventions and target values are stored as private notes tied to the moment. The current picker reads its live configuration as before.
+
 `LOCKED 2026-10-12 · flow yes · UI yes · words yes · backend rules yes`
 
 Locked by the founder on 2026-10-12 (chat: "D1: Approved", "all ok, L2:
