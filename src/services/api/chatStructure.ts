@@ -3,17 +3,15 @@ import type { CoachDefinition } from "@/lib/willab/chatBuilder/types";
 import type { ChatArtifactContent } from "@/lib/willab/chatArtifact";
 
 export type ChatLife = "active" | "archived" | "deleted";
-export type Subchat = { id: string; title: string; question: string; archived: boolean };
 type BuiltChatCopy = Pick<CoachDefinition["chat"], "spec" | "line" | "hello" | "questions" | "taps" | "send" | "who">;
 export type PublishedChat = BuiltChatCopy & { name: string };
 export type ChatStructure = {
-  coach: ChatLife; builder: ChatLife; subchats: Subchat[];
+  coach: ChatLife; builder: ChatLife;
   published_chat?: PublishedChat | null; main_chat_id?: string;
 };
 export type ChangeStructure =
   | { action: "publish"; chat: Omit<PublishedChat, "questions"> & { questions: string[] } }
-  | { action: "add"; title: string; question: string }
-  | { action: "archive" | "restore" | "delete"; section: string; projects?: string[] };
+  | { action: "archive" | "restore" | "delete"; section: "coach" | "builder"; projects?: string[] };
 export type BuiltChatTurn = {
   client_id: string; question: string; answer: string; artifact?: ChatArtifactContent | null;
 };

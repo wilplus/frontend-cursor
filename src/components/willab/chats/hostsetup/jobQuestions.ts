@@ -1,9 +1,9 @@
-import { askReply } from "@/services/api/hostSetup";
+import { suggestJob } from "@/services/api/hostSetup";
 
 /* Which questions a job is asked. A speaking job that takes a recording
    gets the walk. Every other job gets what people ask, what they get
    back, and who answers. A known job uses this table. An unknown job
-   asks the reply route, and uses the generic set when that route is down. */
+   asks the server for suggestions, and uses the generic set when it is down. */
 
 export type JobAsk = { question: string; taps: string[] };
 
@@ -48,39 +48,36 @@ const STARTS: Record<string, string[]> = {
 };
 
 /** The three first taps. A speaking job keeps the coach set. A known job
- *  uses the table. Anything else is generic until the reply route answers. */
+ *  uses the table. Anything else is what Will suggested for it, else generic. */
 export function startersFor(spec: string): string[] {
   if (voiceJob(spec)) return COACH_STARTS;
-  return STARTS[spec.trim()] ?? GENERIC_STARTS;
-}
-
-export async function startersFromRoute(spec: string): Promise<string[]> {
-  const known = startersFor(spec);
-  if (voiceJob(spec) || STARTS[spec.trim()]) return known;
-  const remote = await askReply("job", {
-    text: `Three short first questions a ${spec.trim()} chat should offer. Separate them with |.`,
-    kind: "text",
-  });
-  const parts = (remote?.reply ?? "").split("|").map((part) => part.trim()).filter(Boolean);
-  return parts.length >= 3 ? parts.slice(0, 3) : known;
+  return STARTS[spec.trim()] ?? learned.get(keyOf(spec))?.taps ?? GENERIC_STARTS;
 }
 
 /** The table for a known job, otherwise the generic set. */
 export function jobAsk(spec: string): JobAsk {
-  return TABLE[spec.trim()] ?? GENERIC;
+  const got = learned.get(keyOf(spec));
+  const asked = got ? { question: GENERIC.question, taps: [...got.taps.slice(0, 2), "Something else"] } : null;
+  return TABLE[spec.trim()] ?? asked ?? GENERIC;
 }
 
-/** The reply route may phrase the question for an unknown job. A missing
- *  route, or a known job, keeps the table. */
+/** What Will suggested for a job typed in the talk, kept for this page. */
+const learned = new Map<string, { taps: string[]; hello: string }>();
+const keyOf = (spec: string) => spec.trim().toLowerCase();
+
+/** Asks the server once for a job the table does not know. A known job, or
+ *  no answer, keeps the table and the generic set. */
 export async function questionFor(spec: string): Promise<JobAsk> {
   const known = TABLE[spec.trim()];
   if (known || voiceJob(spec)) return known ?? GENERIC;
-  const remote = await askReply("job", {
-    text: `One short question: what do people ask a ${spec.trim()} for? Then three short answers, separated by |.`,
-    kind: "text",
-  });
-  const text = remote?.reply?.trim() ?? "";
-  const parts = text.split("|").map((part) => part.trim()).filter(Boolean);
-  if (parts.length >= 3 && parts[0].includes("?")) return { question: parts[0], taps: parts.slice(1, 4) };
-  return GENERIC;
+  if (!learned.has(keyOf(spec))) {
+    const got = await suggestJob(spec.trim());
+    if (got) learned.set(keyOf(spec), got);
+  }
+  return jobAsk(spec);
+}
+
+/** The first line for a job Will has suggested for, else the plain one. */
+export function helloFor(spec: string): string {
+  return learned.get(keyOf(spec))?.hello || "Your chat is ready.";
 }

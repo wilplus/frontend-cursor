@@ -6,7 +6,7 @@ import ChatComposer from "@/components/willab/chats/ChatComposer";
 import { W } from "./hostSetupCopy";
 import type { SendKind } from "@/services/api/hostSetup";
 import { clearTalkDraft, markTalkReady, publishTalkDraft, saveTalkDraft, talkBuilt } from "@/lib/willab/chatBuilder/talkDraft";
-import { giveAsk, jobAsk, questionFor, startersFor, voiceJob } from "./jobQuestions";
+import { giveAsk, helloFor, jobAsk, questionFor, startersFor, voiceJob } from "./jobQuestions";
 import { COACH_HELLO, editEffect, speakTurn, WRITTEN_PASTE, type Line, type Phase, type Snap } from "./talkTurn";
 
 /* The chat, built by talking. One question at a time, in the same bubbles as
@@ -49,7 +49,7 @@ function hintFor(phase: Phase): string {
 
 function generatedDraft(phase: string, spec: string): string {
   if (phase === "paste") return WRITTEN_PASTE;
-  return spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.";
+  return spec === "Speaking coach" ? COACH_HELLO : helloFor(spec);
 }
 
 function kindNames(chosen: readonly SendKind[]): string {
@@ -207,11 +207,9 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
     write({ snap: { ...snapRef.current, send }, phase: ask.phase, i: 0, add: [{ who: "me", text, q: "kinds" }, { who: "will", text: ask.text }] });
     if (!voice) {
       const spec = snapRef.current.spec;
-      void questionFor(spec).then((got) => {
-        if (phaseRef.current !== "for" || got.question === jobAsk(spec).question) return;
-        const next = linesRef.current.map((line, n) => n === linesRef.current.length - 1 && line.who === "will" ? { ...line, text: got.question } : line);
-        linesRef.current = next;
-        setLines(next);
+      // Will's suggestions for this job arrive after the question is up; the taps above the box read them.
+      void questionFor(spec).then(() => {
+        if (phaseRef.current === "for") setLines([...linesRef.current]);
       });
     }
     setKinds([]);
@@ -371,7 +369,7 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
         snap: { ...snapRef.current, starters }, phase: "plan", i: 0,
         add: [
           { who: "me", text: "Yes", q: "starters" },
-          { who: "will", text: `${snapRef.current.spec || "Your chat"}. First line: ${snapRef.current.hello || "Your chat is ready."}` },
+          { who: "will", text: `${snapRef.current.spec || "Your chat"}. First line: ${snapRef.current.hello || helloFor(snapRef.current.spec)}` },
           { who: "will", text: "Say go?" },
         ],
       });
@@ -380,7 +378,7 @@ export default function TalkBuild({ onList, onTry, onReady, models = [] }: {
     submit(label);
   };
 
-  const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
+  const helloLine = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : helloFor(snap.spec));
   const openEdit = (index: number) => {
     editingRef.current = index;
     setEditing(index);

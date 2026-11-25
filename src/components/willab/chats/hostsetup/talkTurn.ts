@@ -1,5 +1,5 @@
 import { PRICES, W } from "./hostSetupCopy";
-import { startersFor, voiceJob } from "./jobQuestions";
+import { helloFor, startersFor, voiceJob } from "./jobQuestions";
 import type { SendKind } from "@/services/api/hostSetup";
 import { checkPlugin } from "@/lib/willab/chatBuilder/plugins";
 import type { TalkPlugin, TalkSnap } from "@/lib/willab/chatBuilder/talkDraft";
@@ -44,7 +44,7 @@ export type Turn = {
 const FREE = new Set<Phase>(["model", "paste", "look", "done", "otherName", "greet", "edit", "codeWay", "describe", "codeKeep"]);
 
 function planLine(snap: Snap): string {
-  const hello = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.");
+  const hello = snap.hello || (snap.spec === "Speaking coach" ? COACH_HELLO : helloFor(snap.spec));
   return `${snap.spec || "Your chat"}. First line: ${hello}`;
 }
 
@@ -252,7 +252,7 @@ function afterEdit(t: Turn) {
 }
 
 function afterGreet(t: Turn) {
-  const hello = /^write this for me$/i.test(t.text.trim()) ? (t.snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.") : t.text.trim();
+  const hello = /^write this for me$/i.test(t.text.trim()) ? (t.snap.spec === "Speaking coach" ? COACH_HELLO : helloFor(t.snap.spec)) : t.text.trim();
   plan(t, { ...t.snap, hello }, `Edit ${t.step}`, [{ who: "me", text: hello, q: "greet" }]);
 }
 
@@ -299,7 +299,7 @@ function editJob(line: Line, trimmed: string, snap: Snap, answer: string): Edite
     return { snap: { ...snap, spec }, irrelevant: false, answer: spec };
   }
   if (line.q === "greet") {
-    const hello = /^write this for me$/i.test(trimmed) ? (snap.spec === "Speaking coach" ? COACH_HELLO : "Your chat is ready.") : trimmed;
+    const hello = /^write this for me$/i.test(trimmed) ? (snap.spec === "Speaking coach" ? COACH_HELLO : helloFor(snap.spec)) : trimmed;
     return { snap: { ...snap, hello }, irrelevant: false, answer: hello };
   }
   if (line.q === "model") return { snap: { ...snap, model: trimmed }, irrelevant: false, answer: trimmed };

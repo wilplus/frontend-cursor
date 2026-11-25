@@ -176,7 +176,7 @@ describe("Start your own chat", () => {
       onOpenSpeaking: vi.fn(),
       onOpenProject: vi.fn(),
       onStartNewProject: start,
-      structure: { layout: { coach: "deleted", builder: "active", subchats: [] }, change },
+      structure: { layout: { coach: "deleted", builder: "active" }, change },
     })));
     await click("[data-start-new-project]");
     expect(start).not.toHaveBeenCalled();

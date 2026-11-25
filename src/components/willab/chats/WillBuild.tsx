@@ -25,7 +25,6 @@ import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
 import Experiments from "./experiments/AiDoor";
-import BuilderSubchats from "./BuilderSubchats";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */
@@ -375,7 +374,6 @@ function BuildDesk({ p, top, doc }: {
               source={p.table && !p.setup?.recipe ? p.local : null}
               onPart={(part) => p.openPart(part.part)}
             />
-            {p.table && <BuilderSubchats />}
             {p.table ? (
               <button type="button" data-looks-right="" className="mx-4 mb-4 min-h-11 rounded-full bg-primary px-4 text-[16px] font-medium text-primary-foreground" onClick={() => { markTileStep("settings", true); p.setTable(false); p.setVisitor(true); }}>Looks right</button>
             ) : null}
@@ -387,7 +385,7 @@ function BuildDesk({ p, top, doc }: {
           place={W.placeInList(Math.max(1, p.order.findIndex((part) => part.part === "starters") + 1), Math.max(1, p.order.length))}
           starters={(p.local?.recipe?.starters ?? p.setup?.recipe?.starters ?? doc?.chat.taps ?? []).slice(0, 3)}
           onBack={p.closePart}
-          onSave={(lines) => { saveTalkStarters(lines); p.closePart(); }}
+          onSave={(lines) => { saveTalkStarters(lines); p.closePart(); const saved = readTalkDefinition(); if (saved) saveChat(saved); }}
         />
       ) : null}
       {p.active === "code" ? (
