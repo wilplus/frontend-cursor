@@ -51,7 +51,7 @@ import { useVoiceNote } from "./useVoiceNote";
 import RecordingBar from "./RecordingBar";
 import ChatComposer from "./chats/ChatComposer";
 import LoadingState from "./LoadingState";
-import WalkStage from "./walk/WalkStage";
+import ChatLens from "./chats/ChatLens";
 import WalkMessage from "./walk/WalkMessage";
 import { WalkSpeakerBubble } from "./walk/WalkThread";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
@@ -928,14 +928,9 @@ function LifeGoalsLens({
   }, [nonce]);
 
   return (
-    <div data-feedback-walk>
-      <WalkStage
-        screen={{ key: "life-goals", overlay: Boolean(open) }}
-        render={(_screen, ghost) => (
-          <LensFrame items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />
-        )}
-      />
-    </div>
+    <ChatLens open={Boolean(open)} stageKey="life-goals" label={COPY.bar} items={items} typing={typing}
+      dock={dock} onClose={onClose}
+      frame={(ghost) => <LensFrame items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />} />
   );
 }
 

@@ -17,7 +17,7 @@ import {
   type YourWhyState,
 } from "@/services/api/yourWhy";
 import { Closed, DockColumn, EditorDock, LensFrame, script, WordsDock, type Item, type Script, type Ui } from "./LoungeLifeGoals";
-import WalkStage from "./walk/WalkStage";
+import ChatLens from "./chats/ChatLens";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
 
 /* -------------------------------------------------------------------------- */
@@ -192,14 +192,9 @@ function YourWhyLens({
   }, [nonce]);
 
   return (
-    <div data-feedback-walk>
-      <WalkStage
-        screen={{ key: "your-why", overlay: Boolean(open) }}
-        render={(_screen, ghost) => (
-          <LensFrame label={WHY_COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />
-        )}
-      />
-    </div>
+    <ChatLens open={Boolean(open)} stageKey="your-why" label={WHY_COPY.bar} items={items} typing={typing}
+      dock={dock} onClose={onClose}
+      frame={(ghost) => <LensFrame label={WHY_COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock} onClose={onClose} />} />
   );
 }
 

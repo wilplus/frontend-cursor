@@ -16,7 +16,7 @@ import {
   type Item,
   type Script,
 } from "./LoungeLifeGoals";
-import WalkStage from "./walk/WalkStage";
+import ChatLens from "./chats/ChatLens";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
 
 /* -------------------------------------------------------------------------- */
@@ -219,22 +219,12 @@ export default function SundayLens({ noteId, nonce, onClose }: { noteId: string 
   }, [noteId, nonce]);
 
   return (
-    <div data-feedback-walk>
-      <WalkStage
-        screen={{ key: "sunday-note", overlay: Boolean(noteId) }}
-        render={(_screen, ghost) => (
-          <LensFrame
-            label={COPY.bar}
-            items={items}
-            typing={!ghost && typing}
-            dock={ghost ? null : dock}
-            loading={!ghost && loading}
-            singleScroll
-            onClose={onClose}
-          />
-        )}
-      />
-    </div>
+    <ChatLens open={Boolean(noteId)} stageKey="sunday-note" label={COPY.bar} items={items} typing={typing || loading}
+      dock={dock} onClose={onClose}
+      frame={(ghost) => (
+        <LensFrame label={COPY.bar} items={items} typing={!ghost && typing} dock={ghost ? null : dock}
+          loading={!ghost && loading} singleScroll onClose={onClose} />
+      )} />
   );
 }
 

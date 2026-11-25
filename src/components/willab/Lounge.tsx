@@ -210,6 +210,7 @@ import { DayLine, dayLinesFor } from "./plan/dayLines";
 import { hostRowsAround, useHostMessages } from "./chats/hostChatMessages";
 import TypingDots, { CHUNK_DELAY_MS, TypingGlyph } from "./TypingDots";
 import { afterChatBoot } from "@/lib/chatBoot";
+import { CHAT_LENS_DOCK, CHAT_LENS_THREAD } from "./chats/ChatLens";
 import type { TakeInProject } from "@/lib/willab/takeInProject";
 import { isNativeApp } from "@/lib/auth/nativeSignIn";
 import { CLOSE, NOT_NOW } from "@/lib/willab/leaveWords";
@@ -2367,10 +2368,8 @@ export default function Lounge({
        8px from the sides and the bottom (N505). The column is the shared
        1080px app canvas, aligned with the logo and hamburger. */
     <div className={`${WILLAB_CONTENT_RAIL} flex flex-1 flex-col gap-3 overflow-hidden px-2 [&>:empty:not([data-thread])]:hidden`}>
-      {/* The lenses open as fixed overlays (WalkStage); closed, each is still
-          an empty <div>. Out of the column's flow, so their four gaps no
-          longer push the thread down (founder 2026-10-30: "Please remove
-          that", the empty strip under the header). */}
+      {/* The lenses draw into the thread and the composer's slot (ChatLens);
+          where they mount takes no room in the column. */}
       <div className="absolute">
         {lifeGoals.lens}
         {why.lens}
@@ -2507,6 +2506,8 @@ export default function Lounge({
 
         <VoiceNoteThread notebook={notebook} />
         {plan.pending}
+        {/* A lens's bubbles, when one is open (ChatLens, backend N691 item 5). */}
+        <div {...{ [CHAT_LENS_THREAD]: "" }} className="flex flex-col empty:hidden" />
         <ThreadDots thinking={botThinking} writing={thread.writing} />
       </div>
 
@@ -2576,6 +2577,8 @@ export default function Lounge({
         {plan.sheets}
         {plan.barMiddle}
       </PlaceOnly>
+      {/* A lens's taps or field, in the composer's place while it asks. */}
+      <div {...{ [CHAT_LENS_DOCK]: "" }} className="peer empty:hidden" />
       <div ref={setRecordingDock} className="peer empty:hidden" />
       <div className="peer-[:not(:empty)]:hidden">
         <LoungeComposer key={composerScope}

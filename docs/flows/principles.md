@@ -27,6 +27,10 @@ Life Panel.
 
 ## 1. The rules
 
+### The lenses run in the chat (N691 item 5)
+
+Strengths (N), life goals (M), your why (Q) and the Sunday note (L) are bubbles of the main chat, and the Sunday note is a principles bubble. Tapping one runs its script in the chat: Will's lines and the speaker's answers are chat bubbles at the end of the thread, the taps or the field take the composer's place until the script ends, with a ✕ beside them, and the conversation stays in the thread after it closes. The same calls save each answer. Where there is no chat (the Life Panel's pages), the lens keeps its own frame. `src/components/willab/chats/ChatLens.tsx`; preview `/dev/chat-lens`.
+
 ### A · What it is, and who has it
 
 0. **The note rests** (backend N483 item 7, founder 2026-11-04: "I am ready
@@ -636,6 +640,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 ## 6. Changes
 
+- 2026-11-24 · N691 item 5 · Strengths, life goals, your why and the Sunday note run in the chat: their bubbles at the end of the thread, their taps in the composer's place; their own screens stay only on the Life Panel's pages.
 - 2026-11-23 · N667 · The notebook capture and life-goal questions use the shared composer.
 
 One line each, newest first: `date · N · what changed · PR`.

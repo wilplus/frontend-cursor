@@ -827,6 +827,12 @@ O4 -> ""BAR-N610-FE-4: the + sheet asks, answers and sends a photo""
 O5 -> ""BAR-N610-FE-5: the box types where the host chose Type""
 O6 -> ""BAR-N610-FE-6: a photo asked for takes Add a photo in the middle""
 O7 -> ""BAR-N610-FE-7: typed words a send refuses come back to the box as typed""","The founder locked the two-place bar on 10 November 2026 (""ok lock that"", backend N610) after a morning of drafts; N600's bar, built that morning, put a mic on the right and kept the emoji."
+src/components/willab/chats/chatLens.test.tsx,Story,"As a speaker, I want a strength, a life goal, my why or the Sunday note to go on in my chat, not in a screen of its own (backend N691 item 5).","O1  In the chat, the lens's lines and answers are bubbles at the
+thread's end and its taps take the composer's slot; closed, the
+conversation stays and the taps go.
+O2  Where there is no chat (the Life Panel's pages), the lens draws
+its own frame.","O1 -> ""runs in the chat and stays after it closes""
+O2 -> ""keeps its own frame where there is no chat""",
 src/components/willab/chats/chats.test.tsx,Story,"As a speaker, I want Speaking Coach and my chats in one sidebar that is available throughout the chat workspace.",Selecting a chat or project swaps the main pane and keeps the sidebar.,The project index is shared and Builder setup is at the bottom.,
 src/components/willab/chats/coachbuild/coachBuild.test.tsx,Story,"As the founder, I want to build the speaking coach from today's coach, one question at a time, and a paste must not run.","O1  The builder opens on the parts, and a signed line stays locked.
 O2  A paste that calls eval is kept as not live.","O1 -> starts from today's coach and keeps a locked line
