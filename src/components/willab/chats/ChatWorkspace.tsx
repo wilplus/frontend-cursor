@@ -3,7 +3,6 @@
 import { createContext, forwardRef, useContext, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import Logo from "@/components/Logo";
-import { DashboardAccountMenu } from "@/components/dashboard/DashboardHeader";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { uiText } from "@/lib/uiLocale";
 import DumpPullBar from "../DumpPullBar";
@@ -82,9 +81,6 @@ export default function ChatWorkspace({ sidebar, viewKey, suspended = false, chi
           <div className="flex h-[60px] shrink-0 items-center pl-[57px] pr-3"><Logo /></div>
         </DumpPullBar>
         {sidebar}
-        <div className="shrink-0 border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
-          <DashboardAccountMenu above />
-        </div>
       </aside>
       <div data-chat-main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         aria-hidden={drawer || undefined} ref={(element) => { element?.toggleAttribute("inert", drawer); }}>
