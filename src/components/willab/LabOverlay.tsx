@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { answerRecorded, answerTake, answering, type AnswerFor } from "@/lib/willab/chatAnswer";
-import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
@@ -40,11 +39,6 @@ import {
   idealTextUnconfirmedDraft,
   readoutSummaryDraft,
 } from "./loungeReports";
-import { clearParked, readParked, writeParked } from "./willabParked";
-import { setPendingSend, setReviewPending } from "./sendStatus";
-import type { ReadoutPayload } from "./readout";
-import IdealTextReadout from "./IdealTextReadout";
-import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import LoadingState, { LoadingSurface, VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
@@ -204,17 +198,12 @@ export default function LabOverlay({
   // waits in Will's chat), the answer's project is never the current one,
   // and no community share applies to it. Read once, as the screens open.
   const [answer] = useState(answering);
-  // D-3 — back-gesture / Back exits the Lab instead of routing away. During the
-  // readout phase, Back first steps the readout's own layout (collapse a moment,
-  // page back) before it exits the Lab.
-  const readoutBackRef = useRef<(() => boolean) | null>(null);
+  // D-3 — back-gesture / Back exits the Lab instead of routing away.
   // Device Back does what the ✕ does, in every state (backend N560 item 1):
   // while the mic records it asks "Discard this take?" and the screens stay
-  // (backStaysHere); closing DURING the readout PARKS the recording (hold,
-  // don't discard — §4); anything else closes, as the ✕ does.
+  // (backStaysHere); anything else closes, as the ✕ does.
   // useBackDismiss stores the latest closures in refs, so this is safe.
-  const suppressBackOnClose = useBackDismiss(closeWithoutAsking, backStaysHere);
-  const router = useRouter();
+  useBackDismiss(closeWithoutAsking, backStaysHere);
   // T8 — the Lab transcribes server-side (Whisper) and never shows a live
   // transcript, so skip Web Speech: its per-result events would re-render the
   // whole recording overlay many times a second (worse the longer the take),
@@ -407,7 +396,6 @@ export default function LabOverlay({
   const [initArc, setInitArc] = useState<ExploreArc | null>(null);
   const [arcId, setArcId] = useState<string | null>(null);
   const [arcTakeIndex, setArcTakeIndex] = useState<number>(1);
-  const [exploreEnabled, setExploreEnabled] = useState<boolean>(false);
   // FE-1 — the deck to pre-fill the setup form with. Starts from localStorage
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
@@ -457,7 +445,6 @@ export default function LabOverlay({
     setInitArc(cached);
     setArcId(cached?.arcId ?? null);
     setArcTakeIndex(cached?.nextTakeIndex ?? 1);
-    setExploreEnabled(!!cached);
     // The real talk after the first Take (backend N449 item 1): that
     // project's Take 2, set up afresh. The five questions are not its deck,
     // so nothing is restored; its own slides are new from this Take (N257).
@@ -553,8 +540,6 @@ export default function LabOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initArc?.sessionId, signedIn]);
 
-  // Upload → Readout (seam ③).
-  const [readout, setReadout] = useState<ReadoutPayload | null>(null);
   const [labSessionId, setLabSessionId] = useState<string | null>(null);
   // The Say It Stronger poll is RETIRED (founder 2026-08-10: the manager
   // engine is the sole gatekeeper). The BE nulls the cards on user
@@ -694,7 +679,6 @@ export default function LabOverlay({
     if (s.status === "recording" && startPendingRef.current) {
       startPendingRef.current = false;
       reportedRef.current = false; // fresh recording → allow a new history entry
-      readoutEnteredRef.current = false;
       // T8 — start the slide timeline: slide 0 is on screen at t=0. State was
       // already flipped to lab_recording on the Setup submit (optimistic), so
       // there is no dispatch here — this only pins t=0 to the real recording start.
@@ -817,7 +801,6 @@ export default function LabOverlay({
     // Only a discard throws the answer away; a run that merely lost interest
     // (the ✕, an unmount) still lands it (`landUnwatched`).
     let discarded = false;
-    let answered = false;
     let projectId = arcId;
     let handedToChat = false;
     let failure: string | undefined;
@@ -832,7 +815,6 @@ export default function LabOverlay({
     const rememberProject = (id: string) => rememberTakeProject(key, id).then(() => {
       if (active) {
         setArcId(id);
-        setExploreEnabled(true);
       }
     });
     handoffProjectTake.current = (keepWait, sessionId) => {
@@ -899,7 +881,6 @@ export default function LabOverlay({
         setArcId(null);
         setArcTakeIndex(1);
         recordedTakeRef.current = 1;
-        setExploreEnabled(false);
       }
       // The default deck has no PDF behind it — never claim one.
       const servedRef = recordingDeck.isDefault ? null : context.presentationRef;
@@ -974,7 +955,6 @@ export default function LabOverlay({
         slideClockOffsetMs,
         feeling: recordedFeelingRef.current ?? undefined,
       }, abort.signal);
-      answered = true;
       // THE WINDOW IS SHUT, whatever the answer was. Clearing this before the
       // guard below means a Discard tap that races the response cannot abort a
       // request the server has already answered.
@@ -1014,7 +994,6 @@ export default function LabOverlay({
           setArcTakeIndex(carried.nextIdx);
         }
         appendRecordingSummary(result.sessionId, result.arcId, projectId);
-        setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
@@ -1213,7 +1192,6 @@ export default function LabOverlay({
       }
       setPollSessionId(null);
       setPollSlow(false);
-      setReadout(r.readout);
       setUploadError(null);
       setProcessingProgress(
         completedTake.arcId
@@ -1229,11 +1207,11 @@ export default function LabOverlay({
   // document (handoff §6.4 S3-in-Lab). The hook probes the served text and
   // clears the marker on evidence; the flip of `pending` re-runs the
   // readout's fetch (its effect depends on it), pulling the fresh document.
-  const documentSettle = useDocumentSettle({
+  useDocumentSettle({
     // Start observing during analysis, not after the readout opens. That
     // captures the pre-assembly document version and lets the first document
     // probe prove the new Ideal Text landed instead of waiting for the cap.
-    enabled: state === "lab_processing" || state === "readout",
+    enabled: state === "lab_processing",
     onSettled: (take) => {
       if (signedIn === false && take.arcId) {
         void appendToThread(idealTextReadyDraft({
@@ -1253,16 +1231,14 @@ export default function LabOverlay({
     },
   });
 
-  // Processing completion is a state transition, not a second decision. The
-  // wait holds until the review (the lens) opens by itself; ✕ on it shows the
-  // chat, and the Ideal Text opens after the summary (lock 2026-10-12,
-  // sections 1 and 4; useReadoutLanding). Its document-settle gate still
-  // prevents stale words from appearing while assembly finishes.
+  // A finished Take lands in its chat, where its feedback and its Ideal Text
+  // are bubbles (backend N691 items 1 and 2): the Lab has no readout.
   useEffect(() => {
-    if (state === "lab_processing" && processingReady && !uploadError) {
-      dispatch("processing_ready");
-    }
-  }, [state, processingReady, uploadError, dispatch]);
+    if (state !== "lab_processing" || !processingReady || uploadError) return;
+    if (labSessionId && signedIn === true) leaveToChatRef.current(true, labSessionId);
+    else onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, processingReady, uploadError]);
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -1279,99 +1255,9 @@ export default function LabOverlay({
     return () => clearInterval(id);
   }, [mic.state.status, getPausedMs]);
 
-  // Resume a parked Readout: restore the held payload on (re)entry to the
-  // Readout with nothing loaded (e.g. after reload, via the Lounge's "Resume
-  // Readout"). reportedRef is set so the history entry isn't re-added.
-  useEffect(() => {
-    if (state === "readout" && readout === null) {
-      const parked = readParked();
-      if (parked) {
-        setReadout(parked.readout);
-        setArcId(parked.projectId);
-        setLabSessionId(parked.sessionId);
-        setContext({
-          topic: parked.topic,
-          audience: "",
-          target_length_seconds: null,
-          domain_vocabulary: [],
-          slides: [],
-          presentationRef: null,
-        });
-        reportedRef.current = true;
-      }
-    }
-  }, [state, readout]);
 
-  // Persist a Readout report into the Lounge history once the recording
-  // completes, so the user can scroll back to it (topic now; the §3.3 hero
-  // metrics fill in when seam ③ returns real data).
-  const readoutEnteredRef = useRef(false);
-  useEffect(() => {
-    if (state === "readout" && context && !readoutEnteredRef.current) {
-      readoutEnteredRef.current = true;
-      // The recording bubble was already appended at upload-accept (event
-      // order). Here: pull the BE's ideal-text bubble (inserted at analysis
-      // end), THEN the nudge line, so the thread reads recording → ideal text
-      // → "record the next take". The reload chains after the summary POST —
-      // reload() wholesale-replaces the list, so running it early would wipe
-      // the optimistic bubble (review R-cb2). A parked restore (summary
-      // already persisted, ref null) skips straight to the reload.
-      void (summaryAppendRef.current ?? Promise.resolve()).then(() =>
-        reloadThread(),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    state,
-    context,
-    appendToThread,
-    readout,
-    labSessionId,
-    arcId,
-    exploreEnabled,
-  ]);
 
-  // Park the held Readout (persist + route to the Lounge's parked chip).
-  function parkReadout() {
-    if (readout && arcId) {
-      writeParked({
-        projectId: arcId,
-        sessionId: labSessionId,
-        topic: context?.topic ?? "",
-        readout,
-      });
-    }
-    dispatch("park");
-  }
 
-  // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate to
-  // /signup — the SIGN-UP (create-account) view. A non-registered guest who
-  // just recorded their first take needs "create account" (Google/LinkedIn/
-  // email), not a sign-in form; /signup leads with account creation and keeps
-  // "already have an account? sign in" as the secondary link.
-  // The global pending sender claims the guest-owned graph on any post-auth
-  // landing, then sends this exact Project Take through the strict endpoint.
-  function startUnsignedSend() {
-    if (readout && labSessionId && arcId) {
-      writeParked({
-        projectId: arcId,
-        sessionId: labSessionId,
-        topic: context?.topic ?? "",
-        readout,
-      });
-      setPendingSend(arcId, labSessionId);
-    }
-    // Suppress useBackDismiss's unmount history.back() BEFORE we close +
-    // navigate. LabOverlay pushes a throwaway history entry while open and
-    // pops it on unmount; without this suppressor that pop fires right after
-    // router.push("/signup") and reverses it, landing the user back on /chat
-    // (the "sign-in goes to chat, not the auth screen" bug). onClose() still
-    // runs so the flow state resets (the overlay won't re-open when they
-    // return).
-    suppressBackOnClose();
-    onClose();
-    router.push("/signup");
-  }
 
   // T8 — the anchor scroller selects the deck page during recording. Any real
   // change (forward or back) is still a "what's on screen now" timeline event.
@@ -1424,7 +1310,6 @@ export default function LabOverlay({
       return;
     }
     lastWasUploadRef.current = false;
-    setExploreEnabled(true);
     setContext(restored);
     setRejectedMsg(null);
     uploadSeqRef.current += 1; // drop any stale upload-duration read
@@ -1449,7 +1334,6 @@ export default function LabOverlay({
       return;
     }
     lastWasUploadRef.current = false;
-    setExploreEnabled(true);
     setContext(restored);
     setRejectedMsg(null);
     uploadSeqRef.current += 1;
@@ -1586,10 +1470,6 @@ export default function LabOverlay({
   /** Where the ✕ does not ask. Post-recording: closing parks (hold, don't
    *  discard) per §4; anything else closes. */
   function closeWithoutAsking() {
-    if (state === "readout") {
-      parkReadout();
-      return;
-    }
     // The processing screen has already handed the Take to the upload or
     // background worker. Closing is only a view change: do not invoke the mic
     // teardown path here, which must never be mistaken for cancelling the job.
@@ -1605,14 +1485,12 @@ export default function LabOverlay({
   /** The device Back, before it closes anything: true keeps these screens,
    *  and useBackDismiss re-arms its entry so the next Back lands here too.
    *  While "Discard this take?" is open, Back is its safe answer, as Escape
-   *  is: the Take is kept (N560 item 1). The readout first steps its own
-   *  layout back. */
+   *  is: the Take is kept (N560 item 1). */
   function backStaysHere(): boolean {
     if (discardConfirm) {
       setDiscardConfirm(null);
       return true;
     }
-    if (state === "readout") return readoutBackRef.current?.() ?? false;
     return asksBeforeClosing();
   }
 
@@ -1815,7 +1693,6 @@ export default function LabOverlay({
                     stagedUploadRef.current = null;
                     lastWasUploadRef.current = true;
                     setRejectedMsg(null);
-                    setExploreEnabled(false);
                     setArcId(null);
                     setContext({ ...ctx, slides: [], presentationRef: null });
                     slideAdvancesRef.current = [];
@@ -1828,7 +1705,6 @@ export default function LabOverlay({
                   // The submit click IS the user gesture getUserMedia needs, so the
                   // mic opens right here and every Take, Take 1 included,
                   // records at once (N70: the learning screen is deleted).
-                  setExploreEnabled(explore);
                   setContext(ctx);
                   setRejectedMsg(null);
                   uploadSeqRef.current += 1; // drop any stale upload-duration read
@@ -1933,68 +1809,6 @@ export default function LabOverlay({
           />
         )}
 
-        {/* SD — the post-recording screen IS the ideal text 1.0: suggestions
-            auto-applied, editable, pending-verification badge; delivery to the
-            coach is automatic (no Approve rows, no Send button). Replaces the
-            per-piece approve walker (ReadoutCard). */}
-        {state === "readout" && (
-          <IdealTextReadout
-            payload={
-              readout ?? {
-                snippets: [],
-                feedbackItems: [],
-                overallMessage: null,
-                presentationRef: null,
-                slides: [],
-                slideTranscripts: [],
-                fullTranscriptChunks: [],
-                instantChunks: [],
-                voiceMetricsAvailable: true,
-                parentAudioRef: null,
-                audience: null,
-                auditPaid: true,
-              }
-            }
-            sessionId={labSessionId}
-            arcId={arcId}
-            signedIn={signedIn}
-            // SPEC-lockin-loop §1 — hold the SD fetch (and the text) behind
-            // the blocking screen until the document settles.
-            analysisPending={documentSettle.pending}
-            processingCycleStartedAt={processingCycleStartedAt}
-            // The ✕ this screen draws in its own head. Same handler the bare
-            // header used, so closing a readout still PARKS it (§4) — it is
-            // the exit that moved, not what it does.
-            onClose={handleClose}
-            onAutoSent={() => {
-              // Mirrors the old SendGate.onSent bookkeeping, minus the screen
-              // change: the user stays on their ideal text.
-              clearParked();
-              if (labSessionId) setReviewPending(labSessionId);
-            }}
-            // Straight to the sign-up page (founder 2026-10-04): the guest has
-            // already been asked over their text, so the "One quick step"
-            // page in between was a second ask with nothing new in it.
-            onSignUp={() => startUnsignedSend()}
-          />
-        )}
-
-
-
-        {(state === "sendgate_unsigned" || state === "sendgate_signed") && (
-          <SendGate
-            sessionId={labSessionId}
-            projectId={arcId}
-            signedIn={signedIn}
-            onSent={() => {
-              clearParked();
-              setReviewPending(labSessionId);
-              dispatch("sent");
-            }}
-            onPark={parkReadout}
-            onSignIn={() => startUnsignedSend()}
-          />
-        )}
       </div>
       {discardConfirm ? (
         <DiscardTakeDialog
@@ -2183,9 +1997,9 @@ export function ContinuedTakeAutoStart({
 
 /** The screens that draw their own top bar, so the overlay's header (and
  *  its ✕) is not drawn over them: the set-up and "How do you feel?" draw
- *  the set-up's dots and ✕ (backend N272), the readout its own. */
+ *  the set-up's dots and ✕ (backend N272). */
 function drawsOwnTopBar(state: WillabState): boolean {
-  return state === "lab_session_context" || state === "lab_feelings" || state === "readout";
+  return state === "lab_session_context" || state === "lab_feelings";
 }
 
 /** The set-up's steps that follow "How do you feel?": none when the
@@ -2240,7 +2054,7 @@ export function labColumnClass(
   const recording = state === "lab_recording" && micStatus === "recording";
   const gaps = recording ? "pt-0 pb-5" : `pt-6 ${SCREEN_BOTTOM_GAP}`;
   const scroll =
-    state === "readout" || state === "lab_recording"
+    state === "lab_recording"
       ? "min-h-0 overflow-hidden"
       : "overflow-y-auto";
   return `scrollbar-none ${WILLAB_CONTENT_RAIL} flex flex-1 flex-col px-4 ${gaps} ${scroll}`;

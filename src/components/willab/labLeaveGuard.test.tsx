@@ -92,8 +92,6 @@ describe("the browser's own leave warning (N553 item 1)", () => {
     expect(serverHasTake(accepted)).toBe(true);
     show({ state: "lab_processing", micStatus: "stopped", blob: take, heldBlob: take });
     expect(leaveAsks()).toBe(false);
-    show({ state: "readout", micStatus: "stopped", blob: take, heldBlob: take });
-    expect(leaveAsks()).toBe(false);
   });
 
   it("asks nothing before Record", () => {
