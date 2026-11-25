@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import BuildModels from "../BuildModels";
+import { useUserEmail } from "../../useUserEmail";
+import { isFounderEmail } from "@/lib/founder";
+import SpeakingCalibration from "./SpeakingCalibration";
 import { readKeptReplies, KEPT_MODEL, KEPT_SEND } from "@/services/api/keptReplies";
 import Experiments from "./Experiments";
 import { choiceBubble, ChoicePair, Frame, Note } from "./bits";
@@ -10,10 +13,11 @@ import { stepHelp } from "./help";
 /* The AI tile. The builder only opens this. Training and Experiments are
    the two taps. Back steps inside here before it leaves the tile. */
 
-type Door = "home" | "training" | "experiments";
+type Door = "home" | "training" | "experiments" | "calibration";
 
 export default function AiDoor({ onBindBack }: { onBindBack: (fn: (() => boolean) | null) => void }) {
   const [door, setDoor] = useState<Door>("home");
+  const founder = isFounderEmail(useUserEmail());
   const inner = useRef<(() => boolean) | null>(null);
   const bind = useRef(onBindBack);
   bind.current = onBindBack;
@@ -21,6 +25,10 @@ export default function AiDoor({ onBindBack }: { onBindBack: (fn: (() => boolean
   useEffect(() => {
     bind.current(() => {
       if (door === "experiments" && inner.current?.()) return true;
+      if (door === "calibration") {
+        setDoor("training");
+        return true;
+      }
       if (door !== "home") {
         setDoor("home");
         return true;
@@ -30,7 +38,8 @@ export default function AiDoor({ onBindBack }: { onBindBack: (fn: (() => boolean
     return () => bind.current(null);
   }, [door]);
 
-  if (door === "training") return <Training />;
+  if (door === "calibration" && founder) return <SpeakingCalibration />;
+  if (door === "training") return <Training onCalibration={founder ? () => setDoor("calibration") : undefined} />;
   if (door === "experiments") return <Experiments onBindBack={(fn) => { inner.current = fn; }} />;
   return <AiHome onPick={setDoor} />;
 }
@@ -62,7 +71,7 @@ function AiHome({ onPick }: { onPick: (door: Door) => void }) {
   );
 }
 
-function Training() {
+function Training({ onCalibration }: { onCalibration?: () => void }) {
   const [kept, setKept] = useState(0);
   const [brain, setBrain] = useState<"standard" | "own">("standard");
   useEffect(() => {
@@ -81,6 +90,7 @@ function Training() {
         ]}
         onPick={(value) => setBrain(value === "own" && own ? "own" : "standard")}
       />
+      {onCalibration && <button className={choiceBubble(false)} onClick={onCalibration}>Speaking Model Calibration</button>}
       <BuildModels />
     </Frame>
   );

@@ -134,6 +134,7 @@ The backend's table is in its [master doc](https://github.com/wilplus/backend-cu
 | Installing the app on a phone (home-screen app) | `src/components/pwa/`, `src/lib/pwa.ts`, `src/hooks/usePwaInstall.ts`, `public/sw.js`, `src/app/api/v2/user/home-screen/` | No page |
 | The public pages: landing, about, unsubscribe, and the files in public/ | `src/app/page.tsx`, `src/app/page.client.tsx`, `src/app/about/`, `src/app/unsubscribe/`, `src/app/api/public/`, `public/` | No page |
 | Build settings, packages and the repo's own check scripts | `package.json`, `package-lock.json`, `next.config.mjs`, `postcss.config.mjs`, `tailwind.config.ts`, `tsconfig.json`, `vercel.json`, `vitest.config.ts`, `scripts/` | No page |
+| Founder speaking calibration | `src/app/api/v2/user/speaking-calibration/`, `src/components/willab/chats/experiments/SpeakingCalibration.tsx` | [AI voice in practice](docs/flows/ai-voice-practice.md) |
 <!-- code-homes:end -->
 
 ## UI locale copy inventory
