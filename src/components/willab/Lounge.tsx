@@ -192,7 +192,7 @@ import type { AnswerFor } from "@/lib/willab/chatAnswer";
 import { ChatSetupBubble, chatSetupCanBegin, chatSetupOf, useAssistantInWill, useChatSetup, willSetupWaiting, type ChatSetup } from "./chats/ChatSetup";
 import { sayToWill } from "./chats/hostsetup/hostSetupDoor";
 import OwnChatLinks from "./chats/OwnChatLinks";
-import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, useOpenPlace, withHint, wordsAlways, type LoungePlace } from "./chats/loungePlace";
+import { PlaceOnly, PlaceOpening, emptyHelloIn, ownChatLinksIn, placeholderIn, rememberPlace, setOpenPlace, shownIn, speakingFirst, typedHint, useOpenOwnChat, useOpenPlace, withHint, wordsAlways, type LoungePlace } from "./chats/loungePlace";
 import { requestOpenSpeaker } from "@/lib/willab/openSpeaker";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import {
@@ -718,6 +718,8 @@ export default function Lounge({
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const place = useOpenPlace();
+  // The speaker's own chat open now (backend N700): the thread draws its rows.
+  const ownChat = useOpenOwnChat();
   const sidebar = useWorkspaceSidebar();
   const openChat = member?.id ?? null;
   const showTakeArtifacts = Boolean(openChat) || place !== "speaking" || onProjectTakeReady === undefined;
@@ -880,7 +882,7 @@ export default function Lounge({
     return threadItems.filter(
       (item) => !hidden.has(item.message.client_id) && chatShows(item.message, walkAt, closing) && shownIn(item.message, place, openChat),
     );
-  }, [threadItems, walkAt, place, openChat]);
+  }, [threadItems, walkAt, place, openChat, ownChat]);
   // Each Take's Ideal Text card right under its Feedback walk, one pair
   // (founder 2026-10-26, N202); a walk that still runs has no card yet.
   const pairs = useMemo(() => walkPairs(drawnOf(drawnItems), walks, reviewToContinue), [drawnItems, walks, reviewToContinue]);

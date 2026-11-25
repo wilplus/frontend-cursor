@@ -640,6 +640,7 @@ deletes the line when the work is merged (the change goes to §6).
 
 ## 6. Changes
 
+- 2026-11-25 · N700 · Principles and Will are no longer sections of one thread: each is one of the speaker's own chats in the flat list, made only for a person who has written there, holding what was written there before.
 - 2026-11-24 · N691 item 5 · Strengths, life goals, your why and the Sunday note run in the chat: their bubbles at the end of the thread, their taps in the composer's place; their own screens stay only on the Life Panel's pages.
 - 2026-11-23 · N667 · The notebook capture and life-goal questions use the shared composer.
 
