@@ -44,7 +44,7 @@ import {
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { MomentRead } from "@/services/api/coachWalk";
-import type { BlindLine, BlockPickQueue, ErrorAuditQueue, V4MomentPickQueue, V4SurerQueue } from "@/services/api/coachPanel";
+import type { BlindLine, ErrorAuditQueue, V4MomentPickQueue } from "@/services/api/coachPanel";
 import type { PanelSpeaker } from "@/services/api/coachSpeakers";
 
 /** A moment's clip, from the coach's review session. */
@@ -136,14 +136,11 @@ export function queueOrder(speakers: readonly QueueSpeaker[]): QueueSpeaker[] {
 
 export type BlindRows = {
   audit: ErrorAuditQueue | null;
-  picks: BlockPickQueue | null;
   onOpenAudit: () => void;
-  onOpenPicks: () => void;
-  /** V4's two blind sheets (S-B8 A), under the same line; dark until on. */
+  /** V4's blind pick sheet (S-B8 A), under the same line. "Pick the most
+   *  confident" and "Which sounds surer" are gone (backend N702). */
   v4Picks?: V4MomentPickQueue | null;
-  v4Surer?: V4SurerQueue | null;
   onOpenV4Picks?: () => void;
-  onOpenV4Surer?: () => void;
   /** The founder's ⋯ → Delete on a line; absent for every other coach.
    *  Resolves true once what waits on it is cleared for the week. */
   onClear?: (line: BlindLine) => Promise<boolean>;
@@ -158,9 +155,7 @@ type BlindQueue = { items: readonly unknown[]; wording: Record<string, string> }
 function waitingRows(blind: BlindRows): { value: string; line: BlindLine; queue: BlindQueue; label: string; open?: () => void }[] {
   const rows = [
     { value: "audit", line: "error_audit" as const, queue: blind.audit, label: (w: Record<string, string>) => w.title, open: blind.onOpenAudit },
-    { value: "picks", line: "block_pick" as const, queue: blind.picks, label: (w: Record<string, string>) => w.short_title ?? w.title, open: blind.onOpenPicks },
     { value: "v4picks", line: "v4_moment_pick" as const, queue: blind.v4Picks, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Picks },
-    { value: "v4surer", line: "v4_surer" as const, queue: blind.v4Surer, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Surer },
   ];
   return rows.flatMap((r) => (r.queue && r.queue.items.length > 0
     ? [{ value: r.value, line: r.line, queue: r.queue, label: r.label(r.queue.wording) ?? "", open: r.open }]

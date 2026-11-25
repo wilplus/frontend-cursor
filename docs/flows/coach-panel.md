@@ -359,8 +359,9 @@ deletes the line when the work is merged (the change goes to §6).
 
 ## 3. Still open
 
-- **"Do you hear it?" and "Pick the most confident moment"** are built and
-  switched off (B3); switching them on is the founder's call.
+- **"Do you hear it?"** stays (it validates the error detectors behind the
+  intervention picker); "Pick the most confident moment" and "Which sounds
+  surer" are gone (N702).
 - **The coach panel showing more of Will's knowledge** (the speaker's
   private note) is not asked for; the founder reads it on the person's admin
   page.
@@ -443,6 +444,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-25 · N702 · "Pick the most confident" and "Which sounds surer" leave "Also waiting · blind": their sheets, rows and the founder's ⋯ on them are gone. "Do you hear it?" and "Pick the moment for feedback" stay; answers already given stay in the database · BE (N702 PR), FE (this PR)
 - 2026-11-16 · founder-approved shared app rail · A3's “column Will's chat fills” is the locked 1080px app canvas used by the global logo/hamburger shell, chat and project surfaces; every panel screen and sheet follows that rail, while narrower layouts remain fluid · FE (this PR)
 - 2026-11-11 · N639 · B1: opened from Will's line "N moments to answer", the panel wears the one top bar on every screen (the chats' bars' height and line): the back arrow and the bar's own words ("Your queue"; the arrow alone where the bar had no words), no round icon and no ✕; Your speakers gets the arrow, back to the queue; the phone's Back goes one step and from the queue to Will's chat. A moment's ‹ › bar stays, without its ✕. Opened from the list of chats, as before. No word, order or spacing in the page changes (`OneTopBar.tsx`; `oneBar` in `CoachPanel.tsx`) · FE (this PR)
 - 2026-11-10 · N627 · A3: on a computer the coach panel, every screen and sheet, fills the column Will's chat fills. Was: a 430 px column in the middle. No word, order, spacing or motion changes; on a phone, as before · FE (this PR)

@@ -9,7 +9,6 @@
 /*    GET/POST …/snippets/:snip/exercise-preference  → 1b keep / swap / new  */
 /*    POST …/word/draft                              → 7 drafts, text only   */
 /*    GET /coach/error-audit, POST …/:id/answer       → 6a blind Yes / No     */
-/*    GET /coach/block-picks, POST …/:id/answer       → 8 blind pick          */
 /* -------------------------------------------------------------------------- */
 
 import { coachRead, coachWrite } from "./coachAuth";
@@ -263,7 +262,7 @@ export function mapErrorAuditQueue(raw: unknown): ErrorAuditQueue {
 }
 
 /** The four blind lines, by the backend's names (POST …/blind/:line/clear). */
-export type BlindLine = "error_audit" | "block_pick" | "v4_moment_pick" | "v4_surer";
+export type BlindLine = "error_audit" | "v4_moment_pick";
 
 /** The founder's ⋯ → Delete on a blind line (2026-10-20): what waits on it
  *  is cleared for the week. True once done. */
@@ -286,67 +285,9 @@ export async function answerErrorAudit(
   return status === 200 ? { ok: true } : { ok: false, status };
 }
 
-/* ── 8 · the blind block pick ────────────────────────────────────────── */
-
-export interface BlockPickClip extends ClipWindow {
-  clipId: string;
-  letter: string;
-  audioRef: string | null;
-}
-
-export interface BlockPickItem {
-  pickId: string;
-  clips: BlockPickClip[];
-  n: number;
-  of: number;
-}
-
-export interface BlockPickQueue {
-  items: BlockPickItem[];
-  wording: Record<string, string>;
-}
-
-export function mapBlockPickQueue(raw: unknown): BlockPickQueue {
-  const r = (raw ?? {}) as Raw;
-  const items = Array.isArray(r.items)
-    ? r.items
-        .filter((i): i is Raw => !!i && typeof i === "object")
-        .map((i) => ({
-          pickId: str(i.pick_id) ?? "",
-          clips: Array.isArray(i.clips)
-            ? i.clips
-                .filter((c): c is Raw => !!c && typeof c === "object")
-                .map((c) => ({
-                  clipId: str(c.clip_id) ?? "", letter: str(c.letter) ?? "", audioRef: str(c.audio_ref), ...clipWindow(c),
-                }))
-                .filter((c) => c.clipId)
-            : [],
-          n: typeof i.n === "number" ? i.n : 0,
-          of: typeof i.of === "number" ? i.of : 0,
-        }))
-        .filter((i) => i.pickId)
-    : [];
-  return { items, wording: wording(r.wording) };
-}
-
-/** null while dark or on any failure. */
-export async function fetchBlockPicks(): Promise<BlockPickQueue | null> {
-  const { status, data } = await get("/api/v2/coach/block-picks");
-  return status === 200 ? mapBlockPickQueue(data) : null;
-}
-
-export async function answerBlockPick(
-  pickId: string,
-  input: { pickClipId: string } | { cantTell: true },
-): Promise<{ ok: true } | { ok: false; status: number }> {
-  const body = "cantTell" in input ? { cant_tell: true } : { pick_clip_id: input.pickClipId };
-  const { status } = await post(`/api/v2/coach/block-picks/${encodeURIComponent(pickId)}/answer`, body);
-  return status === 200 ? { ok: true } : { ok: false, status };
-}
-
-/* ── V4's two blind sheets (B1.8, B1.9; founder S-B8 A) ───────────────── */
+/* ── V4's blind sheet (B1.8; founder S-B8 A). Which sounds surer and the  */
+/*    blind block pick are gone (backend N702).                             */
 /*    GET /coach/v4-moment-picks, POST …/:id/answer  → Pick the moment       */
-/*    GET /coach/v4-surer-pairs,  POST …/:id/answer  → Which sounds surer    */
 /*  Words, audio and letters only: the machine's picks, the slice and the    */
 /*  level never reach the client (BLIND COACH, AC-9).                         */
 
@@ -414,51 +355,5 @@ export async function answerV4MomentPick(
 ): Promise<{ ok: true } | { ok: false; status: number }> {
   const body = "noneNeedsIt" in input ? { none_needs_it: true } : { clip_id: input.clipId };
   const { status } = await post(`/api/v2/coach/v4-moment-picks/${encodeURIComponent(sheetId)}/answer`, body);
-  return status === 200 ? { ok: true } : { ok: false, status };
-}
-
-export interface V4SurerItem {
-  sheetId: string;
-  said: string;
-  newVersion: string;
-  n: number;
-  of: number;
-}
-
-export interface V4SurerQueue {
-  items: V4SurerItem[];
-  wording: Record<string, string>;
-}
-
-export type V4SurerAnswer = "yes" | "no" | "cant_tell";
-
-export function mapV4SurerQueue(raw: unknown): V4SurerQueue {
-  const r = (raw ?? {}) as Raw;
-  const items = Array.isArray(r.items)
-    ? r.items
-        .filter((i): i is Raw => !!i && typeof i === "object")
-        .map((i) => ({
-          sheetId: str(i.sheet_id) ?? "",
-          said: str(i.said) ?? "",
-          newVersion: str(i.new) ?? "",
-          n: typeof i.n === "number" ? i.n : 0,
-          of: typeof i.of === "number" ? i.of : 0,
-        }))
-        .filter((i) => i.sheetId && i.said && i.newVersion)
-    : [];
-  return { items, wording: wording(r.wording) };
-}
-
-/** null while dark or on any failure. */
-export async function fetchV4SurerPairs(): Promise<V4SurerQueue | null> {
-  const { status, data } = await get("/api/v2/coach/v4-surer-pairs");
-  return status === 200 ? mapV4SurerQueue(data) : null;
-}
-
-export async function answerV4Surer(
-  sheetId: string,
-  answer: V4SurerAnswer,
-): Promise<{ ok: true } | { ok: false; status: number }> {
-  const { status } = await post(`/api/v2/coach/v4-surer-pairs/${encodeURIComponent(sheetId)}/answer`, { answer });
   return status === 200 ? { ok: true } : { ok: false, status };
 }

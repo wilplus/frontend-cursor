@@ -68,7 +68,6 @@ vi.mock("@/services/api/trainingCorpus", async (orig) => ({
 }));
 vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
-  fetchBlockPicks: vi.fn(async () => null),
 }));
 vi.mock("@/components/admin/AdminGate", () => ({ probeAdmin: async () => true, rememberedAdmin: () => true }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/admin/ceo" }));

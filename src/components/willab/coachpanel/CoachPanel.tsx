@@ -44,7 +44,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import WalkStage from "../walk/WalkStage";
 import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
-import { CoachAuditSheet, CoachBlockPickSheet, V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
+import { CoachAuditSheet, V4MomentPickSheet } from "./V4BlindSheets";
 import { useConfidenceChainReceipt, type ConfidenceChainEcho } from "../coachwalk/useConfidenceChainReceipt";
 import { readMoment, useMomentReadSeeds, type MomentReadSeeds } from "../coachwalk/momentReadSeeds";
 import {
@@ -72,8 +72,8 @@ import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { closeWaitingMoments, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import {
-  clearBlindLine, fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
-  type BlindLine, type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
+  clearBlindLine, fetchErrorAudit, fetchV4MomentPicks,
+  type BlindLine, type ErrorAuditQueue, type V4MomentPickQueue,
 } from "@/services/api/coachPanel";
 import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
@@ -129,7 +129,7 @@ function useBlindLinks(open: boolean): { links: unknown; refresh: () => Promise<
   const [links, setLinks] = useState<unknown>(null);
   const refresh = useCallback(async () => {
     if (!open) return;
-    setLinks(await Promise.all([fetchErrorAudit(), fetchBlockPicks(), fetchV4MomentPicks(), fetchV4SurerPairs()]));
+    setLinks(await Promise.all([fetchErrorAudit(), fetchV4MomentPicks()]));
   }, [open]);
   return { links, refresh };
 }
@@ -164,23 +164,18 @@ function useMomentRead(
 /** The blind lines, read each time the queue opens; null while dark. */
 function useBlindLines(queueOpen: boolean) {
   const [audit, setAudit] = useState<ErrorAuditQueue | null>(null);
-  const [picks, setPicks] = useState<BlockPickQueue | null>(null);
   const [v4Picks, setV4Picks] = useState<V4MomentPickQueue | null>(null);
-  const [v4Surer, setV4Surer] = useState<V4SurerQueue | null>(null);
-  // Read once in so far (N525): the queue waits for all four, then draws.
+  // Read once in so far (N525): the queue waits for both, then draws.
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!queueOpen) return;
     let cancelled = false;
     const quiet = <T,>(read: Promise<T | null>) => read.catch(() => null);
-    // All four land together, so the lines never draw one after another.
-    void Promise.all([quiet(fetchErrorAudit()), quiet(fetchBlockPicks()), quiet(fetchV4MomentPicks()),
-      quiet(fetchV4SurerPairs())]).then(([a, p, v4p, v4s]) => {
+    // Both land together, so the lines never draw one after another.
+    void Promise.all([quiet(fetchErrorAudit()), quiet(fetchV4MomentPicks())]).then(([a, v4p]) => {
       if (cancelled) return;
       setAudit(a);
-      setPicks(p);
       setV4Picks(v4p);
-      setV4Surer(v4s);
       setDone(true);
     });
     return () => { cancelled = true; };
@@ -189,11 +184,9 @@ function useBlindLines(queueOpen: boolean) {
   const emptied = useCallback((line: BlindLine) => {
     const none = <Q extends { items: unknown[] }>(q: Q | null): Q | null => (q ? { ...q, items: [] } : q);
     if (line === "error_audit") setAudit(none);
-    else if (line === "block_pick") setPicks(none);
-    else if (line === "v4_moment_pick") setV4Picks(none);
-    else setV4Surer(none);
+    else setV4Picks(none);
   }, []);
-  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer, emptied, done };
+  return { audit, setAudit, v4Picks, setV4Picks, emptied, done };
 }
 
 /** Every speaker, read each time Your speakers opens. `speakers` is null
@@ -404,10 +397,10 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ name: string; index: number; total: number } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
+  const [blindOpen, setBlindOpen] = useState<"audit" | "v4picks" | null>(null);
   const blindLinks = useBlindLinks(blindOpen !== null);
   const refreshMedia = () => Promise.all([refreshTake(), blindLinks.refresh()]);
-  const mediaPayload = [media, blind.audit, blind.picks, blind.v4Picks, blind.v4Surer, blindLinks.links];
+  const mediaPayload = [media, blind.audit, blind.v4Picks, blindLinks.links];
 
   const close = () => dispatch({ type: "close" });
   /** An import opens its set-up first when that is not finished (CO1 A). */
@@ -601,10 +594,10 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
           onSpeakers={() => dispatch({ type: "speakers" })}
           onDelete={founder ? deleteSpeaker : undefined}
           will={will.row}
-          blind={{ audit: blind.audit, picks: blind.picks,
-            onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks"),
-            v4Picks: blind.v4Picks, v4Surer: blind.v4Surer,
-            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer"),
+          blind={{ audit: blind.audit,
+            onOpenAudit: () => setBlindOpen("audit"),
+            v4Picks: blind.v4Picks,
+            onOpenV4Picks: () => setBlindOpen("v4picks"),
             onClear: clearBlindLineOf }} />
       );
     }
@@ -714,22 +707,10 @@ export default function CoachPanel({ state, dispatch, speakers, loading, settled
             onDone={() => { setBlindOpen(null); blind.setAudit(null); }} />
         </div>
       ) : null}
-      {blindOpen === "picks" && blind.picks ? (
-        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
-          <CoachBlockPickSheet queue={blind.picks} onClose={() => setBlindOpen(null)}
-            onDone={() => { setBlindOpen(null); blind.setPicks(null); }} />
-        </div>
-      ) : null}
       {blindOpen === "v4picks" && blind.v4Picks ? (
         <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
           <V4MomentPickSheet queue={blind.v4Picks} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setV4Picks(null); }} />
-        </div>
-      ) : null}
-      {blindOpen === "v4surer" && blind.v4Surer ? (
-        <div className={`fixed inset-0 z-50 ${WILL_COLUMN}`}>
-          <V4SurerSheet queue={blind.v4Surer} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
-            onDone={() => { setBlindOpen(null); blind.setV4Surer(null); }} />
         </div>
       ) : null}
     </MediaRefreshProvider>

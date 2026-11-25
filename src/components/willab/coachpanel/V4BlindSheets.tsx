@@ -8,11 +8,10 @@
 /*                       audit()): the player, the error's own question, Yes  */
 /*                       / No / Can't tell; then "Thank you. That one is      */
 /*                       kept." and Next                                      */
-/*    CoachBlockPickSheet "Pick the most confident moment" (prototype pick()): */
-/*                       "Block n of m", the clips A, B, C with "This one" →  */
-/*                       "Most confident", "Save my pick" / "Can't tell"      */
 /*                                                                            */
-/*  and V4's two (founder S-B8 A, 2026-10-07; Q-B8 A; build plan D-ML-14),    */
+/*  and V4's pick sheet (founder S-B8 A, 2026-10-07; build plan D-ML-14).     */
+/*  "Pick the most confident" and "Which sounds surer" are gone (backend      */
+/*  N702, 25 November 2026),                                                  */
 /*  drawn exactly as the signed prototype shows them:                         */
 /*                                                                            */
 /*    V4MomentPickSheet  "Pick the moment for feedback": up to three moments   */
@@ -20,13 +19,9 @@
 /*                       one tap picks ("This one" → "Needs it most"), "Save  */
 /*                       my pick" keeps it, "None needs it" is the way out;   */
 /*                       then "Thank you. That one is kept." and Next        */
-/*    V4SurerSheet       "Which sounds surer": the words said beside the new  */
-/*                       version, words only; "Is the new version surer?"     */
-/*                       Yes / No / Can't tell; it moves on by itself, and    */
-/*                       after the last pair says the line and Next           */
 /*                                                                            */
 /*  Every word is the backend's signed wording (services/v4_coach_sheets.py,  */
-/*  error_presence_audit.py and coach_block_pick.py WORDING). Blind: no name, no machine pick, no slice, no number (BLIND     */
+/*  error_presence_audit.py WORDING). Blind: no name, no machine pick, no slice, no number (BLIND     */
 /*  COACH, AC-9); the only numbers are the sheet's position.                  */
 /* -------------------------------------------------------------------------- */
 
@@ -36,16 +31,11 @@ import WalkOverlay from "../walk/WalkOverlay";
 import SnippetWavePlayer from "../SnippetWavePlayer";
 import WalkFooter from "../walk/WalkFooter";
 import {
-  answerBlockPick,
   answerErrorAudit,
   answerV4MomentPick,
-  answerV4Surer,
   type AuditAnswer,
-  type BlockPickQueue,
   type ErrorAuditQueue,
   type V4MomentPickQueue,
-  type V4SurerAnswer,
-  type V4SurerQueue,
 } from "@/services/api/coachPanel";
 
 const fill = (text: string | undefined, n: number, of: number): string =>
@@ -150,58 +140,14 @@ export function V4MomentPickSheet({ queue, nextLabel, onClose, onDone }: {
 }
 
 function Answer({ label, small = false, onClick, disabled, value }: {
-  label: string; small?: boolean; onClick: () => void; disabled: boolean; value: V4SurerAnswer | AuditAnswer;
+  label: string; small?: boolean; onClick: () => void; disabled: boolean; value: AuditAnswer;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} data-v4-surer-answer={value}
+    <button type="button" onClick={onClick} disabled={disabled} data-audit-answer={value}
       className={cn("walk-press w-full rounded-full border-[1.5px] border-foreground/15 text-center",
         small ? "p-[9px] text-[14px] font-medium text-muted-foreground" : "p-3.5 text-[16px] font-semibold")}>
       {label}
     </button>
-  );
-}
-
-export function V4SurerSheet({ queue, nextLabel, onClose, onDone }: {
-  queue: V4SurerQueue;
-  nextLabel: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const w = queue.wording;
-  const [index, setIndex] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const item = queue.items[index] ?? null;
-
-  async function answer(value: V4SurerAnswer): Promise<void> {
-    if (!item || busy) return;
-    setBusy(true);
-    const saved = await answerV4Surer(item.sheetId, value);
-    setBusy(false);
-    if (saved.ok) setIndex(index + 1);
-  }
-
-  if (!item) {
-    return <Kept line={w.kept ?? ""} next={nextLabel} onNext={onDone} onClose={onClose} testId="v4-surer-kept" />;
-  }
-  return (
-    <WalkOverlay caption={fill(w.progress, item.n, item.of)} title={w.title ?? ""} subtitle={w.caption ?? ""}
-      onClose={onClose} testId="v4-surer">
-      <Card header={<span>{w.said ?? ""}</span>}>
-        <div className="text-[16.5px] leading-[1.55]" data-testid="v4-surer-said">{item.said}</div>
-      </Card>
-      <Card header={<span>{w.new ?? ""}</span>}>
-        <div className="text-[16.5px] leading-[1.55]" data-testid="v4-surer-new">{item.newVersion}</div>
-      </Card>
-      <p className="m-0 text-[16px] font-semibold">{w.question ?? ""}</p>
-      <div className="flex flex-col gap-2">
-        <Answer label={w.yes ?? ""} value="yes" disabled={busy} onClick={() => void answer("yes")} />
-        <Answer label={w.no ?? ""} value="no" disabled={busy} onClick={() => void answer("no")} />
-        <div className="mt-0.5 flex gap-2">
-          <Answer small label={w.cant_tell ?? ""} value="cant_tell" disabled={busy}
-            onClick={() => void answer("cant_tell")} />
-        </div>
-      </div>
-    </WalkOverlay>
   );
 }
 
@@ -248,63 +194,6 @@ export function CoachAuditSheet({ queue, nextLabel, onClose, onDone }: {
           <Answer small label={w.cant_tell ?? ""} value="cant_tell" disabled={busy} onClick={() => void answer("cant_tell")} />
         </div>
       </div>
-    </WalkOverlay>
-  );
-}
-
-export function CoachBlockPickSheet({ queue, onClose, onDone }: {
-  queue: BlockPickQueue;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const w = queue.wording;
-  const [index, setIndex] = useState(0);
-  const [choice, setChoice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const item = queue.items[index] ?? null;
-  if (!item) return null;
-
-  async function save(input: { pickClipId: string } | { cantTell: true }): Promise<void> {
-    if (busy) return;
-    setBusy(true);
-    await answerBlockPick(item!.pickId, input);
-    setBusy(false);
-    setChoice(null);
-    if (index + 1 >= queue.items.length) onDone();
-    else setIndex(index + 1);
-  }
-
-  const footer = (
-    <WalkFooter
-      pill={{ label: w.save ?? "", onClick: () => choice && void save({ pickClipId: choice }),
-              disabled: busy || !choice, testId: "coach-block-pick-save" }}
-      links={[{ label: w.cant_tell ?? "", onClick: () => void save({ cantTell: true }), disabled: busy }]}
-    />
-  );
-  return (
-    <WalkOverlay caption={fill(w.progress, item.n, item.of)} title={w.title ?? ""} subtitle={w.blind_note ?? ""}
-      onClose={onClose} footer={footer} testId="coach-block-pick-sheet">
-      <p className="m-0 text-[16px] font-semibold">{w.question ?? ""}</p>
-      {item.clips.map((c) => {
-        const on = choice === c.clipId;
-        const label = (w.clip ?? "{letter}").replace("{letter}", c.letter);
-        return (
-          <Card key={c.clipId} chosen={on} header={
-            <>
-              <span>{label}</span>
-              <button type="button" disabled={busy} onClick={() => setChoice(c.clipId)}
-                data-testid="coach-block-pick-choice" aria-pressed={on}
-                className={cn("walk-press-sm rounded-full border-[1.5px] px-3 py-1 text-[13.5px] font-semibold",
-                  on ? "border-foreground bg-foreground text-background" : "border-border")}>
-                {on ? (w.most_confident ?? "") : (w.this_one ?? "")}
-              </button>
-            </>
-          }>
-            <SnippetWavePlayer seed={c.clipId} src={c.audioRef} startOffsetMs={c.startOffsetMs ?? null}
-              durationMs={c.durationMs ?? null} size="compact" tone="ink" label={label} />
-          </Card>
-        );
-      })}
     </WalkOverlay>
   );
 }

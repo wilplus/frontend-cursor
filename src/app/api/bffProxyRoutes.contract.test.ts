@@ -1,5 +1,5 @@
 /*
-GUARD    The 76 relay-only routes answer and forward exactly what they did
+GUARD    The 72 relay-only routes answer and forward exactly what they did
          before they became one-line proxyRoute() calls.
 CATCHES  Any change in status, body, content type, cache header or the
          request sent to the backend (URL, method, headers, body), under each

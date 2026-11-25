@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bubble, choiceBubble } from "./bits";
+import PickerCheck from "./PickerCheck";
 import { kindNames, patternInput, patternRequest, sourceNames, speakingPatternPath,
   type CaseLink, type LibraryPage, type PatternExample, type PatternKind, type PatternSource } from "./speakingPatterns";
 
@@ -30,6 +31,7 @@ export default function SpeakingPatternLibrary({ onOpen }: { onOpen: (clip: Case
   }
 
   return <>
+    <PickerCheck />
     <Bubble>Open a saved pattern to hear the clip it came from and review its match.</Bubble>
     <div className="flex flex-wrap gap-3">
       <label className="flex flex-col gap-1">Source

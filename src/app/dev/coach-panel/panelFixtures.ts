@@ -168,19 +168,6 @@ const V4_PICKS = {
       words: "And that is why I'm asking you today to fund the pilot." },
   ] }],
 };
-const V4_SURER = {
-  wording: {
-    queue_line: "Also waiting · blind", row: "Which sounds surer", title: "Which sounds surer",
-    caption: "Words only. No names, no hint of which change the machine is testing.",
-    said: "The words said", new: "The new version", question: "Is the new version surer?",
-    yes: "Yes", no: "No", cant_tell: "Can't tell", progress: "Pair {n} of {of}",
-    kept: "Thank you. That one is kept.",
-  },
-  items: [{ sheet_id: "v4-pair-1", n: 1, of: 1,
-    said: "I think maybe we could probably start the pilot in March, if that works.",
-    new: "We could start the pilot in March, if that works." }],
-};
-
 type Ctx = { url: string; method: string; body: Record<string, unknown> | null };
 const v4SheetsOn = () =>
   typeof window !== "undefined" && new URLSearchParams(window.location.search).get("v4") === "1";
@@ -204,14 +191,12 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
   const moment = (url: string, tail: string) => url.includes(`/api/v2/coach/sessions/${TAKE_2}/snippets/`) && url.endsWith(tail);
   return [
     { when: (c) => c.url.includes("/api/v2/user/profile"), reply: () => json({ is_coach: true, proficient_languages: ["en"] }) },
-    { when: (c) => c.url.includes("/api/v2/coach/error-audit") || c.url.includes("/api/v2/coach/block-picks"),
+    { when: (c) => c.url.includes("/api/v2/coach/error-audit"),
       reply: () => json({ error: "off" }, 404) },
-    // V4's two blind sheets answer only with ?v4=1, as the backend does only
+    // V4's blind pick sheet answers only with ?v4=1, as the backend does only
     // once V4_COACH_SHEETS_ENABLED is on; dark otherwise, like production.
     { when: (c) => c.url.includes("/api/v2/coach/v4-moment-picks") && c.method === "GET",
       reply: () => (v4SheetsOn() ? json(V4_PICKS) : json({ error: "off" }, 404)) },
-    { when: (c) => c.url.includes("/api/v2/coach/v4-surer-pairs") && c.method === "GET",
-      reply: () => (v4SheetsOn() ? json(V4_SURER) : json({ error: "off" }, 404)) },
     { when: (c) => c.url.includes("/api/v2/coach/v4-") && c.method === "POST", reply: () => json({ recorded: true }) },
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
