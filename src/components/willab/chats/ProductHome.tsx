@@ -77,7 +77,7 @@ export default function ProductHome({
   onOpenPendingProject?: (take: PendingProjectTake) => void;
 }) {
   const locale = useUiLocale();
-  const [projects, setProjects] = useState<TrainingArc[]>(knownProjects ?? []);
+  const [projects, setProjects] = useState<TrainingArc[]>(() => (knownProjects ?? []).filter((project) => !project.archived));
   const [status, setStatus] = useState<Status>(knownProjects ? "ready" : "loading");
   const { layout = null, change = unavailableChange } = structure ?? {};
   const [attempt, setAttempt] = useState(0);
@@ -142,6 +142,8 @@ export default function ProductHome({
 
   const title = layout?.published_chat?.name || ownChatTitle();
   const showOwn = (own.started || layout?.published_chat) && (!layout || layout.builder === "active");
+  const visibleOwnChats = ownChats?.filter((chat) => isActiveOwnChat(chat, projects, layout));
+  const pendingRows = unmatchedPendingProjects(pendingProjects, projects, ownChats);
   const confirm = async () => {
     if (layout && layout.builder !== "active" && !await change({ action: "restore", section: "builder" })) return;
     startOwnChat();
@@ -167,18 +169,17 @@ export default function ProductHome({
       <nav data-chat-list aria-label={uiText(locale, "chatsNavigation")} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-1">
           {showOwn ? <BuilderChatGroup title={title} layout={layout} change={change} activeChat={activeChat}
             onEdit={onOpenOwnChat} onOpenSection={onOpenOwnSection} /> : null}
-          {ownChats ? pendingProjects.filter((take) => !projects.some((project) =>
-            project.arcId === take.projectId || project.takes.some((item) =>
-              item.uploadKey === take.key || item.sessionId === take.sessionId))).map((take) => (
+          {ownChats ? pendingRows.map((take) => (
             <HomeRow key={take.key} id={`pending:${take.key}`} title={take.topic}
               circle={<LetterCircle id={take.key} name={take.topic} size={24} />}
               active={activeChat === `pending:${take.key}`} onOpen={() => onOpenPendingProject?.(take)} />
           )) : null}
-          {ownChats ? (
-            <OwnChatList chats={ownChats} setChats={setOwnChats} projects={projects} setProjects={setProjects}
+          {visibleOwnChats ? <>
+            <ProjectListStatus status={status} locale={locale} onRetry={() => setAttempt((value) => value + 1)} />
+            <OwnChatList chats={visibleOwnChats} setChats={setOwnChats} projects={projects} setProjects={setProjects}
               activeChat={activeChat} locale={locale} onRemoveProject={onRemoveProject}
               onOpenSpeaking={onOpenSpeaking} onOpenProject={onOpenProject} />
-          ) : !layout || layout.coach === "active" ? <>
+          </> : !layout || layout.coach === "active" ? <>
           <HomeRow
             id="speaking-coach"
             title={uiText(locale, "speakingCoach")}
@@ -188,9 +189,7 @@ export default function ProductHome({
             onOpen={onOpenSpeaking}
           />
           <div data-product-projects className="ml-5 border-l border-border pl-2">
-            {pendingProjects.filter((take) => !projects.some((project) =>
-              project.arcId === take.projectId || project.takes.some((item) =>
-                item.uploadKey === take.key || item.sessionId === take.sessionId))).map((take) => (
+            {pendingRows.map((take) => (
               <HomeRow key={take.key} id={`pending:${take.key}`} title={take.topic}
                 circle={<LetterCircle id={take.key} name={take.topic} size={24} />}
                 active={activeChat === `pending:${take.key}`} onOpen={() => onOpenPendingProject?.(take)} />
@@ -261,6 +260,28 @@ export default function ProductHome({
 
 const unavailableChange = async () => false;
 
+function isActiveOwnChat(chat: OwnChat, projects: readonly TrainingArc[], layout: ChatStructure | null): boolean {
+  if (chat.section === "speaking" && layout && layout.coach !== "active") return false;
+  // The chats list retains the chat's identity when the active projects feed
+  // drops an archived project. A linked chat still needs an active project.
+  return !chat.arcId || projects.some((project) => project.arcId === chat.arcId);
+}
+
+function unmatchedPendingProjects(pending: readonly PendingProjectTake[], projects: readonly TrainingArc[], chats: OwnChat[] | null) {
+  return pending.filter((take) => {
+    if (take.projectId && chats?.some((chat) => chat.arcId === take.projectId)) return false;
+    return !projects.some((project) => project.arcId === take.projectId || project.takes.some(
+      (item) => item.uploadKey === take.key || item.sessionId === take.sessionId,
+    ));
+  });
+}
+
+function ProjectListStatus({ status, locale, onRetry }: { status: Status; locale: UiLocale; onRetry: () => void }) {
+  if (status === "loading") return <ProjectsLoading locale={locale} />;
+  if (status === "error") return <HomeError locale={locale} onRetry={onRetry} />;
+  return null;
+}
+
 /** Its name in the person's language while it keeps the name it started with. */
 function ownChatTitle_(chat: OwnChat, locale: UiLocale): string {
   if (chat.section === "speaking" && chat.title === "Speaking coach") return uiText(locale, "speakingCoach");
@@ -292,7 +313,7 @@ export function OwnChatList({ chats, setChats, projects, setProjects, activeChat
     if (arc) {
       const mine = chats.find((chat) => chat.arcId === arc);
       if (mine && mine.id !== open) setOpenOwnChat(mine.id);
-    } else if (activeChat === "coach" && plain && (!current || current.arcId)) setOpenOwnChat(plain.id);
+    } else if (activeChat === "coach" && (!current || current.arcId)) setOpenOwnChat(plain?.id ?? null);
   }, [activeChat, open, plain, chats]);
   const projectOf = (chat: OwnChat) => (chat.arcId ? projects.find((p) => p.arcId === chat.arcId) ?? null : null);
   const openTitle = (() => { const chat = chats.find((c) => c.id === open); return chat ? ownChatTitle_(chat, locale) : null; })();
@@ -335,7 +356,7 @@ export function OwnChatList({ chats, setChats, projects, setProjects, activeChat
     openChat(made);
   };
   return <div data-own-chats>
-    {chats.filter((chat) => !projectOf(chat)?.archived).map((chat) => {
+    {chats.map((chat) => {
       const project = projectOf(chat);
       const title = ownChatTitle_(chat, locale);
       if (editing?.id === chat.id) {

@@ -172,15 +172,28 @@ export async function fetchTrainings(
 ): Promise<TrainingArc[] | null> {
   const token = await getAuthToken();
   if (!token) return null;
+  return readTrainings(token, includeArchived, force);
+}
+
+function readTrainings(token: string, includeArchived: boolean, force: boolean): Promise<TrainingArc[] | null> {
   const key = trainingsCacheKey(token, includeArchived);
   const cached = cachedTrainings.get(key);
   if (!force && cached && Date.now() - cached.cachedAt <= TRAININGS_CACHE_MAX_AGE_MS) {
-    return cached.value;
+    return Promise.resolve(cached.value);
   }
   const existing = inFlightTrainings.get(key);
   if (existing) return existing;
 
-  const read = requestTrainings(includeArchived, key);
+  const read: Promise<TrainingArc[] | null> = requestTrainings(includeArchived).then(async (value) => {
+    // An archive or restore can finish while a Take poll still has the old
+    // list in flight. Re-read so that response can't put the old row back.
+    if (inFlightTrainings.get(key) !== read) {
+      if (await getAuthToken() !== token) return null;
+      return readTrainings(token, includeArchived, false);
+    }
+    if (value) cachedTrainings.set(key, { value, cachedAt: Date.now() });
+    return value;
+  });
   inFlightTrainings.set(key, read);
   const clearInFlight = () => {
     if (inFlightTrainings.get(key) === read) inFlightTrainings.delete(key);
@@ -191,7 +204,6 @@ export async function fetchTrainings(
 
 async function requestTrainings(
   includeArchived: boolean,
-  cacheKey: string,
 ): Promise<TrainingArc[] | null> {
   const res = await bffFetch(
     includeArchived ? "/api/v2/user/trainings?include_archived=1" : "/api/v2/user/trainings",
@@ -206,13 +218,13 @@ async function requestTrainings(
       ? body.arcs
       : null;
   if (!list) return null;
-  const value = list.map(mapArc).filter((a): a is TrainingArc => !!a);
-  cachedTrainings.set(cacheKey, { value, cachedAt: Date.now() });
-  return value;
+  return list.map(mapArc).filter((a): a is TrainingArc => !!a);
 }
 
-/** Test-only reset for the page-scoped read cache. */
-export function __resetTrainingsCacheForTests(): void {
+/** An archive or restore changes both the active and the full project list. */
+export function invalidateTrainingsCache(): void {
   cachedTrainings.clear();
   inFlightTrainings.clear();
 }
+
+export const __resetTrainingsCacheForTests = invalidateTrainingsCache;

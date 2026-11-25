@@ -989,10 +989,15 @@ project's chat opens its project.
 O3  ""New chat"" makes a chat and opens it.
 O4  In an open chat, the thread shows that chat's messages, and a message
 typed there names it.
-O5  A tap on the open chat's name (its header) renames it in its row.","O1, O2 -> ""draws one flat list and opens each chat as what it is""
+O5  A tap on the open chat's name (its header) renames it in its row.
+O6  Archive hides the project or coach from the active list and restore
+brings the same row back.","O1, O2 -> ""draws one flat list and opens each chat as what it is""
 O3 -> ""makes a new chat and opens it""
 O4 -> ""an open chat shows its own messages and names what is typed in it""
-O5 -> ""a tap on the open chat's name renames it""",
+O5 -> ""a tap on the open chat's name renames it""
+O6 -> ""removes the archived project chat immediately, even while its chat identity is still returned""
+""hides an archived project on load and follows restore and archive from the project list""
+""keeps an archived coach out of the active list and shows it again after restore""",
 src/components/willab/chats/ownWordsInPlace.test.tsx,Story,"As someone with the chat builder's ring, what I type in Principles (or Will's chat, or the speaking chat) is drawn as mine: orange, on the right, like anything I send (the founder's walk-through, 11 November 2026: ""What are my strengths"" in Principles drawn grey on the left, like Will's).","O1  My own row in Principles is drawn as mine, also one written with an
 offer's mark (the mark #1391 gave it), which is never drawn as Will's
 offer; Will's own offer row is still his.
@@ -2923,9 +2928,11 @@ src/services/api/trainingCorpus.test.ts,Story,"As a coach labelling clips, I wan
 server sent one.","O1 -> ""never surfaces a band or machine read even if one were served (N1)""",Never-rule 2: no coach sees the machine's guess before answering.
 src/services/api/trainings.test.ts,Story,"As the chat and project surfaces open together, I want one current trainings read shared by them, without ever seeing another account's projects.","O1  Concurrent and recent reads use one authenticated request.
 O2  A different authenticated user gets a separate result.
-O3  A Take's range follows the recording on new and older responses.","O1 -> ""one fetch is shared and the successful result is reused""
+O3  A Take's range follows the recording on new and older responses.
+O4  A successful archive or restore refreshes the active project list.","O1 -> ""one fetch is shared and the successful result is reused""
 O2 -> ""the cache is scoped to the authenticated identity""
-O3 -> ""retains the recorded slide range on each matching Take""",
+O3 -> ""retains the recorded slide range on each matching Take""
+O4 -> ""refetches the active list after a project is archived or restored""",
 src/services/api/userProfile.test.ts,Guard,"Concurrent profile reads share one request, and a failed read is not shared, so page load does not hammer the backend and one blip does not stick.","Each caller fetching its own profile; or a failed (null) read being
 served to every later caller for the rest of the window.","one request -> ""serves every caller from one request""
 no failure  -> ""does not share a failed read: the next caller asks again""","If removed: A change to the shared read could multiply profile requests per page, or pin a signed-in coach to ""no profile"" after one error."

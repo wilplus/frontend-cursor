@@ -282,6 +282,7 @@ and [Chat Builder](../chat-builder/flow.md).
   sidebar is drawn as before. `chats/ProductHome.tsx` (`OwnChatList`),
   `chats/loungePlace.tsx`, `chats/TopBar.tsx`, `ProjectChat.tsx`,
   `services/api/ownChats.ts`.
+- **B0 archive** (backend N14 and N676). Archiving a project or chat removes its row from the active sidebar as soon as the archive succeeds. The existing restore action brings it back with its history.
 - **B1** One thread, stored once: the Lounge thread (`lounge_messages`,
   kind `walk_step`). Every step is a message with one author: the speaker,
   the app (line bank), the coach, the rewrite (LLM) or the summary (GPT-4o).

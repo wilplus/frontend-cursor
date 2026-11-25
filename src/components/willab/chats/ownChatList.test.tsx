@@ -12,21 +12,28 @@ OUTCOME
   O4  In an open chat, the thread shows that chat's messages, and a message
       typed there names it.
   O5  A tap on the open chat's name (its header) renames it in its row.
+  O6  Archive hides the project or coach from the active list and restore
+      brings the same row back.
 PROVES   O1, O2 -> "draws one flat list and opens each chat as what it is"
          O3 -> "makes a new chat and opens it"
          O4 -> "an open chat shows its own messages and names what is typed in it"
          O5 -> "a tap on the open chat's name renames it"
+         O6 -> "removes the archived project chat immediately, even while its chat identity is still returned"
+               "hides an archived project on load and follows restore and archive from the project list"
+               "keeps an archived coach out of the active list and shows it again after restore"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { publishProjectTrainings, removeProjectTraining } from "@/lib/willab/projectTrainings";
 import type { TrainingArc } from "@/services/api/trainings";
 
-const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), rename: vi.fn(), trainings: vi.fn() }));
+const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), rename: vi.fn(), trainings: vi.fn(), archive: vi.fn() }));
 vi.mock("@/services/api/ownChats", () => ({
   listOwnChats: api.list, createOwnChat: api.create, renameOwnChat: api.rename, giveOwnChatProject: vi.fn(),
 }));
 vi.mock("@/services/api/bootPrefetch", () => ({ takeTrainings: api.trainings }));
+vi.mock("@/services/api/projectArchive", () => ({ archiveProject: api.archive }));
 vi.mock("../pdfSlides", () => ({ PdfPage: () => null }));
 
 import ProductHome from "./ProductHome";
@@ -48,6 +55,7 @@ beforeEach(() => {
   api.list.mockReset().mockResolvedValue(chats);
   api.trainings.mockReset().mockResolvedValue([pitch]);
   api.create.mockReset();
+  api.archive.mockReset();
   setOpenOwnChat(null);
   host = document.createElement("div");
   document.body.append(host);
@@ -89,6 +97,44 @@ it("makes a new chat and opens it", async () => {
   expect(api.create).toHaveBeenCalled();
   expect(openOwnChatNow()).toBe("c-new");
   expect(onOpenSpeaking).toHaveBeenCalled();
+});
+
+it("removes the archived project chat immediately, even while its chat identity is still returned", async () => {
+  api.archive.mockResolvedValue(true);
+  const onRemoveProject = vi.fn();
+  await draw({ onRemoveProject });
+  expect(row("Pitch")).toBeTruthy();
+  await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="More options for Pitch"]')!.click());
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')]
+    .find((button) => button.textContent?.trim() === "Archive")!.click());
+
+  expect(api.archive).toHaveBeenCalledWith("arc-1");
+  expect(onRemoveProject).toHaveBeenCalledWith("arc-1");
+  expect(row("Pitch")).toBeUndefined();
+  expect(row("Ideas")).toBeTruthy();
+});
+
+it("hides an archived project on load and follows restore and archive from the project list", async () => {
+  api.trainings.mockResolvedValue([]);
+  await draw({ pendingProjects: [{ key: "retry", ownerId: "speaker", projectId: "arc-1",
+    topic: "Pitch", takeIndex: 2, startedAt: 0 }] });
+  expect(host.querySelector('[data-home-row="c-pitch"]')).toBeNull();
+  expect(host.querySelector('[data-home-row="pending:retry"]')).toBeNull();
+
+  await act(async () => publishProjectTrainings([pitch]));
+  expect(row("Pitch")).toBeTruthy();
+  await act(async () => removeProjectTraining("arc-1"));
+  expect(row("Pitch")).toBeUndefined();
+});
+
+it("keeps an archived coach out of the active list and shows it again after restore", async () => {
+  const change = vi.fn();
+  await draw({ structure: { layout: { coach: "archived", builder: "active" }, change } });
+  expect(row("Speaking coach")).toBeUndefined();
+  expect(row("Pitch")).toBeTruthy();
+  expect(host.querySelector('[data-home-row="archived-speaking"]')).not.toBeNull();
+  await draw({ structure: { layout: { coach: "active", builder: "active" }, change } });
+  expect(row("Speaking coach")).toBeTruthy();
 });
 
 it("an open chat shows its own messages and names what is typed in it", () => {

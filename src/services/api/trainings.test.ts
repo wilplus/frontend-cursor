@@ -5,9 +5,11 @@ STORY    As the chat and project surfaces open together, I want one current
 OUTCOME  O1  Concurrent and recent reads use one authenticated request.
          O2  A different authenticated user gets a separate result.
          O3  A Take's range follows the recording on new and older responses.
+         O4  A successful archive or restore refreshes the active project list.
 PROVES   O1 -> "one fetch is shared and the successful result is reused"
          O2 -> "the cache is scoped to the authenticated identity"
          O3 -> "retains the recorded slide range on each matching Take"
+         O4 -> "refetches the active list after a project is archived or restored"
 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,6 +23,7 @@ import {
   __resetTrainingsCacheForTests,
   fetchTrainings,
 } from "./trainings";
+import { archiveProject, unarchiveProject } from "./projectArchive";
 
 const response = (topic: string) => ({
   kind: "response",
@@ -73,6 +76,26 @@ describe("shared trainings reads", () => {
       expect.objectContaining({ arcId: "user-b-project" }),
     ]);
     expect(bff.bffFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("refetches the active list after a project is archived or restored", async () => {
+    const archived = { ...response("board-pitch"), body: { trainings: [] } };
+    let finishOldRead!: (result: ReturnType<typeof response>) => void;
+    const oldRead = new Promise<ReturnType<typeof response>>((resolve) => { finishOldRead = resolve; });
+    bff.bffFetch.mockResolvedValueOnce(response("board-pitch"))
+      .mockReturnValueOnce(oldRead)
+      .mockResolvedValueOnce(response("archive")).mockResolvedValueOnce(archived)
+      .mockResolvedValueOnce(response("restore")).mockResolvedValueOnce(response("board-pitch"));
+
+    await expect(fetchTrainings()).resolves.toEqual([expect.objectContaining({ arcId: "board-pitch" })]);
+    const inFlight = fetchTrainings({ force: true });
+    await Promise.resolve();
+    await expect(archiveProject("board-pitch")).resolves.toBe(true);
+    finishOldRead(response("board-pitch"));
+    await expect(inFlight).resolves.toEqual([]);
+    await expect(fetchTrainings()).resolves.toEqual([]);
+    await expect(unarchiveProject("board-pitch")).resolves.toBe(true);
+    await expect(fetchTrainings()).resolves.toEqual([expect.objectContaining({ arcId: "board-pitch" })]);
   });
 
   it("retains the recorded slide range on each matching Take", async () => {

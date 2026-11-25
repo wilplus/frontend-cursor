@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { invalidateTrainingsCache } from "./trainings";
 
 /* -------------------------------------------------------------------------- */
 /*  Archive a project (founder 2026-09-26, N14).                              */
@@ -12,7 +13,9 @@ async function send(projectId: string, method: "POST" | "DELETE"): Promise<boole
     method,
     credentials: "include",
   });
-  return res.kind === "response" && res.ok;
+  if (res.kind !== "response" || !res.ok) return false;
+  invalidateTrainingsCache();
+  return true;
 }
 
 /** Hide the project from the list. false changes nothing. */
