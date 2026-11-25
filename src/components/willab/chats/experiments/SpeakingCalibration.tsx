@@ -16,7 +16,7 @@ import SpeakingPatternLibrary from "./SpeakingPatternLibrary";
 import SpeakingPatternReview from "./SpeakingPatternReview";
 import { clipTime, deliveryTargets as targets, type CaseLink, type DeliveryValues } from "./speakingPatterns";
 
-const title = "Speaking Model Calibration";
+const title = "Training";
 const input = "min-w-0 rounded-lg border border-border bg-background px-3 py-2";
 const labels = { ok: "Pace OK", rushed: "Rushed", slow: "Too slow", flat: "Flat emphasis", other: "Other", unsure: "Unsure" };
 const exercises = { none: "No intervention", sniper: "Sniper", ai_audio: "AI Audio", rewrite: "Rephrase", coach_video: "Coach video" };
@@ -38,16 +38,18 @@ type RecordOfMoment = {
 type RecordResponse = { revision: number; record: RecordOfMoment | null; cues: Cues };
 type Retry = { text: string; receipt: string; cues: Cues; pace?: string | null };
 
-export default function SpeakingCalibration() {
+/** The founder's Training (backend N701): one page, the coach queues on top
+ *  (`top`), then the clips to label from your Takes or the Training Corpus. */
+export default function SpeakingCalibration({ top }: { top?: ReactNode }) {
   const [source, setSource] = useState<"take" | "corpus" | "library">("take");
   const [opened, setOpened] = useState<CaseLink | null>(null);
   if (opened?.source === "take") {
     return <TakeCalibration key={opened.snippet_id} link={opened} onBack={() => setOpened(null)} />;
   }
-  const tabs = <ChoicePair name="calibration-source" value={source}
+  const tabs = <>{top}<ChoicePair name="calibration-source" value={source}
     options={[{ value: "take", label: "Your Takes" }, { value: "corpus", label: "Training Corpus" },
       { value: "library", label: "Pattern Library" }]}
-    onPick={value => { setOpened(null); setSource(value as typeof source); }} />;
+    onPick={value => { setOpened(null); setSource(value as typeof source); }} /></>;
   if (source === "take") return <TakeCalibration tabs={tabs} />;
   return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
     {tabs}

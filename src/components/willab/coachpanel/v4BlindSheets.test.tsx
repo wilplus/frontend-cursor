@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /*
-STORY    As a coach, I want the two V4 sheets to show only the signed words and
+STORY    As a coach, I want the V4 pick sheet to show only the signed words and
          nothing the machine chose, and to save one answer each, so that my
          picks stay blind.
 OUTCOME
@@ -9,14 +9,8 @@ OUTCOME
       sureness).
   O2  Picking a moment and saving sends exactly one answer, for that sheet
       and that moment, then says it is kept.
-  O3  Never-2: the surer sheet shows the two versions' words and the three
-      answers, and nothing of the machine's slice or level, and no player.
-  O4  Each surer answer is saved once for its own pair, then the next pair
-      shows; after the last, the kept line.
 PROVES   O1 -> "draws the signed words and nothing the machine chose"
          O2 -> "saves one pick for the sheet, then says it is kept"
-         O3 -> "words only, the question and three answers, blind to the slice"
-         O4 -> "saves one answer per pair and moves on"
 WHY      Never-2 (BLIND COACH), founder S-B8 A.
 */
 import { act } from "react";
@@ -24,16 +18,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const answerV4MomentPick = vi.fn(async () => ({ ok: true as const }));
-const answerV4Surer = vi.fn(async () => ({ ok: true as const }));
 vi.mock("@/services/api/coachPanel", async (orig) => ({
   ...(await orig<typeof import("@/services/api/coachPanel")>()),
   answerV4MomentPick: (...a: unknown[]) => answerV4MomentPick(...(a as [])),
-  answerV4Surer: (...a: unknown[]) => answerV4Surer(...(a as [])),
 }));
 vi.mock("../SnippetWavePlayer", () => ({ default: () => <div data-player /> }));
 
-import { V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
-import { mapV4MomentPickQueue, mapV4SurerQueue } from "@/services/api/coachPanel";
+import { V4MomentPickSheet } from "./V4BlindSheets";
+import { mapV4MomentPickQueue } from "@/services/api/coachPanel";
 
 const PICK_WORDING = {
   queue_line: "Also waiting · blind", row: "Pick the moment for feedback",
@@ -41,13 +33,6 @@ const PICK_WORDING = {
   question: "Which moment most needs feedback?", moment: "Moment {letter}", this_one: "This one",
   needs_it_most: "Needs it most", save: "Save my pick", none: "None needs it",
   progress: "Block {n} of {of}", kept: "Thank you. That one is kept.",
-};
-const SURER_WORDING = {
-  queue_line: "Also waiting · blind", row: "Which sounds surer", title: "Which sounds surer",
-  caption: "Words only. No names, no hint of which change the machine is testing.",
-  said: "The words said", new: "The new version", question: "Is the new version surer?",
-  yes: "Yes", no: "No", cant_tell: "Can't tell", progress: "Pair {n} of {of}",
-  kept: "Thank you. That one is kept.",
 };
 
 let host: HTMLDivElement;
@@ -57,7 +42,6 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   answerV4MomentPick.mockClear();
-  answerV4Surer.mockClear();
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
@@ -88,38 +72,6 @@ describe("Pick the moment for feedback", () => {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-testid='v4-moment-pick-save']")!.click());
     expect(answerV4MomentPick).toHaveBeenCalledTimes(1);
     expect(answerV4MomentPick).toHaveBeenCalledWith("s1", { clipId: "c2" });
-    expect(host.textContent).toContain("Thank you. That one is kept.");
-  });
-});
-
-describe("Which sounds surer", () => {
-  const queue = mapV4SurerQueue({
-    wording: SURER_WORDING,
-    items: [{ sheet_id: "p1", n: 1, of: 2, said: "I think maybe we start.", new: "We start.", slice: "above", level: 0.7 },
-            { sheet_id: "p2", n: 2, of: 2, said: "Um we grew.", new: "We grew." }],
-  });
-
-  it("words only, the question and three answers, blind to the slice", () => {
-    act(() => root.render(<V4SurerSheet queue={queue} nextLabel="Next" onClose={() => {}} onDone={() => {}} />));
-    const text = host.textContent ?? "";
-    for (const word of ["Pair 1 of 2", "The words said", "The new version", "I think maybe we start.",
-      "We start.", "Is the new version surer?", "Yes", "No", "Can't tell"]) expect(text).toContain(word);
-    for (const leak of ["above", "0.7", "level"]) expect(host.innerHTML).not.toContain(leak);
-    expect(host.querySelector("[data-player]")).toBeNull();
-  });
-
-  it("saves one answer per pair and moves on", async () => {
-    act(() => root.render(<V4SurerSheet queue={queue} nextLabel="Next" onClose={() => {}} onDone={() => {}} />));
-    const tap = (value: string) =>
-      act(async () => host.querySelector<HTMLButtonElement>(`[data-v4-surer-answer='${value}']`)!.click());
-    await tap("no");
-    expect(answerV4Surer).toHaveBeenCalledTimes(1);
-    expect(answerV4Surer).toHaveBeenLastCalledWith("p1", "no");
-    expect(host.textContent).toContain("Pair 2 of 2");
-    expect(host.textContent).toContain("Um we grew.");
-    await tap("yes");
-    expect(answerV4Surer).toHaveBeenCalledTimes(2);
-    expect(answerV4Surer).toHaveBeenLastCalledWith("p2", "yes");
     expect(host.textContent).toContain("Thank you. That one is kept.");
   });
 });

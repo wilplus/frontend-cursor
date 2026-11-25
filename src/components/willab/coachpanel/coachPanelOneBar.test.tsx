@@ -26,9 +26,7 @@ vi.mock("../coachwalk/useMomentsQueue", () => ({
 }));
 vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
-  fetchBlockPicks: vi.fn(async () => null),
   fetchV4MomentPicks: vi.fn(async () => null),
-  fetchV4SurerPairs: vi.fn(async () => null),
 }));
 vi.mock("@/services/api/coachSpeakers", async (orig) => ({
   ...(await orig<typeof import("@/services/api/coachSpeakers")>()),

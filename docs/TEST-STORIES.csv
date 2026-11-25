@@ -100,7 +100,7 @@ O2  The recording-progress stream only asks the backend for the readout,
 never for an endpoint the backend does not have.","O1 -> one test per route in bffEnvelopes.golden.json (named
 file#handler#body)
 O2 -> ""never calls the native-SSE endpoint the backend never served""","Never 4 (no new words without the founder's OK): change the golden only on purpose, never regenerate it to turn red green."
-src/app/api/bffProxyRoutes.contract.test.ts,Guard,The 76 relay-only routes answer and forward exactly what they did before they became one-line proxyRoute() calls.,"Any change in status, body, content type, cache header or the
+src/app/api/bffProxyRoutes.contract.test.ts,Guard,The 72 relay-only routes answer and forward exactly what they did before they became one-line proxyRoute() calls.,"Any change in status, body, content type, cache header or the
 request sent to the backend (URL, method, headers, body), under each
 of the 12 scenarios in bffTestkit (ok, errors, empty, HTML, signed
 out, no backend URL, network failure, timeout).","any drift -> one test per route in bffProxyRoutes.golden.json
@@ -856,6 +856,12 @@ O2  The library reopens the exact clip from either source.
 O3  Corpus uploads happen inside calibration, and the recording list refreshes after multipart success.","O1 -> ""labels and matches a corpus clip""
 O2 -> ""reopens an owned Take from the same library""
 O3 -> ""imports files inline and refreshes the list after partial success""",
+src/components/willab/chats/experiments/trainingPage.test.tsx,Story,"As the founder, I want Training to be the one page where I label moments, so that what I teach goes to the two pickers and nothing else is in the way (backend N701).","O1  The founder's Training is the labeling page: the coach's queues on
+top, then Your Takes, Training Corpus and Pattern Library; no kept-
+replies count and no ""Your own"" switch.
+O2  Anyone else's Training keeps their models and what they teach, and
+has no kept-replies count or ""Your own"" switch either.","O1 -> ""the founder's Training is the labeling page""
+O2 -> ""everyone else keeps their models, without the 200 switch""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -912,8 +918,8 @@ worked today, and Start your own; Live is the test chat under the
 chat's name with ""You run this chat."", the switch only once there is
 something to try.
 O8  AI models shows the queue's tasks as models with what waits, each
-opening the queue, and ""Images, coming."" and ""Video, coming."" with
-""I want this"", which tells the founder once (backend N642 item 6).","O1 -> ""N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice""
+opening the queue (backend N642 item 6); ""Images, coming."" is gone,
+even when the backend still lists it (backend N701).","O1 -> ""N629-3 drafted answers: one per screen, Change sends my own words, Back never sends twice""
 O4 -> ""N630-1 a model left out today because the host is out of tokens gets its line in Will""
 O5 -> ""N633-4 a changed price: Keep keeps the model at the new price, Drop drops it, each line then goes""
 O2 -> ""N642-3 Build's Your chat: Will's line, the chat's parts, each opening its step, then the answers to send; what is taught is not here""
@@ -923,7 +929,7 @@ O3 -> ""N642-2 for the ring the pinned row is one's own chat, its circle, name a
 O6 -> ""N642-5 a ring coach always reaches the moments from their chat: Build's AI models, with or without a chat, from Live too""
 O6 -> ""N642-5 someone who is not a coach has no moments line in AI models""
 O7 -> ""N642-3 AI models: the models and what is taught, each opening where it is worked today, and Start your own""
-O8 -> ""N642-6 AI models shows the queue's tasks as models, each opening the queue, and images and video coming with I want this""
+O8 -> ""N642-6 AI models shows the queue's tasks as models, each opening the queue; nothing is listed as coming (N701)""
 O7 -> ""N642-3 Live is the chat as people meet it, under its name with You run this chat.; the switch shows only once there is something to try""",
 src/components/willab/chats/hostsetup/oneTopBar.test.tsx,Story,"As a host with the chat builder's ring, what I open from Will's lines has one top bar, the back arrow and its name, and Back brings me back to Will's chat, where I came from (backend N639).","O1  ""Your chat"" opened from Will's chat opens over his chat, under the
 chat's own header: back, the circle, ""Lena's chat"", ""You run this
@@ -1141,18 +1147,12 @@ word on their latest Take, keeping the words I sent there, and the
 plan leaves my queue.","O1 -> ""a waiting plan comes first, on its speaker's card and as Their plan on their page""
 O2 -> ""Which level comes first? is blind; the pick brings What happened; Keep yours reads the queue again""
 O3 -> ""a stuck level: its name, the line and Record; Share sends the video as the coach's word and answers the plan""","The coach's side of the plan, built as the founder's prototype draws it (backend N213, https://claude.ai/artifact/QznwCAgkBHAVAGDMKVUKvE); Never 2: the coach picks before seeing the machine's level."
-src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the two V4 sheets to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
+src/components/willab/coachpanel/v4BlindSheets.test.tsx,Story,"As a coach, I want the V4 pick sheet to show only the signed words and nothing the machine chose, and to save one answer each, so that my picks stay blind.","O1  Never-2: the moment-pick sheet shows the signed wording and the
 moments' words, and nothing the machine chose (snippet id, slice,
 sureness).
 O2  Picking a moment and saving sends exactly one answer, for that sheet
-and that moment, then says it is kept.
-O3  Never-2: the surer sheet shows the two versions' words and the three
-answers, and nothing of the machine's slice or level, and no player.
-O4  Each surer answer is saved once for its own pair, then the next pair
-shows; after the last, the kept line.","O1 -> ""draws the signed words and nothing the machine chose""
-O2 -> ""saves one pick for the sheet, then says it is kept""
-O3 -> ""words only, the question and three answers, blind to the slice""
-O4 -> ""saves one answer per pair and moves on""","Never-2 (BLIND COACH), founder S-B8 A."
+and that moment, then says it is kept.","O1 -> ""draws the signed words and nothing the machine chose""
+O2 -> ""saves one pick for the sheet, then says it is kept""","Never-2 (BLIND COACH), founder S-B8 A."
 src/components/willab/coachpanel/willBank.test.tsx,Story,"As the founder, I want to change Will's questions and fill empty slots from the coach panel, so that Will asks my words from the next Take without a code change.","O1  My queue has one row under the blind lists, ""Will's questions"", with
 how many questions and empty slots; another coach's queue has none.
 O2  The row opens the questions in their groups; I change a question or a

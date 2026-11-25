@@ -73,9 +73,7 @@ vi.mock("@/services/api/coachReview", () => ({
 }));
 vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
-  fetchBlockPicks: vi.fn(async () => null),
   fetchV4MomentPicks: vi.fn(async () => null),
-  fetchV4SurerPairs: vi.fn(async () => null),
   fetchDiagnosis: vi.fn(async () => ({
     errors: [{ kind: "error", id: "rushing", label: "Rushing", machineHeard: true }],
     current: { kind: "error", id: "rushing" },
@@ -295,7 +293,7 @@ describe("CoachPanel", () => {
 
   it("Your queue draws whole: only the dots until every read is in, then all sections; ‹ goes back to the list (N525)", () => {
     const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
-    const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
+    const blind: BlindRows = { audit, onOpenAudit: () => {} };
     const onClose = vi.fn();
     draw(<QueueScreen speakers={[HERON]} loading={false} ready={false} blind={blind} onSpeaker={() => {}} onClose={onClose} />);
     expect(q("[data-walk-loading]")).not.toBeNull();
@@ -315,7 +313,7 @@ describe("CoachPanel", () => {
   it("the founder's ⋯ clears what waits on a blind line behind its confirmation; other coaches have none", async () => {
     const onClear = vi.fn(async () => true);
     const audit = { items: [{}], wording: { title: "Do you hear it?", queue_line: "Also waiting · blind" } } as unknown as BlindRows["audit"];
-    const blind: BlindRows = { audit, picks: null, onOpenAudit: () => {}, onOpenPicks: () => {} };
+    const blind: BlindRows = { audit, onOpenAudit: () => {} };
     draw(<QueueScreen speakers={[]} loading={false} blind={{ ...blind, onClear }} onSpeaker={() => {}} onClose={() => {}} />);
     act(() => q("[aria-label='More options for Do you hear it?']")!.click());
     act(() => document.querySelector<HTMLElement>("[role='menuitem']")!.click());
