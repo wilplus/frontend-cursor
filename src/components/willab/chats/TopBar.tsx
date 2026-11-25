@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { DashboardAccountMenu } from "@/components/dashboard/DashboardHeader";
 import { ChevronLeft } from "lucide-react";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import { useBackDismiss } from "@/components/willab/useBackDismiss";
@@ -95,6 +96,13 @@ export function TopBar({
         <span className="flex min-w-0 items-center gap-2.5">{who}</span>
       )}
       {right ? <span className="ml-auto flex shrink-0 items-center pl-2">{right}</span> : null}
+      {/* The app's menu, top right of every chat (founder, 25 November 2026):
+          it left the sidebar's foot. */}
+      {sidebar !== null ? (
+        <span data-chat-menu className={`${right ? "" : "ml-auto "}flex shrink-0 items-center pl-2`}>
+          <DashboardAccountMenu />
+        </span>
+      ) : null}
     </PageHeader>
   );
 }
