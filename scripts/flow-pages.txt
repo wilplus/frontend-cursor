@@ -14,7 +14,6 @@ docs/flows/feedback-walk-and-chat.md
   src/components/willab/PageHeader.tsx
   src/components/willab/ProjectChat.tsx
   src/components/willab/chats/ChatComposer.tsx
-  src/components/willab/FeedbackOverlay.tsx
   src/components/willab/chats/TopBar.tsx
   src/components/willab/walk/
   src/components/willab/WalkEnd.tsx

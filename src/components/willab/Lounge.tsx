@@ -227,7 +227,6 @@ import {
 
 // Opened on a tap, never on first paint: loaded then, off the boot bundle.
 const CoachWalkEntry = dynamic(() => import("./coachwalk/CoachWalkEntry"), { ssr: false });
-const FeedbackOverlay = dynamic(() => import("./FeedbackOverlay"), { ssr: false });
 // What needs you, for the chat builder's ring (backend N629): off the boot bundle.
 const WillBuild = dynamic(() => import("./chats/WillBuild"), { ssr: false, loading: () => null });
 const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOverlay"), { ssr: false });
@@ -237,6 +236,9 @@ const ConfidencePracticeOverlay = dynamic(() => import("./ConfidencePracticeOver
 // an older Take, and the Life panel's chat card. `warmOverlays` below fetches
 // their chunks once the thread is in, so a tap finds them ready.
 const WalkOverlay = dynamic(() => import("./walk/WalkOverlay"), { ssr: false });
+
+/** The cards that brought results on their own (N691 item 4). */
+const RESULT_CARD_KINDS: ReadonlySet<string> = new Set(["insight", "feedback", "best_presentation_ready"]);
 
 const LifeChatCard = dynamic(
   () => import("@/components/life/LifeChatLayer").then((m) => m.LifeChatCard),
@@ -1095,10 +1097,14 @@ export default function Lounge({
   // Bug 1 — a picked file that fails the audio/size guard shows inline under
   // the button instead of silently opening the Lab with a doomed upload.
 
-  // Delivery layer — the tapped feedback bubble (per-take page) and the purple
-  // ideal-text bubble's notebook.
-  const [feedbackTarget, setFeedbackTarget] =
-    useState<FeedbackBubbleTarget | null>(null);
+  /** A Take's feedback, from its recording bubble or its Ideal Text card,
+   *  opens in its project chat (backend N691 item 1): no screen of its own. */
+  const openFeedback = (target: FeedbackBubbleTarget) =>
+    onOpenTakeInProject?.(target.arcId, {
+      sessionId: target.takeSessionId,
+      takeIndex: target.takeIndex,
+      step: "feedback",
+    });
   const [confidencePracticeId, setConfidencePracticeId] = useState<
     string | null
   >(null);
@@ -2425,15 +2431,7 @@ export default function Lounge({
           else if (onOpenProject) onOpenProject(arcId ?? null);
           else onStart();
         }}
-        // A GUEST'S WAY BACK TO THE TEXT (founder live test
-        // 2026-10-05): the coach's feedback page needs an account, and
-        // a guest gets no "your text is ready" bubble, so a guest's
-        // recording bubble opens the Ideal Text it made.
-        onOpenFeedback={
-          thread.signedIn
-            ? setFeedbackTarget
-            : (target) => openIdealText(target.arcId)
-        }
+        onOpenFeedback={openFeedback}
         onOpenIdealText={openIdealText}
         onOpenPastIdealText={openPastIdealText}
         // A plan row's sheet is the speaking chat's: its tap opens that chat first.
@@ -2672,15 +2670,6 @@ export default function Lounge({
         />
       </div>
 
-      {/* Delivery layer — the 4 bubbles' destinations. */}
-      {feedbackTarget && (
-        <FeedbackOverlay
-          arcId={feedbackTarget.arcId}
-          takeSessionId={feedbackTarget.takeSessionId}
-          takeIndex={feedbackTarget.takeIndex}
-          onClose={() => setFeedbackTarget(null)}
-        />
-      )}
       {confidencePracticeId && (
         <ConfidencePracticeOverlay
           practiceId={confidencePracticeId}
@@ -3171,12 +3160,13 @@ function BubbleBody({
     activeOffer, onOpenOffer, willOpen, willBusy, onWillAnswer, onOpenLifeGoal, onOpenSunday, onOpenWhy, onOpenStrength, sundayWaiting, planRows,
   });
   if (ask) return ask;
+  // Insights come only when asked (backend N691 item 4): the cards that
+  // brought a Take's results on their own ("Feedback on …", "Feedback ·
+  // Take N", the retired best presentation) are no longer drawn.
+  if (RESULT_CARD_KINDS.has(message.kind)) return null;
   if (
     message.kind === "recording_summary" ||
-    message.kind === "insight" ||
-    message.kind === "best_presentation_ready" ||
     message.kind === "transcript_ready" ||
-    message.kind === "feedback" ||
     message.kind === "ideal_text"
   ) {
     if (!showTakeArtifacts) return null;

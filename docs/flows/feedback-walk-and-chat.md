@@ -48,9 +48,8 @@ feedback overlays use it without changing their existing Back, title, profile,
 browser-back or overlay-close behavior. Onboarding progress starts at the
 safe rail's left edge rather than being globally centered. Mobile side margins
 and safe-area spacing remain the caller's existing values. The implementation is
-in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.tsx`,
-`src/components/willab/FeedbackOverlay.tsx` and
-`src/components/willab/chats/TopBar.tsx`.
+in `src/components/willab/PageHeader.tsx`, `src/components/willab/ProjectChat.tsx`
+and `src/components/willab/chats/TopBar.tsx` (the feedback overlay is gone, N691).
 
 The 2026-11-18 screenshot correction anchors the viewport divider to the
 header's bottom edge and centers it to `100vw`; the content rail and all
@@ -131,6 +130,10 @@ A coach reply that shows a moment of the speaker's Take records it as opened for
 #### The chat's one link (N691 item 3)
 
 `/chat?take=<Take>` opens the chat and, once the thread has painted, scrolls to the coach's bubble for that Take, or the newest one, which pulses once. No screen opens. The coach's WhatsApp message, the iPhone push and the coach-feedback email send only this. `session` is its old name. Links already sent keep working: the coach's old `lens` and `idealArc` links open the chat on the coach's bubble (their `take`, else the newest), and `lens`, `idealArc`, `arc`, `mode`, `feedback`, `insight` and `session` leave the address on arrival. Signed out, the link goes to log in and back to itself, once per tab. The dump screen opens first only on a plain open. `src/lib/willab/chatLink.ts`, `src/lib/willab/coachLink.ts`, `src/app/chat/`.
+
+#### No results cards; feedback opens in the project chat (N691 items 1 and 4)
+
+The main chat no longer draws the cards that brought a Take's results on their own: "Feedback on …" (`insight`), "Feedback · Take N" (`feedback`) and the retired best presentation. Insights come only when the speaker asks, in either chat. A Take's recording bubble and its Ideal Text card open the Take's feedback in its project chat; the full-screen feedback overlay is gone.
 
 ### Shared composer (N667)
 
@@ -2596,6 +2599,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-25 · N691 items 1 and 4 · The results cards (`insight`, `feedback`, `best_presentation_ready`) are no longer drawn in the main chat, and the recording bubble and Ideal Text card open the Take's feedback in its project chat; `FeedbackOverlay.tsx` is deleted.
 - 2026-11-24 · N691 items 1 and 2 · A Take finished in the main chat, the first Take's "Open your feedback", and the recording bubble open the Take's feedback in its project chat; the walk no longer opens as a screen from the main chat.
 - 2026-11-24 · N691 item 3 · One link, `/chat?take=`, opens the chat on the coach's bubble; the lens and Ideal Text links (`lens`, `idealArc`, `arc`, `mode`, `feedback`) and the unused `insight` and `session` no longer open a screen, and leave the address.
 - 2026-11-24 · N691 item 1 · A moment shown in a chat reply is recorded as opened for the coach's queue, as the walk recorded it; before this, moments met only in the chat never reached a coach.
