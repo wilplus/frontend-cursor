@@ -10,6 +10,8 @@ OUTCOME  O1  An authorized clip and served exercise share the reply bubble and p
          O6  The rewrite becomes an output only after the speaker's choice is saved.
          O7  A served Sniper or AI audio example appears with the original clip.
          O8  Requesting AI audio prepares the cited Take’s authorized example in the same bubble.
+         O9  The coach explicitly chooses source playback while wording and exercises stay usable.
+         O10 A reply about a new mic recording plays that recording only when explicitly requested.
 PROVES   O1 -> "plays a cited moment and opens its served exercise right in chat"
          O2 -> "keeps the clip when the served intervention is for another moment"
          O3 -> "omits an unauthorized fragment and never looks up its practice"
@@ -18,12 +20,14 @@ PROVES   O1 -> "plays a cited moment and opens its served exercise right in chat
          O6 -> "saves an explicit wording choice before showing it as output"
          O7 -> "shows the served Sniper instructions for %s", "plays a supplied AI example beside the recording"
          O8 -> "prepares requested AI audio on the cited Take and gives it a player in that same bubble", "opens the exact served practice when a requested AI example needs preparation", "checks practice permission before reading or preparing a requested example"
+         O9 -> "shows the supplied exercise without original playback when the coach suppresses it", "keeps a wording correction actionable without replaying its source", "plays a supplied AI example while the original recording is hidden"
+         O10 -> "plays the selected mic recording in the coach reply only when explicitly enabled"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import CoachMoment from "./CoachMoment";
-import TakeConversationMessage from "./chats/TakeConversationMessage";
+import TakeConversationMessage, { hasTakeReplyContent } from "./chats/TakeConversationMessage";
 import { withoutCoachTranscriptFooter } from "./willabHelpers";
 
 const api = vi.hoisted(() => ({
@@ -98,7 +102,7 @@ it("plays a cited moment and opens its served exercise right in chat", async () 
   const caption = "Slow down before asking for the decision.";
   await act(async () => root.render(<TakeConversationMessage standalone project="project" message={{
     role: "bot", kind: "text", body: caption, client_id: "reply", client_created_at: "",
-    metadata: { coach_moment: reference },
+    metadata: { coach_moment: { ...reference, playback: true } },
   }} />));
   expect(api.clip).toHaveBeenCalledWith("/api/v2/user/lounge/moment/moment?take_session_id=take-2", { cache: "no-store" });
   const bubble = container.querySelector("[data-bubble]");
@@ -113,6 +117,80 @@ it("plays a cited moment and opens its served exercise right in chat", async () 
   expect(api.steps).toHaveBeenCalledWith("project", "take-2");
   expect(JSON.parse(container.querySelector<HTMLElement>("[data-practice]")?.dataset.practice ?? "null"))
     .toEqual({ practise: true, take: "take-2", snippet: "moment", practiceKey: "exVideo:land-the-stop:1" });
+});
+
+it("shows the supplied exercise without original playback when the coach suppresses it", async () => {
+  await act(async () => root.render(<TakeConversationMessage standalone project="project" message={{
+    role: "bot", kind: "text", body: "Pause after the request and say it again.", client_id: "exercise", client_created_at: "",
+    metadata: {
+      coach_moment: { ...reference, playback: false },
+      clip: { src: recordingUrl, start_ms: 1000, duration_ms: 3000 },
+    },
+  }} />));
+  const bubble = container.querySelector("[data-bubble]");
+  expect(bubble?.querySelector("audio")).toBeNull();
+  expect(bubble?.querySelector("video")?.src).toBe(video);
+  expect(bubble?.textContent).toContain("Pause after the request.");
+  await act(async () => button("Practise")?.click());
+  expect(JSON.parse(container.querySelector<HTMLElement>("[data-practice]")?.dataset.practice ?? "null"))
+    .toEqual({ practise: true, take: "take-2", snippet: "moment", practiceKey: "exVideo:land-the-stop:1" });
+});
+
+it("keeps a wording correction actionable without replaying its source", async () => {
+  const proposed = "Please approve the pilot by Friday.";
+  await act(async () => root.render(<TakeConversationMessage project="project" message={{
+    role: "bot", kind: "text", body: "Name the decision and deadline in your final line.", client_id: "wording", client_created_at: "",
+    metadata: {
+      coach_moment: { ...reference, practise: false },
+      clip: { src: recordingUrl, duration_ms: 3000 },
+      coach_wording: { words: proposed, arc_id: "project", take_session_id: "take-2" },
+    },
+  }} />));
+  const bubble = container.querySelector("[data-bubble]");
+  expect(bubble?.querySelector("audio")).toBeNull();
+  expect(bubble?.querySelector("[data-coach-wording]")?.textContent).toContain(proposed);
+  expect(button("Save wording")).toBeTruthy();
+  expect(api.clip).not.toHaveBeenCalled();
+});
+
+it("plays a supplied AI example while the original recording is hidden", async () => {
+  const demo = "https://media.example/example.mp3";
+  api.ai.mockResolvedValue({ demo: "ai_voice", clip: { state: "ready", url: demo, durationMs: 2000 } });
+  await act(async () => root.render(<TakeConversationMessage message={{
+    role: "bot", kind: "text", body: "Give the opening more energy. Try it in this style.", client_id: "example", client_created_at: "",
+    metadata: { coach_moment: { ...reference, practise: false, playback: false }, ai_voice: { practice_id: "served-example" } },
+  }} />));
+  const bubble = container.querySelector("[data-bubble]");
+  expect(Array.from(bubble?.querySelectorAll("audio") ?? [], (node) => node.src)).toEqual([demo]);
+  expect(api.clip).not.toHaveBeenCalled();
+});
+
+it("plays the selected mic recording in the coach reply only when explicitly enabled", async () => {
+  const turn = "d166833f-8b09-400c-8188-5a1306430011";
+  const message = {
+    role: "bot" as const, kind: "text" as const, body: "Listen to how you let the last word land this time.",
+    client_id: "new-ending-reply", client_created_at: "",
+    metadata: { chat_voice_focus: { source: "clip", turn_id: turn, playback: true } },
+  };
+  expect(hasTakeReplyContent(message)).toBe(true);
+  const refer = vi.fn();
+  await act(async () => root.render(<TakeConversationMessage onRefer={refer} message={{
+    ...message, metadata: {
+      ...message.metadata, coach_moment: { ...reference, practise: false },
+      clip: { src: recordingUrl, duration_ms: 3000 },
+    },
+  }} />));
+  const bubble = container.querySelector("[data-bubble]");
+  expect(Array.from(bubble?.querySelectorAll("audio") ?? [], (node) => node.getAttribute("src")))
+    .toEqual(["/api/v2/chat/voice/" + turn]);
+  expect(container.querySelector('button[title="Refer to this moment"]')).toBeNull();
+  expect(api.clip).not.toHaveBeenCalled();
+
+  await act(async () => root.render(<TakeConversationMessage message={{
+    ...message, metadata: { chat_voice_focus: { source: "clip", turn_id: turn, playback: false } },
+  }} />));
+  expect(container.querySelector("audio")).toBeNull();
+  expect(container.textContent).toContain(message.body);
 });
 
 it("keeps the clip when the served intervention is for another moment", async () => {

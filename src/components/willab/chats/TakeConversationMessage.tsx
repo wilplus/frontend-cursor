@@ -9,7 +9,7 @@ import { takeSessionOf } from "@/lib/willab/takeExchange";
 import { coachMomentFromMetadata } from "@/services/api/coachMoment";
 import { coachWording } from "@/services/api/coachWording";
 import { humanCoachOffer } from "@/services/api/humanCoach";
-import { chatVoicePath } from "@/services/api/willQuestion";
+import { chatVoiceFocus, chatVoicePath } from "@/services/api/willQuestion";
 import { readChatReplyAudio } from "@/lib/willab/voiceNoteOutbox";
 import { withoutCoachTranscriptFooter } from "../willabHelpers";
 import CoachMoment from "../CoachMoment";
@@ -42,7 +42,7 @@ export default function TakeConversationMessage({
   onWordingSaved?: () => void;
   children?: ReactNode;
 }) {
-  const { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff, wording } = useMemo(() => takeMessageParts(message), [message]);
+  const { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff, wording, focusedAudio, canRefer } = useMemo(() => takeMessageParts(message), [message]);
   useMomentReached({ own, reference, clip, video });
   const marker = { "data-project-message": project ? message.client_id : undefined };
   if (isSavedPracticeAttempt(message)) return <div {...marker} className={WILLAB_CONTENT_RAIL}><PastAttempt row={message} /></div>;
@@ -51,11 +51,11 @@ export default function TakeConversationMessage({
       seed={message.client_id} avatar={null} />
   </div>;
   const voice = own && message.metadata?.will_voice === true;
-  const showBubble = [text.trim(), audio, voice, video, ai, reference, artifact?.moment,
+  const showBubble = [text.trim(), audio, voice, focusedAudio, video, ai, reference, artifact?.moment,
     artifact?.intervention, artifact?.output, handoff, wording, children].some(Boolean);
   if (!showBubble && !document && !footer) return null;
   const example = takeMessageExample(message.client_id, video, ai);
-  const refer = reference && reference.take_session_id !== takeSessionOf(message) ? undefined : onRefer;
+  const refer = canRefer ? onRefer : undefined;
   return <>
     <div {...marker} className="contents">
       {showBubble ? <ConversationBubble speaker={own}>
@@ -64,6 +64,8 @@ export default function TakeConversationMessage({
         {audio ? <WalkPlayer look="bare" seed={message.client_id} src={audio} label="Recording"
           startOffsetMs={typeof clip?.start_ms === "number" ? clip.start_ms : null}
           durationMs={typeof clip?.duration_ms === "number" ? clip.duration_ms : null} /> : null}
+        {focusedAudio ? <WalkPlayer look="bare" seed={focusedAudio.turn}
+          src={focusedAudio.src} label="Recording" /> : null}
         <ReplyPractice message={message} replayOnly={replayOnly} reference={reference} example={example} artifact={artifact}
           project={project} recordingDock={recordingDock} includeHistory={standalone} />
         {wording ? <CoachWordingCard message={message} project={project} recordingDock={recordingDock}
@@ -110,30 +112,45 @@ function useMomentReached({ own, reference, clip, video }: {
   }, [reached, exercise, video]);
 }
 
-function takeMessageParts(message: LoungeMessage) {
+function takeMessageSource(message: LoungeMessage, wording: ReturnType<typeof coachWording>) {
   const meta = message.metadata ?? {};
   const own = message.role === "user";
   const clip = meta.clip && typeof meta.clip === "object" ? meta.clip as Record<string, unknown> : null;
-  const audio = typeof clip?.src === "string" ? clip.src : null;
+  const voiceFocus = message.role === "bot" ? chatVoiceFocus(meta.chat_voice_focus) : null;
+  const source = message.role === "bot" ? coachMomentFromMetadata(meta.coach_moment) : null;
+  const reference = source && source.playback === undefined && (wording || voiceFocus || chatPractice(message))
+    ? { ...source, playback: false } : source;
+  const playClip = own || (reference?.playback ?? !(wording || voiceFocus));
+  const audio = playClip && typeof clip?.src === "string" ? clip.src : null;
+  const focusedAudio = voiceFocus?.playback === true
+    ? { turn: voiceFocus.turn_id, src: chatVoicePath(voiceFocus.turn_id) } : null;
+  return { clip, reference, audio, voiceFocus, focusedAudio };
+}
+
+function takeMessageParts(message: LoungeMessage) {
+  const meta = message.metadata ?? {};
+  const own = message.role === "user";
   const video = typeof meta.video === "string" ? meta.video : null;
   const ai = message.role === "bot" ? aiVoiceOfMeta(meta) : null;
   const text = own ? message.body : withoutCoachTranscriptFooter(message.body);
   const content = own ? null : chatArtifactContent(meta.chat_artifact);
   const document = content && artifactDocument(content.output) ? { title: content.title, text: content.output } : null;
   const artifact = document && content ? { ...content, output: undefined } : content;
-  const reference = message.role === "bot" ? coachMomentFromMetadata(meta.coach_moment) : null;
-  const snippet = [meta.snippet_id, clip?.snippet_id, reference?.snippet_id]
+  const wording = message.role === "bot" ? coachWording(meta.coach_wording) : null;
+  const source = takeMessageSource(message, wording);
+  const canRefer = !source.voiceFocus && (!source.reference || source.reference.take_session_id === takeSessionOf(message));
+  const snippet = [meta.snippet_id, source.clip?.snippet_id, source.reference?.snippet_id]
     .find((id): id is string => typeof id === "string");
   const handoff = message.role === "bot" ? humanCoachOffer(meta.human_coach_handoff) : null;
-  const wording = message.role === "bot" ? coachWording(meta.coach_wording) : null;
-  return { own, clip, audio, video, ai, text, artifact, document, reference, snippet, handoff, wording };
+  return { own, video, ai, text, artifact, document, snippet, handoff, wording, canRefer, ...source };
 }
 
 export function hasTakeReplyContent(message: LoungeMessage, allowUnscopedWording = true): boolean {
   if (message.role === "user") return message.metadata?.will_voice === true;
   if (message.role !== "bot") return false;
-  const { artifact, reference, audio, video, ai, handoff, wording } = takeMessageParts(message);
-  return Boolean(artifact || reference || audio || video || ai || handoff || (wording && (allowUnscopedWording || wording.take_session_id)));
+  const { artifact, reference, audio, video, ai, handoff, wording, focusedAudio } = takeMessageParts(message);
+  return Boolean(artifact || reference || audio || focusedAudio || video || ai || handoff ||
+    (wording && (allowUnscopedWording || wording.take_session_id)));
 }
 
 function SpokenReply({ message }: { message: LoungeMessage }) {

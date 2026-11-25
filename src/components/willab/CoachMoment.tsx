@@ -355,7 +355,9 @@ function CoachMomentReview({ reference, clip, refreshClip, recordingDock, attach
     setRefreshKey((n) => n + 1);
   }
 
-  const moment = <MediaRefreshProvider payload={clip} refresh={refreshClip}>
+  const moment = reference.playback === false
+    ? <ArtifactText text={attachment?.moment ?? preview?.rewrite?.quote ?? undefined} />
+    : <MediaRefreshProvider payload={clip} refresh={refreshClip}>
     <p className="text-xs text-muted-foreground">{copy.moment}</p>
     <WalkPlayer seed={snippet} src={clip.src} startOffsetMs={clip.startOffsetMs}
       durationMs={clip.durationMs} label={copy.moment} look="bare" />
@@ -416,7 +418,10 @@ export default function CoachMoment({
   includeHistory?: boolean;
   replayOnly?: boolean;
 }) {
-  if (!reference || (project && project !== reference.arc_id)) return <StructuredReplyArtifact inline content={artifact} example={example} />;
+  if (!reference || (project && project !== reference.arc_id) ||
+      (reference.playback === false && !reference.practise && !reference.intervention)) {
+    return <StructuredReplyArtifact inline content={artifact} example={example} />;
+  }
   return <CoachMomentCard key={`${reference.arc_id}:${reference.take_session_id}:${reference.snippet_id}:${reference.intervention ?? ""}`}
     reference={reference} recordingDock={recordingDock} attachment={artifact} example={example} includeHistory={includeHistory} replayOnly={replayOnly} />;
 }

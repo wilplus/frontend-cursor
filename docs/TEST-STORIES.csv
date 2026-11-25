@@ -401,14 +401,18 @@ O4  Older automatic transcript footers disappear while normal text stays.
 O5  A reply replays only the practice saved for its own moment.
 O6  The rewrite becomes an output only after the speaker's choice is saved.
 O7  A served Sniper or AI audio example appears with the original clip.
-O8  Requesting AI audio prepares the cited Take’s authorized example in the same bubble.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
+O8  Requesting AI audio prepares the cited Take’s authorized example in the same bubble.
+O9  The coach explicitly chooses source playback while wording and exercises stay usable.
+O10 A reply about a new mic recording plays that recording only when explicitly requested.","O1 -> ""plays a cited moment and opens its served exercise right in chat""
 O2 -> ""keeps the clip when the served intervention is for another moment""
 O3 -> ""omits an unauthorized fragment and never looks up its practice""
 O4 -> ""drops the automatic transcript footer while keeping ordinary chat text""
 O5 -> ""replays the saved attempt for the cited moment""
 O6 -> ""saves an explicit wording choice before showing it as output""
 O7 -> ""shows the served Sniper instructions for %s"", ""plays a supplied AI example beside the recording""
-O8 -> ""prepares requested AI audio on the cited Take and gives it a player in that same bubble"", ""opens the exact served practice when a requested AI example needs preparation"", ""checks practice permission before reading or preparing a requested example""",
+O8 -> ""prepares requested AI audio on the cited Take and gives it a player in that same bubble"", ""opens the exact served practice when a requested AI example needs preparation"", ""checks practice permission before reading or preparing a requested example""
+O9 -> ""shows the supplied exercise without original playback when the coach suppresses it"", ""keeps a wording correction actionable without replaying its source"", ""plays a supplied AI example while the original recording is hidden""
+O10 -> ""plays the selected mic recording in the coach reply only when explicitly enabled""",
 src/components/willab/ConsentAsk.test.tsx,Story,"As a speaker asked for consent in the chat, I want Yes to save it as the Data & consent page does and No to save nothing, so that my answer means what I chose.","O1  The card shows the question's own words and Read more.
 O2  Yes saves the consent and closes the ask.
 O3  No saves nothing and closes the ask.","O1 -> ""shows the question's own words with Read more""

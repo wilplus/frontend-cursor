@@ -131,7 +131,7 @@ export function ChatPracticeReply({ plan, reference, replyId, project }: {
           replyId={replyId} onPlayable={onPlayable} />
       </>}
       <p data-practice-words className="whitespace-pre-wrap">{plan.words}</p>
-      {plan.tool === "sniper" ? <CoachMoment reference={clipOnly} project={project} /> : null}
+      {reference.playback === true ? <CoachMoment reference={clipOnly} project={project} /> : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { bffFetch } from "@/lib/api/bffFetch";
+import { isUuid } from "@/lib/uuid";
 
 /** A tap under Will's one question after a Take (founder 2026-10-20, N82):
  *  one of its answers, or "Skip". The backend writes the tap and the reply
@@ -53,6 +54,15 @@ export async function postWillQuestionVoice(
 }
 
 export type SpokenChatAnswer = { text: string; durationMs: number; receipt?: string; turnId?: string; audio?: Blob; practiceReplyId?: string };
+
+export type ChatVoiceFocus = { source: "clip"; turn_id: string; playback?: boolean };
+
+export function chatVoiceFocus(raw: unknown): ChatVoiceFocus | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { source, turn_id, playback } = raw as Partial<ChatVoiceFocus>;
+  if (source !== "clip" || !isUuid(turn_id)) return null;
+  return { source, turn_id, ...(typeof playback === "boolean" ? { playback } : {}) };
+}
 
 export const chatVoicePath = (turn: string) => "/api/v2/chat/voice/" + encodeURIComponent(turn);
 
