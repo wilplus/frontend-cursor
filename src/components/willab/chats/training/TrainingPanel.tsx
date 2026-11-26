@@ -8,6 +8,7 @@ import { fetchConfidenceQueueResult, fetchTrainingImportsPage } from "@/services
 import WalkPlayer from "../../walk/WalkPlayer";
 import CalibrationCorpusUpload from "./CalibrationCorpusUpload";
 import PickerCheck from "./PickerCheck";
+import { RephraseScreen, SniperScreen } from "./ShapeFix";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, errorTools, patternRequest, speakingPatternPath,
   type CaseLink, type LibraryPage, type PatternExample, type PatternResponse, type PatternSource } from "./speakingPatterns";
@@ -29,6 +30,8 @@ const SET_SIZE = 3;
 const STEP = 6;
 /** Pages of saved labels read to know what is done (30 each). */
 const LABEL_PAGES = 20;
+/** Fixes with a screen to shape them before they are kept (backend N705). */
+const SHAPED = ["sniper", "rewrite"];
 const TOOLS = [...Object.entries(errorTools).filter(([id]) => id !== "other"), ["nothing", "Nothing"]] as [string, string][];
 
 const clipKey = (link: CaseLink) => `${link.session_id}|${link.snippet_id}`;
@@ -122,6 +125,8 @@ export default function TrainingPanel() {
   const [sets, setSets] = useState<ClipSet[]>([]);
   const [labels, setLabels] = useState<PatternExample[]>([]);
   const [picked, setPicked] = useState<Clip | null>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [shaping, setShaping] = useState<string[] | null>(null);
   const [windows, setWindows] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,7 +134,7 @@ export default function TrainingPanel() {
 
   useEffect(() => {
     let active = true;
-    setRecs(null); setSets([]); setRead(0); setPicked(null); setBusy(true); setNotice("");
+    setRecs(null); setSets([]); setRead(0); setPicked(null); setChosen([]); setShaping(null); setBusy(true); setNotice("");
     void Promise.all([recordings(source), savedLabels(source).catch(() => [] as PatternExample[])])
       .then(([found, saved]) => { if (active) { setRecs(found); setLabels(saved); } })
       .catch(() => { if (active) { setNotice("Couldn’t load the recordings. Try again."); setBusy(false); } });
@@ -150,13 +155,14 @@ export default function TrainingPanel() {
     return () => { active = false; };
   }, [recs, read, open.length, source]);
 
-  const current = open[0] ?? null;
+  const current = picked ? null : open[0] ?? null;
+  const emptyLine = emptyLineOf(source, recs?.length ?? 0, sets.length);
   const left = open.length + (recs && read < recs.length ? "+" : "");
   const durationOf = (clip: Clip) => clip.duration || windows[clipKey(clip)] || 0;
   const onWindow = (key: string, duration: number) =>
     setWindows((was) => (was[key] === duration ? was : { ...was, [key]: duration }));
 
-  async function label(clip: Clip, kind: "error" | "control", tool?: string) {
+  async function label(clip: Clip, kind: "error" | "control", tool?: string, shape: Record<string, unknown> = {}) {
     const duration = durationOf(clip);
     if (!duration) throw Error("This clip has no playback window yet.");
     const saved = await patternRequest<PatternResponse>(casePath(clip), "POST", {
@@ -165,21 +171,44 @@ export default function TrainingPanel() {
     const mine = saved.examples[saved.examples.length - 1];
     if (kind === "error" && tool && tool !== "nothing" && mine) {
       await patternRequest(casePath(clip), "PUT", { example_id: mine.id, intervention: {
-        tool, name: errorTools[tool as keyof typeof errorTools], delivery: "", status: "approved",
+        tool, name: errorTools[tool as keyof typeof errorTools], delivery: "", status: "approved", ...shape,
       } });
     }
     return mine;
   }
 
-  async function save(work: () => Promise<(PatternExample | undefined)[]>) {
+  async function save(work: () => Promise<(PatternExample | undefined)[]>): Promise<boolean> {
     setSaving(true); setNotice("");
     try {
       const added = (await work()).filter((row): row is PatternExample => Boolean(row));
       setLabels((was) => [...added, ...was]);
-      setPicked(null);
+      return true;
     } catch (error) {
       setNotice(error instanceof Error && error.message ? error.message : "Couldn’t save. Try again.");
+      return false;
     } finally { setSaving(false); }
+  }
+
+  const finish = () => { setPicked(null); setChosen([]); setShaping(null); };
+  const toggleTool = (id: string) => setChosen((was) => {
+    if (id === "nothing") return was.includes("nothing") ? [] : ["nothing"];
+    const rest = was.filter((tool) => tool !== "nothing");
+    return rest.includes(id) ? rest.filter((tool) => tool !== id) : [...rest, id];
+  });
+  // Plain fixes are kept at once; Sniper and Rephrase are shaped first, one screen each.
+  async function goOn(clip: Clip) {
+    const plain = chosen.filter((tool) => !SHAPED.includes(tool));
+    if (!await save(() => Promise.all(plain.map((tool) => label(clip, "error", tool))))) return;
+    const next = chosen.filter((tool) => SHAPED.includes(tool));
+    if (next.length) setShaping(next); else finish();
+  }
+  async function keepShape(clip: Clip, tool: string, shape: Record<string, unknown>) {
+    if (!await save(async () => [await label(clip, "error", tool, shape)])) return;
+    setShaping((was) => {
+      const rest = (was ?? []).filter((t) => t !== tool);
+      if (!rest.length) { setPicked(null); setChosen([]); return null; }
+      return rest;
+    });
   }
 
   if (view === "import") {
@@ -203,27 +232,21 @@ export default function TrainingPanel() {
       <span data-train-left="" className="text-[15px] text-muted-foreground">{`${left} left`}</span>
     </div>
 
-    {current && !picked ? <>
-      <h2 className="m-0 text-[20px] font-semibold">Which one needs feedback?</h2>
-      <p className="m-0 text-[14px] text-muted-foreground">{current.title}</p>
-      {current.clips.map((clip) => <ClipCard key={clipKey(clip)} clip={clip} chosen={false}
-        onPick={() => setPicked(clip)} onWindow={onWindow} />)}
-      <button type="button" className={`${choiceBubble(false)} self-start`} disabled={saving}
-        onClick={() => void save(() => Promise.all(current.clips.map((clip) => label(clip, "control"))))}>None needs it</button>
-    </> : null}
+    {current ? <WhichOne set={current} saving={saving} onWindow={onWindow} onPick={setPicked}
+      onNone={() => void save(() => Promise.all(current.clips.map((clip) => label(clip, "control"))))} /> : null}
 
-    {picked ? <>
-      <h2 className="m-0 text-[20px] font-semibold">What should it get?</h2>
-      <ClipCard clip={picked} chosen onWindow={onWindow} />
-      <div className="flex flex-wrap gap-2">
-        {TOOLS.map(([id, name]) => <button key={id} type="button" data-train-tool={id} className={choiceBubble(false)}
-          disabled={saving} onClick={() => void save(async () => [await label(picked, "error", id)])}>{name}</button>)}
-      </div>
-      <button type="button" className="self-start text-[15px] underline" onClick={() => setPicked(null)}>Back</button>
-    </> : null}
+    {picked && !shaping ? <WhatItGets clip={picked} chosen={chosen} saving={saving} onWindow={onWindow}
+      onToggle={toggleTool} onContinue={() => void goOn(picked)} onBack={finish} /> : null}
+
+    {picked && shaping?.[0] === "sniper" ? <SniperScreen key="sniper" clip={{ ...picked, duration: durationOf(picked) }}
+      onBack={() => setShaping(null)} onKeep={(shape) => void keepShape(picked, "sniper", {
+        marks: { speed: shape.speed, pauses: shape.pauses }, ...(shape.wpm ? { values: { wpm: shape.wpm } } : {}),
+      })} /> : null}
+    {picked && shaping?.[0] === "rewrite" ? <RephraseScreen key="rewrite" clip={picked}
+      onBack={() => setShaping(null)} onKeep={(shape) => void keepShape(picked, "rewrite", shape)} /> : null}
 
     {!current && busy ? <Bubble role="status">Loading clips…</Bubble> : null}
-    {!current && !busy && !notice ? <Bubble>{source === "take" ? "Every clip of your Takes has an answer." : "Every corpus clip has an answer."}</Bubble> : null}
+    {!current && !busy && !notice ? <Bubble data-train-empty="">{emptyLine}</Bubble> : null}
     {notice ? <Bubble role="alert">{notice}</Bubble> : null}
 
     <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
@@ -234,6 +257,47 @@ export default function TrainingPanel() {
       </div>
     </div>
   </section>;
+}
+
+/** Which empty it is: nothing found, nothing playable, or all answered. */
+function emptyLineOf(source: PatternSource, found: number, sets: number): string {
+  const take = source === "take";
+  if (!found) return take ? "No Takes found in your active projects." : "No corpus recordings are ready yet. Import audio below.";
+  if (!sets) return take ? `Found ${found} Takes, but none has playable clips yet.` : `Found ${found} corpus recordings, but none has clips yet.`;
+  return take ? "Every clip of your Takes has an answer." : "Every corpus clip has an answer.";
+}
+
+function WhichOne({ set, saving, onWindow, onPick, onNone }: {
+  set: ClipSet; saving: boolean; onWindow: (key: string, duration: number) => void;
+  onPick: (clip: Clip) => void; onNone: () => void;
+}) {
+  return <>
+    <h2 className="m-0 text-[20px] font-semibold">Which one needs feedback?</h2>
+    <p className="m-0 text-[14px] text-muted-foreground">{set.title}</p>
+    {set.clips.map((clip) => <ClipCard key={clipKey(clip)} clip={clip} chosen={false}
+      onPick={() => onPick(clip)} onWindow={onWindow} />)}
+    <button type="button" className={`${choiceBubble(false)} self-start`} disabled={saving} onClick={onNone}>None needs it</button>
+  </>;
+}
+
+function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinue, onBack }: {
+  clip: Clip; chosen: string[]; saving: boolean; onWindow: (key: string, duration: number) => void;
+  onToggle: (id: string) => void; onContinue: () => void; onBack: () => void;
+}) {
+  return <>
+    <h2 className="m-0 text-[20px] font-semibold">What should it get?</h2>
+    <p className="m-0 text-[14px] text-muted-foreground">Pick one or more.</p>
+    <ClipCard clip={clip} chosen onWindow={onWindow} />
+    <div className="flex flex-wrap gap-2">
+      {TOOLS.map(([id, name]) => <button key={id} type="button" data-train-tool={id} aria-pressed={chosen.includes(id)}
+        className={choiceBubble(chosen.includes(id))} disabled={saving} onClick={() => onToggle(id)}>{name}</button>)}
+    </div>
+    <div className="flex flex-wrap gap-2">
+      <button type="button" data-train-continue="" className={choiceBubble(true)} disabled={saving || !chosen.length}
+        onClick={onContinue}>Continue</button>
+      <button type="button" className={choiceBubble(false)} onClick={onBack}>Back</button>
+    </div>
+  </>;
 }
 
 function PastAnswers({ source, labels, onBack, onUndone }: {
