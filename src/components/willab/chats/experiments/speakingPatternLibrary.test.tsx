@@ -4,10 +4,12 @@ STORY    The founder marks a strong opening and a rushed ending in one corpus cl
 OUTCOME
   O1  Both labels and intervention matches stay on the original time ranges.
   O2  The library reopens the exact clip from either source.
-  O3  Corpus uploads happen inside calibration, and the recording list refreshes after multipart success.
+  O3  Corpus uploads happen inside calibration, and the clip table refreshes after multipart success.
+  O4  Your Takes is one table of every clip with whether it is labelled; a row opens its labeling (backend N702).
 PROVES   O1 -> "labels and matches a corpus clip"
          O2 -> "reopens an owned Take from the same library"
          O3 -> "imports files inline and refreshes the list after partial success"
+         O4 -> "lists every clip of your Takes with its label, and a row opens its labeling"
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -80,6 +82,9 @@ afterEach(() => {
 async function open() {
   await act(async () => root.render(<SpeakingCalibration />));
 }
+async function settle() {
+  for (let i = 0; i < 5; i += 1) await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+}
 async function click(text: string) {
   const button = [...container.querySelectorAll("button")].find(node => node.textContent?.trim() === text);
   if (!button) throw Error("Couldn’t find " + text);
@@ -100,8 +105,8 @@ async function edit(label: string, value: string) {
 it("labels and matches a corpus clip", async () => {
   await open();
   await click("Training Corpus");
-  await edit("Corpus recording", "import-1");
-  await click("Listen to clip 1");
+  await settle();
+  await click("Label");
   expect(container.querySelector('[data-play-window="clip-1/3000/5000"]')).toBeTruthy();
   expect(container.textContent).not.toContain("Vocal cues");
   expect(container.textContent).not.toContain("Assign intervention pattern");
@@ -166,7 +171,7 @@ it("imports files inline and refreshes the list after partial success", async ()
   await click("Training Corpus");
   await click("Import audio");
   expect(container.querySelectorAll("[data-chat-composer]")).toHaveLength(1);
-  expect(container.querySelector('select[aria-label="Corpus recording"]')).toBeNull();
+  expect(container.querySelector('[data-clip-table="corpus"]')).toBeNull();
   const file = container.querySelector<HTMLInputElement>('input[type="file"]');
   const form = file?.form;
   if (!file || !form) throw Error("The upload form is missing.");
@@ -187,7 +192,29 @@ it("imports files inline and refreshes the list after partial success", async ()
   expect(container.textContent).toContain("Imported 1 of 2");
   expect(container.textContent).toContain("second.wav");
   expect(fetchTrainingImportsPage).toHaveBeenCalledTimes(2);
-  expect(container.querySelector('select[aria-label="Corpus recording"]')).toBeTruthy();
+  await settle();
+  expect(container.querySelector('[data-clip-table="corpus"]')).toBeTruthy();
   await click("Pattern Library");
   expect(container.textContent).toContain("Open a saved pattern");
+});
+
+it("lists every clip of your Takes with its label, and a row opens its labeling", async () => {
+  await open();
+  await settle();
+  const row = () => container.querySelector('[data-clip-row="moment-1"]');
+  expect(row()?.textContent).toContain("My conversation · Take 1");
+  expect(row()?.textContent).toContain("Not labelled");
+  rows.push({
+    id: "seen", source: "take", session_id: "take-1", snippet_id: "moment-1", kind: "error",
+    pattern: "Rushed", start_ms: 0, end_ms: 5000, note: "", intervention: null,
+  });
+  await click("Training Corpus");
+  await click("Your Takes");
+  await settle();
+  expect(row()?.textContent).toContain("Error");
+  await click("Label");
+  expect(container.querySelector('[data-play-window="moment-1/1000/5000"]')).toBeTruthy();
+  await click("Back to clips");
+  await settle();
+  expect(row()).toBeTruthy();
 });

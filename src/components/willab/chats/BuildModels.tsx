@@ -50,6 +50,9 @@ export default function BuildModels({ queuesOnly = false }: { queuesOnly?: boole
   const count = (kind: "moments" | "examples" | "check") => work.lines.find((l) => l.kind === kind)?.n ?? 0;
   const examples = count("examples");
   const check = count("check");
+  const tasks = read?.tasks ?? [];
+  const waitingTotal = tasks.reduce((sum, t) => sum + t.waiting, 0)
+    + (isCoach && !tasks.some((t) => t.kind === "moments") ? count("moments") : 0);
   return (
     <div data-build-models="" className="flex flex-col gap-3 pt-4">
       {queuesOnly ? null : <Said>{W.yourModels}</Said>}
@@ -62,6 +65,12 @@ export default function BuildModels({ queuesOnly = false }: { queuesOnly?: boole
           onOpen={over(m.model_id ? { open: "models", modelId: m.model_id } : { open: "models" })}
         />
       ))}
+      {queuesOnly ? (
+        <details data-waiting-for-you="" className="rounded-2xl border border-border px-3.5 py-3">
+          <summary className="cursor-pointer text-[15.5px] font-semibold text-foreground">
+            {`Waiting for you · ${waitingTotal}`}
+          </summary>
+          <div className="flex flex-col gap-3 pt-3">
       {/* A coach's moments line never goes, read or not (N642 item 5). */}
       {isCoach && !(read?.tasks ?? []).some((t) => t.kind === "moments") ? (
         <Row kind="moments" title={W.momentsTask} line={W.waiting(count("moments"))} onOpen={queue} />
@@ -69,6 +78,17 @@ export default function BuildModels({ queuesOnly = false }: { queuesOnly?: boole
       {(read?.tasks ?? []).map((t) => (
         <Row key={t.id} kind={t.kind === "moments" ? "moments" : "task"} title={t.title} line={W.waiting(t.waiting)} onOpen={queue} />
       ))}
+          </div>
+        </details>
+      ) : <>
+      {/* A coach's moments line never goes, read or not (N642 item 5). */}
+      {isCoach && !(read?.tasks ?? []).some((t) => t.kind === "moments") ? (
+        <Row kind="moments" title={W.momentsTask} line={W.waiting(count("moments"))} onOpen={queue} />
+      ) : null}
+      {(read?.tasks ?? []).map((t) => (
+        <Row key={t.id} kind={t.kind === "moments" ? "moments" : "task"} title={t.title} line={W.waiting(t.waiting)} onOpen={queue} />
+      ))}
+      </>}
       {queuesOnly ? null : <>
       {examples ? <Row kind="examples" title={W.examplesToTeach(examples)} line={W.examplesLine} onOpen={over({ open: "teach" })} /> : null}
       {check ? (
