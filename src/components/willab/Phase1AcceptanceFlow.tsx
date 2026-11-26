@@ -41,6 +41,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const CLIENT_VERSION = "phase1-acceptance-web-v2";
+const DEFAULT_ACTIONS = { accept: acceptAuthorization, notice: recordAiNoticeRendered };
 
 /** One key per acceptance ATTEMPT, held across retries of that attempt — and
  *  deliberately NOT across a stale refetch, which is agreement to different
@@ -231,6 +232,7 @@ export default function Phase1AcceptanceFlow({
   priorCountry = null,
   onAccepted,
   onStale,
+  actions = DEFAULT_ACTIONS,
 }: {
   policy: ProcessingPolicy;
   /** The country this person gave last time (a re-acceptance), shown already
@@ -241,6 +243,8 @@ export default function Phase1AcceptanceFlow({
   /** The policy moved under us. The gate must refetch and re-present; we must
    *  not resubmit the hashes we are holding. */
   onStale: () => void;
+  /** The isolated local preview uses the same policy and receipt contract. */
+  actions?: typeof DEFAULT_ACTIONS;
 }) {
   // Asked once, prefilled after (Q21 A): the person's own earlier answer,
   // never a guess. It still shows and can still be changed.
@@ -286,13 +290,13 @@ export default function Phase1AcceptanceFlow({
   useEffect(() => {
     if (open !== "ai" || exposureSent.current) return;
     exposureSent.current = true;
-    void recordAiNoticeRendered({
+    void actions.notice({
       aiNoticeVersion: policy.aiNotice.version,
       surface: "phase1_acceptance",
       clientRenderId: crypto.randomUUID(),
       clientVersion: CLIENT_VERSION,
     });
-  }, [open, policy.aiNotice.version]);
+  }, [open, policy.aiNotice.version, actions]);
 
   const ready = canSubmit({ country, sensitiveAttested }, policy);
 
@@ -300,7 +304,7 @@ export default function Phase1AcceptanceFlow({
     if (!country) return;
     setSaving(true);
     setFailure(null);
-    void acceptAuthorization({
+    void actions.accept({
       policy,
       countryOfResidence: country,
       locale,
@@ -324,7 +328,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, onAccepted, onStale, actions]);
 
   /* THE SCREEN OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07). The
      gate's viewport scroller outlives the screens, so "Nothing was recorded"

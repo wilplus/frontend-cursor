@@ -105,6 +105,8 @@ request sent to the backend (URL, method, headers, body), under each
 of the 12 scenarios in bffTestkit (ok, errors, empty, HTML, signed
 out, no backend URL, network failure, timeout).","any drift -> one test per route in bffProxyRoutes.golden.json
 (named file#handler#body)","If removed: A refactor of the relay code can change what speakers, coaches or the admin pages get, with nothing failing."
+src/app/api/dev/baseline-pilot/[[...path]]/route.test.ts,Story,A local founder preview keeps its credential server-side and scoped.,"O1  Production, hosted upstreams and unrelated routes never receive the local token.
+O2  Audio and normal processing consent use the fixed isolated founder profile.","O1,O2 -> ""the isolated baseline bridge""",
 src/app/api/journalTools.contract.test.ts,Story,"As the founder using the Journal CMS, I want each CMS tool to reach the backend with my password and no login session, so that publishing posts keeps working.","O1  Each of the 15 tool paths POSTs to the same backend path with the
 body as sent and no session token, and relays status and body back.
 O2  When the backend cannot be reached, each tool answers 502 ""Journal
@@ -118,6 +120,8 @@ does not export the PUT the client sends.","the models PUT reaches /v2/chats/set
 -> ""PUT /api/v2/chats/setup/models is proxied to the backend""
 every saved setup part has a route that exports PUT
 -> ""every setup part the host saves has a PUT route""","If removed: Teach it fails again with a 405 that never reaches the backend, and the next static setup folder can do the same with nothing failing."
+src/app/api/v2/experiments/baseline-pilot/[[...path]]/route.test.ts,Story,Only an invited speaker can read pilot data through the signed-in app.,"O1  Collection keeps the signed-in identity and removes private evaluation data from responses.
+O2  A saved recording is replayed through the exact authorized source, including byte ranges.","O1,O2 -> ""the signed-in baseline transport""",
 src/app/api/v2/lab/presentation/extract/route.test.ts,Story,"As a guest speaker, I want my uploaded slide deck to reach the slide reader with my guest pass, so that my deck is used for my Take.","O1  The upload goes to the backend's slide-reading route with the guest
 owner token (X-Willab-Guest-Owner) passed on.","O1 -> ""forwards a guest's owner token""",
 src/app/api/v2/learning-exposures/ack/route.test.ts,Story,"As the founder, I want every ""the speaker saw this"" receipt the app sends to reach the backend unchanged, so that the records of what each speaker was shown are complete.","O1  The receipt is POSTed to the backend's receipt route exactly as sent,
@@ -850,6 +854,7 @@ row, whether or not the dev read answers.
 O2  A week with fewer than five people reads ""fewer than 5"", and a chart
 that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
 O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
+src/components/willab/chats/experiments/baseline/BaselinePilot.test.tsx,Story,A speaker supplies two intentional recordings and private felt energy and valence.,"O1  Disclosure precedes capture, completion waits for durable answers, and interruptions resume.","O1 -> ""the isolated baseline collection""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -2675,6 +2680,7 @@ O2  A failed read fires none: nothing was charged.
 O3  A served read returns the feedback; the charge never gates it.","O1 -> ""fires one balance refresh when the read was served""
 O2 -> ""does not claim a spend when the endpoint failed""
 O3 -> ""still returns the feedback; the charge never gates the read""","The backend charges the insights price on this GET, silently and fail-open. Needs jsdom: notifyTokensSpent no-ops without a window, so in node this file would pass by measuring nothing."
+src/services/api/baselinePilot.test.ts,Story,The baseline stores felt energy and valence in separate writes.,O1  Each report sends only the speaker's current choice and retain the exact source step.,"O1 -> ""private baseline energy reports""",
 src/services/api/bookmarkHistory.test.ts,Story,"As a speaker, I want my paragraph history to list each Take's version and keep accepted corrections apart, so that every old version stays and I can see where each one came from.","O1  The versions list holds only my Takes; an accepted correction is
 listed separately.","O1 -> ""keeps an accepted correction apart from the Takes (N48.1)""",Never-rule 5: every old version stays in the history.
 src/services/api/bootPrefetch.test.ts,Story,"As a returning member opening the app, I want my chat to start loading while the app checks that I am a member, not after it, so that my thread is there a whole round trip sooner; and as someone on the waitlist, I want that early start to change nothing of mine.","O1  For an account this device has seen let in, /chat's open starts the
