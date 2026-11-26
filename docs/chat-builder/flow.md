@@ -27,3 +27,11 @@ The walk steps, once there are two, are a list. Drag one onto another, or tap Ea
 The home under the header is four tiles: Build, Settings, Test, AI. Wide screens show them in one row. A phone stacks them. Settings opens the searchable list. A row replaces that bar with its own: the row's name and its place in the list. Header back from the talk returns to the tiles. Your own code, after Yes, is either a description or a paste.
 
 The live preview shows the coach's sample feedback messages directly (N689).
+
+### Private Speaking Coach baseline pilot
+
+The signed-in entry is `/speaking-coach/pilot` (N703). The server checks the pilot grant before loading the existing processing-acceptance screen or the pilot disclosure. The regular `/chat` route has no pilot gate. The approved English and Polish prompts and disclosure come from the pilot service.
+
+The coach starts with a quiet or routine context, then asks about an energizing context. Each recording requires a deliberate tap on the small mic. Once the audio is saved, the coach asks about felt energy and waits for the server to save it before asking whether the recording felt pleasant, unpleasant, neutral, mixed or uncertain. The conversation ends after both recordings and both pairs of answers are saved. Reload reads the first unanswered step. A participant can replay their own saved recording beside either question. Participant responses carry only the information needed for collection and replay.
+
+The earlier local entry remains at `/dev/baseline-pilot` (N697). The development bridge requires `ISOLATED_BASELINE_PREVIEW=1`, a loopback backend and an absolute `ISOLATED_BASELINE_TOKEN_FILE` for the isolated test profile. Its credential stays on the server. It also supports the original energy-only local protocol. On-demand runs and refreshes are separate modes.
