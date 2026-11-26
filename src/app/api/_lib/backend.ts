@@ -60,6 +60,19 @@ export function backendConfigured(): boolean {
   return Boolean(getBackendUrl());
 }
 
+/** Dedicated local previews must never forward their test credentials to a
+ *  hosted service. Check the same resolved target backendFetch will use. */
+export function backendTargetsLoopback(): boolean {
+  try {
+    const url = new URL(BACKEND_URL);
+    return url.protocol === "http:" && !url.username && !url.password &&
+      url.pathname === "/" && !url.search && !url.hash &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Thrown by backendFetch when no backend URL is configured; callBackend maps
  *  it to the 502 BACKEND_UNAVAILABLE envelope routes have always returned. */
 export class BackendNotConfiguredError extends Error {

@@ -492,6 +492,8 @@ Every prototype link in §1, in the order it first appears:
 
 ## 6. Changes
 
+- 2026-11-25 · Isolated local baseline prototype (N697) · `Phase1AcceptanceFlow` accepts an explicit local transport while retaining its existing production actions by default. The local entry shows the same stored policy bytes, country choice and independent recording-consent tick, sends the same hashes through the normal processing-authorization endpoints, and rereads authorization before mounting the recording flow. The development bridge holds only the isolated founder test profile's credential on the server. The signed-in pilot entry checks the backend grant before mounting this same consent flow and uses the ordinary signed-in transport (N703). Founder-Approved: baseline app prototype requested in the valence recogniser chat and relayed to general design, 25 November 2026.
+
 One line each, newest first: `date · N · what changed · PR`.
 
 - 2026-11-23 · N678 item 2, N680 · dark mode, colours only: each hard-coded colour on these screens gets its dark value beside it (white surfaces to the raised near-black, black ink to the dark ink, black buttons to the white main button, greys, washes and coloured words lifted to read on black). Light mode is byte-for-byte as before, and dark shows only in the iPhone app with dark_mode on (app 1.1). No layout, flow or word changes · FE (this PR)

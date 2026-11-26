@@ -166,6 +166,10 @@ function policyOf(row: Record<string, unknown>): ProcessingPolicy | null {
   };
 }
 
+/** Shared by isolated authenticated previews; policy bytes and hashes stay
+ *  paired by the same parser as the normal acceptance flow. */
+export { policyOf as processingPolicyOf };
+
 /** The guest identity every call here carries, minted first for a visitor who
  *  has none and no account (see ensureGuestOwnerToken). */
 async function headers(): Promise<Record<string, string>> {
@@ -279,11 +283,9 @@ export type AcceptanceResult =
   | { kind: "stale" }
   | { kind: "rejected"; code: string; message: string };
 
-export async function acceptAuthorization(
-  input: AcceptanceInput,
-): Promise<AcceptanceResult> {
+export function processingAcceptanceBody(input: AcceptanceInput) {
   const { policy } = input;
-  const body = {
+  return {
     policy_version: policy.policyVersion,
     // Sent back EXACTLY as received. Never recomputed — see the header note.
     terms_copy_sha256: policy.terms.sha256,
@@ -301,6 +303,13 @@ export async function acceptAuthorization(
     client_version: input.clientVersion,
     idempotency_key: input.idempotencyKey,
   };
+}
+
+export async function acceptAuthorization(
+  input: AcceptanceInput,
+): Promise<AcceptanceResult> {
+  const { policy } = input;
+  const body = processingAcceptanceBody(input);
   let response: Response;
   let row: Record<string, unknown> | null;
   try {
