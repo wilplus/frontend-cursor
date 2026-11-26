@@ -9,7 +9,7 @@ import ChatComposer from "../../ChatComposer";
 import { ChatScroll } from "../../ChatWorkspace";
 import { ConversationBubble } from "../../TakeConversation";
 import { useComposerVoice } from "../../useComposerVoice";
-import { choiceBubble } from "../bits";
+import { choiceBubble } from "../../training/ui";
 import { useBaselinePilot, type BaselineApi } from "./useBaselinePilot";
 
 const COPY = {

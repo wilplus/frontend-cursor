@@ -212,7 +212,6 @@ function barDivergence(cwd) {
     "chats/hostsetup/TalkBuild.tsx",
     "chats/hostsetup/CodeStep.tsx",
     "chats/hostsetup/VisitorTry.tsx",
-    "chats/experiments/bits.tsx",
   ];
   for (const surface of surfaces) {
     const source = read(`src/components/willab/${surface}`);

@@ -149,7 +149,7 @@ A corrective reply includes the exercise and the words to say (N693). A publishe
 
 The same bottom composer serves Speaking Coach, project chats, review
 follow-ups, people chats, the website widget, Builder setup and test chats,
-experiments, and spoken practice. Files stay on the left, the message field
+and spoken practice. Files stay on the left, the message field
 stays in the middle, and the microphone stays on the right. The up-arrow Send
 appears immediately before the mic when the current draft can be sent. The
 composer keeps touch-sized controls and accounts for the phone's safe area.
@@ -170,10 +170,9 @@ composer keeps touch-sized controls and accounts for the phone's safe area.
   when the chat allows it, with the draft still there. Files picked for an
   ordinary message stay queued during a voice-only answer in that chat.
 - Drafts follow the chat in which they were entered. Files and recordings
-  that need confirmation appear above the row. In Builder tests and live
-  experiments, Stop prepares a local clip. Play, discard or record again
-  before sending it. The experiment preview uses sample answers and keeps
-  the composer available for questions. Send submits the next eligible
+  that need confirmation appear above the row. In Builder tests, Stop
+  prepares a local clip. Play, discard or record again before sending it
+  (Experiments are gone, N704). Send submits the next eligible
   draft, starting with a ready recording, then an attachment, then text.
   A refused send keeps that draft available for retry.
 - Guided answers, exercises and official Takes keep their existing completion
@@ -2639,6 +2638,7 @@ The design is the prototype; the newest wins where two disagree.
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-26 · N704 · the composer no longer serves Experiments, which leave the app with the AI tile's chat · FE (this PR)
 - 2026-11-17 · release-blocking chat reliability audit · B14, B15: an accepted typed or quick-choice turn draws exactly one durable orange bubble and brings it into view; the composer and choices disable behind one typing state until its contextual reply or the existing recoverable-error line arrives, with a 45-second request timeout. A stale `next_take` terminal line cannot answer or reappear as a new turn; structured replies stay after their typed trigger; authoritative reloads reconcile the exact optimistic identity without consuming an intentional repeated same-body message. Both the Lounge and project chat pin the send and settlement on desktop/mobile while history reads otherwise keep their place (`Lounge.tsx`, `ProjectChat.tsx`, `WillQuestion.tsx`, `useLoungeThread.ts`, `projectChat.ts`, `chatQuery.ts`). No new visible copy · FE (this PR)
 - 2026-11-16 · They send and the walk's contents are one yes or no at a time. The saved list is the same, and never empty. In a setup row, Send a photo and Send a file are not in the + sheet. · FE (this PR)
 - 2026-11-16 · A try that lands, one miss, and the last miss read their sentences from the coach document when one is published. With none, the signed lines stay. · FE (this PR)

@@ -24,7 +24,7 @@ import CodeStep from "./hostsetup/CodeStep";
 import VisitorTry from "./hostsetup/VisitorTry";
 import { FrameBar, FrameLead } from "./hostsetup/SetupBits";
 import ChatIconPicker from "./hostsetup/ChatIconPicker";
-import Experiments from "./experiments/AiDoor";
+import Experiments from "./training/AiDoor";
 
 /* -------------------------------------------------------------------------- */
 /*  One's own chat, built and tried (backend N642 item 3, N643 items 3 and    */

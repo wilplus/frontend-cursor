@@ -855,20 +855,6 @@ O2  A week with fewer than five people reads ""fewer than 5"", and a chart
 that could not be counted is drawn as not counted, never as zero.","O1 -> ""Build has neither a Speaking coach chip nor a Developer mode row""
 O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not counted, never zero""",
 src/components/willab/chats/experiments/baseline/BaselinePilot.test.tsx,Story,A speaker supplies two intentional recordings and private felt energy and valence.,"O1  Disclosure precedes capture, completion waits for durable answers, and interruptions resume.","O1 -> ""the isolated baseline collection""",
-src/components/willab/chats/experiments/experimentsArea.test.tsx,Story,A host opens Experiments and moves through a session without seeing a score or a hidden word.,O1  The screens follow the prompt file and stay free of hidden words.,"O1 -> ""the experiment screens""",
-src/components/willab/chats/experiments/speakingPatternLibrary.test.tsx,Story,The founder marks a strong opening and a rushed ending in one corpus clip.,"O1  Both labels and intervention matches stay on the original time ranges.
-O2  The library reopens the exact clip from either source.
-O3  Corpus uploads happen inside calibration, and the clip table refreshes after multipart success.
-O4  Your Takes is one table of every clip with whether it is labelled; a row opens its labeling (backend N702).","O1 -> ""labels and matches a corpus clip""
-O2 -> ""reopens an owned Take from the same library""
-O3 -> ""imports files inline and refreshes the list after partial success""
-O4 -> ""lists every clip of your Takes with its label, and a row opens its labeling""",
-src/components/willab/chats/experiments/trainingPage.test.tsx,Story,"As the founder, I want Training to be the one page where I label moments, so that what I teach goes to the two pickers and nothing else is in the way (backend N702).","O1  The founder's Training is the labeling page: the coach's queues on
-top, then Your Takes, Training Corpus and Pattern Library; no kept-
-replies count and no ""Your own"" switch.
-O2  Anyone else's Training keeps their models and what they teach, and
-has no kept-replies count or ""Your own"" switch either.","O1 -> ""the founder's Training is the labeling page""
-O2 -> ""everyone else keeps their models, without the 200 switch""",
 src/components/willab/chats/hostChat.test.tsx,Story,"As someone who invites people, I want to set up my own chat in Will's chat and change it in a builder, and whoever joins through my link to meet my welcome first, as my assistant's, with who I am on top, so that people are met my way (backend N578, N579, N582, N586, N590; behind the ring row chat_builder, N579 item 2).","O1  HOST-N578-7: as a tester, the builder opens on ""Tomek's assistant""
 with Artur's five to start from, and Save sends only what is mine to
 set (the welcome, the questions, how people answer, and the about,
@@ -1031,6 +1017,14 @@ matter"", each with the way into that person's chat, which opens it.
 O2  HOST-N587-2: without the ring, or for a Take sent nowhere (404), and
 under a Take someone else sent me, nothing is gathered or drawn.","O1 -> ""HOST-N587-1: my Take's answers, gathered under it, under the two headings""
 O2 -> ""HOST-N587-2: nothing under a Take without the ring, nor under theirs""","""if you send them the request and they all answered, you should be able to receive all of them"" (founder, 9 November 2026, N587)."
+src/components/willab/chats/training/trainingPanel.test.tsx,Story,"As the founder, I want to train the moment picker and the intervention picker one question at a time, so that the only thing I do is say which clip needs feedback and what it should get.","O1  Screen 1 shows up to three clips of one recording and asks ""Which one
+needs feedback?""; picking one opens Screen 2, ""What should it get?"".
+O2  A tool saves the clip as needing feedback with that tool, then the
+next three clips come; ""None needs it"" saves every clip of the three
+as needing nothing.
+O3  Your past answers lists what was saved, and Undo removes it.","O1 -> ""one question per screen""
+O2 -> ""a tool saves the clip and its tool; None saves the three""
+O3 -> ""past answers can be undone""",Backend N704: the founder's whole Training panel.
 src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
 becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that
@@ -2395,8 +2389,6 @@ src/lib/willab/enrichmentSettle.test.ts,Story,"As a speaker, I want a feedback p
 O2  The page keeps asking for late marks until its ninety seconds are up,
 not for a handful of asks (founder 2026-10-20, WIL-76).","O1 -> is false with nothing to report, so an honest empty lane closes
 O2 -> keeps asking to the ceiling, and stops there",
-src/lib/willab/experiments/overlap.test.ts,Story,Two interventions do not fire for the same moment when an earlier step already covers it.,"O1  At most two interventions show, and the earliest step wins.","O1 -> ""fires at most two, and the earliest step in the file's order wins""",
-src/lib/willab/experiments/promptsYaml.test.ts,Story,The experiment prompts file is the one the screens read.,"O1  The file on disk matches the parsed order, lists, and words.","O1 -> ""reads the real file""",
 src/lib/willab/exploreArc.test.ts,Story,"As a speaker on a shared device, I want my open project never shown to another account, so that my work stays private.",O1  Another account reads nothing of the project I have open.,O1 -> never exposes one account's active project to another,
 src/lib/willab/f1LoopContract.test.ts,Story,"As the founder, I want one gate that turns red when the loop's promises break (true paragraph states, no numbers to speakers, the page only shows what the server said), so that parallel work can't quietly break the loop.","O1  Each of the four paragraph states (untouched, clean, waiting, locked) is
 reached from what the speaker and the server actually did.
@@ -2722,8 +2714,6 @@ O2 -> ""withholds Practise when sensitive information is withdrawn (B6-3)""
 O3 -> ""withholds Practise when Personalised practice is off""
 O4 -> ""leaves the server to decide when there is no agreement yet""
 O4 -> ""leaves the server to decide when the read fails""","B6-3: a practice attempt is new recording, and withdrawing sensitive information stops new recording."
-src/services/api/experiments.test.ts,Story,A host's experiment session stays on this device until they export or delete it.,"O1  Opening, saving, exporting, and deleting a session keep the
-stored takes consistent.","O1 -> ""the experiment store""",
 src/services/api/glueContracts.test.ts,Guard,"Each of 61 service clients still sends exactly the request and gives back exactly the answer it did before the shared-fetch refactor, signed in and signed out (golden file glueContracts.golden.json).","A change to a URL, method, header, body, credentials, cache setting
 or returned value that a speaker, coach or the backend would notice.","one test per client case, titled by its name, e.g. ""checkPracticeAttempt"",
 ""shareTake refused"", ""setPartLock undecided"", ""uploadCoachVideo""",If removed: A wire-contract change in any of these clients could ship unnoticed; keep it only while it is the single wire-contract home.

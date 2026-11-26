@@ -540,26 +540,17 @@ describe("what needs you is in Will (backend N629)", () => {
   const tab = async (t: string) => {
     await act(async () => (container.querySelector(`[data-build-tile="${t}"]`) as HTMLButtonElement).click());
     await flush();
-    if (t === "ai") {
-      await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
-      await flush();
-    }
   };
   const toggle = async (m: string) => {
     await act(async () => (container.querySelector(`[data-switch="${m}"]`) as HTMLButtonElement).click());
     await flush();
   };
 
-  it("the AI tile asks Experiments or Training, and Training is the model list", async () => {
+  it("the AI tile opens the model list at once: no Experiments, no chat (N704)", async () => {
     await build({ ...SETUP, can_try: false });
     await act(async () => (container.querySelector("[data-build-tile='ai']") as HTMLButtonElement).click());
     await flush();
-    expect(container.querySelector("[data-build-models]")).toBeNull();
-    expect(container.querySelector("[data-ai-choice='experiments']")?.textContent).toContain("Experiments");
-    expect(container.querySelector("[data-ai-choice='training']")?.textContent).toContain("Training");
-    expect(container.querySelectorAll("[data-chat-header]").length).toBeGreaterThan(0);
-    await act(async () => (container.querySelector("[data-ai-choice='training']") as HTMLButtonElement).click());
-    await flush();
+    expect(container.querySelector("[data-ai-choice]")).toBeNull();
     expect(container.querySelector("[data-build-models]")?.textContent).toContain("Your models, and everything you teach.");
   });
 
