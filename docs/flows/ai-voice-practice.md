@@ -338,20 +338,16 @@ better version to copy" (2026-10-15, A) for that clip alone: the Clearer
 version's example clip still has the default, and on a plan the week's
 level still picks its problem (G7).
 
-### Training · Pattern Library
+### Training
 
-The founder's **My Chat → AI → Training** is this labeling page (N702): one "Waiting for you · N" line on top that opens the coach's queues ("Moments to answer", "Do you hear it?", "Pick the moment for feedback"), then one table of clips: every clip of **Your Takes**, or of the **Training Corpus**, a row each with whether it is labelled, "Only clips not labelled yet" to filter, and **Label** to open that clip's labeling; **Back to clips** returns to the table. Choose **Your Takes** for recordings on your account or **Training Corpus** for clips in an existing corpus queue. Under **Training Corpus**, **Import audio** opens the corpus upload form inside the chat. Choose files, add a topic and language, and enter the speaker and source when known. The existing importer processes the files one at a time and returns you to the recording list. Play the clip before saving a listening label. A clip can have several labels, each on its own time range. Choose a starter error or praise pattern, write your own, or keep a control such as **Pace OK**.
+The founder's **My Chat → AI** is the Training panel (N704): no chat, no Experiments, one question per screen, for the two things the app learns.
 
-After saving, the form shows available measurements for the whole clip and lets you draft or approve an intervention match for each error or praise. Error interventions can also record a target pace, pause length or pitch change. Use the listening note to record useful words or audible details. Assigning an intervention is the reviewer's judgment about the match. A corpus file has no retry outcome. An owned Take still has its separate calibration chat and retry.
+1. **Which one needs feedback?** Up to three clips of one recording play, A, B and C. Tap **This one** on the clip that most needs feedback, or **None needs it**. This trains the moment picker.
+2. **What should it get?** The chosen clip plays again. Tap **Sniper**, **AI Audio**, **Rephrase**, **Coach video** or **Nothing**. It is saved and the next three clips come. This trains the intervention picker.
 
-The library links each entry to the same source clip and time range. It is founder-only, follows the existing ownership and corpus access rules, and stores human labels and matches without copying audio. Archived or unavailable sources are hidden. Erasing a source removes its examples. Nothing here promotes examples into live picker rules or pooled training. At the top of **Pattern Library**, each label on an app Take is checked against what that Take served (N702): the moment picker agrees when it showed a clip labelled error or praise, or left out one labelled control; the intervention picker agrees when it served an exercise where a tool was chosen, or none where none was. Training Corpus labels are counted, not compared.
+A switch on top chooses **App Takes** or **Corpus**, with how many sets are left. Each answer is a label in the founder's library: the chosen clip as needing feedback, with its tool; "None needs it" marks each of the three as needing nothing. Under the questions: how often each picker agreed with these labels on app Takes (N702), **Your past answers** with **Undo**, and on the corpus **Import audio**. Labels are founder-only, follow the existing ownership and corpus access rules, and are erased with their source. Nothing here changes what a speaker is served.
 
-Manual check with test recordings:
-
-1. Open a corpus clip with a clear opening and a rushed ending. Listen before saving a label. Confirm measurements and match controls appear only after a label is saved.
-2. Save **Rushed ending** on the ending and assign **Sniper**. Save **Clear, concise point** on the earlier span and assign **Name what worked**.
-3. Open **Pattern Library** and reopen either entry. Confirm the same clip, both spans and both matches. Confirm there is no retry on the file.
-4. Repeat with an owned Take. Reopen it from the same library and check that its calibration chat still opens.
+Gone (N704): Experiments, the AI tile's chat, the calibration chat and retry, the cue numbers, the span and pitch fields, the pattern names, the clip table and the coach's queues on this screen. "Moments to answer" stays in the coach's queue; "Do you hear it?" stays for other coaches in the coach panel.
 
 ### 7. Order of work
 
@@ -404,6 +400,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-26 · N704 · AI is the Training panel, one question per screen: which clip needs feedback, then what it should get; Experiments, the chat, the calibration chat, the clip table and the queue rows leave it · FE (this PR)
 - 2026-11-26 · N702 · Training's clips are one table per source (Your Takes, Training Corpus), a row per clip with its label and **Label** to open it, instead of choosing a recording and then a clip; the coach's three queues fold into one "Waiting for you · N" line · FE (this PR)
 - 2026-11-25 · N702 · AI → Training is one page: for the founder, the labeling page with the coach's queues on top; the kept-replies count (20, 200), the dead "Standard / Your own" switch and "Images, coming" are gone for everyone; Pattern Library opens with how often each picker agreed with the founder's labels · BE (N702 PR), FE (this PR)
 - 2026-11-04 · — · §1 (N120, N123): the rules text brought in line with N379 and N338: no "Your turn." in the One thing walk's fix; N123's said fresh marked as replaced by the signed lines, rotating; no rule changes · docs (this PR)

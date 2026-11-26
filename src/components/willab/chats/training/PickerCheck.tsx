@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bubble } from "./bits";
+import { Bubble } from "./ui";
 import { patternRequest, speakingPatternPath } from "./speakingPatterns";
 
 /* Your labels as the golden set for both pickers (backend N702). Founder

@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { COACH_PANEL_COPY as copy } from "@/lib/willab/coachPanelCopy";
 import { IMPORT_LANGUAGES, OPTIONAL_STAGES, type OptionalStage } from "@/services/api/trainingCorpus";
 import { batchFailLine, importBatch, inNameOrder, MAX_BATCH_FILES } from "../../coachpanel/corpusBatch";
-import { Bubble, choiceBubble } from "./bits";
+import { Bubble, choiceBubble } from "./ui";
 import { patternInput } from "./speakingPatterns";
 
 export default function CalibrationCorpusUpload({ onBack, onComplete }: {
