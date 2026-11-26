@@ -10,9 +10,13 @@ OUTCOME
       next three clips come; "None needs it" saves every clip of the three
       as needing nothing.
   O3  Your past answers lists what was saved, and Undo removes it.
+  O4  More than one fix can be picked; Sniper keeps its pace and pause
+      places, Rephrase keeps the better words next to the app's suggestion
+      (backend N705).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
+         O4 -> "several fixes, each shaped before it is kept"
 WHY      Backend N704: the founder's whole Training panel.
 */
 import { act } from "react";
@@ -55,7 +59,8 @@ beforeEach(() => {
     if (method === "POST") rows.push({ ...(json as object), id: `x${rows.length}`, source: "take", session_id: "take-1",
       snippet_id: snippet, intervention: null } as PatternExample);
     if (method === "DELETE") rows = rows.filter((row) => row.id !== json?.example_id);
-    const body = url.endsWith("/golden") ? { moment: { agree: 1, differ: 0, unknown: 0 }, intervention: { agree: 0, differ: 0, unknown: 0 }, corpus_labels: 0 }
+    const body = url.endsWith("/rewrite") ? { words: "Words 2.", rewrite: "Better words." }
+      : url.endsWith("/golden") ? { moment: { agree: 1, differ: 0, unknown: 0 }, intervention: { agree: 0, differ: 0, unknown: 0 }, corpus_labels: 0 }
       : method === "GET" ? { examples: rows, next_offset: null }
       : { examples: rows.filter((row) => row.snippet_id === snippet), cues: {} };
     return { kind: "response", ok: true, status: 200, body, headers: new Headers() };
@@ -91,10 +96,14 @@ it("a tool saves the clip and its tool; None saves the three", async () => {
   await settle();
   await press("This one", 1);
   await press("Sniper");
+  await press("Continue");
+  expect(host.querySelector("[data-shape='sniper']")).not.toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>("[data-pause-after='0']")!.click());
+  await press("Keep");
   const saved = calls.filter((c) => c.method !== "GET");
   expect(saved[0]).toMatchObject({ method: "POST", json: { kind: "error", start_ms: 0, end_ms: 4000 } });
   expect(saved[0].url).toContain("/take/take-1/m2");
-  expect(saved[1]).toMatchObject({ method: "PUT", json: { intervention: { tool: "sniper", status: "approved" } } });
+  expect(saved[1]).toMatchObject({ method: "PUT", json: { intervention: { tool: "sniper", status: "approved", marks: { speed: 1, pauses: [0] } } } });
   expect(shown()).toEqual(["m4", "m5", "m6"]);
   await press("None needs it");
   expect(rows.filter((row) => row.kind === "control").map((row) => row.snippet_id)).toEqual(["m4", "m5", "m6"]);
@@ -106,10 +115,27 @@ it("past answers can be undone", async () => {
   await settle();
   await press("This one", 0);
   await press("Nothing");
+  await press("Continue");
   expect(calls.some((c) => c.method === "PUT")).toBe(false);
   await press("Your past answers");
   expect(host.textContent).toContain("Needs feedback · Nothing");
   await press("Undo");
   expect(rows).toEqual([]);
   expect(host.querySelector("[data-past-row]")).toBeNull();
+});
+
+it("several fixes, each shaped before it is kept", async () => {
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("This one", 1);
+  await press("AI Audio");
+  await press("Rephrase");
+  await press("Continue");
+  const puts = () => calls.filter((c) => c.method === "PUT").map((c) => c.json?.intervention as Record<string, unknown>);
+  expect(puts().map((i) => i.tool)).toEqual(["ai_audio"]);
+  expect(host.querySelector("[data-shape='rewrite']")).not.toBeNull();
+  expect(host.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Better words.");
+  await press("Accept");
+  expect(puts()[1]).toMatchObject({ tool: "rewrite", text: "Better words.", suggested: "Better words." });
+  expect(shown()).toEqual(["m4", "m5", "m6"]);
 });
