@@ -853,9 +853,11 @@ O2 -> ""N648 a hidden week reads fewer than 5, and a chart with no weeks is not 
 src/components/willab/chats/experiments/experimentsArea.test.tsx,Story,A host opens Experiments and moves through a session without seeing a score or a hidden word.,O1  The screens follow the prompt file and stay free of hidden words.,"O1 -> ""the experiment screens""",
 src/components/willab/chats/experiments/speakingPatternLibrary.test.tsx,Story,The founder marks a strong opening and a rushed ending in one corpus clip.,"O1  Both labels and intervention matches stay on the original time ranges.
 O2  The library reopens the exact clip from either source.
-O3  Corpus uploads happen inside calibration, and the recording list refreshes after multipart success.","O1 -> ""labels and matches a corpus clip""
+O3  Corpus uploads happen inside calibration, and the clip table refreshes after multipart success.
+O4  Your Takes is one table of every clip with whether it is labelled; a row opens its labeling (backend N702).","O1 -> ""labels and matches a corpus clip""
 O2 -> ""reopens an owned Take from the same library""
-O3 -> ""imports files inline and refreshes the list after partial success""",
+O3 -> ""imports files inline and refreshes the list after partial success""
+O4 -> ""lists every clip of your Takes with its label, and a row opens its labeling""",
 src/components/willab/chats/experiments/trainingPage.test.tsx,Story,"As the founder, I want Training to be the one page where I label moments, so that what I teach goes to the two pickers and nothing else is in the way (backend N702).","O1  The founder's Training is the labeling page: the coach's queues on
 top, then Your Takes, Training Corpus and Pattern Library; no kept-
 replies count and no ""Your own"" switch.

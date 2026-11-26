@@ -5,7 +5,6 @@ import { bffFetch } from "@/lib/api/bffFetch";
 import { withSessionBearer } from "@/lib/api/sessionBearer";
 import { watchPaceStream, type PaceMic } from "@/lib/willab/pace/paceMic";
 import PaceScale from "../../pace/PaceScale";
-import { fetchTrainings } from "@/services/api/trainings";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import type { ReadoutSnippet } from "../../readout";
 import { useVoiceNote } from "../../useVoiceNote";
@@ -13,6 +12,7 @@ import WalkPlayer from "../../walk/WalkPlayer";
 import { Bubble, ChoicePair, Frame, choiceBubble } from "./bits";
 import { CalibrationCorpus, CorpusMoment } from "./CalibrationCorpus";
 import SpeakingPatternLibrary from "./SpeakingPatternLibrary";
+import ClipTable from "./ClipTable";
 import SpeakingPatternReview from "./SpeakingPatternReview";
 import { clipTime, deliveryTargets as targets, type CaseLink, type DeliveryValues } from "./speakingPatterns";
 
@@ -24,7 +24,6 @@ const cueNames: Record<string, string> = {
   wpm: "Words per minute", f0_mean: "Average pitch in Hz", f0_sd: "Pitch variation in Hz",
   pause_ratio: "Pause share", opening_contrast_db: "Opening loudness contrast in dB",
 };
-type Take = { id: string; title: string };
 type Cues = Record<string, number>;
 type RecordOfMoment = {
   label: keyof typeof labels;
@@ -43,74 +42,44 @@ type Retry = { text: string; receipt: string; cues: Cues; pace?: string | null }
 export default function SpeakingCalibration({ top }: { top?: ReactNode }) {
   const [source, setSource] = useState<"take" | "corpus" | "library">("take");
   const [opened, setOpened] = useState<CaseLink | null>(null);
+  const backLabel = source === "library" ? "Back to Pattern Library" : "Back to clips";
   if (opened?.source === "take") {
-    return <TakeCalibration key={opened.snippet_id} link={opened} onBack={() => setOpened(null)} />;
+    return <TakeCalibration key={opened.snippet_id} link={opened} backLabel={backLabel} onBack={() => setOpened(null)} />;
   }
   const tabs = <>{top}<ChoicePair name="calibration-source" value={source}
     options={[{ value: "take", label: "Your Takes" }, { value: "corpus", label: "Training Corpus" },
       { value: "library", label: "Pattern Library" }]}
     onPick={value => { setOpened(null); setSource(value as typeof source); }} /></>;
-  if (source === "take") return <TakeCalibration tabs={tabs} />;
   return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
     {tabs}
     {opened?.source === "corpus" ? <CorpusMoment key={opened.snippet_id} link={opened}
-      backLabel="Back to Pattern Library" onBack={() => setOpened(null)} /> : <>
-      {source === "corpus" && <CalibrationCorpus />}
+      backLabel={backLabel} onBack={() => setOpened(null)} /> : <>
+      {source === "take" && <ClipTable source="take" onOpen={setOpened} />}
+      {source === "corpus" && <CalibrationCorpus onOpen={setOpened} />}
       {source === "library" && <SpeakingPatternLibrary onOpen={setOpened} />}
     </>}
   </Frame>;
 }
 
-function TakeCalibration({ link, onBack, tabs }: { link?: CaseLink; onBack?: () => void; tabs?: ReactNode }) {
-  const [takes, setTakes] = useState<Take[]>([]);
-  const [take, chooseTake] = useState(link?.session_id ?? "");
-  const [moments, setMoments] = useState<ReadoutSnippet[]>([]);
-  const [snippet, chooseMoment] = useState(link?.snippet_id ?? "");
+/** One clip of your Takes, opened from the table or the Pattern Library. */
+function TakeCalibration({ link, onBack, backLabel }: { link: CaseLink; onBack: () => void; backLabel: string }) {
+  const [moment, setMoment] = useState<ReadoutSnippet | null>(null);
   const [loadError, setLoadError] = useState("");
   useEffect(() => {
     let active = true;
-    void fetchTrainings().then(rows => {
-      if (!rows) throw Error();
-      if (active) setTakes(rows.filter(row => !row.deletion).flatMap(row => row.takes.map(t => ({
-        id: t.sessionId, title: `${row.topic} · Take ${t.takeIndex}`,
-      }))));
-    }).catch(() => { if (active) setLoadError("Couldn’t load your Takes."); });
-    return () => { active = false; };
-  }, []);
-  useEffect(() => {
-    if (!take) return;
-    let active = true;
-    void fetchSessionReadout(take).then(result => {
+    void fetchSessionReadout(link.session_id).then(result => {
       if (!result) throw Error();
-      if (active) {
-        const rows = result.readout.snippets.filter(row => row.audioRef && row.id && row.durationMs > 0);
-        setMoments(rows);
-        if (link && !rows.some(row => row.id === link.snippet_id)) setLoadError("This saved moment is unavailable.");
-      }
+      if (!active) return;
+      const row = result.readout.snippets.find(clip => clip.id === link.snippet_id && clip.audioRef && clip.durationMs > 0);
+      if (row) setMoment(row); else setLoadError("This saved moment is unavailable.");
     }).catch(() => { if (active) setLoadError("Couldn’t load moments from this Take."); });
     return () => { active = false; };
-  }, [take, link]);
-  const moment = moments.find(row => row.id === snippet);
-  if (moment) return <Moment key={`${take}/${snippet}`} take={take} moment={moment} openPatterns={Boolean(link)} onBack={onBack ?? (() => chooseMoment(""))} />;
-  if (link) return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
-    <button className={choiceBubble(false)} onClick={onBack}>Back to Pattern Library</button>
-    <Bubble role="status">{loadError || "Opening the saved moment…"}</Bubble>
-  </Frame>;
+  }, [link]);
+  if (moment) return <Moment key={`${link.session_id}/${link.snippet_id}`} take={link.session_id} moment={moment}
+    backLabel={backLabel} onBack={onBack} />;
   return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
-    {tabs}
-    <Bubble>Choose a Take and the moment you want to calibrate.</Bubble>
-    <label className="flex max-w-xl flex-col gap-1">Take
-      <select className={input} value={take} onChange={event => {
-        setLoadError(""); setMoments([]); chooseTake(event.target.value);
-      }}>
-        <option value="">Choose a Take</option>
-        {takes.map(row => <option key={row.id} value={row.id}>{row.title}</option>)}
-      </select>
-    </label>
-    {moments.map(row => <button key={row.id} className={choiceBubble(false)} onClick={() => chooseMoment(row.id)}>
-      {time(row.startOffsetMs)}–{time(row.startOffsetMs + row.durationMs)} · {row.transcript.slice(0, 95)}
-    </button>)}
-    {loadError && <Bubble role="alert">{loadError}</Bubble>}
+    <button className={choiceBubble(false)} onClick={onBack}>{backLabel}</button>
+    <Bubble role="status">{loadError || "Opening the saved moment…"}</Bubble>
   </Frame>;
 }
 
@@ -135,11 +104,11 @@ function CueList({ cues }: { cues: Cues }) {
   ))}</ul>;
 }
 
-function Moment({ take, moment, onBack, openPatterns = false }: {
-  take: string; moment: ReadoutSnippet; onBack: () => void; openPatterns?: boolean;
+function Moment({ take, moment, onBack, backLabel }: {
+  take: string; moment: ReadoutSnippet; onBack: () => void; backLabel: string;
 }) {
-  const [patterns, showPatterns] = useState(openPatterns);
-  const actions = <MomentActions patterns={patterns} onBack={onBack} onPick={() => showPatterns(!patterns)} fromLibrary={openPatterns} />;
+  const [patterns, showPatterns] = useState(true);
+  const actions = <MomentActions patterns={patterns} onBack={onBack} onPick={() => showPatterns(!patterns)} backLabel={backLabel} />;
   if (patterns) return <Frame screen="training" title={title} composer={{ textDisabled: true }}>
     {actions}
     <Bubble className="w-full max-w-2xl">
@@ -154,11 +123,11 @@ function Moment({ take, moment, onBack, openPatterns = false }: {
   return <PracticeMoment take={take} moment={moment} actions={actions} />;
 }
 
-function MomentActions({ patterns, onBack, onPick, fromLibrary }: {
-  patterns: boolean; onBack: () => void; onPick: () => void; fromLibrary: boolean;
+function MomentActions({ patterns, onBack, onPick, backLabel }: {
+  patterns: boolean; onBack: () => void; onPick: () => void; backLabel: string;
 }) {
   return <div className="flex flex-wrap gap-2">
-    <button className={choiceBubble(false)} onClick={onBack}>{fromLibrary ? "Back to Pattern Library" : "Choose another moment"}</button>
+    <button className={choiceBubble(false)} onClick={onBack}>{backLabel}</button>
     <button className={choiceBubble(false)} onClick={onPick}>{patterns ? "Calibration chat and retry" : "Label error or praise"}</button>
   </div>;
 }
