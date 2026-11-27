@@ -55,7 +55,8 @@ import { conversationBubbleClass, TakeConversation } from "./chats/TakeConversat
 import { useComposerVoice } from "./chats/useComposerVoice";
 import { ChatPracticeContext, useChatPractice } from "./chats/ChatPractice";
 import type { CoachMomentReference } from "@/services/api/coachMoment";
-import RecordNextTakeLink from "./chats/RecordNextTakeLink";
+import RecordNextTakeLink, { recordNextTakeLabel } from "./chats/RecordNextTakeLink";
+import { useUiLocale } from "@/components/ui/UiLocaleProvider";
 import { isTakeExchangeMessage, offersIdealText, readyForReview, takeSessionOf, withProjectChatPlacement } from "@/lib/willab/takeExchange";
 import { useHumanCoachReviewRows } from "./chats/useHumanCoachReviewRows";
 import { readReviewRuns, type ReviewRuns } from "@/services/api/takeReview";
@@ -453,6 +454,7 @@ export default function ProjectChat({
   onDraftChange,
   onBack,
   onRecord,
+  onProjects,
   onRecordingSettled,
 }: {
   project: TrainingArc;
@@ -468,9 +470,13 @@ export default function ProjectChat({
   onDraftChange?: (draft: string) => void;
   onBack: () => void;
   onRecord: (arcId: string) => void;
+  /** "Your projects": the project picker, where another project or a new
+   *  one starts its Take. */
+  onProjects?: () => void;
   onRecordingSettled?: () => void;
 }) {
   const workspace = useWorkspaceSidebar();
+  const locale = useUiLocale();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const reviewExit = useRef<ReviewExit | null>(null);
   const documentExit = useRef<ReviewExit | null>(null);
@@ -945,7 +951,9 @@ export default function ProjectChat({
         return true;
       },
     }];
-    if (workspace) files.push({ label: "Your projects", open: workspace.show });
+    files.push({ label: recordNextTakeLabel(locale),
+      open: () => onRecord(activeProject.arcId) });
+    if (onProjects) files.push({ label: "Your projects", open: onProjects });
     if (slides.item) files.push({ label: slides.item.label, open: slides.item.onOpen });
     return files;
   }

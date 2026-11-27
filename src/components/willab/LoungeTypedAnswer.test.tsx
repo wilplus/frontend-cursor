@@ -14,12 +14,15 @@ OUTCOME  O1  The open project question keeps its composer, uses contextual
          O5  A hosted chat shows the host's messages and Take feedback in
              one timeline, routes each reply, and opens a new Take in place.
              Its consented practice uses that Take and the server's cited fragment.
+         O6  "Your projects" in the "+" opens the project picker, where a
+             Take starts, even with the sidebar already open.
 PROVES   O1 -> "uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once"
          O2 -> "keeps a refused quick choice once with an explicit recoverable error"
          O3 -> "keeps a structured contextual turn ordered through refresh and scrolls both sides into view"
          O3 -> "does not replay an old terminal walk line as the answer to a new message"
          O4 -> "keeps old suggested words as text and puts the weekly note in Speaking Coach"
          O5 -> "answers a selected Take and the waiting host from the same composer"
+         O6 -> "opens the project picker from the "+" inside the chat workspace"
 WHY      Founder lock N655, 2026-11-16; release-blocking chat audit,
          2026-11-17.
 */
@@ -29,6 +32,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { Chat, ChatMessage } from "@/services/api/chats";
 import type { ProcessingTake } from "@/lib/willab/processingTake";
+import ChatWorkspace from "./chats/ChatWorkspace";
 
 const harness = vi.hoisted(() => ({
   rows: [] as LoungeMessage[],
@@ -234,6 +238,22 @@ function scrollMetrics(element: HTMLElement, height = 1_200): { setHeight: (next
 }
 
 describe("typed answer in the main Will/Lounge chat", () => {
+  it("opens the project picker from the \"+\" inside the chat workspace", async () => {
+    const onStart = vi.fn();
+    await act(async () => root.render(
+      <ChatWorkspace sidebar={null} viewKey="coach">
+        <LoungeThreadProvider signedIn>
+          <Lounge state={"lounge_idle" as never} onStart={onStart} dispatch={() => undefined} />
+        </LoungeThreadProvider>
+      </ChatWorkspace>,
+    ));
+    await waitForComposer();
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-chat-files]")!.click());
+    const projects = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Your projects");
+    await act(async () => projects!.click());
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
   it("answers a selected Take and the waiting host from the same composer", async () => {
     const chat: Chat = { id: "host-room", kind: "team", title: "Tomek", subtitle: "", last: null, takes: true };
     const hostQuestion: ChatMessage = {

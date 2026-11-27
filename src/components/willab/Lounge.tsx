@@ -2645,7 +2645,7 @@ export default function Lounge({
           clearCitation={() => setCitation((current) => !member && current ? { ...current, focus: undefined, quote: undefined } : null)}
           onSend={() => stagedVoice && draftText.trim()
             ? handleSend({ ...stagedVoice.answer, text: draftText.trim() })
-            : handleSend()} onProjects={sidebar?.show ?? onStart}
+            : handleSend()} onProjects={onStart}
           onStartTake={memberState.onStart}
           onUpload={onStartInProject ?? onStart} onSlides={readExploreArc(userId) ? slidesAsk.open : undefined}
         />
