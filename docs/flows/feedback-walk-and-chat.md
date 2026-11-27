@@ -271,7 +271,9 @@ and [Chat Builder](../chat-builder/flow.md).
   same kind, in one flat list in the sidebar: Speaking coach, each project's
   chat, Principles or Will where one has written there, and any new chat.
   Each has the same composer and "+" (Upload a recording, Your projects,
-  Update slides). A message and Will's reply belong to the chat they were
+  Update slides); a project's chat adds "Record the next take" at the top.
+  Your projects opens the project picker (each project, and "Start a new
+  project"), where a Take starts. A message and Will's reply belong to the chat they were
   written in (`metadata.chat_id`); the backend labels each row of a page with
   its chat (`own_chat_id`), placing older rows by their project or section.
   A Take recorded in a chat gives it its project, one per chat. A chat is
@@ -2619,6 +2621,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-27 · N700 · founder in chat, 27 November 2026 ("I click my projects and nothing happens… the onboarding do not open at all") · "Your projects" in the "+" opens the project picker again, as before the sidebar; it only opened the sidebar, which on a computer is already open, so it did nothing and no new project could be started. A project's chat "+" adds "Record the next take" (the words of its existing link). No new words. `Lounge.tsx`, `ProjectChat.tsx`, `WillabSurface.tsx`, `chats/RecordNextTakeLink.tsx`.
 - 2026-11-25 · N700 · One kind of chat: the sidebar is one flat list of one's own chats with "New chat" in place of "Start a new project"; a message belongs to the chat it was written in; a project's chat has the same "+" as the Speaking coach chat; tapping a chat's name in its top bar renames it. `chats/ProductHome.tsx`, `chats/loungePlace.tsx`, `chats/TopBar.tsx`, `ProjectChat.tsx`, `services/api/ownChats.ts`.
 - 2026-11-25 · founder screenshot, 25 November 2026 · The app's menu (☰) moves from the foot of the chats sidebar to the right end of every chat's top bar, after any Live · Build switch; it opens downwards. `chats/TopBar.tsx`, `chats/ChatWorkspace.tsx`.
 - 2026-11-25 · N691 items 1 and 2 · An older Take's bubble opens that Take's feedback in its project chat; the older-Take review screen (`OlderTakeReview`) and the recording screens' readout are deleted.

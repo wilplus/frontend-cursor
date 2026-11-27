@@ -624,6 +624,7 @@ export default function WillabSurface({
           pendingRecording={projectTake.pending.find((take) => take.projectId === pickedProject.arcId)}
           onOpenPendingRecording={projectTake.openWait}
           onBack={leaveProject}
+          onProjects={flow.startRecording}
           onRecord={(arcId) => {
             // Repeat/continue is allowed to arrive here from a remounted
             // project chat. Seed the selected arc again at the recorder
