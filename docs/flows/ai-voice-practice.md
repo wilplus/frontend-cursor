@@ -344,7 +344,7 @@ The founder's **My Chat → AI** is the Training panel (N704): no chat, no Exper
 
 1. **Which one needs feedback?** Up to three clips of one recording play, A, B and C. Tap **This one** on the clip that most needs feedback, or **None needs it**. This trains the moment picker.
 2. **What should it get?** The chosen clip plays again. Pick one or more of **Sniper**, **AI Audio**, **Rephrase**, **Coach video**, or **Nothing** alone, then **Continue**. This trains the intervention picker.
-3. **Shape the fix** (N705). **Sniper**: play the clip faster or slower with its pitch kept, tap between words where a pause goes, **Keep**. **Rephrase**: the app's better wording for the clip, **Accept** or edit it and **Keep**. The other fixes are kept as they are. Then the next three clips come.
+3. **Shape the fix** (N705). **Sniper**: play the clip faster or slower with its pitch kept, tap between words where a pause goes, **Keep**. **Rephrase**: the app's better wording for the clip, **Accept** or edit it and **Keep**. **AI Audio** (N706): **Record it the right way**, and the line comes back in your own voice copy with your timing and emphasis; **Say it again** or **Keep**. On a corpus clip, a stranger's voice, AI Audio is kept with no AI version. Coach video is kept as it is. Then the next three clips come.
 
 A switch on top chooses **App Takes** or **Corpus**, with how many sets are left. Each answer is a label in the founder's library: the chosen clip as needing feedback, with its tool; "None needs it" marks each of the three as needing nothing. Under the questions: how often each picker agreed with these labels on app Takes (N702), **Your past answers** with **Undo**, and on the corpus **Import audio**. Labels are founder-only, follow the existing ownership and corpus access rules, and are erased with their source. Nothing here changes what a speaker is served.
 
@@ -401,6 +401,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-27 · N706 · AI Audio is shaped by recording the line the right way; ElevenLabs speech-to-speech says it back in the founder's own voice copy; own Takes only · BE (N706 PR), FE (this PR)
 - 2026-11-26 · N705 · more than one fix per clip; Sniper keeps a chosen speed and pause places, Rephrase the accepted or edited wording next to the app's; the panel says whether no Takes were found, none had clips, or all are answered · BE (N705 PR), FE (this PR)
 - 2026-11-26 · N704 · AI is the Training panel, one question per screen: which clip needs feedback, then what it should get; Experiments, the chat, the calibration chat, the clip table and the queue rows leave it · FE (this PR)
 - 2026-11-26 · N702 · Training's clips are one table per source (Your Takes, Training Corpus), a row per clip with its label and **Label** to open it, instead of choosing a recording and then a clip; the coach's three queues fold into one "Waiting for you · N" line · FE (this PR)

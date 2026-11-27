@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCorpusClip } from "@/hooks/useCorpusClip";
+import { bffFetch } from "@/lib/api/bffFetch";
+import { withSessionBearer } from "@/lib/api/sessionBearer";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, patternRequest, type CaseLink } from "./speakingPatterns";
 
@@ -11,6 +13,7 @@ import { casePath, patternRequest, type CaseLink } from "./speakingPatterns";
 export type ShapeClip = CaseLink & { label: string; words: string; src: string | null; start: number; duration: number };
 export type SniperShape = { speed: number; pauses: number[]; wpm?: number };
 export type RephraseShape = { text: string; suggested: string };
+export type AiAudioShape = { text: string; wpm?: number };
 
 const SPEEDS = { min: 0.6, max: 1.4, step: 0.05 };
 
@@ -136,6 +139,112 @@ export function RephraseScreen({ clip, onKeep, onBack }: {
         onClick={() => onKeep({ text: text.trim(), suggested: suggested ?? "" })}>
         {suggested && text.trim() === suggested ? "Accept" : "Keep"}
       </button>
+      <button type="button" className={choiceBubble(false)} onClick={onBack}>Back</button>
+    </div>
+  </div>;
+}
+
+/** One short recording from the microphone, as a Blob. */
+function useRecorder(maxSeconds: number, onDone: (audio: Blob) => void) {
+  const recorder = useRef<MediaRecorder | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const stop = () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (recorder.current?.state === "recording") recorder.current.stop();
+  };
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const next = new MediaRecorder(stream);
+      next.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      next.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+        if (chunks.length) onDone(new Blob(chunks, { type: next.mimeType || "audio/webm" }));
+      };
+      recorder.current = next;
+      next.start();
+      setRecording(true);
+      timer.current = setTimeout(stop, maxSeconds * 1000);
+    } catch { setDenied(true); }
+  };
+  useEffect(() => () => stop(), []);
+  return { recording, denied, start, stop };
+}
+
+const fileName = (audio: Blob) => (audio.type.includes("mp4") ? "line.m4a" : audio.type.includes("ogg") ? "line.ogg" : "line.webm");
+
+/** AI Audio (N706): say the line the way it should sound; your own voice copy
+ *  says it back with your timing and emphasis. Your Takes only. */
+export function AiAudioScreen({ clip, onKeep, onBack }: {
+  clip: ShapeClip; onKeep: (shape: AiAudioShape) => void; onBack: () => void;
+}) {
+  const url = `/api/v2/user/speaking-calibration/${encodeURIComponent(clip.session_id)}/${encodeURIComponent(clip.snippet_id)}/coach`;
+  const [voice, setVoice] = useState<string | null>(null);
+  const [heard, setHeard] = useState<{ text: string; wpm?: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  useEffect(() => () => { if (voice) URL.revokeObjectURL(voice); }, [voice]);
+  const send = async (audio: Blob) => {
+    setBusy(true); setNotice(""); setVoice(null); setHeard(null);
+    const form = (revoice: boolean) => {
+      const body = new FormData();
+      body.append("audio", audio, fileName(audio));
+      if (revoice) body.append("action", "revoice");
+      return body;
+    };
+    const listen = bffFetch(url, { method: "POST", body: form(false), timeoutMs: 55_000 })
+      .then((result) => {
+        if (result.kind !== "response" || !result.ok) return;
+        const got = result.body as { text?: string; cues?: Record<string, number> };
+        const wpm = got.cues?.wpm;
+        setHeard({ text: got.text ?? "", ...(typeof wpm === "number" && wpm >= 60 && wpm <= 300 ? { wpm: Math.round(wpm) } : {}) });
+      }).catch(() => undefined);
+    const revoice = fetch(url, await withSessionBearer({ method: "POST", cache: "no-store", body: form(true), signal: AbortSignal.timeout(55_000) }))
+      .then(async (response) => {
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("audio/")) {
+          const body = await response.json().catch(() => ({}));
+          setNotice(typeof body.error === "string" ? body.error : "Couldn’t make the AI version. Try again.");
+          return;
+        }
+        setVoice(URL.createObjectURL(await response.blob()));
+      }).catch(() => setNotice("Couldn’t make the AI version. Try again."));
+    await Promise.all([listen, revoice]);
+    setBusy(false);
+  };
+  const mic = useRecorder(25, (audio) => void send(audio));
+  if (clip.source !== "take") {
+    return <div data-shape="ai_audio" className="flex flex-col gap-3">
+      <h2 className="m-0 text-[20px] font-semibold">AI Audio</h2>
+      <Bubble>A corpus clip is someone else’s voice, so no AI version is made. It is kept as AI Audio.</Bubble>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={choiceBubble(true)} onClick={() => onKeep({ text: "" })}>Keep</button>
+        <button type="button" className={choiceBubble(false)} onClick={onBack}>Back</button>
+      </div>
+    </div>;
+  }
+  return <div data-shape="ai_audio" className="flex flex-col gap-3">
+    <h2 className="m-0 text-[20px] font-semibold">AI Audio: say it the way it should sound</h2>
+    {clip.words ? <p className="m-0 text-[15px] text-muted-foreground">{`“${clip.words}”`}</p> : null}
+    <div className="flex flex-wrap gap-2">
+      {mic.recording
+        ? <button type="button" data-ai-stop="" className={choiceBubble(true)} onClick={mic.stop}>Stop</button>
+        : <button type="button" data-ai-record="" className={choiceBubble(!voice)} disabled={busy}
+            onClick={() => void mic.start()}>{voice ? "Say it again" : "Record it the right way"}</button>}
+    </div>
+    {mic.denied ? <Bubble role="alert">Allow microphone access, then try again.</Bubble> : null}
+    {busy ? <Bubble role="status">Making the AI version in your voice…</Bubble> : null}
+    {voice ? <div className="flex flex-col gap-1">
+      <span className="text-[15px] font-semibold">AI version</span>
+      <audio data-ai-voice="" controls src={voice} className="w-full" />
+    </div> : null}
+    {notice ? <Bubble role="alert">{notice}</Bubble> : null}
+    <div className="flex flex-wrap gap-2">
+      <button type="button" className={choiceBubble(true)} disabled={!voice || busy}
+        onClick={() => onKeep({ text: heard?.text ?? "", ...(heard?.wpm ? { wpm: heard.wpm } : {}) })}>Keep</button>
       <button type="button" className={choiceBubble(false)} onClick={onBack}>Back</button>
     </div>
   </div>;
