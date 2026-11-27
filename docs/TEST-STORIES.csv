@@ -1025,10 +1025,13 @@ as needing nothing.
 O3  Your past answers lists what was saved, and Undo removes it.
 O4  More than one fix can be picked; Sniper keeps its pace and pause
 places, Rephrase keeps the better words next to the app's suggestion
-(backend N705).","O1 -> ""one question per screen""
+(backend N705).
+O5  AI Audio: the founder records the line the right way, hears it back
+in their own voice copy, and Keep saves the words they said (N706).","O1 -> ""one question per screen""
 O2 -> ""a tool saves the clip and its tool; None saves the three""
 O3 -> ""past answers can be undone""
-O4 -> ""several fixes, each shaped before it is kept""",Backend N704: the founder's whole Training panel.
+O4 -> ""several fixes, each shaped before it is kept""
+O5 -> ""AI Audio is said the right way and heard back in your voice""",Backend N704: the founder's whole Training panel.
 src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
 becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that

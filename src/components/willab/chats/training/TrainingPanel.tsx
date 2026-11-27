@@ -8,7 +8,7 @@ import { fetchConfidenceQueueResult, fetchTrainingImportsPage } from "@/services
 import WalkPlayer from "../../walk/WalkPlayer";
 import CalibrationCorpusUpload from "./CalibrationCorpusUpload";
 import PickerCheck from "./PickerCheck";
-import { RephraseScreen, SniperScreen } from "./ShapeFix";
+import { AiAudioScreen, RephraseScreen, SniperScreen } from "./ShapeFix";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, errorTools, patternRequest, speakingPatternPath,
   type CaseLink, type LibraryPage, type PatternExample, type PatternResponse, type PatternSource } from "./speakingPatterns";
@@ -31,7 +31,7 @@ const STEP = 6;
 /** Pages of saved labels read to know what is done (30 each). */
 const LABEL_PAGES = 20;
 /** Fixes with a screen to shape them before they are kept (backend N705). */
-const SHAPED = ["sniper", "rewrite"];
+const SHAPED = ["sniper", "rewrite", "ai_audio"];
 const TOOLS = [...Object.entries(errorTools).filter(([id]) => id !== "other"), ["nothing", "Nothing"]] as [string, string][];
 
 const clipKey = (link: CaseLink) => `${link.session_id}|${link.snippet_id}`;
@@ -238,15 +238,11 @@ export default function TrainingPanel() {
     {picked && !shaping ? <WhatItGets clip={picked} chosen={chosen} saving={saving} onWindow={onWindow}
       onToggle={toggleTool} onContinue={() => void goOn(picked)} onBack={finish} /> : null}
 
-    {picked && shaping?.[0] === "sniper" ? <SniperScreen key="sniper" clip={{ ...picked, duration: durationOf(picked) }}
-      onBack={() => setShaping(null)} onKeep={(shape) => void keepShape(picked, "sniper", {
-        marks: { speed: shape.speed, pauses: shape.pauses }, ...(shape.wpm ? { values: { wpm: shape.wpm } } : {}),
-      })} /> : null}
-    {picked && shaping?.[0] === "rewrite" ? <RephraseScreen key="rewrite" clip={picked}
-      onBack={() => setShaping(null)} onKeep={(shape) => void keepShape(picked, "rewrite", shape)} /> : null}
+    {picked && shaping?.[0] ? <ShapeStep tool={shaping[0]} clip={{ ...picked, duration: durationOf(picked) }}
+      onBack={() => setShaping(null)} onKeep={(tool, shape) => void keepShape(picked, tool, shape)} /> : null}
 
-    {!current && busy ? <Bubble role="status">Loading clips…</Bubble> : null}
-    {!current && !busy && !notice ? <Bubble data-train-empty="">{emptyLine}</Bubble> : null}
+    {!current && !picked && busy ? <Bubble role="status">Loading clips…</Bubble> : null}
+    {!current && !picked && !busy && !notice ? <Bubble data-train-empty="">{emptyLine}</Bubble> : null}
     {notice ? <Bubble role="alert">{notice}</Bubble> : null}
 
     <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
@@ -257,6 +253,18 @@ export default function TrainingPanel() {
       </div>
     </div>
   </section>;
+}
+
+/** The screen that shapes one fix (N705, N706), and what it keeps. */
+function ShapeStep({ tool, clip, onBack, onKeep }: {
+  tool: string; clip: Clip; onBack: () => void; onKeep: (tool: string, shape: Record<string, unknown>) => void;
+}) {
+  const wpm = (value?: number) => (value ? { values: { wpm: value } } : {});
+  if (tool === "sniper") return <SniperScreen key="sniper" clip={clip} onBack={onBack}
+    onKeep={(shape) => onKeep("sniper", { marks: { speed: shape.speed, pauses: shape.pauses }, ...wpm(shape.wpm) })} />;
+  if (tool === "ai_audio") return <AiAudioScreen key="ai_audio" clip={clip} onBack={onBack}
+    onKeep={(shape) => onKeep("ai_audio", { ...(shape.text ? { text: shape.text } : {}), ...wpm(shape.wpm) })} />;
+  return <RephraseScreen key="rewrite" clip={clip} onBack={onBack} onKeep={(shape) => onKeep("rewrite", shape)} />;
 }
 
 /** Which empty it is: nothing found, nothing playable, or all answered. */

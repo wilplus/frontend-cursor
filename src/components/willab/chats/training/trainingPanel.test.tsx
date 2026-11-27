@@ -13,10 +13,13 @@ OUTCOME
   O4  More than one fix can be picked; Sniper keeps its pace and pause
       places, Rephrase keeps the better words next to the app's suggestion
       (backend N705).
+  O5  AI Audio: the founder records the line the right way, hears it back
+      in their own voice copy, and Keep saves the words they said (N706).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
          O4 -> "several fixes, each shaped before it is kept"
+         O5 -> "AI Audio is said the right way and heard back in your voice"
 WHY      Backend N704: the founder's whole Training panel.
 */
 import { act } from "react";
@@ -128,14 +131,50 @@ it("several fixes, each shaped before it is kept", async () => {
   await act(async () => root.render(<TrainingPanel />));
   await settle();
   await press("This one", 1);
-  await press("AI Audio");
+  await press("Coach video");
   await press("Rephrase");
   await press("Continue");
   const puts = () => calls.filter((c) => c.method === "PUT").map((c) => c.json?.intervention as Record<string, unknown>);
-  expect(puts().map((i) => i.tool)).toEqual(["ai_audio"]);
+  expect(puts().map((i) => i.tool)).toEqual(["coach_video"]);
   expect(host.querySelector("[data-shape='rewrite']")).not.toBeNull();
   expect(host.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Better words.");
   await press("Accept");
   expect(puts()[1]).toMatchObject({ tool: "rewrite", text: "Better words.", suggested: "Better words." });
   expect(shown()).toEqual(["m4", "m5", "m6"]);
+});
+
+it("AI Audio is said the right way and heard back in your voice", async () => {
+  const stop = vi.fn();
+  class FakeRecorder {
+    state = "inactive"; mimeType = "audio/webm";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    start() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["a"], { type: "audio/webm" }) }); this.onstop?.(); }
+  }
+  vi.stubGlobal("MediaRecorder", FakeRecorder);
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true,
+    value: { getUserMedia: async () => ({ getTracks: () => [{ stop }] }) } });
+  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:voice", revokeObjectURL: () => undefined }));
+  const revoice = vi.fn(async () => new Response("mp3", { status: 200, headers: { "content-type": "audio/mpeg" } }));
+  vi.stubGlobal("fetch", revoice);
+  const listen = vi.mocked(bffFetch).getMockImplementation()!;
+  const heard = { kind: "response", ok: true, status: 200, body: { text: "We start in March.", cues: { wpm: 128 } } };
+  vi.mocked(bffFetch).mockImplementation(async (path, options) =>
+    String(path).endsWith("/coach") ? heard as unknown as Awaited<ReturnType<typeof bffFetch>> : listen(path, options));
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("This one", 0);
+  await press("AI Audio");
+  await press("Continue");
+  expect(host.querySelector("[data-shape='ai_audio']")).not.toBeNull();
+  await press("Record it the right way");
+  await press("Stop");
+  expect(revoice).toHaveBeenCalledTimes(1);
+  expect(host.querySelector("[data-ai-voice]")?.getAttribute("src")).toBe("blob:voice");
+  expect(host.querySelector("[data-train-empty]")).toBeNull();
+  await press("Keep");
+  const put = calls.find((c) => c.method === "PUT")?.json?.intervention as Record<string, unknown>;
+  expect(put).toMatchObject({ tool: "ai_audio", text: "We start in March.", values: { wpm: 128 } });
+  vi.unstubAllGlobals();
 });
