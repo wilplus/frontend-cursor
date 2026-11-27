@@ -346,7 +346,9 @@ The founder's **My Chat → AI** is the Training panel (N704): no chat, no Exper
 2. **What should it get?** The chosen clip plays again. Pick one or more of **Sniper**, **AI Audio**, **Rephrase**, **Coach video**, or **Nothing** alone, then **Continue**. This trains the intervention picker.
 3. **Shape the fix** (N705). **Sniper**: play the clip faster or slower with its pitch kept, tap between words where a pause goes, **Keep**. **Rephrase**: the app's better wording for the clip, **Accept** or edit it and **Keep**. **AI Audio** (N706): **Record it the right way**, and the line comes back in your own voice copy with your timing and emphasis; **Say it again** or **Keep**. On a corpus clip, a stranger's voice, AI Audio is kept with no AI version. Coach video is kept as it is. Then the next three clips come.
 
-A switch on top chooses **App Takes** or **Corpus**, with how many sets are left. Each answer is a label in the founder's library: the chosen clip as needing feedback, with its tool; "None needs it" marks each of the three as needing nothing. Under the questions: how often each picker agreed with these labels on app Takes (N702), **Your past answers** with **Undo**, and on the corpus **Import audio**. Labels are founder-only, follow the existing ownership and corpus access rules, and are erased with their source. Nothing here changes what a speaker is served.
+4. **Act it** (N708), the third switch. The state shows, fixed for now: **Tense (high arousal, negative)**. **What kind of mistake?**: a name used before, or **Your own name**, and the language (PL, EN). **Record the mistake** (about twelve seconds, one sentence), listen, **Record again** or **Keep**. While the import lane writes it out: "Writing out your words…". Then **What fixes it?**: one or more of AI Audio (in your own voice, as on your Takes), Rephrase, Sniper, Coach video, each shaped as in step 3; every clip of the recording gets the fixes, under your name for the mistake. A recording not labelled yet opens first next time. Acted recordings are never in a coach's queue or the Corpus list.
+
+A switch on top chooses **App Takes**, **Corpus** or **Act it**, with how many sets are left. Each answer is a label in the founder's library: the chosen clip as needing feedback, with its tool; "None needs it" marks each of the three as needing nothing. Under the questions: how often each picker agreed with these labels on app Takes (N702), **Your past answers** with **Undo**, and on the corpus **Import audio**. Labels are founder-only, follow the existing ownership and corpus access rules, and are erased with their source. Nothing here changes what a speaker is served.
 
 Gone (N704): Experiments, the AI tile's chat, the calibration chat and retry, the cue numbers, the span and pitch fields, the pattern names, the clip table and the coach's queues on this screen. "Moments to answer" stays in the coach's queue; "Do you hear it?" stays for other coaches in the coach panel.
 
@@ -400,6 +402,8 @@ Every prototype link in §1, in the order it first appears:
 ## 6. Changes
 
 One line each, newest first: `date · N · what changed · PR`.
+
+- 2026-11-27 · N708 · Act it: the founder names a mistake in the tense state, records it and labels its fixes (AI Audio, Rephrase, Sniper, Coach video) on the acted clip; the recording goes through the corpus import lane, kept out of coach queues · BE (N708 PR), FE (this PR)
 
 - 2026-11-27 · N706 · AI Audio is shaped by recording the line the right way; ElevenLabs speech-to-speech says it back in the founder's own voice copy; own Takes only · BE (N706 PR), FE (this PR)
 - 2026-11-26 · N705 · more than one fix per clip; Sniper keeps a chosen speed and pause places, Rephrase the accepted or edited wording next to the app's; the panel says whether no Takes were found, none had clips, or all are answered · BE (N705 PR), FE (this PR)
