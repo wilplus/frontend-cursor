@@ -10,7 +10,11 @@ import { casePath, patternRequest, type CaseLink } from "./speakingPatterns";
 /* The screens that shape one fix before it is kept (backend N705):
    Sniper, the pace and where the pauses go; Rephrase, the better words. */
 
-export type ShapeClip = CaseLink & { label: string; words: string; src: string | null; start: number; duration: number };
+export type ShapeClip = CaseLink & {
+  label: string; words: string; src: string | null; start: number; duration: number;
+  /** The founder's own acted recording (backend N708): their voice, its window known. */
+  acted?: boolean;
+};
 export type SniperShape = { speed: number; pauses: number[]; wpm?: number };
 export type RephraseShape = { text: string; suggested: string };
 export type AiAudioShape = { text: string; wpm?: number };
@@ -19,8 +23,8 @@ const SPEEDS = { min: 0.6, max: 1.4, step: 0.05 };
 
 /** The clip's playable window: a Take's from its read, a corpus clip's from the corpus read. */
 function useWindow(clip: ShapeClip) {
-  const corpus = useCorpusClip(clip.source === "corpus" ? clip.snippet_id : null);
-  if (clip.source === "take") return { src: clip.src, start: clip.start, duration: clip.duration };
+  const corpus = useCorpusClip(clip.source === "corpus" && !clip.acted ? clip.snippet_id : null);
+  if (clip.source === "take" || clip.acted) return { src: clip.src, start: clip.start, duration: clip.duration };
   const read = corpus.clip;
   return { src: read?.src ?? null, start: read?.startOffsetMs ?? 0, duration: read?.durationMs ?? 0 };
 }
@@ -145,7 +149,7 @@ export function RephraseScreen({ clip, onKeep, onBack }: {
 }
 
 /** One short recording from the microphone, as a Blob. */
-function useRecorder(maxSeconds: number, onDone: (audio: Blob) => void) {
+export function useRecorder(maxSeconds: number, onDone: (audio: Blob) => void) {
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recording, setRecording] = useState(false);
@@ -175,7 +179,7 @@ function useRecorder(maxSeconds: number, onDone: (audio: Blob) => void) {
   return { recording, denied, start, stop };
 }
 
-const fileName = (audio: Blob) => (audio.type.includes("mp4") ? "line.m4a" : audio.type.includes("ogg") ? "line.ogg" : "line.webm");
+export const fileName = (audio: Blob) => (audio.type.includes("mp4") ? "line.m4a" : audio.type.includes("ogg") ? "line.ogg" : "line.webm");
 
 /** AI Audio (N706): say the line the way it should sound; your own voice copy
  *  says it back with your timing and emphasis. Your Takes only. */
@@ -216,7 +220,7 @@ export function AiAudioScreen({ clip, onKeep, onBack }: {
     setBusy(false);
   };
   const mic = useRecorder(25, (audio) => void send(audio));
-  if (clip.source !== "take") {
+  if (clip.source !== "take" && !clip.acted) {
     return <div data-shape="ai_audio" className="flex flex-col gap-3">
       <h2 className="m-0 text-[20px] font-semibold">AI Audio</h2>
       <Bubble>A corpus clip is someone else’s voice, so no AI version is made. It is kept as AI Audio.</Bubble>

@@ -15,11 +15,15 @@ OUTCOME
       (backend N705).
   O5  AI Audio: the founder records the line the right way, hears it back
       in their own voice copy, and Keep saves the words they said (N706).
+  O6  Act it: the founder names a mistake in the tense state, records it,
+      and once it is written out says what fixes it; each fix is saved on
+      the acted clip under their name for it (N708).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
          O4 -> "several fixes, each shaped before it is kept"
          O5 -> "AI Audio is said the right way and heard back in your voice"
+         O6 -> "an acted mistake is named, recorded and given its fixes"
 WHY      Backend N704: the founder's whole Training panel.
 */
 import { act } from "react";
@@ -176,5 +180,61 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   await press("Keep");
   const put = calls.find((c) => c.method === "PUT")?.json?.intervention as Record<string, unknown>;
   expect(put).toMatchObject({ tool: "ai_audio", text: "We start in March.", values: { wpm: 128 } });
+  vi.unstubAllGlobals();
+});
+
+it("an acted mistake is named, recorded and given its fixes", async () => {
+  class FakeRecorder {
+    state = "inactive"; mimeType = "audio/webm";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    start() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["a"], { type: "audio/webm" }) }); this.onstop?.(); }
+  }
+  vi.stubGlobal("MediaRecorder", FakeRecorder);
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true,
+    value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }) } });
+  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:mistake", revokeObjectURL: () => undefined }));
+  let sent: FormData | null = null;
+  const ready = { session_id: "acted-1", state: "tense", pattern: "Rushing", status: "ready",
+    clips: [{ snippet_id: "a1", words: "We start in March.", duration_ms: 3000, start_offset_ms: 0, src: "https://audio" }] };
+  const base = vi.mocked(bffFetch).getMockImplementation()!;
+  vi.mocked(bffFetch).mockImplementation(async (path, options) => {
+    if (String(path).endsWith("/acted")) {
+      if (options?.method === "POST") {
+        sent = options.body as FormData;
+        return { kind: "response", ok: true, status: 202, body: { session_id: "acted-1" }, headers: new Headers() };
+      }
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { recordings: sent ? [ready] : [], names: ["Flat voice"] } };
+    }
+    return base(path, options);
+  });
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("Act it");
+  expect(host.textContent).toContain("Tense (high arousal, negative)");
+  const own = host.querySelector<HTMLInputElement>("input[aria-label='Your own name']")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(own, "Rushing");
+    own.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await press("Continue");
+  await press("Record the mistake");
+  await press("Stop");
+  await press("Keep");
+  expect(sent!.get("state")).toBe("tense");
+  expect(sent!.get("pattern")).toBe("Rushing");
+  await settle();
+  expect(host.textContent).toContain("What fixes it?");
+  expect(host.textContent).not.toContain("Nothing");
+  await press("Rephrase");
+  await press("Continue");
+  await press("Accept");
+  const saved = calls.filter((c) => c.method === "POST" || c.method === "PUT");
+  expect(saved[0].url).toContain("/corpus/acted-1/a1");
+  expect(saved[0].json).toMatchObject({ kind: "error", pattern: "Rushing", start_ms: 0, end_ms: 3000 });
+  expect(saved[1].json).toMatchObject({ intervention: { tool: "rewrite", text: "Better words." } });
+  expect(host.textContent).toContain("Saved.");
   vi.unstubAllGlobals();
 });

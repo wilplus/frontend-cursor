@@ -8,6 +8,7 @@ import { fetchConfidenceQueueResult, fetchTrainingImportsPage } from "@/services
 import WalkPlayer from "../../walk/WalkPlayer";
 import CalibrationCorpusUpload from "./CalibrationCorpusUpload";
 import PickerCheck from "./PickerCheck";
+import ActIt from "./ActIt";
 import { AiAudioScreen, RephraseScreen, SniperScreen } from "./ShapeFix";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, errorTools, patternRequest, speakingPatternPath,
@@ -20,7 +21,7 @@ import { casePath, errorTools, patternRequest, speakingPatternPath,
    Library label (an error with its tool, or a control), which the pickers'
    agreement check reads. */
 
-type Clip = CaseLink & { label: string; words: string; src: string | null; start: number; duration: number };
+export type Clip = CaseLink & { label: string; words: string; src: string | null; start: number; duration: number; acted?: boolean };
 type ClipSet = { key: string; title: string; clips: Clip[] };
 type View = "panel" | "past" | "import";
 
@@ -31,12 +32,12 @@ const STEP = 6;
 /** Pages of saved labels read to know what is done (30 each). */
 const LABEL_PAGES = 20;
 /** Fixes with a screen to shape them before they are kept (backend N705). */
-const SHAPED = ["sniper", "rewrite", "ai_audio"];
+export const SHAPED = ["sniper", "rewrite", "ai_audio"];
 const TOOLS = [...Object.entries(errorTools).filter(([id]) => id !== "other"), ["nothing", "Nothing"]] as [string, string][];
 
 const clipKey = (link: CaseLink) => `${link.session_id}|${link.snippet_id}`;
 
-async function savedLabels(source: PatternSource): Promise<PatternExample[]> {
+export async function savedLabels(source: PatternSource): Promise<PatternExample[]> {
   const rows: PatternExample[] = [];
   let offset: number | null = 0;
   for (let page = 0; offset !== null && page < LABEL_PAGES; page += 1) {
@@ -100,7 +101,7 @@ function CorpusPlayer({ clip, onWindow }: { clip: Clip; onWindow: (duration: num
     durationMs={read.durationMs} label={clip.label} look="bare" onError={onMediaError} />;
 }
 
-function ClipCard({ clip, chosen, onPick, onWindow }: {
+export function ClipCard({ clip, chosen, onPick, onWindow }: {
   clip: Clip; chosen: boolean; onPick?: () => void; onWindow: (key: string, duration: number) => void;
 }) {
   return <div data-train-clip={clip.snippet_id}
@@ -109,7 +110,7 @@ function ClipCard({ clip, chosen, onPick, onWindow }: {
       <span className="font-semibold">{clip.label}</span>
       {onPick ? <button type="button" className={choiceBubble(chosen)} onClick={onPick}>This one</button> : null}
     </div>
-    {clip.source === "take"
+    {clip.source === "take" || clip.acted
       ? <WalkPlayer seed={clip.snippet_id} src={clip.src} startOffsetMs={clip.start} durationMs={clip.duration} label={clip.label} look="bare" />
       : <CorpusPlayer clip={clip} onWindow={(d) => onWindow(clipKey(clip), d)} />}
     {clip.words ? <p className="m-0 text-[15px] text-muted-foreground">“{clip.words.slice(0, 140)}”</p> : null}
@@ -118,6 +119,7 @@ function ClipCard({ clip, chosen, onPick, onWindow }: {
 
 export default function TrainingPanel() {
   const [source, setSource] = useState<PatternSource>("take");
+  const [acting, setActing] = useState(false);
   const [view, setView] = useState<View>("panel");
   const [reload, setReload] = useState(0);
   const [recs, setRecs] = useState<{ id: string; title: string }[] | null>(null);
@@ -223,12 +225,22 @@ export default function TrainingPanel() {
       onUndone={(id) => setLabels((was) => was.filter((row) => row.id !== id))} />;
   }
 
+  const switcher = <div className="flex gap-2">
+    {(["take", "corpus"] as const).map((id) => <button key={id} type="button" aria-pressed={!acting && source === id}
+      className={choiceBubble(!acting && source === id)} onClick={() => { setActing(false); setSource(id); }}>{id === "take" ? "App Takes" : "Corpus"}</button>)}
+    <button type="button" data-train-act="" aria-pressed={acting} className={choiceBubble(acting)}
+      onClick={() => setActing(true)}>Act it</button>
+  </div>;
+  if (acting) {
+    return <section data-training-panel="" className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+      {switcher}
+      <ActIt />
+    </section>;
+  }
+
   return <section data-training-panel="" className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex gap-2">
-        {(["take", "corpus"] as const).map((id) => <button key={id} type="button" aria-pressed={source === id}
-          className={choiceBubble(source === id)} onClick={() => setSource(id)}>{id === "take" ? "App Takes" : "Corpus"}</button>)}
-      </div>
+      {switcher}
       <span data-train-left="" className="text-[15px] text-muted-foreground">{`${left} left`}</span>
     </div>
 
@@ -256,7 +268,7 @@ export default function TrainingPanel() {
 }
 
 /** The screen that shapes one fix (N705, N706), and what it keeps. */
-function ShapeStep({ tool, clip, onBack, onKeep }: {
+export function ShapeStep({ tool, clip, onBack, onKeep }: {
   tool: string; clip: Clip; onBack: () => void; onKeep: (tool: string, shape: Record<string, unknown>) => void;
 }) {
   const wpm = (value?: number) => (value ? { values: { wpm: value } } : {});
@@ -288,16 +300,17 @@ function WhichOne({ set, saving, onWindow, onPick, onNone }: {
   </>;
 }
 
-function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinue, onBack }: {
+export function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinue, onBack, tools = TOOLS, title = "What should it get?" }: {
   clip: Clip; chosen: string[]; saving: boolean; onWindow: (key: string, duration: number) => void;
   onToggle: (id: string) => void; onContinue: () => void; onBack: () => void;
+  tools?: [string, string][]; title?: string;
 }) {
   return <>
-    <h2 className="m-0 text-[20px] font-semibold">What should it get?</h2>
+    <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
     <p className="m-0 text-[14px] text-muted-foreground">Pick one or more.</p>
     <ClipCard clip={clip} chosen onWindow={onWindow} />
     <div className="flex flex-wrap gap-2">
-      {TOOLS.map(([id, name]) => <button key={id} type="button" data-train-tool={id} aria-pressed={chosen.includes(id)}
+      {tools.map(([id, name]) => <button key={id} type="button" data-train-tool={id} aria-pressed={chosen.includes(id)}
         className={choiceBubble(chosen.includes(id))} disabled={saving} onClick={() => onToggle(id)}>{name}</button>)}
     </div>
     <div className="flex flex-wrap gap-2">
@@ -308,17 +321,17 @@ function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinue, onBa
   </>;
 }
 
-function PastAnswers({ source, labels, onBack, onUndone }: {
-  source: PatternSource; labels: PatternExample[]; onBack: () => void; onUndone: (id: string) => void;
+export function PastAnswers({ source, labels, onBack, onUndone, empty }: {
+  source: PatternSource; empty?: string; labels: PatternExample[]; onBack: () => void; onUndone: (id: string) => void;
 }) {
   const [notice, setNotice] = useState("");
   const answer = (row: PatternExample) => row.kind === "control" ? "None needs it"
-    : row.kind === "error" ? `Needs feedback · ${row.intervention ? errorTools[row.intervention.tool as keyof typeof errorTools] ?? row.intervention.name : "Nothing"}`
+    : row.kind === "error" ? `${row.pattern === "Needs feedback" ? "Needs feedback" : row.pattern} · ${row.intervention ? errorTools[row.intervention.tool as keyof typeof errorTools] ?? row.intervention.name : "Nothing"}`
     : row.pattern;
   return <section data-past-answers="" className="mx-auto flex w-full max-w-2xl flex-col gap-3 p-4">
     <button type="button" className="self-start text-[15px] underline" onClick={onBack}>Back</button>
     <h2 className="m-0 text-[20px] font-semibold">Your past answers</h2>
-    {labels.length === 0 ? <Bubble>{source === "take" ? "No answers on your Takes yet." : "No answers on the corpus yet."}</Bubble> : null}
+    {labels.length === 0 ? <Bubble>{empty ?? (source === "take" ? "No answers on your Takes yet." : "No answers on the corpus yet.")}</Bubble> : null}
     {labels.map((row) => <div key={row.id} data-past-row={row.id} className="flex items-center justify-between gap-3 border-b border-border py-2">
       <span className="min-w-0">{answer(row)}</span>
       <button type="button" className={choiceBubble(false)} onClick={() => void patternRequest(casePath(row), "DELETE", { example_id: row.id })
