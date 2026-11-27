@@ -479,12 +479,15 @@ O4  The general coach keeps old advice as text and shows the weekly
 note while project artifacts stay inside the project.
 O5  A hosted chat shows the host's messages and Take feedback in
 one timeline, routes each reply, and opens a new Take in place.
-Its consented practice uses that Take and the server's cited fragment.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
+Its consented practice uses that Take and the server's cited fragment.
+O6  ""Your projects"" in the ""+"" opens the project picker, where a
+Take starts, even with the sidebar already open.","O1 -> ""uses backend-owned persistence, keeps authoritative metadata locally, and reconciles once""
 O2 -> ""keeps a refused quick choice once with an explicit recoverable error""
 O3 -> ""keeps a structured contextual turn ordered through refresh and scrolls both sides into view""
 O3 -> ""does not replay an old terminal walk line as the answer to a new message""
 O4 -> ""keeps old suggested words as text and puts the weekly note in Speaking Coach""
-O5 -> ""answers a selected Take and the waiting host from the same composer""","Founder lock N655, 2026-11-16; release-blocking chat audit, 2026-11-17."
+O5 -> ""answers a selected Take and the waiting host from the same composer""
+O6 -> ""opens the project picker from the ""+"" inside the chat workspace""","Founder lock N655, 2026-11-16; release-blocking chat audit, 2026-11-17."
 src/components/willab/NextTakeShareScreen.test.tsx,Story,"As a speaker before my next Take, with sending on, I want the people in my chats listed with everyone ticked, the one I sent to last on top, so that one Continue sends my Take to them, and I want the line under it to let me add people later but never unsend. With sending off, I want nothing ticked for me and Continue to wait until I choose, with ""Only me"" counting as a choice, so that any sharing is my own decision; and I want the line under my latest Take's recording to open the same screen with my choice ticked, so that I can change who hears that Take and the ones after it.","O3  With sending on: the three bubbles, Select all and one row per
 person, all ticked, ""Last sent"" under the one sent to last; Select
 all unticked unticks everyone and Continue waits; with one person
