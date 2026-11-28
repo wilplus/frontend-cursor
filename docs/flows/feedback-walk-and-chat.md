@@ -2621,6 +2621,7 @@ The design is the prototype; the newest wins where two disagree.
 
 ## 6. Changes
 
+- 2026-11-28 · N715 · A finished take opens as soon as the Ideal Text is ready. The chat then names the closest error and its right way, and the mic is ready to try it. The reply says whether the try moved closer or further. FE (this PR)
 - 2026-11-28 · N714 · A presentation take no longer looks for memorable moments. The wait drops "Finding feedback moments". A try-it reply can add which suite the attempt sits with, in words. FE (this PR)
 - 2026-11-27 · N700 · founder in chat, 27 November 2026 ("I click my projects and nothing happens… the onboarding do not open at all") · "Your projects" in the "+" opens the project picker again, as before the sidebar; it only opened the sidebar, which on a computer is already open, so it did nothing and no new project could be started. A project's chat "+" adds "Record the next take" (the words of its existing link). No new words. `Lounge.tsx`, `ProjectChat.tsx`, `WillabSurface.tsx`, `chats/RecordNextTakeLink.tsx`.
 - 2026-11-25 · N700 · One kind of chat: the sidebar is one flat list of one's own chats with "New chat" in place of "Start a new project"; a message belongs to the chat it was written in; a project's chat has the same "+" as the Speaking coach chat; tapping a chat's name in its top bar renames it. `chats/ProductHome.tsx`, `chats/loungePlace.tsx`, `chats/TopBar.tsx`, `ProjectChat.tsx`, `services/api/ownChats.ts`.

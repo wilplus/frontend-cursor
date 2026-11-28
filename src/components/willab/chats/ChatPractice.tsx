@@ -11,14 +11,15 @@ import PaceScale from "../pace/PaceScale";
 
 type ChatPractice =
   | { tool: "sniper"; words: string }
-  | { tool: "ai_audio"; words: string; retryId: string; guidance?: string };
+  | { tool: "ai_audio"; words: string; retryId: string; guidance?: string }
+  | { tool: "right_way"; words: string };
 
 export function chatPractice(message: LoungeMessage): ChatPractice | null {
   const raw = message.metadata?.chat_practice;
   if (message.role !== "bot" || !raw || typeof raw !== "object") return null;
   const { words, tool, retry_message_id, guidance } = raw as Record<string, unknown>;
   if (typeof words !== "string" || !words.trim()) return null;
-  if (tool === "sniper") return { tool, words };
+  if (tool === "sniper" || tool === "right_way") return { tool, words };
   if (tool === "ai_audio" && typeof retry_message_id === "string" && retry_message_id) {
     return { tool, words, retryId: retry_message_id, guidance: typeof guidance === "string" ? guidance : undefined };
   }
@@ -93,7 +94,7 @@ export function useChatPractice(rows: readonly LoungeMessage[], scope?: Practice
   }
 
   return {
-    replyId, ready: sniperReady || Boolean(replyId && plan?.tool === "ai_audio" && played.has(replyId)),
+    replyId, ready: plan?.tool === "right_way" || sniperReady || Boolean(replyId && plan?.tool === "ai_audio" && played.has(replyId)),
     reference, listen, listening, activity, audioReady,
   };
 }

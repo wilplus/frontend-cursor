@@ -640,6 +640,7 @@ unknown server text.
 
 ## 6. Changes
 
+- 2026-11-28 · N715 · The wait ends when the Ideal Text is served. It does not stay up for the walk's marks · FE (this PR)
 - 2026-11-28 · N714 · The wait no longer says "Finding feedback moments". The four labels that remain are Processing your recording, Transcribing your take, Building your Ideal Text, and Finding your anchors · FE (this PR)
 - 2026-11-25 · N691 item 2 · Processing done hands the Take to its chat (signed in) or closes (anyone else); the `readout`, `sendgate_unsigned` and `sendgate_signed` states, their transitions and the readout's fade back into recording are gone.
 - 2026-11-23 · continuation-scope repair · the real recorder retains and enforces the selected fragment through Finish/retry, and whole-presentation rehearsal is uncapped. Added user-story checks at the recording UI and mic/upload boundary; §1 documents the one scope contract and original-page provenance.
