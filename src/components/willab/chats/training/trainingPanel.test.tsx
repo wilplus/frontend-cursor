@@ -15,15 +15,16 @@ OUTCOME
       (backend N705).
   O5  AI Audio: the founder records the line the right way, hears it back
       in their own voice copy, and Keep saves the words they said (N706).
-  O6  Act it: the founder names a mistake in the tense state, records it,
-      and once it is written out says what fixes it; each fix is saved on
-      the acted clip under their name for it (N708).
+  O6  Act it: the founder names a mistake in the tense state, records the
+      error, then the same line the right way; both are written out, the
+      error is labelled under their name, and the pair's vocal and verbal
+      cues show side by side (N708, N709).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
          O4 -> "several fixes, each shaped before it is kept"
          O5 -> "AI Audio is said the right way and heard back in your voice"
-         O6 -> "an acted mistake is named, recorded and given its fixes"
+         O6 -> "an acted mistake and its right way are recorded as one measured pair"
 WHY      Backend N704: the founder's whole Training panel.
 */
 import { act } from "react";
@@ -183,7 +184,7 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   vi.unstubAllGlobals();
 });
 
-it("an acted mistake is named, recorded and given its fixes", async () => {
+it("an acted mistake and its right way are recorded as one measured pair", async () => {
   class FakeRecorder {
     state = "inactive"; mimeType = "audio/webm";
     ondataavailable: ((e: { data: Blob }) => void) | null = null;
@@ -194,19 +195,22 @@ it("an acted mistake is named, recorded and given its fixes", async () => {
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", { configurable: true,
     value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }) } });
-  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:mistake", revokeObjectURL: () => undefined }));
-  let sent: FormData | null = null;
-  const ready = { session_id: "acted-1", state: "tense", pattern: "Rushing", status: "ready",
-    clips: [{ snippet_id: "a1", words: "We start in March.", duration_ms: 3000, start_offset_ms: 0, src: "https://audio" }] };
+  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:take", revokeObjectURL: () => undefined }));
+  const sent: FormData[] = [];
+  const suite = (pace: number) => ({ version: "vv-1", vocal: { speech_rate_wpm: pace }, verbal: { hedges: 0 } });
+  const error = { session_id: "acted-1", state: "tense", pattern: "Rushing", status: "ready", role: "error",
+    clips: [{ snippet_id: "a1", words: "We start in March.", duration_ms: 3000, start_offset_ms: 0, src: "https://a", vv: suite(190) }] };
+  const right = { session_id: "acted-2", state: "tense", pattern: "Rushing", status: "ready", role: "correct", pair_of: "acted-1",
+    clips: [{ snippet_id: "b1", words: "We start in March.", duration_ms: 4000, start_offset_ms: 0, src: "https://b", vv: suite(120) }] };
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
     if (String(path).endsWith("/acted")) {
       if (options?.method === "POST") {
-        sent = options.body as FormData;
-        return { kind: "response", ok: true, status: 202, body: { session_id: "acted-1" }, headers: new Headers() };
+        sent.push(options.body as FormData);
+        return { kind: "response", ok: true, status: 202, body: { session_id: sent.length === 1 ? "acted-1" : "acted-2" }, headers: new Headers() };
       }
       return { kind: "response", ok: true, status: 200, headers: new Headers(),
-        body: { recordings: sent ? [ready] : [], names: ["Flat voice"] } };
+        body: { recordings: [right, error].slice(2 - sent.length), names: ["Flat voice"] } };
     }
     return base(path, options);
   });
@@ -223,18 +227,23 @@ it("an acted mistake is named, recorded and given its fixes", async () => {
   await press("Record the mistake");
   await press("Stop");
   await press("Keep");
-  expect(sent!.get("state")).toBe("tense");
-  expect(sent!.get("pattern")).toBe("Rushing");
   await settle();
-  expect(host.textContent).toContain("What fixes it?");
-  expect(host.textContent).not.toContain("Nothing");
-  await press("Rephrase");
+  expect(sent[0].get("pattern")).toBe("Rushing");
+  expect(host.textContent).toContain("Record it the right way");
+  const labelled = calls.find((c) => c.method === "POST" && c.url.includes("/corpus/acted-1/a1"));
+  expect(labelled?.json).toMatchObject({ kind: "error", pattern: "Rushing", start_ms: 0, end_ms: 3000 });
+  await press("Record it the right way");
+  await press("Stop");
+  await press("Keep");
+  await settle();
+  expect(sent[1].get("role")).toBe("correct");
+  expect(sent[1].get("pair_of")).toBe("acted-1");
+  const vocal = host.querySelector("[data-vv='vocal']")!;
+  expect(vocal.textContent).toContain("speech rate wpm");
+  expect(vocal.textContent).toContain("190");
+  expect(vocal.textContent).toContain("120");
+  expect(host.querySelector("[data-vv='verbal']")).not.toBeNull();
   await press("Continue");
-  await press("Accept");
-  const saved = calls.filter((c) => c.method === "POST" || c.method === "PUT");
-  expect(saved[0].url).toContain("/corpus/acted-1/a1");
-  expect(saved[0].json).toMatchObject({ kind: "error", pattern: "Rushing", start_ms: 0, end_ms: 3000 });
-  expect(saved[1].json).toMatchObject({ intervention: { tool: "rewrite", text: "Better words." } });
   expect(host.textContent).toContain("Saved.");
   vi.unstubAllGlobals();
 });
