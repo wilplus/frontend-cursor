@@ -27,7 +27,8 @@ OUTCOME
   O9  A longer acted recording, including one imported from a file, is cut
       into moments and the founder keeps one with "This one" (N711).
   O10 On a labelled corpus clip, Generate the right way shows the new line
-      and plays the audio; In their voice is a separate click (N712).
+      and plays the audio; In their voice is a separate click, and Approve
+      keeps it (N712, N713).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
@@ -483,6 +484,16 @@ it("generate the right way shows the line and plays it", async () => {
   });
   await press("In their voice");
   expect(host.querySelector("[data-their-voice]")?.getAttribute("src")).toBe("data:audio/mpeg;base64,Qg==");
+  expect(host.textContent).toContain("Approve");
+  vi.mocked(bffFetch).mockImplementation(async (path, init) => {
+    const sent = init as { json?: { decision?: string } } | undefined;
+    if (String(path).endsWith("/intervention") && sent?.json?.decision === "approve") {
+      return { kind: "response", ok: true, status: 200, headers: new Headers(), body: { status: "approved" } };
+    }
+    return { kind: "response", ok: true, status: 200, body: {}, headers: new Headers() };
+  });
+  await press("Approve");
+  expect(host.querySelector("[data-review]")?.getAttribute("data-review")).toBe("approved");
   vi.mocked(bffFetch).mockImplementation(async () => ({
     kind: "response", ok: false, status: 401, headers: new Headers(),
     body: { code: "missing_permissions", provider_status: 401, provider_code: "missing_permissions",

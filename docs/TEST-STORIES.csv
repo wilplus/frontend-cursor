@@ -1043,7 +1043,8 @@ and shows the failure, and each check of it gives up on its own.
 O9  A longer acted recording, including one imported from a file, is cut
 into moments and the founder keeps one with ""This one"" (N711).
 O10 On a labelled corpus clip, Generate the right way shows the new line
-and plays the audio; In their voice is a separate click (N712).","O1 -> ""one question per screen""
+and plays the audio; In their voice is a separate click, and Approve
+keeps it (N712, N713).","O1 -> ""one question per screen""
 O2 -> ""a tool saves the clip and its tool; None saves the three""
 O3 -> ""past answers can be undone""
 O4 -> ""several fixes, each shaped before it is kept""

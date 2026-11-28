@@ -10,6 +10,7 @@ import CalibrationCorpusUpload from "./CalibrationCorpusUpload";
 import PickerCheck from "./PickerCheck";
 import ActIt from "./ActIt";
 import { AiAudioScreen, RephraseScreen, SniperScreen } from "./ShapeFix";
+import { InterventionReview } from "./InterventionReview";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, errorTools, looksLike, mistakeLine, mistakeProgress, pairsHint, patternInput, patternRequest, speakingPatternPath, suggestionsPath,
   type ActedListing, type CaseLink, type LibraryPage, type MistakeProgress, type PatternExample,
@@ -466,6 +467,7 @@ function RightWay({ clip, pattern }: { clip: CaseLink; pattern: string }) {
   const [line, setLine] = useState("");
   const [src, setSrc] = useState<string | null>(null);
   const [voice, setVoice] = useState<string | null>(null);
+  const [heard, setHeard] = useState<{ audio: string; content_type: string; kept_by: "generated" | "voice" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   async function ask(path: string, take: (got: { line?: string; audio?: string | null; voice?: string | null }) => void) {
@@ -486,15 +488,18 @@ function RightWay({ clip, pattern }: { clip: CaseLink; pattern: string }) {
       <button type="button" className={choiceBubble(true)} disabled={busy} onClick={() => void ask("right-way", (got) => {
         setSrc(got.audio ? `data:audio/wav;base64,${got.audio}` : null);
         setVoice(null);
+        setHeard(got.audio ? { audio: got.audio, content_type: "audio/wav", kept_by: "generated" } : null);
         if (!got.audio) setNotice("The cues of these recordings could not be measured yet.");
       })}>Generate the right way</button>
       <button type="button" className={choiceBubble(false)} disabled={busy} onClick={() => { setVoice(null); void ask("in-their-voice", (got) => {
         setVoice(got.voice ? `data:audio/mpeg;base64,${got.voice}` : null);
+        if (got.voice) setHeard({ audio: got.voice, content_type: "audio/mpeg", kept_by: "voice" });
       }); }}>In their voice</button>
     </div>
     {line ? <p className="m-0 text-[15px]">{line}</p> : null}
     {src ? <audio data-right-audio="" controls src={src} className="w-full" /> : null}
     {voice ? <audio data-their-voice="" controls src={voice} className="w-full" /> : null}
+    {line || heard ? <InterventionReview clip={clip} pattern={pattern} line={line} heard={heard} /> : null}
     {notice ? <Bubble role="status">{notice}</Bubble> : null}
   </div>;
 }
