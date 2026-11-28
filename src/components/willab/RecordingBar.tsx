@@ -13,17 +13,22 @@ export default function RecordingBar({
   elapsedMs,
   onTrash,
   onStop,
+  listening,
 }: {
   elapsedMs: number;
   onTrash: () => void;
   /** Absent while the microphone is still opening: the strip shows no Stop
    *  yet (the tempo step). */
   onStop?: () => void;
+  /** The chat's "Listening…" strip, with the live marks, instead of "Recording". */
+  listening?: boolean;
 }) {
   const host = useInlineWalkHost();
   const bar = (
     <div className="min-w-0 flex-1" data-recording-bar="">
-      <ChatComposer voiceRequired recording={{ elapsedMs, stop: onStop, discard: onTrash, stopLabel: RECORDING_STOP }} />
+      <ChatComposer voiceRequired recording={{
+        elapsedMs, stop: onStop, discard: onTrash, stopLabel: RECORDING_STOP, listening,
+      }} />
     </div>
   );
   return host?.recordingDock ? createPortal(bar, host.recordingDock) : bar;

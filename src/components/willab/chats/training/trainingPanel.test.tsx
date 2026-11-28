@@ -124,6 +124,12 @@ async function press(text: string, at = 0) {
   await act(async () => button.click());
   await settle();
 }
+async function stopBar() {
+  const button = host.querySelector<HTMLButtonElement>("[data-recording-bar] [data-chat-mic]");
+  if (!button) throw Error("No recording bar");
+  await act(async () => button.click());
+  await settle();
+}
 const shown = () => [...host.querySelectorAll("[data-train-clip]")].map((n) => n.getAttribute("data-train-clip"));
 
 it("one question per screen", async () => {
@@ -276,7 +282,10 @@ it("an acted mistake and its right way are recorded as one measured pair", async
   });
   await press("Continue");
   await press("Record the mistake");
-  await press("Stop");
+  const bar = host.querySelector("[data-recording-bar]");
+  expect(bar?.textContent).toContain("Listening");
+  expect(bar?.textContent).toMatch(/\d:\d\d/);
+  await stopBar();
   await press("Keep");
   await settle();
   expect(sent[0].get("pattern")).toBe("Rushing");
@@ -284,7 +293,8 @@ it("an acted mistake and its right way are recorded as one measured pair", async
   const labelled = calls.find((c) => c.method === "POST" && c.url.includes("/corpus/acted-1/a1"));
   expect(labelled?.json).toMatchObject({ kind: "error", pattern: "Rushing", start_ms: 0, end_ms: 3000 });
   await press("Record it the right way");
-  await press("Stop");
+  expect(host.querySelector("[data-recording-bar]")).not.toBeNull();
+  await stopBar();
   await press("Keep");
   await settle();
   expect(sent[1].get("role")).toBe("correct");
@@ -406,7 +416,7 @@ it("a recording that is not written out shows the failure", async () => {
   });
   await press("Continue");
   await press("Record the mistake");
-  await press("Stop");
+  await stopBar();
   await press("Keep");
   expect(host.textContent).toContain("Writing out your words…");
   for (let i = 0; i < 70 && waits.length; i += 1) {
