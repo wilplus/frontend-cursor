@@ -151,6 +151,8 @@ O3 -> ""keeps the flag-off body too, and never an error""",Founder 2026-10-18: t
 src/app/api/v2/user/confidence-practice/[practiceId]/attempts/[attemptId]/check/route.test.ts,Story,"As a speaker practising, I want the check of my attempt to reach the right practice and attempt, so that my practice result comes back.","O1  The check is POSTed with an empty body to the backend path for this
 practice and attempt, with odd characters in the ids kept safe.","O1 -> ""relays an empty check body to the encoded attempt path""",
 src/app/api/v2/user/lounge/moment/[snippetId]/route.test.ts,Story,"As a speaker, I can request an AI example on the exact clip I heard in my chat.",O1  The chat proxy sends the specific fragment and recognized AI audio request and keeps the response private.,"O1 -> ""passes an AI audio request for the cited Take through to the backend""",
+src/app/api/v2/user/speaking-calibration/[take]/[snippet]/coach/route.test.ts,Story,"As the founder shaping AI Audio, I want the spoken version I just recorded to play back when the conversion succeeds.","O1  A successful speech-to-speech answer is the MP3 itself, not an empty
+JSON stand-in.","O1 -> ""plays the MP3 the conversion returned""",
 src/app/api/v2/user/takes/[takeSessionId]/feedback-response/route.test.ts,Story,"As a speaker changing my answer to a piece of feedback, I want the server's reply to reach the sheet unchanged, so that my new answer shows as saved.","O1  A changed answer is POSTed to the backend for this Take and the 200
 ""revised"" reply comes back exactly as sent.
 O2  A 409 ""already final"" reply also comes back exactly as sent.","O1 -> ""passes the 200 revised body through unchanged""
@@ -1038,8 +1040,9 @@ cues show side by side (N708, N709).
 O7  On the corpus, a clip shows what it looks like; confirming the mistake
 saves that error name, and Your mistakes counts the pairs and the
 corpus labels (N710).
-O8  A recording that is never written out leaves ""Writing out your words…""
-and shows the failure, and each check of it gives up on its own.
+O8  A recording the server marks failed leaves ""Writing out your words…""
+and shows the failure. One still being written out is not declared
+failed after three minutes.
 O9  A longer acted recording, including one imported from a file, is cut
 into moments and the founder keeps one with ""This one"" (N711).
 O10 On a labelled corpus clip, Generate the right way shows the new line

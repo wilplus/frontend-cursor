@@ -6,10 +6,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const response = relayLenient();
+const relay = (upstream: Response) =>
+  upstream.ok && upstream.headers.get("content-type")?.startsWith("audio/")
+    ? relayAudio(upstream) : response(upstream);
 const json = proxyRoute("POST", "/v2/user/speaking-calibration/:take/:snippet/coach", {
-  body: "json", noStore: true,
-  relay: (upstream) => upstream.ok && upstream.headers.get("content-type")?.startsWith("audio/")
-    ? relayAudio(upstream) : response(upstream),
+  body: "json", noStore: true, relay,
 });
 
 export async function POST(request: NextRequest, context: { params: { take: string; snippet: string } }) {
@@ -22,6 +23,6 @@ export async function POST(request: NextRequest, context: { params: { take: stri
   }
   const { take, snippet } = context.params;
   return callBackend(`/v2/user/speaking-calibration/${encodeURIComponent(take)}/${encodeURIComponent(snippet)}/coach`, {
-    method: "POST", body: form, signal: AbortSignal.timeout(55_000), relay: response,
+    method: "POST", body: form, signal: AbortSignal.timeout(55_000), relay,
   });
 }

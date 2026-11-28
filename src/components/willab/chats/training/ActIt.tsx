@@ -29,13 +29,25 @@ const STATE_LINE = "Tense (high arousal, negative)";
 /** Long enough for several moments. The import lane cuts them (N711). */
 const MAX_SECONDS = 180;
 const POLL_MS = 3000;
-const POLL_TRIES = 60;
 /** One poll must end. A measure that never returned left this screen up. */
-const POLL_TIMEOUT_MS = 15_000;
-const WAIT_MS = POLL_TRIES * POLL_MS;
+const POLL_TIMEOUT_MS = 45_000;
+/** Whisper is allowed ten minutes. Three minutes reported a take that was
+ *  still being written out (a longer take, or a slow list). */
+const WAIT_MS = 12 * 60 * 1000;
+const POLL_TRIES = Math.ceil(WAIT_MS / POLL_MS) + 1;
 
 async function readActed(timeoutMs?: number): Promise<Acted> {
   return patternRequest<Acted>(ACTED_PATH, "GET", undefined, timeoutMs);
+}
+
+/** One import's state. The full acted list signs every clip, so polling it
+ *  timed out and the page declared a still-running take a failure. */
+async function readStatus(sessionId: string): Promise<{ status?: string; snippet_count?: number } | null> {
+  const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}`, {
+    cache: "no-store", timeoutMs: 15_000,
+  });
+  if (result.kind !== "response" || !result.ok) return null;
+  return result.body as { status?: string; snippet_count?: number };
 }
 
 const needsPick = (recording: ActedRecording) => recording.clips.length > 1 && !recording.snippet_id;
@@ -249,14 +261,20 @@ function Waiting({ sessionId, onReady, onFailed }: {
     let timer: ReturnType<typeof setTimeout>;
     const look = async () => {
       tries += 1;
-      const got = await readActed(POLL_TIMEOUT_MS).catch(() => null);
+      const status = await readStatus(sessionId).catch(() => null);
       if (stopped) return;
-      const mine = got?.recordings.find((r) => r.session_id === sessionId);
-      const gaveUp = tries >= POLL_TRIES || Date.now() - started >= WAIT_MS;
-      if (got && mine?.status === "ready" && mine.clips.length) { ready.current(mine, got.names); return; }
-      if (mine?.status === "failed" || (mine?.status === "ready" && !mine.clips.length) || gaveUp) {
-        failed.current(); return;
+      const empty = status?.status === "ready" && !status.snippet_count;
+      if (status?.status === "failed" || empty) { failed.current(); return; }
+      if (status?.status === "ready") {
+        const got = await readActed(POLL_TIMEOUT_MS).catch(() => null);
+        if (stopped) return;
+        const mine = got?.recordings.find((r) => r.session_id === sessionId);
+        if (mine?.status === "ready" && mine.clips.length) { ready.current(mine, got?.names ?? []); return; }
+        if (mine?.status === "failed" || (mine?.status === "ready" && !mine.clips.length)) {
+          failed.current(); return;
+        }
       }
+      if (tries >= POLL_TRIES || Date.now() - started >= WAIT_MS) { failed.current(); return; }
       timer = setTimeout(() => void look(), POLL_MS);
     };
     void look();
