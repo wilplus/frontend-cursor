@@ -20,6 +20,65 @@ export type PatternExample = CaseLink & Observation & { id: string; intervention
 export type PatternResponse = { examples: PatternExample[]; cues: Record<string, number> };
 export type LibraryPage = { examples: PatternExample[]; next_offset: number | null };
 
+/** One corpus clip, as the VV moment picker reads it (backend N710). */
+export type CueSuggestion = { pattern: string; score: number; cues: string[] };
+export type RecordingSuggestions = {
+  rules: string;
+  errors: Record<string, number>;
+  baseline: boolean;
+  suggestions: Record<string, CueSuggestion>;
+};
+/** The acted listing the pair count is read from (backend N709). */
+export type ActedListing = {
+  recordings: { session_id: string; pattern: string; role?: string; pair_of?: string | null }[];
+  names: string[];
+};
+export type MistakeProgress = { name: string; pairs: number; labels: number };
+
+/** About this many pairs before a suggestion is worth trusting (N710 item 4). */
+export const PAIRS_WORTH = 20;
+const NOT_A_MISTAKE = new Set(["", "Needs feedback", "Nothing needed"]);
+
+const isError = (row: ActedListing["recordings"][number]) => (row.role ?? "error") === "error" && Boolean(row.pattern);
+const isMistakeName = (name: string) => Boolean(name) && !NOT_A_MISTAKE.has(name);
+const isCorpusLabel = (row: PatternExample, acted: Set<string>) => isMistakeName(row.pattern) && !acted.has(row.session_id);
+
+export function suggestionsPath(sessionId: string) {
+  return `${speakingPatternPath}/corpus/${encodeURIComponent(sessionId)}/suggestions`;
+}
+
+/** "Looks like: Rushing · articulation rate wpm, pause share", or null. */
+export function looksLike(hit: CueSuggestion | undefined): string | null {
+  if (!hit?.pattern) return null;
+  const cues = hit.cues.map((cue) => cue.replace(/_/g, " ")).filter(Boolean).join(", ");
+  return cues ? `Looks like: ${hit.pattern} · ${cues}` : `Looks like: ${hit.pattern}`;
+}
+
+/** Pairs are correct recordings whose pair_of points at an error of that name.
+ *  Corpus labels are saved corpus rows of that name, acted sessions excluded. */
+export function mistakeProgress(listing: ActedListing, labels: PatternExample[]): MistakeProgress[] {
+  const recordings = listing.recordings ?? [];
+  const acted = new Set(recordings.map((row) => row.session_id));
+  const errorName = new Map(recordings.filter(isError).map((row) => [row.session_id, row.pattern]));
+  const names = new Set((listing.names ?? []).filter(isMistakeName));
+  for (const row of labels) if (isCorpusLabel(row, acted)) names.add(row.pattern);
+  return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
+    name,
+    pairs: recordings.filter((row) => row.role === "correct" && errorName.get(row.pair_of ?? "") === name).length,
+    labels: labels.filter((row) => row.pattern === name && !acted.has(row.session_id)).length,
+  }));
+}
+
+export function mistakeLine(row: MistakeProgress): string {
+  return `${row.name} · ${row.pairs} pairs · ${row.labels} corpus labels`;
+}
+
+/** The hint while any mistake, or the empty list, is still under PAIRS_WORTH. */
+export function pairsHint(rows: MistakeProgress[]): string | null {
+  if (rows.length > 0 && rows.every((row) => row.pairs >= PAIRS_WORTH)) return null;
+  return `${PAIRS_WORTH} pairs`;
+}
+
 export const sourceNames = { take: "Your Takes", corpus: "Training Corpus" };
 export const kindNames = { error: "Error", praise: "Praise", control: "Control", unsure: "Unsure" };
 
