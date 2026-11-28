@@ -22,6 +22,8 @@ OUTCOME
   O7  On the corpus, a clip shows what it looks like; confirming the mistake
       saves that error name, and Your mistakes counts the pairs and the
       corpus labels (N710).
+  O8  A recording that is never written out leaves "Writing out your words…"
+      and shows the failure, and each check of it gives up on its own.
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
@@ -29,8 +31,10 @@ PROVES   O1 -> "one question per screen"
          O5 -> "AI Audio is said the right way and heard back in your voice"
          O6 -> "an acted mistake and its right way are recorded as one measured pair"
          O7 -> "a corpus clip shows its mistake, and Your mistakes counts the pairs"
+         O8 -> "a recording that is not written out shows the failure"
 WHY      Backend N704: the founder's whole Training panel. Backend N710:
-         on the corpus the label is the mistake's name.
+         on the corpus the label is the mistake's name. A poll that never
+         answers must not leave Act it on "Writing out your words…".
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -320,4 +324,68 @@ it("a corpus clip shows its mistake, and Your mistakes counts the pairs", async 
   await press("Your mistakes");
   expect(host.textContent).toContain("Rushing · 1 pairs · 1 corpus labels");
   expect(host.textContent).toContain("20 pairs");
+});
+
+it("a recording that is not written out shows the failure", async () => {
+  class FakeRecorder {
+    state = "inactive"; mimeType = "audio/webm";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    start() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["a"], { type: "audio/webm" }) }); this.onstop?.(); }
+  }
+  vi.stubGlobal("MediaRecorder", FakeRecorder);
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true,
+    value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }) } });
+  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:stuck", revokeObjectURL: () => undefined }));
+  const waits: Array<() => Promise<void>> = [];
+  const realTimeout = global.setTimeout.bind(global);
+  vi.spyOn(global, "setTimeout").mockImplementation(((fn: TimerHandler, ms?: number) => {
+    if (ms === 3000) { waits.push(fn as () => Promise<void>); return 0 as unknown as ReturnType<typeof setTimeout>; }
+    return realTimeout(fn as () => void, ms);
+  }) as unknown as typeof setTimeout);
+  let sent = false;
+  const polls: number[] = [];
+  const base = vi.mocked(bffFetch).getMockImplementation()!;
+  vi.mocked(bffFetch).mockImplementation(async (path, options) => {
+    const url = String(path);
+    if (url.endsWith("/acted")) {
+      if (options?.method === "POST") {
+        sent = true;
+        return { kind: "response", ok: true, status: 202, body: { session_id: "acted-1" }, headers: new Headers() };
+      }
+      if (sent) polls.push(options?.timeoutMs ?? 0);
+      const body = sent
+        ? { recordings: [{ session_id: "acted-1", status: "processing", pattern: "Rushing", role: "error", clips: [] }], names: ["Rushing"] }
+        : { recordings: [], names: [] };
+      return { kind: "response", ok: true, status: 200, body, headers: new Headers() };
+    }
+    return base(path, options);
+  });
+  try {
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("Act it");
+  const own = host.querySelector<HTMLInputElement>("input[aria-label='Your own name']")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(own, "Rushing");
+    own.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await press("Continue");
+  await press("Record the mistake");
+  await press("Stop");
+  await press("Keep");
+  expect(host.textContent).toContain("Writing out your words…");
+  for (let i = 0; i < 70 && waits.length; i += 1) {
+    const next = waits.shift()!;
+    await act(async () => { await next(); });
+  }
+  expect(polls.length).toBeGreaterThan(0);
+  expect(polls.every((ms) => ms === 15_000)).toBe(true);
+  expect(host.textContent).toContain("Couldn’t write out that recording. Record it again.");
+  expect(host.textContent).not.toContain("Writing out your words…");
+  } finally {
+    vi.unstubAllGlobals();
+    vi.mocked(global.setTimeout).mockRestore();
+  }
 });

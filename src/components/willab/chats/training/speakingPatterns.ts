@@ -143,8 +143,8 @@ export function casePath({ source, session_id, snippet_id }: CaseLink) {
   return [speakingPatternPath, source, encodeURIComponent(session_id), encodeURIComponent(snippet_id)].join("/");
 }
 
-export async function patternRequest<T>(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "GET", body?: object): Promise<T> {
-  const result = await bffFetch(url, { cache: "no-store", method, json: body });
+export async function patternRequest<T>(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "GET", body?: object, timeoutMs?: number): Promise<T> {
+  const result = await bffFetch(url, { cache: "no-store", method, json: body, timeoutMs });
   if (result.kind !== "response" || !result.ok) {
     const body = result.kind === "response" ? result.body as { error?: string } | null : null;
     throw new Error(body?.error || "Couldn’t open or save the pattern library. Try again.");

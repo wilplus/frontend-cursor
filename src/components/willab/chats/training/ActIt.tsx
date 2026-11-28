@@ -29,9 +29,12 @@ const STATE_LINE = "Tense (high arousal, negative)";
 const MAX_SECONDS = 12;
 const POLL_MS = 3000;
 const POLL_TRIES = 60;
+/** One poll must end. A measure that never returned left this screen up. */
+const POLL_TIMEOUT_MS = 15_000;
+const WAIT_MS = POLL_TRIES * POLL_MS;
 
-async function readActed(): Promise<Acted> {
-  return patternRequest<Acted>(ACTED_PATH);
+async function readActed(timeoutMs?: number): Promise<Acted> {
+  return patternRequest<Acted>(ACTED_PATH, "GET", undefined, timeoutMs);
 }
 
 const clipsOf = (recording: ActedRecording, label: string): Clip[] => recording.clips.map((c, at) => ({
@@ -196,14 +199,16 @@ function Waiting({ sessionId, onReady, onFailed }: {
   useEffect(() => {
     let stopped = false;
     let tries = 0;
+    const started = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const look = async () => {
       tries += 1;
-      const got = await readActed().catch(() => null);
+      const got = await readActed(POLL_TIMEOUT_MS).catch(() => null);
       if (stopped) return;
       const mine = got?.recordings.find((r) => r.session_id === sessionId);
+      const gaveUp = tries >= POLL_TRIES || Date.now() - started >= WAIT_MS;
       if (got && mine?.status === "ready" && mine.clips.length) { ready.current(mine, got.names); return; }
-      if (mine?.status === "failed" || (mine?.status === "ready" && !mine.clips.length) || tries >= POLL_TRIES) {
+      if (mine?.status === "failed" || (mine?.status === "ready" && !mine.clips.length) || gaveUp) {
         failed.current(); return;
       }
       timer = setTimeout(() => void look(), POLL_MS);
