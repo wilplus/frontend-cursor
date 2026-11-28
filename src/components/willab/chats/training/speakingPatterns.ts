@@ -27,6 +27,8 @@ export type RecordingSuggestions = {
   errors: Record<string, number>;
   baseline: boolean;
   suggestions: Record<string, CueSuggestion>;
+  /** True when every clip already had a stored suite. */
+  cached?: boolean;
 };
 /** The acted listing the pair count is read from (backend N709). */
 export type ActedListing = {
