@@ -1750,15 +1750,17 @@ before the next recording":
   we", "So where"). On the founder's Take 4 the rules write six Clearer
   versions: four for the "just"s and the "okay?", two for a "So," alone.
 - **H4** How one clip gets its willfidence, as built (WIL-102;
-  `services/moment_pick.py` `read`, with `services/willfidence.py`,
-  `services/voice_confidence.py` and `services/slide_alignment.py`). A clip
+  `services/moment_pick.py` `read`, with `services/willfidence.py` and
+  `services/voice_confidence.py`). The slide-fit score is no longer written;
+  an old clip that still has a stored one is read, and a new clip has none.
+  A clip
   is one piece the Take was cut into, about a sentence, with its own
   transcript and its own sound measurements. Every clip is read the same
   way, in four steps. No step is ever shown to the speaker (Never 1, AC-9).
 
   ```
   1  S  the voice     7 cues against the speaker's usual → −1 … +1 → 0 … 1
-  2  W  the words     the mean of: fillers · hedges · slide fit      0 … 1
+  2  W  the words     the mean of: fillers · hedges                 0 … 1
   3  willfidence      S × W                                          0 … 1
   4  it is used for   the pick (H1) · the praise's level · the coach's
                       line (N104) · the founder's Takes table (N105)
@@ -1801,16 +1803,9 @@ before the next recording":
     count does not).
   - The line for both: none → 1, 3 per 100 words → 0.7, 5 → 0.5, 10 or more
     → 0.
-  - **Slide fit**, from the point-by-point check run when the Take is
-    processed. The slide is split into its points (its title and each line
-    of its body; for the clips inside the processing budget a model writes
-    the points and checks each one against the clip). Each point is
-    covered (1), partly made (0.5) or not (0), and the clip takes its best
-    point, so one sentence is never marked down for not saying the whole
-    slide. Without the model, a point is covered when 6 in 10 of its words
-    longer than two letters are in the clip, and partly made from 1 in 4.
-    Under 4 words, or a slide with no text, gives no slide fit; 3 seconds
-    or more of silence on a slide gives 0.
+  - **Slide fit** is no longer computed when a Take is processed. An old
+    clip that still has a stored score is read; a new clip has none, so W
+    is the mean of the fillers and the hedges.
   - W is the mean of the signals present. One that could not be read is
     left out; with none at all, W = 1, and the voice alone orders the clip.
 
