@@ -407,7 +407,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-28 · — · Act it keeps writing a take out until the server says it failed. Three minutes was shorter than transcription, so a take still being written out was reported as failed · FE (this PR)
+- 2026-11-28 · — · Act it asks after one recording, not the whole acted list, and keeps waiting while transcription runs. The three-minute cutoff was reporting a take that was still being written out · FE (this PR)
 - 2026-11-28 · N713 · After the right way is heard, Approve keeps it, Reject keeps a reason, and Correct keeps his own recording; the moment, the intervention and the matched pair stay on the clip · BE (this PR), FE (this PR)
 - 2026-11-28 · N712 · On a labelled corpus clip, Generate the right way shows the new line and plays the guided audio; In their voice, a separate click, has that speaker say the corrected version. A provider refusal is shown as it came back and is never automatic · BE (this PR), FE (this PR)
 - 2026-11-28 · N710 · On the corpus, Measure starts the VV picker; a recording already measured shows its line without it · FE (this PR)

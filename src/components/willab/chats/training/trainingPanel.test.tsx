@@ -249,7 +249,13 @@ it("an acted mistake and its right way are recorded as one measured pair", async
     clips: [{ snippet_id: "b1", words: "We start in March.", duration_ms: 4000, start_offset_ms: 0, src: "https://b", vv: suite(120) }] };
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
-    if (String(path).endsWith("/acted")) {
+    const url = String(path);
+    if (url.includes("/training-imports/")) {
+      const id = url.split("/").pop();
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { status: "ready", snippet_count: 1, session_id: id } };
+    }
+    if (url.endsWith("/acted")) {
       if (options?.method === "POST") {
         sent.push(options.body as FormData);
         return { kind: "response", ok: true, status: 202, body: { session_id: sent.length === 1 ? "acted-1" : "acted-2" }, headers: new Headers() };
@@ -372,12 +378,16 @@ it("a recording that is not written out shows the failure", async () => {
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
     const url = String(path);
+    if (url.includes("/training-imports/")) {
+      if (sent) polls.push(options?.timeoutMs ?? 0);
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { status: failed ? "failed" : "processing", snippet_count: 0 } };
+    }
     if (url.endsWith("/acted")) {
       if (options?.method === "POST") {
         sent = true;
         return { kind: "response", ok: true, status: 202, body: { session_id: "acted-1" }, headers: new Headers() };
       }
-      if (sent) polls.push(options?.timeoutMs ?? 0);
       const body = sent
         ? { recordings: [{ session_id: "acted-1", status: failed ? "failed" : "processing", pattern: "Rushing", role: "error", clips: [] }], names: ["Rushing"] }
         : { recordings: [], names: [] };
@@ -404,7 +414,7 @@ it("a recording that is not written out shows the failure", async () => {
     await act(async () => { await next(); });
   }
   expect(polls.length).toBeGreaterThan(60);
-  expect(polls.every((ms) => ms === 45_000)).toBe(true);
+  expect(polls.every((ms) => ms === 15_000)).toBe(true);
   expect(host.textContent).toContain("Writing out your words…");
   failed = true;
   const next = waits.shift();
@@ -426,6 +436,10 @@ it("an imported longer take keeps the chosen moment", async () => {
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
     const url = String(path);
+    if (url.includes("/training-imports/")) {
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { status: "ready", snippet_count: clips.length } };
+    }
     if (url.endsWith("/acted")) {
       if (options?.method === "POST") {
         sent = options.body as FormData;
