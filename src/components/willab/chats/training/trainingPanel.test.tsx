@@ -485,9 +485,10 @@ it("generate the right way shows the line and plays it", async () => {
   expect(host.querySelector("[data-their-voice]")?.getAttribute("src")).toBe("data:audio/mpeg;base64,Qg==");
   vi.mocked(bffFetch).mockImplementation(async () => ({
     kind: "response", ok: false, status: 401, headers: new Headers(),
-    body: { code: "SPEECH_TO_SPEECH_REFUSED", error: "Speech to speech was refused.", voice: null, generated: null },
+    body: { code: "missing_permissions", provider_status: 401, provider_code: "missing_permissions",
+      error: "The API key is missing the permission speech_to_speech.", voice: null, generated: null },
   }));
   await press("In their voice");
-  expect(host.textContent).toContain("Speech to speech was refused.");
+  expect(host.textContent).toContain("The API key is missing the permission speech_to_speech.");
   expect(host.querySelector("[data-their-voice]")).toBeNull();
 });

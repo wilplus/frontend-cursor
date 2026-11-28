@@ -350,7 +350,7 @@ The founder's **My Chat → AI** is the Training panel (N704): no chat, no Exper
 
 5. **Corpus clips name the mistake** (N710). On the corpus, **Measure** starts the VV picker for that recording. While it runs, each clip shows **Measuring…**. Then **Looks like:** the mistake and the cues, when one of the founder's acted mistakes fits. A recording already measured shows that line without **Measure**. **This one** opens **Which mistake?**: a name used before, the suggestion already chosen, or **Your own name**, then **Continue**. The label kept is that error name. **None needs it** still marks the three as needing nothing, and App Takes still ask **What should it get?**. **Your mistakes**, next to **Your past answers**, shows each error name with its pairs and its corpus labels, and a hint at 20 pairs.
 
-6. **The right way of a labelled corpus clip** (N712). **Generate the right way** shows the new line and plays the guided audio next to the original. **In their voice** is a separate click on that clip: the speaker says the corrected version, the new line or the guided delivery. Nothing clones until that click, and nothing is kept. If speech to speech is refused, the screen says so and does not play another version in its place.
+6. **The right way of a labelled corpus clip** (N712). **Generate the right way** shows the new line and plays the guided audio next to the original. **In their voice** is a separate click on that clip: the speaker says the corrected version, the new line or the guided delivery. Nothing clones until that click, and nothing is kept. If the provider refuses, the screen shows that error and does not play another version in its place.
 
 A switch on top chooses **App Takes**, **Corpus** or **Act it**, with how many sets are left. Each answer is a label in the founder's library: on an app Take, the chosen clip as needing feedback, with its tool; on the corpus, the chosen clip under the mistake's name; "None needs it" marks each of the three as needing nothing. Under the questions: how often each picker agreed with these labels on app Takes (N702), **Your past answers** with **Undo**, **Your mistakes**, and on the corpus **Import audio**. Labels are founder-only, follow the existing ownership and corpus access rules, and are erased with their source. Nothing here changes what a speaker is served.
 
@@ -407,7 +407,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-28 · N712 · On a labelled corpus clip, Generate the right way shows the new line and plays the guided audio; In their voice, a separate click, has that speaker say the corrected version and is never automatic · BE (this PR), FE (this PR)
+- 2026-11-28 · N712 · On a labelled corpus clip, Generate the right way shows the new line and plays the guided audio; In their voice, a separate click, has that speaker say the corrected version. A provider refusal is shown as it came back and is never automatic · BE (this PR), FE (this PR)
 - 2026-11-28 · N710 · On the corpus, Measure starts the VV picker; a recording already measured shows its line without it · FE (this PR)
 - 2026-11-28 · N711 · Act it records a longer take, or imports an audio file, and the founder keeps one of the moments it is cut into; that moment is the acted example · BE (this PR), FE (this PR)
 - 2026-11-28 · — · Act it's wait no longer measures while it asks whether the recording is written out, so the wait finishes or shows the failure it already had · BE #2083, FE #1506
