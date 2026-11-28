@@ -27,7 +27,7 @@ OUTCOME
   O9  A longer acted recording, including one imported from a file, is cut
       into moments and the founder keeps one with "This one" (N711).
   O10 On a labelled corpus clip, Generate the right way shows the new line
-      and plays the audio (N712).
+      and plays the audio; In their voice is a separate click (N712).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
@@ -403,7 +403,6 @@ it("a recording that is not written out shows the failure", async () => {
   }
 });
 
-<<<<<<< HEAD
 it("an imported longer take keeps the chosen moment", async () => {
   const clips = [
     { snippet_id: "a1", words: "We start.", duration_ms: 3000, start_offset_ms: 0, src: "https://a" },
@@ -474,4 +473,21 @@ it("generate the right way shows the line and plays it", async () => {
   await press("Generate the right way");
   expect(host.textContent).toContain("We start in March.");
   expect(host.querySelector("[data-right-audio]")?.getAttribute("src")).toBe("data:audio/wav;base64,QQ==");
+  expect(host.textContent).toContain("In their voice");
+  vi.mocked(bffFetch).mockImplementation(async (path) => {
+    if (String(path).endsWith("/in-their-voice")) {
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { line: "We start in March.", voice: "Qg==", generated: true } };
+    }
+    return { kind: "response", ok: true, status: 200, body: {}, headers: new Headers() };
+  });
+  await press("In their voice");
+  expect(host.querySelector("[data-their-voice]")?.getAttribute("src")).toBe("data:audio/mpeg;base64,Qg==");
+  vi.mocked(bffFetch).mockImplementation(async () => ({
+    kind: "response", ok: false, status: 401, headers: new Headers(),
+    body: { code: "SPEECH_TO_SPEECH_REFUSED", error: "Speech to speech was refused.", voice: null, generated: null },
+  }));
+  await press("In their voice");
+  expect(host.textContent).toContain("Speech to speech was refused.");
+  expect(host.querySelector("[data-their-voice]")).toBeNull();
 });

@@ -465,15 +465,16 @@ export function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinu
 function RightWay({ clip, pattern }: { clip: CaseLink; pattern: string }) {
   const [line, setLine] = useState("");
   const [src, setSrc] = useState<string | null>(null);
+  const [voice, setVoice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  async function go() {
+  async function ask(path: string, take: (got: { line?: string; audio?: string | null; voice?: string | null }) => void) {
     setBusy(true); setNotice("");
     try {
-      const got = await patternRequest<{ line?: string; audio?: string | null }>(`${casePath(clip)}/right-way`, "POST", { pattern, score: 1 });
+      const got = await patternRequest<{ line?: string; audio?: string | null; voice?: string | null; error?: string }>(
+        `${casePath(clip)}/${path}`, "POST", { pattern, score: 1 });
       setLine(got.line ?? "");
-      setSrc(got.audio ? `data:audio/wav;base64,${got.audio}` : null);
-      if (!got.audio) setNotice("The cues of these recordings could not be measured yet.");
+      take(got);
     } catch (caught) {
       setNotice(caught instanceof Error && caught.message ? caught.message : "Couldn’t open or save the pattern library. Try again.");
     } finally { setBusy(false); }
@@ -481,9 +482,19 @@ function RightWay({ clip, pattern }: { clip: CaseLink; pattern: string }) {
   const original = { ...clip, label: "", words: "", src: null, start: 0, duration: 0 };
   return <div data-right-way="" className="flex flex-col gap-2 py-2">
     <ClipCard clip={original} chosen={false} onWindow={() => undefined} />
-    <button type="button" className={`${choiceBubble(true)} self-start`} disabled={busy} onClick={() => void go()}>Generate the right way</button>
+    <div className="flex flex-wrap gap-2">
+      <button type="button" className={choiceBubble(true)} disabled={busy} onClick={() => void ask("right-way", (got) => {
+        setSrc(got.audio ? `data:audio/wav;base64,${got.audio}` : null);
+        setVoice(null);
+        if (!got.audio) setNotice("The cues of these recordings could not be measured yet.");
+      })}>Generate the right way</button>
+      <button type="button" className={choiceBubble(false)} disabled={busy} onClick={() => { setVoice(null); void ask("in-their-voice", (got) => {
+        setVoice(got.voice ? `data:audio/mpeg;base64,${got.voice}` : null);
+      }); }}>In their voice</button>
+    </div>
     {line ? <p className="m-0 text-[15px]">{line}</p> : null}
     {src ? <audio data-right-audio="" controls src={src} className="w-full" /> : null}
+    {voice ? <audio data-their-voice="" controls src={voice} className="w-full" /> : null}
     {notice ? <Bubble role="status">{notice}</Bubble> : null}
   </div>;
 }
