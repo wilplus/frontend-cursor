@@ -8,25 +8,26 @@ import { ClipCard, PastAnswers, savedLabels, type Clip } from "./TrainingPanel";
 import { Bubble, choiceBubble } from "./ui";
 import { casePath, patternInput, patternRequest, speakingPatternPath, type PatternExample, type PatternResponse } from "./speakingPatterns";
 
-/* Act it (backend N708, N709): the founder names a mistake in one state,
-   records the error, then the same line said the right way. Both go through
-   the corpus import lane, are written out and measured with the VV suite
-   (vocal and verbal cues), and are kept as one pair: the error feeds the
-   moment function, the right way the intervention function. */
+/* Act it (backend N708, N709, N711): the founder names a mistake in one
+   state, records the error or imports an audio file, then the same line
+   said the right way. A longer recording is cut into moments by the import
+   lane; the founder keeps one with "This one". Both are measured with the
+   VV suite and kept as one pair. */
 
 type Suite = { version?: string; vocal?: Record<string, number | null>; verbal?: Record<string, number | null> };
 type ActedClip = { snippet_id: string; words: string; duration_ms: number; start_offset_ms: number; src: string | null; vv?: Suite | null };
 type ActedRecording = {
-  session_id: string; state: string; pattern: string; status: string; role?: string; pair_of?: string | null; clips: ActedClip[];
+  session_id: string; state: string; pattern: string; status: string; role?: string;
+  pair_of?: string | null; snippet_id?: string | null; clips: ActedClip[];
 };
 type Acted = { recordings: ActedRecording[]; names: string[] };
-type Step = "name" | "error" | "waitError" | "correct" | "waitCorrect" | "pair";
+type Step = "name" | "error" | "waitError" | "pick" | "correct" | "waitCorrect" | "pickCorrect" | "pair";
 
 const ACTED_PATH = `${speakingPatternPath}/acted`;
 const STATE = "tense";
 const STATE_LINE = "Tense (high arousal, negative)";
-/** One sentence: about twelve seconds stays one clip. */
-const MAX_SECONDS = 12;
+/** Long enough for several moments. The import lane cuts them (N711). */
+const MAX_SECONDS = 180;
 const POLL_MS = 3000;
 const POLL_TRIES = 60;
 /** One poll must end. A measure that never returned left this screen up. */
@@ -36,6 +37,10 @@ const WAIT_MS = POLL_TRIES * POLL_MS;
 async function readActed(timeoutMs?: number): Promise<Acted> {
   return patternRequest<Acted>(ACTED_PATH, "GET", undefined, timeoutMs);
 }
+
+const needsPick = (recording: ActedRecording) => recording.clips.length > 1 && !recording.snippet_id;
+const keptClip = (recording: ActedRecording) =>
+  recording.clips.find((clip) => clip.snippet_id === recording.snippet_id) ?? recording.clips[0];
 
 const clipsOf = (recording: ActedRecording, label: string): Clip[] => recording.clips.map((c, at) => ({
   source: "corpus", session_id: recording.session_id, snippet_id: c.snippet_id, acted: true,
@@ -83,7 +88,7 @@ export default function ActIt() {
       const mine = new Set(got.recordings.map((r) => r.session_id));
       setActed(got); setLabels(saved.filter((row) => mine.has(row.session_id)));
       const open = unpaired(got);
-      if (open) { setError(open); setName(open.pattern); setStep("correct"); }
+      if (open) { setError(open); setName(open.pattern); setStep(needsPick(open) ? "pick" : "correct"); }
     }).catch(() => { if (active) setNotice("Couldn’t open Act it. Try again."); });
     return () => { active = false; };
   }, []);
@@ -91,6 +96,25 @@ export default function ActIt() {
   const actedSessions = useMemo(() => new Set((acted?.recordings ?? []).map((r) => r.session_id)), [acted]);
   const restart = (line: string) => { setError(null); setCorrect(null); setStep("name"); setNotice(line); };
   const failed = () => restart("Couldn’t write out that recording. Record it again.");
+  async function keepMoment(recording: ActedRecording, snippetId: string) {
+    setNotice("");
+    try {
+      await patternRequest(`${ACTED_PATH}/choice`, "POST", { session_id: recording.session_id, snippet_id: snippetId });
+    } catch (caught) {
+      setNotice(caught instanceof Error && caught.message ? caught.message : "Couldn’t open or save the pattern library. Try again.");
+      return;
+    }
+    const clip = recording.clips.find((item) => item.snippet_id === snippetId);
+    const picked = { ...recording, snippet_id: snippetId };
+    if ((recording.role ?? "error") !== "correct") {
+      setError(picked);
+      if (clip) void labelError({ ...picked, clips: [clip] }).then((rows) => setLabels((was) => [...rows, ...was])).catch(() => undefined);
+      setStep("correct");
+      return;
+    }
+    setCorrect(picked);
+    setStep("pair");
+  }
 
   if (past) {
     return <PastAnswers source="corpus" empty="No acted mistakes yet." onBack={() => setPast(false)}
@@ -105,17 +129,29 @@ export default function ActIt() {
       onSent={(id) => { setSent(id); setStep("waitError"); }} onNotice={setNotice} /> : null}
     {step === "waitError" ? <Waiting sessionId={sent} onFailed={failed} onReady={(found, names) => {
       setActed((was) => was ? { ...was, names } : was);
-      setError(found); setStep("correct");
-      void labelError(found).then((rows) => setLabels((was) => [...rows, ...was])).catch(() => undefined);
+      const clip = found.clips[0];
+      const picked = needsPick(found) ? found : { ...found, snippet_id: clip?.snippet_id };
+      setError(picked);
+      if (needsPick(found)) { setStep("pick"); return; }
+      if (clip) void labelError({ ...picked, clips: [clip] }).then((rows) => setLabels((was) => [...rows, ...was])).catch(() => undefined);
+      setStep("correct");
     }} /> : null}
+    {step === "pick" && error ? <PickMoment recording={error} label="Your mistake"
+      onPick={(id) => void keepMoment(error, id)} /> : null}
     {step === "correct" && error ? <>
-      <ClipCard clip={clipsOf(error, "Your mistake")[0]} chosen={false} onWindow={() => undefined} />
+      <ClipCard clip={oneOf(error, "Your mistake")} chosen={false} onWindow={() => undefined} />
       <RecordStep key="correct" title="Record it the right way" again="Say it again" name={error.pattern}
         fields={{ role: "correct", pair_of: error.session_id, language }} onBack={() => restart("")}
         onSent={(id) => { setSent(id); setStep("waitCorrect"); }} onNotice={setNotice} />
     </> : null}
     {step === "waitCorrect" ? <Waiting sessionId={sent} onFailed={failed}
-      onReady={(found) => { setCorrect(found); setStep("pair"); }} /> : null}
+      onReady={(found) => {
+        const picked = needsPick(found) ? found : { ...found, snippet_id: found.clips[0]?.snippet_id };
+        setCorrect(picked);
+        setStep(needsPick(found) ? "pickCorrect" : "pair");
+      }} /> : null}
+    {step === "pickCorrect" && correct ? <PickMoment recording={correct} label="The right way"
+      onPick={(id) => void keepMoment(correct, id)} /> : null}
     {step === "pair" && error && correct ? <Pair error={error} correct={correct} onNext={() => restart("Saved.")} /> : null}
     {notice ? <Bubble role={notice === "Saved." ? "status" : "alert"}>{notice}</Bubble> : null}
     <button type="button" className="self-start text-[15px] underline" onClick={() => setPast(true)}>Your past answers</button>
@@ -154,6 +190,13 @@ function RecordStep({ title, again, name, fields, onBack, onSent, onNotice }: {
   const [heard, setHeard] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const mic = useRecorder(MAX_SECONDS, (blob) => { setAudio(blob); setHeard(URL.createObjectURL(blob)); });
+  const file = useRef<HTMLInputElement>(null);
+  const takeFile = (list: FileList | null) => {
+    const picked = list?.[0];
+    if (!picked) return;
+    setAudio(picked);
+    setHeard(URL.createObjectURL(picked));
+  };
   useEffect(() => () => { if (heard) URL.revokeObjectURL(heard); }, [heard]);
   const keep = async () => {
     if (!audio) return;
@@ -177,6 +220,9 @@ function RecordStep({ title, again, name, fields, onBack, onSent, onNotice }: {
         ? <button type="button" data-act-stop="" className={choiceBubble(true)} onClick={mic.stop}>Stop</button>
         : <button type="button" data-act-record="" className={choiceBubble(!audio)} disabled={sending}
             onClick={() => void mic.start()}>{audio ? again : title}</button>}
+      {mic.recording ? null : <button type="button" className={choiceBubble(false)} disabled={sending}
+        onClick={() => file.current?.click()}>Import audio</button>}
+      <input ref={file} type="file" accept="audio/*" hidden onChange={(event) => takeFile(event.target.files)} />
     </div>
     {mic.denied ? <Bubble role="alert">Allow microphone access, then try again.</Bubble> : null}
     {heard ? <audio data-act-heard="" controls src={heard} className="w-full" /> : null}
@@ -223,13 +269,27 @@ const cueName = (key: string) => key.replace(/_/g, " ");
 const shown = (value: number | null | undefined) => (value === null || value === undefined ? "–" : String(value));
 
 /** The pair: both recordings, and their VV suites side by side. */
+function oneOf(recording: ActedRecording, label: string): Clip {
+  const clip = keptClip(recording);
+  return clipsOf({ ...recording, clips: clip ? [clip] : [] }, label)[0];
+}
+
+function PickMoment({ recording, label, onPick }: {
+  recording: ActedRecording; label: string; onPick: (snippetId: string) => void;
+}) {
+  return <>
+    {clipsOf(recording, label).map((clip) => <ClipCard key={clip.snippet_id} clip={clip} chosen={false}
+      onPick={() => onPick(clip.snippet_id)} onWindow={() => undefined} />)}
+  </>;
+}
+
 function Pair({ error, correct, onNext }: { error: ActedRecording; correct: ActedRecording; onNext: () => void }) {
-  const a = error.clips[0]?.vv ?? null;
-  const b = correct.clips[0]?.vv ?? null;
+  const a = keptClip(error)?.vv ?? null;
+  const b = keptClip(correct)?.vv ?? null;
   return <div data-act-pair="" className="flex flex-col gap-3">
     <p className="m-0 text-[15px] text-muted-foreground">{`${STATE_LINE} · ${error.pattern}`}</p>
-    <ClipCard clip={clipsOf(error, "Your mistake")[0]} chosen={false} onWindow={() => undefined} />
-    <ClipCard clip={clipsOf(correct, "The right way")[0]} chosen onWindow={() => undefined} />
+    <ClipCard clip={oneOf(error, "Your mistake")} chosen={false} onWindow={() => undefined} />
+    <ClipCard clip={oneOf(correct, "The right way")} chosen onWindow={() => undefined} />
     {a && b ? (["vocal", "verbal"] as const).map((half) => <table key={half} data-vv={half} className="w-full text-[14px]">
       <thead><tr className="text-left text-muted-foreground">
         <th className="py-1 font-semibold">{half === "vocal" ? "Vocal" : "Verbal"}</th><th>Your mistake</th><th>The right way</th>
