@@ -1037,13 +1037,16 @@ error is labelled under their name, and the pair's vocal and verbal
 cues show side by side (N708, N709).
 O7  On the corpus, a clip shows what it looks like; confirming the mistake
 saves that error name, and Your mistakes counts the pairs and the
-corpus labels (N710).","O1 -> ""one question per screen""
+corpus labels (N710).
+O8  A recording that is never written out leaves ""Writing out your words…""
+and shows the failure, and each check of it gives up on its own.","O1 -> ""one question per screen""
 O2 -> ""a tool saves the clip and its tool; None saves the three""
 O3 -> ""past answers can be undone""
 O4 -> ""several fixes, each shaped before it is kept""
 O5 -> ""AI Audio is said the right way and heard back in your voice""
 O6 -> ""an acted mistake and its right way are recorded as one measured pair""
-O7 -> ""a corpus clip shows its mistake, and Your mistakes counts the pairs""",Backend N704: the founder's whole Training panel. Backend N710: on the corpus the label is the mistake's name.
+O7 -> ""a corpus clip shows its mistake, and Your mistakes counts the pairs""
+O8 -> ""a recording that is not written out shows the failure""","Backend N704: the founder's whole Training panel. Backend N710: on the corpus the label is the mistake's name. A poll that never answers must not leave Act it on ""Writing out your words…""."
 src/components/willab/chats/useChats.test.tsx,Story,"As a speaker, I want a current chat read before any retained rows, so an old list never flashes over the current state.",The kept list is fallback-only when the current read fails.,"The retained people-chat read remains a backend side effect without
 becoming the primary Speaking Coach IA.",
 src/components/willab/coachLinkTake.test.tsx,Story,"As a speaker whose coach left a word on an earlier Take after I recorded a newer one, I want the WhatsApp or email link to open my coach's feedback on the Take the word was written on, with the word, so that the coach's link opens the coach's feedback.","O1  A link naming its Take (`&take=`) opens the coach-only walk on that

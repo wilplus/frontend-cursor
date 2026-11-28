@@ -405,7 +405,8 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
-- 2026-11-28 · N710 · On the corpus, a clip shows what the VV picker thinks it looks like; This one asks which mistake and keeps that error name; Your mistakes counts pairs and corpus labels per name · BE #2082, FE (this PR)
+- 2026-11-28 · — · Act it's wait no longer measures while it asks whether the recording is written out, so the wait finishes or shows the failure it already had · BE (this PR), FE (this PR)
+- 2026-11-28 · N710 · On the corpus, a clip shows what the VV picker thinks it looks like; This one asks which mistake and keeps that error name; Your mistakes counts pairs and corpus labels per name · BE #2082, FE #1505
 - 2026-11-28 · N709 · Act it is a pair: the error, then the same line said the right way, both written out and measured with the VV suite and shown side by side; picking fixes and the AI voice leave Act it · BE (N709 PR), FE (this PR)
 
 - 2026-11-27 · N708 · Act it: the founder names a mistake in the tense state, records it and labels its fixes (AI Audio, Rephrase, Sniper, Coach video) on the acted clip; the recording goes through the corpus import lane, kept out of coach queues · BE (N708 PR), FE (this PR)
