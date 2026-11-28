@@ -24,6 +24,8 @@ OUTCOME
       corpus labels (N710).
   O8  A recording that is never written out leaves "Writing out your words…"
       and shows the failure, and each check of it gives up on its own.
+  O9  A longer acted recording, including one imported from a file, is cut
+      into moments and the founder keeps one with "This one" (N711).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
@@ -32,6 +34,7 @@ PROVES   O1 -> "one question per screen"
          O6 -> "an acted mistake and its right way are recorded as one measured pair"
          O7 -> "a corpus clip shows its mistake, and Your mistakes counts the pairs"
          O8 -> "a recording that is not written out shows the failure"
+         O9 -> "an imported longer take keeps the chosen moment"
 WHY      Backend N704: the founder's whole Training panel. Backend N710:
          on the corpus the label is the mistake's name. A poll that never
          answers must not leave Act it on "Writing out your words…".
@@ -388,4 +391,58 @@ it("a recording that is not written out shows the failure", async () => {
     vi.unstubAllGlobals();
     vi.mocked(global.setTimeout).mockRestore();
   }
+});
+
+it("an imported longer take keeps the chosen moment", async () => {
+  const clips = [
+    { snippet_id: "a1", words: "We start.", duration_ms: 3000, start_offset_ms: 0, src: "https://a" },
+    { snippet_id: "a2", words: "We rush.", duration_ms: 2800, start_offset_ms: 3000, src: "https://b" },
+  ];
+  let sent: FormData | null = null;
+  const base = vi.mocked(bffFetch).getMockImplementation()!;
+  vi.mocked(bffFetch).mockImplementation(async (path, options) => {
+    const url = String(path);
+    if (url.endsWith("/acted")) {
+      if (options?.method === "POST") {
+        sent = options.body as FormData;
+        return { kind: "response", ok: true, status: 202, body: { session_id: "acted-1" }, headers: new Headers() };
+      }
+      const body = sent
+        ? { recordings: [{ session_id: "acted-1", state: "tense", pattern: "Rushing", status: "ready", role: "error", clips }], names: ["Rushing"] }
+        : { recordings: [], names: [] };
+      return { kind: "response", ok: true, status: 200, body, headers: new Headers() };
+    }
+    if (url.endsWith("/choice")) {
+      calls.push({ method: "POST", url, json: options?.json as Record<string, unknown> | undefined });
+      return { kind: "response", ok: true, status: 200, body: options?.json, headers: new Headers() };
+    }
+    return base(path, options);
+  });
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("Act it");
+  const own = host.querySelector<HTMLInputElement>("input[aria-label='Your own name']")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(own, "Rushing");
+    own.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await press("Continue");
+  const input = host.querySelector<HTMLInputElement>("input[type=file]")!;
+  const file = new File(["voice"], "mistake.webm", { type: "audio/webm" });
+  Object.defineProperty(input, "files", { configurable: true, value: [file] });
+  await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+  await press("Keep");
+  const uploaded = sent!.get("audio_file") as File;
+  expect(uploaded.type).toBe("audio/webm");
+  expect(uploaded.size).toBe(file.size);
+  expect(sent!.get("pattern")).toBe("Rushing");
+  await settle();
+  expect(host.textContent).toContain("Your mistake, part 1");
+  expect(host.textContent).toContain("Your mistake, part 2");
+  await press("This one", 1);
+  const choice = calls.find((call) => call.url.endsWith("/choice"));
+  expect(choice?.json).toMatchObject({ session_id: "acted-1", snippet_id: "a2" });
+  const labelled = calls.filter((call) => call.method === "POST" && call.url.includes("/corpus/"));
+  expect(labelled.map((call) => call.url)).toEqual([expect.stringContaining("/corpus/acted-1/a2")]);
+  expect(host.textContent).toContain("Record it the right way");
 });
