@@ -198,9 +198,9 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", { configurable: true,
     value: { getUserMedia: async () => ({ getTracks: () => [{ stop }] }) } });
-  let voiced: Blob | null = null;
+  const voiced: { blob: Blob | null } = { blob: null };
   vi.stubGlobal("URL", Object.assign(URL, {
-    createObjectURL: (blob: Blob) => { voiced = blob; return "blob:voice"; },
+    createObjectURL: (blob: Blob) => { voiced.blob = blob; return "blob:voice"; },
     revokeObjectURL: () => undefined,
   }));
   const mp3 = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
@@ -219,8 +219,8 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   await press("Record it the right way");
   await press("Stop");
   expect(revoice).toHaveBeenCalledTimes(1);
-  expect(voiced?.size).toBe(mp3.byteLength);
-  expect(voiced?.type).toBe("audio/mpeg");
+  expect(voiced.blob?.size).toBe(mp3.byteLength);
+  expect(voiced.blob?.type).toBe("audio/mpeg");
   expect(host.querySelector("[data-ai-voice]")?.getAttribute("src")).toBe("blob:voice");
   expect(host.querySelector("[data-train-empty]")).toBeNull();
   await press("Keep");
