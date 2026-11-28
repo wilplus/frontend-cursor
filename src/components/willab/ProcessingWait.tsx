@@ -105,7 +105,7 @@ export default function ProcessingWait({
      pipeline's real stages and climbs all the way to "Finding your anchors";
      the handover then rewrites the marker `{stage: "document_assembly"}`,
      which is index 2, and the floor above holds it there. So the wait walked
-     forward through five labels, stepped back two, and stopped. A screen that
+     forward through the labels, stepped back, and stopped. A screen that
      un-says what it just said reads as the machine starting over — the same
      misreading the one-screen rule exists to prevent — and then it sat on
      that older label for the whole document phase, because nothing updates
