@@ -29,7 +29,6 @@ export const PROCESSING_STAGES = [
   "Processing your recording",
   "Transcribing your take",
   "Building your Ideal Text",
-  "Finding feedback moments",
   "Finding your anchors",
 ] as const;
 
@@ -45,13 +44,13 @@ function stageIndex(stage?: string): number {
     stage === "document_assembly"
   )
     return 2;
-  if (stage === "feedback_moments") return 3;
   if (
+    stage === "feedback_moments" ||
     stage === "speaking_anchors" ||
     stage === "finalizing" ||
     stage === "completed"
   )
-    return 4;
+    return 3;
   return 0;
 }
 
@@ -81,7 +80,7 @@ export interface ProcessingWaitProps {
   /** When the CURRENT phase began, from the job marker. Retained for the
    *  document-settle contract; it is not converted into visible progress. */
   readonly phaseStartedAt?: number | null;
-  /** The wait's labels, in order. Absent: the five the screen already uses. */
+  /** The wait's labels, in order. Absent: the four the screen already uses. */
   readonly labels?: readonly string[] | null;
 }
 
