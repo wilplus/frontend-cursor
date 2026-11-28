@@ -29,7 +29,6 @@ export const PROCESSING_STAGES = [
   "Processing your recording",
   "Transcribing your take",
   "Building your Ideal Text",
-  "Finding feedback moments",
   "Finding your anchors",
 ] as const;
 
@@ -45,13 +44,13 @@ function stageIndex(stage?: string): number {
     stage === "document_assembly"
   )
     return 2;
-  if (stage === "feedback_moments") return 3;
   if (
+    stage === "feedback_moments" ||
     stage === "speaking_anchors" ||
     stage === "finalizing" ||
     stage === "completed"
   )
-    return 4;
+    return 3;
   return 0;
 }
 
@@ -81,7 +80,7 @@ export interface ProcessingWaitProps {
   /** When the CURRENT phase began, from the job marker. Retained for the
    *  document-settle contract; it is not converted into visible progress. */
   readonly phaseStartedAt?: number | null;
-  /** The wait's labels, in order. Absent: the five the screen already uses. */
+  /** The wait's labels, in order. Absent: the four the screen already uses. */
   readonly labels?: readonly string[] | null;
 }
 
@@ -106,7 +105,7 @@ export default function ProcessingWait({
      pipeline's real stages and climbs all the way to "Finding your anchors";
      the handover then rewrites the marker `{stage: "document_assembly"}`,
      which is index 2, and the floor above holds it there. So the wait walked
-     forward through five labels, stepped back two, and stopped. A screen that
+     forward through the labels, stepped back, and stopped. A screen that
      un-says what it just said reads as the machine starting over — the same
      misreading the one-screen rule exists to prevent — and then it sat on
      that older label for the whole document phase, because nothing updates
