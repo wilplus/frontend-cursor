@@ -19,13 +19,18 @@ OUTCOME
       error, then the same line the right way; both are written out, the
       error is labelled under their name, and the pair's vocal and verbal
       cues show side by side (N708, N709).
+  O7  On the corpus, a clip shows what it looks like; confirming the mistake
+      saves that error name, and Your mistakes counts the pairs and the
+      corpus labels (N710).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
          O4 -> "several fixes, each shaped before it is kept"
          O5 -> "AI Audio is said the right way and heard back in your voice"
          O6 -> "an acted mistake and its right way are recorded as one measured pair"
-WHY      Backend N704: the founder's whole Training panel.
+         O7 -> "a corpus clip shows its mistake, and Your mistakes counts the pairs"
+WHY      Backend N704: the founder's whole Training panel. Backend N710:
+         on the corpus the label is the mistake's name.
 */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -42,6 +47,27 @@ vi.mock("@/services/api/sessionReadout", () => ({
   fetchSessionReadout: async () => ({ readout: { snippets: [1, 2, 3, 4, 5, 6].map(clip) } }),
 }));
 vi.mock("../../walk/WalkPlayer", () => ({ default: ({ seed }: { seed: string }) => <span data-player={seed} /> }));
+vi.mock("@/hooks/useCorpusClip", () => ({
+  useCorpusClip: () => ({
+    clip: { src: "/c.ogg", startOffsetMs: 0, durationMs: 5000 },
+    error: null,
+    onMediaError: () => undefined,
+  }),
+}));
+vi.mock("@/services/api/trainingCorpus", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/api/trainingCorpus")>();
+  return {
+    ...actual,
+    fetchTrainingImportsPage: async () => ({
+      imports: [{ sessionId: "corp-1", topic: "Talk", state: "done", setupComplete: true, archivedAt: null }],
+      nextOffset: null,
+    }),
+    fetchConfidenceQueueResult: async () => ({
+      ok: true,
+      queue: { queue: [{ snippetId: "c1" }, { snippetId: "c2" }, { snippetId: "c3" }] },
+    }),
+  };
+});
 
 import TrainingPanel from "./TrainingPanel";
 
@@ -246,4 +272,52 @@ it("an acted mistake and its right way are recorded as one measured pair", async
   await press("Continue");
   expect(host.textContent).toContain("Saved.");
   vi.unstubAllGlobals();
+});
+
+it("a corpus clip shows its mistake, and Your mistakes counts the pairs", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const suggestion = {
+    rules: "vv-picker-0", errors: { Rushing: 1 }, baseline: true,
+    suggestions: { c1: { pattern: "Rushing", score: 0.82, cues: ["articulation_rate_wpm", "pause_share"] } },
+  };
+  const acted = {
+    recordings: [
+      { session_id: "err-1", pattern: "Rushing", role: "error", pair_of: null, status: "ready" },
+      { session_id: "ok-1", pattern: "Rushing", role: "correct", pair_of: "err-1", status: "ready" },
+    ],
+    names: ["Rushing"],
+  };
+  const base = vi.mocked(bffFetch).getMockImplementation()!;
+  vi.mocked(bffFetch).mockImplementation(async (path, options) => {
+    const url = String(path);
+    if (url.includes("/suggestions")) {
+      await gate;
+      return { kind: "response", ok: true, status: 200, body: suggestion, headers: new Headers() };
+    }
+    if (url.endsWith("/acted")) {
+      return { kind: "response", ok: true, status: 200, body: acted, headers: new Headers() };
+    }
+    return base(path, options);
+  });
+  await act(async () => root.render(<TrainingPanel />));
+  await settle();
+  await press("Corpus");
+  expect(host.textContent).toContain("Measuring\u2026");
+  await act(async () => { release(); });
+  await settle();
+  expect(host.textContent).toContain("Looks like: Rushing · articulation rate wpm, pause share");
+  expect(host.textContent).not.toContain("Measuring\u2026");
+  await press("This one", 0);
+  expect(host.textContent).toContain("Which mistake?");
+  expect(host.textContent).not.toContain("What should it get?");
+  expect(host.querySelector("[data-mistake-name='Rushing']")?.getAttribute("aria-pressed")).toBe("true");
+  await press("Continue");
+  const saved = calls.filter((c) => c.method === "POST");
+  expect(saved.at(-1)?.url).toContain("/corpus/corp-1/c1");
+  expect(saved.at(-1)?.json).toMatchObject({ kind: "error", pattern: "Rushing", start_ms: 0, end_ms: 5000, note: "corpus" });
+  expect(calls.some((c) => c.method === "PUT")).toBe(false);
+  await press("Your mistakes");
+  expect(host.textContent).toContain("Rushing · 1 pairs · 1 corpus labels");
+  expect(host.textContent).toContain("20 pairs");
 });
