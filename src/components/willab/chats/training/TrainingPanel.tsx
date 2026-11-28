@@ -462,6 +462,32 @@ export function WhatItGets({ clip, chosen, saving, onWindow, onToggle, onContinu
 
 /** A named pattern with no tool is the name alone. "Needs feedback" keeps its tool,
  *  and Nothing still reads "Needs feedback · Nothing". */
+function RightWay({ clip, pattern }: { clip: CaseLink; pattern: string }) {
+  const [line, setLine] = useState("");
+  const [src, setSrc] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  async function go() {
+    setBusy(true); setNotice("");
+    try {
+      const got = await patternRequest<{ line?: string; audio?: string | null }>(`${casePath(clip)}/right-way`, "POST", { pattern, score: 1 });
+      setLine(got.line ?? "");
+      setSrc(got.audio ? `data:audio/wav;base64,${got.audio}` : null);
+      if (!got.audio) setNotice("The cues of these recordings could not be measured yet.");
+    } catch (caught) {
+      setNotice(caught instanceof Error && caught.message ? caught.message : "Couldn’t open or save the pattern library. Try again.");
+    } finally { setBusy(false); }
+  }
+  const original = { ...clip, label: "", words: "", src: null, start: 0, duration: 0 };
+  return <div data-right-way="" className="flex flex-col gap-2 py-2">
+    <ClipCard clip={original} chosen={false} onWindow={() => undefined} />
+    <button type="button" className={`${choiceBubble(true)} self-start`} disabled={busy} onClick={() => void go()}>Generate the right way</button>
+    {line ? <p className="m-0 text-[15px]">{line}</p> : null}
+    {src ? <audio data-right-audio="" controls src={src} className="w-full" /> : null}
+    {notice ? <Bubble role="status">{notice}</Bubble> : null}
+  </div>;
+}
+
 function pastLine(row: PatternExample): string {
   if (row.kind === "control") return "None needs it";
   if (row.kind !== "error") return row.pattern;
@@ -478,10 +504,13 @@ export function PastAnswers({ source, labels, onBack, onUndone, empty }: {
     <button type="button" className="self-start text-[15px] underline" onClick={onBack}>Back</button>
     <h2 className="m-0 text-[20px] font-semibold">Your past answers</h2>
     {labels.length === 0 ? <Bubble>{empty ?? (source === "take" ? "No answers on your Takes yet." : "No answers on the corpus yet.")}</Bubble> : null}
-    {labels.map((row) => <div key={row.id} data-past-row={row.id} className="flex items-center justify-between gap-3 border-b border-border py-2">
-      <span className="min-w-0">{pastLine(row)}</span>
-      <button type="button" className={choiceBubble(false)} onClick={() => void patternRequest(casePath(row), "DELETE", { example_id: row.id })
-        .then(() => onUndone(row.id)).catch(() => setNotice("Couldn’t undo. Try again."))}>Undo</button>
+    {labels.map((row) => <div key={row.id} data-past-row={row.id} className="border-b border-border py-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0">{pastLine(row)}</span>
+        <button type="button" className={choiceBubble(false)} onClick={() => void patternRequest(casePath(row), "DELETE", { example_id: row.id })
+          .then(() => onUndone(row.id)).catch(() => setNotice("Couldn’t undo. Try again."))}>Undo</button>
+      </div>
+      {source === "corpus" && row.kind === "error" && row.pattern !== "Needs feedback" ? <RightWay clip={row} pattern={row.pattern} /> : null}
     </div>)}
     {notice ? <Bubble role="alert">{notice}</Bubble> : null}
   </section>;

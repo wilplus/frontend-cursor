@@ -405,6 +405,7 @@ Every prototype link in §1, in the order it first appears:
 
 One line each, newest first: `date · N · what changed · PR`.
 
+- 2026-11-28 · N712 · On a labelled corpus clip, Generate the right way shows the new line and plays the guided audio next to the original; no voice cloning · BE (this PR), FE (this PR)
 - 2026-11-28 · N710 · On the corpus, Measure starts the VV picker; a recording already measured shows its line without it · FE (this PR)
 - 2026-11-28 · N711 · Act it records a longer take, or imports an audio file, and the founder keeps one of the moments it is cut into; that moment is the acted example · BE (this PR), FE (this PR)
 - 2026-11-28 · — · Act it's wait no longer measures while it asks whether the recording is written out, so the wait finishes or shows the failure it already had · BE #2083, FE #1506

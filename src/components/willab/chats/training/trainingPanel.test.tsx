@@ -26,6 +26,8 @@ OUTCOME
       and shows the failure, and each check of it gives up on its own.
   O9  A longer acted recording, including one imported from a file, is cut
       into moments and the founder keeps one with "This one" (N711).
+  O10 On a labelled corpus clip, Generate the right way shows the new line
+      and plays the audio (N712).
 PROVES   O1 -> "one question per screen"
          O2 -> "a tool saves the clip and its tool; None saves the three"
          O3 -> "past answers can be undone"
@@ -35,6 +37,7 @@ PROVES   O1 -> "one question per screen"
          O7 -> "a corpus clip shows its mistake, and Your mistakes counts the pairs"
          O8 -> "a recording that is not written out shows the failure"
          O9 -> "an imported longer take keeps the chosen moment"
+         O10 -> "generate the right way shows the line and plays it"
 WHY      Backend N704: the founder's whole Training panel. Backend N710:
          on the corpus the label is the mistake's name. A poll that never
          answers must not leave Act it on "Writing out your words…".
@@ -76,7 +79,7 @@ vi.mock("@/services/api/trainingCorpus", async (importOriginal) => {
   };
 });
 
-import TrainingPanel from "./TrainingPanel";
+import TrainingPanel, { PastAnswers } from "./TrainingPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -400,6 +403,7 @@ it("a recording that is not written out shows the failure", async () => {
   }
 });
 
+<<<<<<< HEAD
 it("an imported longer take keeps the chosen moment", async () => {
   const clips = [
     { snippet_id: "a1", words: "We start.", duration_ms: 3000, start_offset_ms: 0, src: "https://a" },
@@ -452,4 +456,22 @@ it("an imported longer take keeps the chosen moment", async () => {
   const labelled = calls.filter((call) => call.method === "POST" && call.url.includes("/corpus/"));
   expect(labelled.map((call) => call.url)).toEqual([expect.stringContaining("/corpus/acted-1/a2")]);
   expect(host.textContent).toContain("Record it the right way");
+});
+
+it("generate the right way shows the line and plays it", async () => {
+  vi.mocked(bffFetch).mockImplementation(async (path) => {
+    if (String(path).endsWith("/right-way")) {
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { line: "We start in March.", audio: "QQ==", generated: true, line_changed: true } };
+    }
+    return { kind: "response", ok: true, status: 200, body: { examples: [], next_offset: null }, headers: new Headers() };
+  });
+  const row = { id: "e1", source: "corpus" as const, session_id: "s", snippet_id: "c", kind: "error" as const,
+    pattern: "Rushing", start_ms: 0, end_ms: 1000, note: "corpus", intervention: null };
+  await act(async () => root.render(<PastAnswers source="corpus" labels={[row]} onBack={() => undefined} onUndone={() => undefined} />));
+  await settle();
+  expect(host.textContent).toContain("Generate the right way");
+  await press("Generate the right way");
+  expect(host.textContent).toContain("We start in March.");
+  expect(host.querySelector("[data-right-audio]")?.getAttribute("src")).toBe("data:audio/wav;base64,QQ==");
 });
