@@ -74,9 +74,7 @@ async function recordings(source: PatternSource): Promise<{ id: string; title: s
 }
 
 async function setsOf(source: PatternSource, recording: { id: string; title: string }): Promise<LoadedSets> {
-  const suggestions = source === "corpus"
-    ? patternRequest<RecordingSuggestions>(suggestionsPath(recording.id)).catch(() => null)
-    : null;
+  const suggestions = null;
   let clips: Clip[] = [];
   if (source === "take") {
     const read = await fetchSessionReadout(recording.id);
@@ -99,25 +97,26 @@ async function setsOf(source: PatternSource, recording: { id: string; title: str
 }
 
 /** A late measure from a source the founder has left is ignored. */
-function keepSuggestions(
+function showCached(
   found: LoadedSets[],
   gen: number,
   current: () => number,
   setSuggestions: Dispatch<SetStateAction<Record<string, SuggestionState>>>,
 ) {
   for (const item of found) {
-    if (!item.suggestions) continue;
-    const id = item.id;
-    setSuggestions((was) => (was[id] ? was : { ...was, [id]: { status: "measuring", body: null } }));
-    void item.suggestions.then((body) => {
-      if (current() === gen) setSuggestions((was) => ({ ...was, [id]: { status: "ready", body } }));
-    });
+    const session = item.sets[0]?.clips[0];
+    if (!session || session.source !== "corpus") continue;
+    const id = session.session_id;
+    void patternRequest<RecordingSuggestions>(`${suggestionsPath(id)}?cached=1`).then((body) => {
+      if (current() === gen && body.cached) setSuggestions((was) => ({ ...was, [id]: { status: "ready", body } }));
+    }).catch(() => undefined);
   }
 }
 
 function clipHint(clip: Clip, state: SuggestionState | undefined): string | null {
   if (clip.source !== "corpus" || clip.acted) return null;
-  if (!state || state.status === "measuring") return MEASURING;
+  if (!state) return null;
+  if (state.status === "measuring") return MEASURING;
   return looksLike(state.body?.suggestions?.[clip.snippet_id]);
 }
 
@@ -201,7 +200,7 @@ export default function TrainingPanel() {
         if (!active) return;
         setSets((was) => [...was, ...found.flatMap((item) => item.sets)]);
         setRead((n) => n + next.length);
-        keepSuggestions(found, gen, () => generation.current, setSuggestions);
+        showCached(found, gen, () => generation.current, setSuggestions);
       });
     return () => { active = false; };
   }, [recs, read, open.length, source]);
@@ -251,6 +250,19 @@ export default function TrainingPanel() {
 
   const finish = () => { setPicked(null); setChosen([]); setShaping(null); };
   const hintFor = (clip: Clip) => clipHint(clip, suggestions[clip.session_id]);
+  function measure(sessionId: string) {
+    const gen = generation.current;
+    setSuggestions((was) => ({ ...was, [sessionId]: { status: "measuring", body: null } }));
+    void patternRequest<RecordingSuggestions>(suggestionsPath(sessionId)).then((body) => {
+      if (generation.current === gen) setSuggestions((was) => ({ ...was, [sessionId]: { status: "ready", body } }));
+    }).catch(() => {
+      if (generation.current === gen) setSuggestions((was) => {
+        const next = { ...was };
+        delete next[sessionId];
+        return next;
+      });
+    });
+  }
   async function saveNamed(clip: Clip, pattern: string) {
     const duration = durationOf(clip);
     if (!duration) throw Error("This clip has no playback window yet.");
@@ -308,6 +320,9 @@ export default function TrainingPanel() {
 
   function questions() {
     return <>
+      {source === "corpus" && current && !suggestions[current.clips[0].session_id]
+        ? <button type="button" className={`${choiceBubble(true)} self-start`}
+          onClick={() => measure(current.clips[0].session_id)}>Measure</button> : null}
       {current ? <WhichOne set={current} saving={saving} onWindow={onWindow} onPick={setPicked} hintFor={hintFor}
         onNone={() => void save(() => Promise.all(current.clips.map((clip) => label(clip, "control"))))} /> : null}
       {picked && source === "corpus" ? <WhichMistake clip={picked} suggested={suggestedName(picked, suggestions[picked.session_id])}

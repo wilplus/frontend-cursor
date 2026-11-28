@@ -298,9 +298,13 @@ it("a corpus clip shows its mistake, and Your mistakes counts the pairs", async 
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
     const url = String(path);
+    if (url.includes("cached=1")) {
+      return { kind: "response", ok: true, status: 200, headers: new Headers(),
+        body: { rules: "vv-picker-0", errors: {}, baseline: false, suggestions: {}, cached: false } };
+    }
     if (url.includes("/suggestions")) {
       await gate;
-      return { kind: "response", ok: true, status: 200, body: suggestion, headers: new Headers() };
+      return { kind: "response", ok: true, status: 200, body: { ...suggestion, cached: true }, headers: new Headers() };
     }
     if (url.endsWith("/acted")) {
       return { kind: "response", ok: true, status: 200, body: acted, headers: new Headers() };
@@ -310,6 +314,9 @@ it("a corpus clip shows its mistake, and Your mistakes counts the pairs", async 
   await act(async () => root.render(<TrainingPanel />));
   await settle();
   await press("Corpus");
+  expect(host.textContent).toContain("Measure");
+  expect(host.textContent).not.toContain("Measuring\u2026");
+  await press("Measure");
   expect(host.textContent).toContain("Measuring\u2026");
   await act(async () => { release(); });
   await settle();
