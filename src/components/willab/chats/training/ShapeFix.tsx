@@ -152,31 +152,45 @@ export function RephraseScreen({ clip, onKeep, onBack }: {
 export function useRecorder(maxSeconds: number, onDone: (audio: Blob) => void) {
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tick = useRef<ReturnType<typeof setInterval> | null>(null);
+  const drop = useRef(false);
   const [recording, setRecording] = useState(false);
   const [denied, setDenied] = useState(false);
-  const stop = () => {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const clearTick = () => { if (tick.current) clearInterval(tick.current); tick.current = null; };
+  const halt = (dropping: boolean) => {
+    drop.current = dropping;
     if (timer.current) clearTimeout(timer.current);
+    clearTick();
     if (recorder.current?.state === "recording") recorder.current.stop();
   };
+  const stop = () => halt(false);
+  const discard = () => halt(true);
   const start = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const chunks: Blob[] = [];
       const next = new MediaRecorder(stream);
+      const began = Date.now();
       next.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
       next.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
+        clearTick();
         setRecording(false);
-        if (chunks.length) onDone(new Blob(chunks, { type: next.mimeType || "audio/webm" }));
+        setElapsedMs(0);
+        if (!drop.current && chunks.length) onDone(new Blob(chunks, { type: next.mimeType || "audio/webm" }));
+        drop.current = false;
       };
       recorder.current = next;
       next.start();
+      setElapsedMs(0);
       setRecording(true);
+      tick.current = setInterval(() => setElapsedMs(Date.now() - began), 250);
       timer.current = setTimeout(stop, maxSeconds * 1000);
     } catch { setDenied(true); }
   };
   useEffect(() => () => stop(), []);
-  return { recording, denied, start, stop };
+  return { recording, denied, elapsedMs, start, stop, discard };
 }
 
 export const fileName = (audio: Blob) => (audio.type.includes("mp4") ? "line.m4a" : audio.type.includes("ogg") ? "line.ogg" : "line.webm");

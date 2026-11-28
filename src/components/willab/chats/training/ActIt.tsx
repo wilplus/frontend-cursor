@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bffFetch } from "@/lib/api/bffFetch";
 import { useUiLocale } from "@/components/ui/UiLocaleProvider";
+import RecordingBar from "../../RecordingBar";
 import { fileName, useRecorder } from "./ShapeFix";
 import { ClipCard, PastAnswers, savedLabels, type Clip } from "./TrainingPanel";
 import { Bubble, choiceBubble } from "./ui";
@@ -224,24 +225,25 @@ function RecordStep({ title, again, name, fields, onBack, onSent, onNotice }: {
     const body = result.kind === "response" ? result.body as { error?: string } | null : null;
     onNotice(body?.error || "Couldn’t send the recording. Try again.");
   };
+  const back = () => { if (mic.recording) mic.discard(); onBack(); };
   return <>
     <p className="m-0 text-[15px] text-muted-foreground">{`${STATE_LINE} · ${name.trim()}`}</p>
     <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
-    <div className="flex flex-wrap gap-2">
-      {mic.recording
-        ? <button type="button" data-act-stop="" className={choiceBubble(true)} onClick={mic.stop}>Stop</button>
-        : <button type="button" data-act-record="" className={choiceBubble(!audio)} disabled={sending}
-            onClick={() => void mic.start()}>{audio ? again : title}</button>}
-      {mic.recording ? null : <button type="button" className={choiceBubble(false)} disabled={sending}
-        onClick={() => file.current?.click()}>Import audio</button>}
-      <input ref={file} type="file" accept="audio/*" hidden onChange={(event) => takeFile(event.target.files)} />
-    </div>
+    {mic.recording
+      ? <RecordingBar elapsedMs={mic.elapsedMs} listening onStop={mic.stop} onTrash={mic.discard} />
+      : <div className="flex flex-wrap gap-2">
+          <button type="button" data-act-record="" className={choiceBubble(!audio)} disabled={sending}
+            onClick={() => void mic.start()}>{audio ? again : title}</button>
+          <button type="button" className={choiceBubble(false)} disabled={sending}
+            onClick={() => file.current?.click()}>Import audio</button>
+        </div>}
+    <input ref={file} type="file" accept="audio/*" hidden onChange={(event) => takeFile(event.target.files)} />
     {mic.denied ? <Bubble role="alert">Allow microphone access, then try again.</Bubble> : null}
-    {heard ? <audio data-act-heard="" controls src={heard} className="w-full" /> : null}
+    {heard && !mic.recording ? <audio data-act-heard="" controls src={heard} className="w-full" /> : null}
     <div className="flex flex-wrap gap-2">
       <button type="button" data-act-keep="" className={choiceBubble(true)} disabled={!audio || sending || mic.recording}
         onClick={() => void keep()}>Keep</button>
-      <button type="button" className={choiceBubble(false)} onClick={onBack}>Back</button>
+      <button type="button" className={choiceBubble(false)} onClick={back}>Back</button>
     </div>
   </>;
 }
