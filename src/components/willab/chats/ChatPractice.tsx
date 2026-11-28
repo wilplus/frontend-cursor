@@ -126,11 +126,11 @@ export function ChatPracticeReply({ plan, reference, replyId, project }: {
       {plan.tool === "sniper" ? (
         <PaceScale label="Sniper" className="h-12 max-w-md" asleep={!listening}
           activity={listening && capture ? capture.activity : () => null} />
-      ) : <>
+      ) : plan.tool === "ai_audio" ? <>
         {playable && plan.guidance ? <p>{plan.guidance}</p> : null}
         <RequestedAiAudio reference={reference} existing={null} chatRetryId={plan.retryId}
           replyId={replyId} onPlayable={onPlayable} />
-      </>}
+      </> : null}
       <p data-practice-words className="whitespace-pre-wrap">{plan.words}</p>
       {reference.playback === true ? <CoachMoment reference={clipOnly} project={project} /> : null}
     </div>
