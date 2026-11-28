@@ -22,8 +22,9 @@ OUTCOME
   O7  On the corpus, a clip shows what it looks like; confirming the mistake
       saves that error name, and Your mistakes counts the pairs and the
       corpus labels (N710).
-  O8  A recording that is never written out leaves "Writing out your words…"
-      and shows the failure, and each check of it gives up on its own.
+  O8  A recording the server marks failed leaves "Writing out your words…"
+      and shows the failure. One still being written out is not declared
+      failed after three minutes.
   O9  A longer acted recording, including one imported from a file, is cut
       into moments and the founder keeps one with "This one" (N711).
   O10 On a labelled corpus clip, Generate the right way shows the new line
@@ -197,8 +198,13 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", { configurable: true,
     value: { getUserMedia: async () => ({ getTracks: () => [{ stop }] }) } });
-  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:voice", revokeObjectURL: () => undefined }));
-  const revoice = vi.fn(async () => new Response("mp3", { status: 200, headers: { "content-type": "audio/mpeg" } }));
+  let voiced: Blob | null = null;
+  vi.stubGlobal("URL", Object.assign(URL, {
+    createObjectURL: (blob: Blob) => { voiced = blob; return "blob:voice"; },
+    revokeObjectURL: () => undefined,
+  }));
+  const mp3 = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+  const revoice = vi.fn(async () => new Response(mp3, { status: 200, headers: { "content-type": "audio/mpeg" } }));
   vi.stubGlobal("fetch", revoice);
   const listen = vi.mocked(bffFetch).getMockImplementation()!;
   const heard = { kind: "response", ok: true, status: 200, body: { text: "We start in March.", cues: { wpm: 128 } } };
@@ -213,6 +219,8 @@ it("AI Audio is said the right way and heard back in your voice", async () => {
   await press("Record it the right way");
   await press("Stop");
   expect(revoice).toHaveBeenCalledTimes(1);
+  expect(voiced?.size).toBe(mp3.byteLength);
+  expect(voiced?.type).toBe("audio/mpeg");
   expect(host.querySelector("[data-ai-voice]")?.getAttribute("src")).toBe("blob:voice");
   expect(host.querySelector("[data-train-empty]")).toBeNull();
   await press("Keep");
@@ -359,6 +367,7 @@ it("a recording that is not written out shows the failure", async () => {
     return realTimeout(fn as () => void, ms);
   }) as unknown as typeof setTimeout);
   let sent = false;
+  let failed = false;
   const polls: number[] = [];
   const base = vi.mocked(bffFetch).getMockImplementation()!;
   vi.mocked(bffFetch).mockImplementation(async (path, options) => {
@@ -370,7 +379,7 @@ it("a recording that is not written out shows the failure", async () => {
       }
       if (sent) polls.push(options?.timeoutMs ?? 0);
       const body = sent
-        ? { recordings: [{ session_id: "acted-1", status: "processing", pattern: "Rushing", role: "error", clips: [] }], names: ["Rushing"] }
+        ? { recordings: [{ session_id: "acted-1", status: failed ? "failed" : "processing", pattern: "Rushing", role: "error", clips: [] }], names: ["Rushing"] }
         : { recordings: [], names: [] };
       return { kind: "response", ok: true, status: 200, body, headers: new Headers() };
     }
@@ -394,8 +403,12 @@ it("a recording that is not written out shows the failure", async () => {
     const next = waits.shift()!;
     await act(async () => { await next(); });
   }
-  expect(polls.length).toBeGreaterThan(0);
-  expect(polls.every((ms) => ms === 15_000)).toBe(true);
+  expect(polls.length).toBeGreaterThan(60);
+  expect(polls.every((ms) => ms === 45_000)).toBe(true);
+  expect(host.textContent).toContain("Writing out your words…");
+  failed = true;
+  const next = waits.shift();
+  if (next) await act(async () => { await next(); });
   expect(host.textContent).toContain("Couldn’t write out that recording. Record it again.");
   expect(host.textContent).not.toContain("Writing out your words…");
   } finally {

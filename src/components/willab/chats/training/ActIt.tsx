@@ -29,10 +29,12 @@ const STATE_LINE = "Tense (high arousal, negative)";
 /** Long enough for several moments. The import lane cuts them (N711). */
 const MAX_SECONDS = 180;
 const POLL_MS = 3000;
-const POLL_TRIES = 60;
 /** One poll must end. A measure that never returned left this screen up. */
-const POLL_TIMEOUT_MS = 15_000;
-const WAIT_MS = POLL_TRIES * POLL_MS;
+const POLL_TIMEOUT_MS = 45_000;
+/** Whisper is allowed ten minutes. Three minutes reported a take that was
+ *  still being written out (a longer take, or a slow list). */
+const WAIT_MS = 12 * 60 * 1000;
+const POLL_TRIES = Math.ceil(WAIT_MS / POLL_MS) + 1;
 
 async function readActed(timeoutMs?: number): Promise<Acted> {
   return patternRequest<Acted>(ACTED_PATH, "GET", undefined, timeoutMs);
